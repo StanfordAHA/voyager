@@ -1,39 +1,14 @@
+#include <locale>
+#include <string>
+
 #include "test/common/GoldModel.h"
 #include "test/common/Harness.h"
 #include "test/common/Utils.h"
+#include "test/mobilebert/params.h"
+#include "test/simple/params.h"
 
-void basic() {
-  std::cout << "Basic Test" << std::endl;
-  std::cout << "----------" << std::endl;
-
+void run_test(Params params) {
   INPUT_DATATYPE *mainMemory = new INPUT_DATATYPE[4 * 1024 * 1024];
-
-  const Params params = {
-      32,                       // M0
-      2,                        // P1
-      1,                        // N1
-      1,                        // M1
-      1,                        // P2
-      0,                        // INPUT_OFFSET
-      1024 * 1024,              // WEIGHT_OFFSET
-      2 * 1024 * 1024,          // OUTPUT_OFFSET
-      false,                    // SOFTMAX
-      1,                        // SCALE
-      false,                    // TRANSPOSE
-      0,                        // VECTOR_OFFSET
-      false,                    // VEC_OP
-      false,                    // VEC_SUB
-      false,                    // VEC_SQUARE
-      false,                    // VEC_REDUCE
-      true,                     // CONST_SCALE
-      0,                        // VEC_SCALE_OFFSET
-      0,                        // VEC_SUB_OFFSET
-      false,                    // RELU
-      {{1, 1, 1}, {1, 2, 32}},  // LOOPS
-      {1, 2},                   // INPUT
-      {2, 0},                   // REDUCTION
-      {0, 1}                    // WEIGHT
-  };
 
   // Create matrix A
   INPUT_DATATYPE *matrixA =
@@ -75,4 +50,41 @@ void basic() {
   delete[] mainMemory;
 }
 
-int sc_main(int argc, char *argv[]) { basic(); }
+int sc_main(int argc, char *argv[]) {
+  Params params = simple;
+
+  const char *testName = std::getenv("TEST");
+  if (testName) {
+    std::string test(testName);
+    std::cout << "Running test: " << test << std::endl;
+
+    if (test == "simple") {
+      params = simple;
+    } else if (test == "inputBottleneck") {
+      params = inputBottleneck;
+    } else if (test == "qkvProjection") {
+      params = qkvProjection;
+    } else if (test == "qkAttention") {
+      params = qkAttention;
+    } else if (test == "vAttention") {
+      params = vAttention;
+    } else if (test == "wProjection") {
+      params = wProjection;
+    } else if (test == "ffn1") {
+      params = ffn1;
+    } else if (test == "ffn2") {
+      params = ffn2;
+    } else if (test == "outputBottleneck") {
+      params = outputBottleneck;
+    } else {
+      std::cout << "Warning! Test not found!" << std::endl;
+    }
+  } else {
+    std::cout << "Warning! No test specified! Please set the environment "
+                 "variable TEST"
+              << std::endl;
+  }
+
+  run_test(params);
+  return 0;
+}

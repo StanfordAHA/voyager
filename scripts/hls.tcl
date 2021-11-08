@@ -21,7 +21,7 @@ set clocks {clk {-CLOCK_PERIOD 5 -CLOCK_EDGE rising -CLOCK_HIGH_TIME 2.5 -CLOCK_
 go new
 
 solution file add ./src/Accelerator.cc
-solution file add ./test/simple/SimpleTest.cc -exclude true
+solution file add ./test/common/TestRunner.cc -exclude true
 solution file add ./test/common/Harness.cc -exclude true
 solution file add ./test/common/Utils.cc -exclude true
 solution file add ./test/common/GoldModel.cc -exclude true

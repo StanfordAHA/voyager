@@ -2,6 +2,9 @@ CC = /cad/mentor/2021.1/Mgc_home/bin/g++
 CPPFLAGS = -I/cad/mentor/2021.1/Mgc_home/shared/include/ -Ilib/ -Isrc/ -I. -std=c++11 -DCONNECTIONS_FAST_SIM -DSC_INCLUDE_DYNAMIC_PROCESSES -DCONNECTIONS_NAMING_ORIGINAL
 LDFLAGS = -lsystemc
 LDLIBS = -L/cad/mentor/2021.1/Mgc_home/shared/lib/
+TEST ?= simple
+
+export TEST := $(TEST)
 
 rtl: build/Catapult/Accelerator.v1/concat_rtl.v
 
@@ -9,10 +12,23 @@ build/Catapult/Accelerator.v1/concat_rtl.v: src/Accelerator.cc $(wildcard src/*.
 	rm -rf build/Catapult
 	catapult -shell -file scripts/hls.tcl
 
-sim: build/SimpleTest
-	./build/SimpleTest
+sim: build/TestRunner
+	./build/TestRunner 
 
-build/SimpleTest: build/Accelerator.o build/Harness.o build/SimpleTest.o build/GoldModel.o build/Utils.o
+rtl_sim_clean:
+	rm -rf build/Catapult/Accelerator.v1/scverify/concat_sim_rtl_v_vcs
+
+rtl_sim: rtl
+	cd build/Catapult/Accelerator.v1 && make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs sim
+
+rtl_sim_debug: rtl
+	rm -rf build/inter.fsdb*
+	cd build/Catapult/Accelerator.v1 && make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs simgui
+
+gui:
+	catapult build/Catapult
+
+build/TestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
 build/Accelerator.o: src/Accelerator.cc $(wildcard src/*.h)
@@ -27,7 +43,7 @@ build/GoldModel.o: test/common/GoldModel.cc test/common/GoldModel.h src/Architec
 build/Utils.o: test/common/Utils.cc test/common/Utils.h src/ArchitectureParams.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
-build/SimpleTest.o: test/simple/SimpleTest.cc
+build/TestRunner.o: test/common/TestRunner.cc test/mobilebert/params.h test/simple/params.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 
