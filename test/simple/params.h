@@ -46,5 +46,6 @@ const Params conv = {
     3,                                           // fxIndex
     2,                                           // fyIndex
     {4, 5},                                      // weightReuseIndex
-    false                                        // matmul
+    false,                                       // matmul
+    1                                            // stride
 };

@@ -196,6 +196,7 @@ void Harness::sendParams() {
     serialParamsIn.Push(params.weightReuseIndex[i]);
   }
   serialParamsIn.Push(params.matMul);
+  serialParamsIn.Push(params.STRIDE);
 
   wait();
 }

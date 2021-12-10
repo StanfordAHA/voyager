@@ -19,17 +19,18 @@ void run_test(Params params) {
           params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
+  int STRIDE = params.STRIDE;
 
   // Create matrix A
-  INPUT_DATATYPE *matrixA = new INPUT_DATATYPE[X * Y * C];
-  for (int y = 0; y < Y; y++) {
-    for (int x = 0; x < X; x++) {
+  INPUT_DATATYPE *matrixA = new INPUT_DATATYPE[(STRIDE * X) * (STRIDE * Y) * C];
+  for (int y = 0; y < STRIDE * Y; y++) {
+    for (int x = 0; x < STRIDE * X; x++) {
       for (int c = 0; c < C; c++) {
         // int val = i * 10 + j;
         // int val = rand() % 128;
         int val = x;
 
-        int address = y * X * C + x * C + c;
+        int address = y * (STRIDE * X) * C + x * C + c;
 
         mainMemory[params.INPUT_OFFSET + address] = val;
         matrixA[address] = val;

@@ -84,9 +84,9 @@ SC_MODULE(InputController) {
 
             // reset loop bounds
             loop_bounds[1][params.inputXLoopIndex[1]] =
-                params.loops[1][params.inputXLoopIndex[1]];
+                params.loops[1][params.inputXLoopIndex[1]] * params.STRIDE;
             loop_bounds[1][params.inputYLoopIndex[1]] =
-                params.loops[1][params.inputYLoopIndex[1]];
+                params.loops[1][params.inputYLoopIndex[1]] * params.STRIDE;
 
             int x_min_offset = 0;
             int x_max_offset = 0;
@@ -153,11 +153,13 @@ SC_MODULE(InputController) {
                         } else {
                           int x0 = loop_counters[1][params.inputXLoopIndex[1]];
                           int x1 = loop_counters[0][params.inputXLoopIndex[0]];
-                          int X0 = params.loops[1][params.inputXLoopIndex[1]];
+                          int X0 = params.STRIDE *
+                                   params.loops[1][params.inputXLoopIndex[1]];
                           int X1 = params.loops[0][params.inputXLoopIndex[0]];
                           int y0 = loop_counters[1][params.inputYLoopIndex[1]];
                           int y1 = loop_counters[0][params.inputYLoopIndex[0]];
-                          int Y0 = params.loops[1][params.inputYLoopIndex[1]];
+                          int Y0 = params.STRIDE *
+                                   params.loops[1][params.inputYLoopIndex[1]];
                           int Y1 = params.loops[0][params.inputYLoopIndex[0]];
                           int c1 =
                               loop_counters[1][params.reductionLoopIndex[1]];
@@ -241,39 +243,14 @@ SC_MODULE(InputController) {
                loop_counters[0][2]++) {
             // reset loop bounds
             loop_bounds[1][params.inputXLoopIndex[1]] =
-                params.loops[1][params.inputXLoopIndex[1]];
+                params.loops[1][params.inputXLoopIndex[1]] * params.STRIDE;
             loop_bounds[1][params.inputYLoopIndex[1]] =
-                params.loops[1][params.inputYLoopIndex[1]];
+                params.loops[1][params.inputYLoopIndex[1]] * params.STRIDE;
 
             int x_min_offset = fx_bound;
             int y_min_offset = fy_bound;
             loop_bounds[1][params.inputXLoopIndex[1]] += FX - 1;
             loop_bounds[1][params.inputYLoopIndex[1]] += FY - 1;
-            // int x_max_offset = 0;
-            // int y_min_offset = 0;
-            // int y_max_offset = 0;
-
-            // if (loop_counters[0][params.inputXLoopIndex[0]] != 0) {
-            //   x_min_offset = fx_bound;
-            //   loop_bounds[1][params.inputXLoopIndex[1]] += fx_bound;
-            // }
-
-            // if (loop_counters[0][params.inputXLoopIndex[0]] !=
-            //     loop_bounds[0][params.inputXLoopIndex[0]] - 1) {
-            //   x_max_offset = fx_bound;
-            //   loop_bounds[1][params.inputXLoopIndex[1]] += fx_bound;
-            // }
-
-            // if (loop_counters[0][params.inputYLoopIndex[0]] != 0) {
-            //   y_min_offset = fy_bound;
-            //   loop_bounds[1][params.inputYLoopIndex[1]] += fy_bound;
-            // }
-
-            // if (loop_counters[0][params.inputYLoopIndex[0]] !=
-            //     loop_bounds[0][params.inputYLoopIndex[0]] - 1) {
-            //   y_max_offset = fy_bound;
-            //   loop_bounds[1][params.inputYLoopIndex[1]] += fy_bound;
-            // }
 
             // inner memory
             for (loop_counters[1][0] = 0;
@@ -283,6 +260,7 @@ SC_MODULE(InputController) {
               writeControl[bankSel].Push(loop_bounds[1][1] * loop_bounds[1][2] *
                                          loop_bounds[1][3] * loop_bounds[1][4] *
                                          loop_bounds[1][5]);
+
               for (loop_counters[1][1] = 0;
                    loop_counters[1][1] < loop_bounds[1][1];
                    loop_counters[1][1]++) {
@@ -310,17 +288,23 @@ SC_MODULE(InputController) {
                         int Y0 = params.loops[1][params.inputYLoopIndex[1]];
                         int Y1 = params.loops[0][params.inputYLoopIndex[0]];
 
-                        int full_x = (x0 - x_min_offset) + x1 * X0;
-                        int full_y = (y0 - y_min_offset) + y1 * Y0;
+                        int full_x =
+                            (x0 - x_min_offset) + x1 * params.STRIDE * X0;
+                        int full_y =
+                            (y0 - y_min_offset) + y1 * params.STRIDE * Y0;
 
                         if ((full_x < 0) || (full_y < 0) ||
-                            (full_x >= X0 * X1) || (full_y >= Y0 * Y1)) {
+                            (full_x >= params.STRIDE * X0 * X1) ||
+                            (full_y >= params.STRIDE * Y0 * Y1)) {
                           data = 0;
+                          CCS_LOG(full_x << ", " << full_y);
                         } else {
                           data = dataResponse.Pop();
+                          CCS_LOG(data);
                         }
 
-                        int address = (y0) * (X0 + FX - 1) + (x0);
+                        int address =
+                            (y0) * (params.STRIDE * X0 + FX - 1) + (x0);
 
                         writeAddress[bankSel].Push(address);
                         writeData[bankSel].Push(data);
@@ -354,8 +338,6 @@ SC_MODULE(InputController) {
 
       int FX = params.loops[1][params.fxIndex];
       int FY = params.loops[1][params.fyIndex];
-
-      std::cout << "F: " << FX << " " << FY << std::endl;
 
       bool bankSel = 0;
 
@@ -407,10 +389,10 @@ SC_MODULE(InputController) {
                         int fx = loop_counters[1][params.fxIndex];
                         int fy = loop_counters[1][params.fyIndex];
 
-                        int x = x0 + fx;
-                        int y = y0 + fy;
+                        int x = params.STRIDE * x0 + fx;
+                        int y = params.STRIDE * y0 + fy;
 
-                        int address = y * (X0 + FX - 1) + x;
+                        int address = y * (params.STRIDE * X0 + FX - 1) + x;
                         readAddress[bankSel].Push(address);
 
                         // CCS_LOG("x: " << x << ", y: " << y << ", fx: " << fx

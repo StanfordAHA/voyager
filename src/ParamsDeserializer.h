@@ -65,6 +65,7 @@ SC_MODULE(ParamsDeserializer) {
         params.weightReuseIndex[i] = serialParamsIn.Pop();
       }
       params.matMul = serialParamsIn.Pop();
+      params.STRIDE = serialParamsIn.Pop();
 
       paramsOut.Push(params);
     }
