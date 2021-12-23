@@ -21,9 +21,13 @@ SC_MODULE(InputController) {
   Connections::Out<int> readAddress[2];
   Connections::Out<int> readControl[2];
 
+  Connections::In<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(windowBufferIn);
+  Connections::Out<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(windowBufferOut);
+
   Connections::Combinational<Params> CCS_INIT_S1(fetcherParams);
   Connections::Combinational<Params> CCS_INIT_S1(writerParams);
   Connections::Combinational<Params> CCS_INIT_S1(readerParams);
+  Connections::Combinational<Params> CCS_INIT_S1(windowBufferParams);
 
   SC_CTOR(InputController) {
     SC_THREAD(read_params);
@@ -41,6 +45,10 @@ SC_MODULE(InputController) {
     SC_THREAD(writer);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
+
+    SC_THREAD(windowBuffer);
+    sensitive << clk.pos();
+    async_reset_signal_is(rstn, false);
   }
 
   void fetcher() {
@@ -52,7 +60,12 @@ SC_MODULE(InputController) {
     while (true) {
       Params params = fetcherParams.Pop();
 
+      int req_count = 0;
+
       int FX = params.loops[1][params.fxIndex];
+      if (params.REPLICATION) {
+        FX = 7;
+      }
       int FY = params.loops[1][params.fyIndex];
 
       int loop_counters[2][6];
@@ -133,7 +146,8 @@ SC_MODULE(InputController) {
                          loop_counters[1][4]++) {
                       for (loop_counters[1][5] = 0;
                            loop_counters[1][5] < loop_bounds[1][5];
-                           loop_counters[1][5]++) {
+                           params.REPLICATION ? loop_counters[1][5] += 4
+                                              : loop_counters[1][5]++) {
                         MemoryRequest memRequest;
                         if (params.matMul) {
                           int m0 = loop_counters[1][params.inputXLoopIndex[1]];
@@ -177,12 +191,20 @@ SC_MODULE(InputController) {
 
                           int baseAddress = y * X * C + x * C + c;
                           int burstSize = NROWS;
+
+                          if (params.REPLICATION) {
+                            baseAddress = y * (X / 4) * 16 + (x / 4) * 16 + c;
+                            // baseAddress = baseAddress >> 2;
+                            CCS_LOG("request: " << baseAddress);
+                          }
+
                           memRequest = {params.INPUT_OFFSET + baseAddress,
                                         burstSize};
                         }
 
                         // CCS_LOG("memory request: " << memRequest);
                         addressRequest.Push(memRequest);
+                        req_count++;
                       }
                     }
                   }
@@ -192,6 +214,7 @@ SC_MODULE(InputController) {
           }
         }
       }
+      CCS_LOG("count: " << req_count);
     }
   }
 
@@ -233,6 +256,12 @@ SC_MODULE(InputController) {
       loop_bounds[1][params.fxIndex] = 1;
       loop_bounds[1][params.fyIndex] = 1;
 
+      int X1 = params.loops[0][params.inputXLoopIndex[0]];
+      int X0 = params.loops[1][params.inputXLoopIndex[1]];
+
+      int Y0 = params.loops[1][params.inputYLoopIndex[1]];
+      int Y1 = params.loops[0][params.inputYLoopIndex[0]];
+
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
@@ -256,6 +285,22 @@ SC_MODULE(InputController) {
             for (loop_counters[1][0] = 0;
                  loop_counters[1][0] < loop_bounds[1][0];
                  loop_counters[1][0]++) {
+              // TODO: make this dynamic
+
+              if (params.REPLICATION) {
+                writeControl[bankSel].Push(
+                    loop_bounds[1][1] * loop_bounds[1][2] * loop_bounds[1][3] *
+                    loop_bounds[1][4] * ((params.STRIDE * X0) / 4 + 2));
+                CCS_LOG("y: " << loop_bounds[1][4]);
+                CCS_LOG("y: " << loop_bounds[1][params.inputYLoopIndex[1]]);
+                CCS_LOG("repl "
+                        << loop_bounds[1][4] * ((params.STRIDE * X0) / 4 + 2));
+              } else {
+                writeControl[bankSel].Push(
+                    loop_bounds[1][1] * loop_bounds[1][2] * loop_bounds[1][3] *
+                    loop_bounds[1][4] * loop_bounds[1][5]);
+              }
+
               for (loop_counters[1][1] = 0;
                    loop_counters[1][1] < loop_bounds[1][1];
                    loop_counters[1][1]++) {
@@ -268,51 +313,214 @@ SC_MODULE(InputController) {
                     for (loop_counters[1][4] = 0;
                          loop_counters[1][4] < loop_bounds[1][4];
                          loop_counters[1][4]++) {
-                      for (loop_counters[1][5] = 0;
-                           loop_counters[1][5] < loop_bounds[1][5];
-                           loop_counters[1][5]++) {
-                        Pack1D<DTYPE, NROWS> data;
+                      Pack1D<DTYPE, NROWS> data;
+                      Pack1D<DTYPE, NROWS> temp;
 
-                        int x0 = loop_counters[1][params.inputXLoopIndex[1]];
+                      if (params.REPLICATION) {
+                        /*
+                         * Start with left boundary
+                         * First 3 words of the packed word need to be written
+                         */
                         int x1 = loop_counters[0][params.inputXLoopIndex[0]];
-                        int X0 = params.loops[1][params.inputXLoopIndex[1]];
-                        int X1 = params.loops[0][params.inputXLoopIndex[0]];
 
                         int y0 = loop_counters[1][params.inputYLoopIndex[1]];
                         int y1 = loop_counters[0][params.inputYLoopIndex[0]];
-                        int Y0 = params.loops[1][params.inputYLoopIndex[1]];
-                        int Y1 = params.loops[0][params.inputYLoopIndex[0]];
 
-                        int full_x =
-                            (x0 - x_min_offset) + x1 * params.STRIDE * X0;
                         int full_y =
                             (y0 - y_min_offset) + y1 * params.STRIDE * Y0;
 
-                        if ((full_x < 0) || (full_y < 0) ||
-                            (full_x >= params.STRIDE * X0 * X1) ||
+                        int starting_x = -fx_bound + x1 * params.STRIDE * X0;
+
+                        // if outside boundary, write 0s
+                        if ((starting_x < 0) || (full_y < 0) ||
+                            (starting_x >= params.STRIDE * X0 * X1) ||
                             (full_y >= params.STRIDE * Y0 * Y1)) {
-                          data = 0;
-                          CCS_LOG(full_x << ", " << full_y);
+#pragma hls_unroll yes
+                          for (int dims = 0; dims < 3 * 3; dims++) {
+                            data[dims] = 0;
+                          }
+                        }
+
+                        // if not outside boundary, write the words using
+                        // offsets
+                        else {
+                          temp = dataResponse.Pop();
+
+#pragma hls_unroll yes
+                          for (int word = 0; word < 3; word++) {
+                            int read_offset = 3 * ((starting_x + word) % 4);
+                            int write_offset = 3 * (word % 4);
+
+#pragma hls_unroll yes
+                            for (int channel = 0; channel < 3; channel++) {
+                              data[write_offset + channel] =
+                                  temp[read_offset + channel];
+                            }
+                          }
+                        }
+
+                        /*
+                         * Now go through the entire tile
+                         */
+                        for (int x = 0; x < params.STRIDE * X0; x += 4) {
+                          int full_x = x + x1 * params.STRIDE * X0;
+                          // padding
+                          if ((full_y < 0) ||
+                              (full_y >= params.STRIDE * Y0 * Y1)) {
+                            CCS_LOG(x << " : zero pad");
+#pragma hls_unroll yes
+                            for (int dims = 0; dims < 3; dims++) {
+                              int index = 3 * ((x + fx_bound) % 4) + dims;
+                              data.value[index] = 0;
+                            }
+                          } else {
+                            temp = dataResponse.Pop();
+
+#pragma hls_unroll yes
+                            for (int i = 0; i < 3; i++) {
+                              int index = 3 * (full_x % 4) + i;
+                              data.value[3 * ((x + fx_bound) % 4) + i] =
+                                  temp.value[index];
+                            }
+                          }
+
+                          int address =
+                              (y0) * ((params.STRIDE * X0) >> 2 + 2) + (x >> 2);
+
+                          writeAddress[bankSel].Push(address);
+                          writeData[bankSel].Push(data);
+
+                          if ((full_y < 0) ||
+                              (full_y >= (params.STRIDE * Y0 * Y1))) {
+#pragma hls_unroll yes
+                            for (int next_x = x + 1; next_x < x + 4; next_x++) {
+#pragma hls_unroll yes
+                              for (int dims = 0; dims < 3; dims++) {
+                                int index =
+                                    3 * ((next_x + fx_bound) % 4) + dims;
+                                data.value[index] = 0;
+                              }
+                            }
+                          } else {
+#pragma hls_unroll yes
+                            for (int next_x = x + 1; next_x < x + 4; next_x++) {
+                              full_x = next_x + x1 * params.STRIDE * X0;
+#pragma hls_unroll yes
+                              for (int i = 0; i < 3; i++) {
+                                int index = 3 * (full_x % 4) + i;
+                                data.value[3 * ((next_x + fx_bound) % 4) + i] =
+                                    temp.value[index];
+                              }
+                            }
+                          }
+                        }
+
+                        /*
+                         * Now handle the right boundary
+                         */
+                        int x = params.STRIDE * X0;
+                        int full_x = x + x1 * params.STRIDE * X0;
+
+                        if ((full_x < 0) || (full_y < 0) ||
+                            (full_x >= (X1 * params.STRIDE * X0)) ||
+                            (full_y >= (Y1 * params.STRIDE * Y0))) {
+#pragma hls_unroll yes
+                          for (int dims = 0; dims < 3; dims++) {
+                            int index = 3 * ((x + fx_bound) % 4) + dims;
+                            data.value[index] = 0;
+                          }
                         } else {
-                          data = dataResponse.Pop();
-                          CCS_LOG(data);
+                          temp = dataResponse.Pop();
+
+#pragma hls_unroll yes
+                          for (int i = 0; i < 3; i++) {
+                            int index = 3 * (full_x % 4) + i;
+                            data.value[3 * ((x + fx_bound) % 4) + i] =
+                                temp.value[index];
+                          }
                         }
 
                         int address =
-                            (y0) * (params.STRIDE * X0 + FX - 1) + (x0);
-                        writeControl[bankSel].Push(1);
+                            (y0) * ((params.STRIDE * X0) >> 2 + 2) + (x >> 2);
+
                         writeAddress[bankSel].Push(address);
                         writeData[bankSel].Push(data);
 
-                        // CCS_LOG("address: " << address << " data: " << data);
+                        if ((full_x < 0) || (full_y < 0) ||
+                            (full_x >= (X1 * params.STRIDE * X0)) ||
+                            (full_y >= (Y1 * params.STRIDE * Y0))) {
+#pragma hls_unroll yes
+                          for (int next_x = x + 1; next_x < x + 3; next_x++) {
+#pragma hls_unroll yes
+                            for (int dims = 0; dims < 3; dims++) {
+                              int index = 3 * ((next_x + fx_bound) % 4) + dims;
+                              data.value[index] = 0;
+                            }
+                          }
+                        } else {
+#pragma hls_unroll yes
+                          for (int next_x = x + 1; next_x < x + 3; next_x++) {
+                            int next_full_x = next_x + x1 * params.STRIDE * X0;
+#pragma hls_unroll yes
+                            for (int i = 0; i < 3; i++) {
+                              int index = 3 * (next_full_x % 4) + i;
+                              data.value[3 * ((next_x + fx_bound) % 4) + i] =
+                                  temp.value[index];
+                            }
+                          }
+                        }
+
+                        int next_address =
+                            (y0) * ((params.STRIDE * X0) >> 2 + 2) + (x >> 2) +
+                            1;
+
+                        writeAddress[bankSel].Push(next_address);
+                        writeData[bankSel].Push(data);
+                        CCS_LOG("done " << loop_counters[1][4] << " out of "
+                                        << loop_bounds[1][4]);
                       }
+
+                      else {
+                        for (loop_counters[1][5] = 0;
+                             loop_counters[1][5] < loop_bounds[1][5];
+                             loop_counters[1][5]++) {
+                          int x0 = loop_counters[1][params.inputXLoopIndex[1]];
+                          int x1 = loop_counters[0][params.inputXLoopIndex[0]];
+
+                          int y0 = loop_counters[1][params.inputYLoopIndex[1]];
+                          int y1 = loop_counters[0][params.inputYLoopIndex[0]];
+
+                          int full_x =
+                              (x0 - x_min_offset) + x1 * params.STRIDE * X0;
+                          int full_y =
+                              (y0 - y_min_offset) + y1 * params.STRIDE * Y0;
+
+                          if ((full_x < 0) || (full_y < 0) ||
+                              (full_x >= params.STRIDE * X0 * X1) ||
+                              (full_y >= params.STRIDE * Y0 * Y1)) {
+                            data = 0;
+                            CCS_LOG(full_x << ", " << full_y);
+                          } else {
+                            data = dataResponse.Pop();
+                            CCS_LOG(data);
+                          }
+
+                          int address =
+                              (y0) * (params.STRIDE * X0 + FX - 1) + (x0);
+
+                          writeAddress[bankSel].Push(address);
+                          writeData[bankSel].Push(data);
+                        }
+                      }
+
+                      // CCS_LOG("address: " << address << " data: " << data);
                     }
                   }
                 }
               }
-              writeControl[bankSel].Push(0);
-              bankSel = !bankSel;
             }
+
+            bankSel = !bankSel;
           }
         }
       }
@@ -347,6 +555,11 @@ SC_MODULE(InputController) {
         }
       }
 
+      if (params.REPLICATION) {
+        loop_bounds[1][params.inputXLoopIndex[1]] =
+            (loop_bounds[1][params.inputXLoopIndex[1]] / 2) + 1;
+      }
+
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
@@ -359,6 +572,10 @@ SC_MODULE(InputController) {
             for (loop_counters[1][0] = 0;
                  loop_counters[1][0] < loop_bounds[1][0];
                  loop_counters[1][0]++) {
+              readControl[bankSel].Push(loop_bounds[1][1] * loop_bounds[1][2] *
+                                        loop_bounds[1][3] * loop_bounds[1][4] *
+                                        loop_bounds[1][5]);
+
               for (loop_counters[1][1] = 0;
                    loop_counters[1][1] < loop_bounds[1][1];
                    loop_counters[1][1]++) {
@@ -383,14 +600,18 @@ SC_MODULE(InputController) {
 
                         int x = params.STRIDE * x0 + fx;
                         int y = params.STRIDE * y0 + fy;
-
-                        int address = y * (params.STRIDE * X0 + FX - 1) + x;
-                        readControl[bankSel].Push(1);
+                        int address;
+                        if (params.REPLICATION) {
+                          address =
+                              y * (((params.STRIDE * X0) >> 2) + 2) + x0 + fx;
+                        } else {
+                          address = y * (params.STRIDE * X0 + FX - 1) + x;
+                        }
                         readAddress[bankSel].Push(address);
 
-                        // CCS_LOG("x: " << x << ", y: " << y << ", fx: " << fx
-                        //               << ", fy: " << fy
-                        //               << ", address: " << address);
+                        CCS_LOG("x0: " << x0 << ", y0: " << y0 << ", fx: " << fx
+                                       << ", fy: " << fy
+                                       << ", address: " << address);
                       }
                     }
                   }
@@ -405,11 +626,146 @@ SC_MODULE(InputController) {
     }
   }
 
+  /*
+   * Used for FX replication with stride=2
+   * Window buffer cuts down on memory accesses
+   */
+  void windowBuffer() {
+    wait();
+
+    windowBufferParams.ResetRead();
+    windowBufferIn.Reset();
+    windowBufferOut.Reset();
+
+    while (true) {
+      Params params = windowBufferParams.Pop();
+      int loop_counters[2][6];
+      int loop_bounds[2][6];
+
+#pragma hls_unroll yes
+      for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 6; j++) {
+          loop_bounds[i][j] = params.loops[i][j];
+        }
+      }
+
+      if (params.REPLICATION) {
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
+        for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
+             loop_counters[0][0]++) {
+          for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
+               loop_counters[0][1]++) {
+            for (loop_counters[0][2] = 0;
+                 loop_counters[0][2] < loop_bounds[0][2];
+                 loop_counters[0][2]++) {
+              // pixels are packed together
+              // loop_bounds[1][params.inputXLoopIndex[1]] =
+              // (loop_bounds[1][params.inputXLoopIndex[1]] / 2) + 1;
+
+              // inner memory
+              for (loop_counters[1][0] = 0;
+                   loop_counters[1][0] < loop_bounds[1][0];
+                   loop_counters[1][0]++) {
+                for (loop_counters[1][1] = 0;
+                     loop_counters[1][1] < loop_bounds[1][1];
+                     loop_counters[1][1]++) {
+                  for (loop_counters[1][2] = 0;
+                       loop_counters[1][2] < loop_bounds[1][2];
+                       loop_counters[1][2]++) {
+                    for (loop_counters[1][3] = 0;
+                         loop_counters[1][3] < loop_bounds[1][3];
+                         loop_counters[1][3]++) {
+                      for (loop_counters[1][4] = 0;
+                           loop_counters[1][4] < loop_bounds[1][4];
+                           loop_counters[1][4]++) {
+                        Pack1D<DTYPE, NROWS> data;
+                        Pack1D<DTYPE, NROWS> buffer = windowBufferIn.Pop();
+                        for (loop_counters[1][5] = 0;
+                             loop_counters[1][5] < loop_bounds[1][5] / 2;
+                             loop_counters[1][5]++) {
+                          data = buffer;
+                          windowBufferOut.Push(data);
+
+                          buffer = windowBufferIn.Pop();
+
+// shift 2 pixels over
+#pragma hls_unroll yes
+                          for (int i = 0; i < 2; i++) {
+#pragma hls_unroll yes
+                            for (int j = 0; j < 3; j++) {
+                              data[i * 3 + j] = data[(i + 2) * 3 + j];
+                            }
+                          }
+
+// fill remainder with new values
+#pragma hls_unroll yes
+                          for (int i = 0; i < 2; i++) {
+#pragma hls_unroll yes
+                            for (int j = 0; j < 3; j++) {
+                              data[(i + 2) * 3 + j] = buffer[i * 3 + j];
+                            }
+                          }
+
+                          windowBufferOut.Push(data);
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else {  // bypass
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
+        for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
+             loop_counters[0][0]++) {
+          for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
+               loop_counters[0][1]++) {
+            for (loop_counters[0][2] = 0;
+                 loop_counters[0][2] < loop_bounds[0][2];
+                 loop_counters[0][2]++) {
+              // inner memory
+              for (loop_counters[1][0] = 0;
+                   loop_counters[1][0] < loop_bounds[1][0];
+                   loop_counters[1][0]++) {
+                for (loop_counters[1][1] = 0;
+                     loop_counters[1][1] < loop_bounds[1][1];
+                     loop_counters[1][1]++) {
+                  for (loop_counters[1][2] = 0;
+                       loop_counters[1][2] < loop_bounds[1][2];
+                       loop_counters[1][2]++) {
+                    for (loop_counters[1][3] = 0;
+                         loop_counters[1][3] < loop_bounds[1][3];
+                         loop_counters[1][3]++) {
+                      for (loop_counters[1][4] = 0;
+                           loop_counters[1][4] < loop_bounds[1][4];
+                           loop_counters[1][4]++) {
+                        for (loop_counters[1][5] = 0;
+                             loop_counters[1][5] < loop_bounds[1][5];
+                             loop_counters[1][5]++) {
+                          windowBufferOut.Push(windowBufferIn.Pop());
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   void read_params() {
     paramsIn.Reset();
     fetcherParams.ResetWrite();
     writerParams.ResetWrite();
     readerParams.ResetWrite();
+    windowBufferParams.ResetWrite();
 
     wait();
 
@@ -419,6 +775,7 @@ SC_MODULE(InputController) {
       fetcherParams.Push(params);
       writerParams.Push(params);
       readerParams.Push(params);
+      windowBufferParams.Push(params);
     }
   }
 };

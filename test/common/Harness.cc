@@ -6,10 +6,7 @@
 #include "AccelTypes.h"
 
 Harness::Harness(sc_module_name name, Params params, INPUT_DATATYPE *memory)
-    : sc_module(name),
-      clk("clk", 1, SC_NS, 0.5, 0, SC_NS, true),
-      params(params),
-      mainMemory(memory) {
+    : sc_module(name), clk("clk", 1, SC_NS, 0.5, 0, SC_NS, true), params(params), mainMemory(memory) {
   accelerator.clk(clk);
   accelerator.rstn(rstn);
   accelerator.serialParamsIn(serialParamsIn);
@@ -75,10 +72,8 @@ void Harness::reset() {
   wait();
 }
 
-void Harness::memAccessBurst(
-    Connections::Combinational<MemoryRequest> *addressRequest,
-    Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> >
-        *dataResponse) {
+void Harness::memAccessBurst(Connections::Combinational<MemoryRequest> *addressRequest,
+                             Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *dataResponse) {
   addressRequest->ResetRead();
   dataResponse->ResetWrite();
 
@@ -97,10 +92,8 @@ void Harness::memAccessBurst(
   }
 }
 
-void Harness::memAccessPack(
-    Connections::Combinational<int> *addressRequest,
-    Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> >
-        *dataResponse) {
+void Harness::memAccessPack(Connections::Combinational<int> *addressRequest,
+                            Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *dataResponse) {
   addressRequest->ResetRead();
   dataResponse->ResetWrite();
 
@@ -118,9 +111,8 @@ void Harness::memAccessPack(
   }
 }
 
-void Harness::memAccess(
-    Connections::Combinational<int> *addressRequest,
-    Connections::Combinational<INPUT_DATATYPE> *dataResponse) {
+void Harness::memAccess(Connections::Combinational<int> *addressRequest,
+                        Connections::Combinational<INPUT_DATATYPE> *dataResponse) {
   addressRequest->ResetRead();
   dataResponse->ResetWrite();
 
@@ -132,25 +124,15 @@ void Harness::memAccess(
   }
 }
 
-void Harness::memAccessInputs() {
-  memAccessBurst(&inputAddressRequest, &inputDataResponse);
-}
+void Harness::memAccessInputs() { memAccessBurst(&inputAddressRequest, &inputDataResponse); }
 
-void Harness::memAccessWeights() {
-  memAccessBurst(&weightAddressRequest, &weightDataResponse);
-}
+void Harness::memAccessWeights() { memAccessBurst(&weightAddressRequest, &weightDataResponse); }
 
-void Harness::memAccessVector() {
-  memAccessPack(&vectorAddressRequest, &vectorDataResponse);
-}
+void Harness::memAccessVector() { memAccessPack(&vectorAddressRequest, &vectorDataResponse); }
 
-void Harness::memAccessScalar() {
-  memAccess(&scalarAddressRequest, &scalarDataResponse);
-}
+void Harness::memAccessScalar() { memAccess(&scalarAddressRequest, &scalarDataResponse); }
 
-void Harness::memAccessVariance() {
-  memAccess(&varianceAddressRequest, &varianceDataResponse);
-}
+void Harness::memAccessVariance() { memAccess(&varianceAddressRequest, &varianceDataResponse); }
 
 void Harness::sendParams() {
   serialParamsIn.ResetWrite();
@@ -197,6 +179,7 @@ void Harness::sendParams() {
   }
   serialParamsIn.Push(params.matMul);
   serialParamsIn.Push(params.STRIDE);
+  serialParamsIn.Push(params.REPLICATION);
 
   wait();
 }

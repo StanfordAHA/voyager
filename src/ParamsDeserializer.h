@@ -66,6 +66,7 @@ SC_MODULE(ParamsDeserializer) {
       }
       params.matMul = serialParamsIn.Pop();
       params.STRIDE = serialParamsIn.Pop();
+      params.REPLICATION = serialParamsIn.Pop();
 
       paramsOut.Push(params);
     }

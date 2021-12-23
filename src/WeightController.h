@@ -66,6 +66,11 @@ SC_MODULE(WeightController) {
       loop_bounds[1][params.inputXLoopIndex[1]] = 1;
       loop_bounds[1][params.inputYLoopIndex[1]] = 1;
 
+      int c0_bound = NROWS;
+      if (params.REPLICATION) {
+        c0_bound = 3;
+      }
+
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
@@ -93,7 +98,7 @@ SC_MODULE(WeightController) {
                       for (loop_counters[1][5] = 0;
                            loop_counters[1][5] < loop_bounds[1][5];
                            loop_counters[1][5]++) {
-                        for (int n0 = 0; n0 < NROWS; n0++) {
+                        for (int c0 = 0; c0 < c0_bound; c0++) {
                           int k2 = loop_counters[0][params.weightLoopIndex[0]];
                           int K2 = params.loops[0][params.weightLoopIndex[0]];
                           int k1 = loop_counters[1][params.weightLoopIndex[1]];
@@ -107,8 +112,8 @@ SC_MODULE(WeightController) {
                           int fy = loop_counters[1][params.fyIndex];
                           int FY = params.loops[1][params.fyIndex];
 
-                          int c = c1 * DIMENSION + n0;
-                          int C = C1 * DIMENSION;
+                          int c = c1 * c0_bound + c0;
+                          int C = C1 * c0_bound;
                           int k = k2 * K1 * DIMENSION + k1 * DIMENSION;
                           int K = K2 * K1 * DIMENSION;
 
@@ -164,6 +169,11 @@ SC_MODULE(WeightController) {
       loop_bounds[1][params.inputXLoopIndex[1]] = 1;
       loop_bounds[1][params.inputYLoopIndex[1]] = 1;
 
+      int c0_bound = NROWS;
+      if (params.REPLICATION) {
+        c0_bound = 3;
+      }
+
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
@@ -176,6 +186,10 @@ SC_MODULE(WeightController) {
             for (loop_counters[1][0] = 0;
                  loop_counters[1][0] < loop_bounds[1][0];
                  loop_counters[1][0]++) {
+              writeControl[bankSel].Push(loop_bounds[1][1] * loop_bounds[1][2] *
+                                         loop_bounds[1][3] * loop_bounds[1][4] *
+                                         loop_bounds[1][5] * c0_bound);
+
               for (loop_counters[1][1] = 0;
                    loop_counters[1][1] < loop_bounds[1][1];
                    loop_counters[1][1]++) {
@@ -191,7 +205,7 @@ SC_MODULE(WeightController) {
                       for (loop_counters[1][5] = 0;
                            loop_counters[1][5] < loop_bounds[1][5];
                            loop_counters[1][5]++) {
-                        for (int n0 = 0; n0 < NROWS; n0++) {
+                        for (int c = 0; c < c0_bound; c++) {
                           int k2 = loop_counters[0][params.weightLoopIndex[0]];
                           int K2 = params.loops[0][params.weightLoopIndex[0]];
                           int k1 = loop_counters[1][params.weightLoopIndex[1]];
@@ -205,8 +219,7 @@ SC_MODULE(WeightController) {
                           int fy = loop_counters[1][params.fyIndex];
                           int FY = params.loops[1][params.fyIndex];
 
-                          int c = n0;
-                          int C = DIMENSION;
+                          int C = c0_bound;
                           int k = k2 * K1 * DIMENSION + k1 * DIMENSION;
                           int K = K2 * K1 * DIMENSION;
 
@@ -273,6 +286,10 @@ SC_MODULE(WeightController) {
             for (loop_counters[1][0] = 0;
                  loop_counters[1][0] < loop_bounds[1][0];
                  loop_counters[1][0]++) {
+              readControl[bankSel].Push(loop_bounds[1][1] * loop_bounds[1][2] *
+                                        loop_bounds[1][3] * loop_bounds[1][4] *
+                                        loop_bounds[1][5] * NROWS);
+
               for (loop_counters[1][1] = 0;
                    loop_counters[1][1] < loop_bounds[1][1];
                    loop_counters[1][1]++) {
@@ -288,29 +305,60 @@ SC_MODULE(WeightController) {
                       for (loop_counters[1][5] = 0;
                            loop_counters[1][5] < loop_bounds[1][5];
                            loop_counters[1][5]++) {
-                        for (int n0 = NROWS - 1; n0 >= 0;
-                             n0--) {  // reverse order
-                          int k2 = loop_counters[0][params.weightLoopIndex[0]];
-                          int K2 = params.loops[0][params.weightLoopIndex[0]];
-                          int k1 = loop_counters[1][params.weightLoopIndex[1]];
-                          int K1 = params.loops[1][params.weightLoopIndex[1]];
-                          int C1 =
-                              params.loops[1][params.reductionLoopIndex[1]];
-                          int c1 =
-                              loop_counters[1][params.reductionLoopIndex[1]];
-                          int fx = loop_counters[1][params.fxIndex];
-                          int FX = params.loops[1][params.fxIndex];
-                          int fy = loop_counters[1][params.fyIndex];
-                          int FY = params.loops[1][params.fyIndex];
+                        /*
+                         * If we have replication, then need to zero pad the
+                         * unused rows For 7x7 filter, we split it into 4
+                         * filters and 3 filters
+                         */
+                        int numPadding = 0;
+                        int replicationBound = 1;
+                        int startingC = NROWS - 1;
+                        if (params.REPLICATION) {
+                          startingC = 3 - 1;
+                          if (loop_counters[1][params.fxIndex] == 0) {
+                            numPadding = NROWS - 12;
+                            replicationBound = 4;
+                          } else {
+                            numPadding = NROWS - 9;
+                            replicationBound = 3;
+                          }
+                          // zero_padding
+                          for (int i = 0; i < numPadding; i++) {
+                            readAddress[bankSel].Push(-1);
+                          }
+                        }
 
-                          int c = n0;
-                          int C = DIMENSION;
-                          int k = k2 * K1 * DIMENSION + k1 * DIMENSION;
-                          int K = K2 * K1 * DIMENSION;
-                          int address = (fy * FX * C * K1) + (fx * C * K1) +
-                                        (c * K1) + k1;
-                          readControl[bankSel].Push(1);
-                          readAddress[bankSel].Push(address);
+                        for (int fx_repl = 0; fx_repl < replicationBound;
+                             fx_repl++) {
+                          for (int c = startingC; c >= 0;
+                               c--) {  // reverse order
+                            int k2 =
+                                loop_counters[0][params.weightLoopIndex[0]];
+                            int K2 = params.loops[0][params.weightLoopIndex[0]];
+                            int k1 =
+                                loop_counters[1][params.weightLoopIndex[1]];
+                            int K1 = params.loops[1][params.weightLoopIndex[1]];
+                            int C1 =
+                                params.loops[1][params.reductionLoopIndex[1]];
+                            int c1 =
+                                loop_counters[1][params.reductionLoopIndex[1]];
+                            int fx = loop_counters[1][params.fxIndex];
+                            int FX = params.loops[1][params.fxIndex];
+                            int fy = loop_counters[1][params.fyIndex];
+                            int FY = params.loops[1][params.fyIndex];
+
+                            int C = DIMENSION;
+                            if (params.REPLICATION) {
+                              C = 3;
+                            }
+
+                            int k = k2 * K1 * DIMENSION + k1 * DIMENSION;
+                            int K = K2 * K1 * DIMENSION;
+                            int address = (fy * FX * C * K1) + (fx * C * K1) +
+                                          (c * K1) + k1;
+
+                            readAddress[bankSel].Push(address);
+                          }
                         }
                       }
                     }

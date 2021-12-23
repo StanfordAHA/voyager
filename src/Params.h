@@ -32,6 +32,7 @@ struct Params {
   int weightReuseIndex[2];
   bool matMul;
   int STRIDE;
+  bool REPLICATION;
 
   static const unsigned int width = 7 * 32 + 12 * 32 + 8 * 1;
 

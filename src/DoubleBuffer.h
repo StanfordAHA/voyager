@@ -60,7 +60,16 @@ SC_MODULE(DoubleBuffer) {
     while (!swap) {
       if (rControl->Pop() == 1) {
         int address = rAddress->Pop();
-        Pack1D<DTYPE, WIDTH> data = mem[address];
+        Pack1D<DTYPE, WIDTH> data;
+
+        if (address != -1) {
+          data = mem[address];
+        } else {
+#pragma hls_unroll yes
+          for (int j = 0; j < WIDTH; j++) {
+            data[j] = 0;
+          }
+        }
         oControl->Push(1);
         rData->Push(data);
       } else {

@@ -55,6 +55,11 @@ void run_gold_op(const Params params, INPUT_DATATYPE *matrixA,
     int FY = params.loops[1][params.fyIndex];
     int STRIDE = params.STRIDE;
 
+    if (params.REPLICATION) {
+      FX = 7;
+      C = 3;
+    }
+
     for (int x = 0; x < X; x++) {
       for (int y = 0; y < Y; y++) {
         for (int k = 0; k < K; k++) {
