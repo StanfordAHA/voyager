@@ -5,6 +5,7 @@
 #include "test/common/Harness.h"
 #include "test/common/Utils.h"
 #include "test/mobilebert/params.h"
+#include "test/resnet/params.h"
 #include "test/simple/params.h"
 
 void run_test(Params params) {
@@ -122,6 +123,8 @@ int sc_main(int argc, char *argv[]) {
       mapPtr = &simple;
     } else if (group == "mobilebert") {
       mapPtr = &mobilebert;
+    } else if (group == "resnet") {
+      mapPtr = &resnet;
     } else {
       std::cout << "Warning! Group " << group << " not found!" << std::endl;
     }
