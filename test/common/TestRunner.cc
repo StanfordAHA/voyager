@@ -106,41 +106,36 @@ void run_test(Params params) {
 }
 
 int sc_main(int argc, char *argv[]) {
-  Params params = simple;
+  Params params;
 
+  const char *groupName = std::getenv("GROUP");
   const char *testName = std::getenv("TEST");
-  if (testName) {
+  if (testName && groupName) {
+    std::string group(groupName);
     std::string test(testName);
-    std::cout << "Running test: " << test << std::endl;
 
-    if (test == "simple") {
-      params = simple;
-    } else if (test == "conv") {
-      params = conv;
-    } else if (test == "conv_with_replication") {
-      params = conv_with_replication;
-    } else if (test == "inputBottleneck") {
-      params = inputBottleneck;
-    } else if (test == "qkvProjection") {
-      params = qkvProjection;
-    } else if (test == "qkAttention") {
-      params = qkAttention;
-    } else if (test == "vAttention") {
-      params = vAttention;
-    } else if (test == "wProjection") {
-      params = wProjection;
-    } else if (test == "ffn1") {
-      params = ffn1;
-    } else if (test == "ffn2") {
-      params = ffn2;
-    } else if (test == "outputBottleneck") {
-      params = outputBottleneck;
+    std::cout << "Running: " << group << ", " << test << std::endl;
+
+    std::map<std::string, Params> *mapPtr;
+
+    if (group == "simple") {
+      mapPtr = &simple;
+    } else if (group == "mobilebert") {
+      mapPtr = &mobilebert;
     } else {
-      std::cout << "Warning! Test not found!" << std::endl;
+      std::cout << "Warning! Group " << group << " not found!" << std::endl;
     }
+
+    auto search = mapPtr->find(test);
+    if (search != mapPtr->end()) {
+      params = search->second;
+    } else {
+      std::cout << "Warning! Test " << test << " not found!" << std::endl;
+    }
+
   } else {
-    std::cout << "Warning! No test specified! Please set the environment "
-                 "variable TEST"
+    std::cout << "Warning! No group/test specified! Please set the environment "
+                 "variables GROUP and TEST"
               << std::endl;
   }
 
