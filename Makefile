@@ -1,7 +1,7 @@
-# CC = /cad/mentor/2021.1/Mgc_home/bin/g++
-CPPFLAGS = -I/home/kartik/minotaur/ac_simutils/include -I/home/kartik/minotaur/ac_types/include -I/home/kartik/minotaur/matchlib_connections/include -I/home/kartik/minotaur/systemc-2.3.3/include -I/home/kartik/minotaur/systemc-2.3.3/src -Ilib/ -Isrc/ -I. -std=c++11 -DCONNECTIONS_FAST_SIM -DSC_INCLUDE_DYNAMIC_PROCESSES -DCONNECTIONS_NAMING_ORIGINAL
-LDFLAGS = -lstdc++ -lsystemc
-LDLIBS = -L/home/kartik/minotaur/systemc-2.3.3/lib-linux64
+CC = /cad/mentor/2021.1/Mgc_home/bin/g++
+CPPFLAGS = -I/cad/mentor/2021.1/Mgc_home/shared/include/ -Ilib/ -Isrc/ -I. -std=c++11 -DCONNECTIONS_FAST_SIM -DSC_INCLUDE_DYNAMIC_PROCESSES -DCONNECTIONS_NAMING_ORIGINAL
+LDFLAGS = -lsystemc
+LDLIBS = -L/cad/mentor/2021.1/Mgc_home/shared/lib/
 TEST ?= simple
 
 export TEST := $(TEST)
@@ -19,7 +19,7 @@ build/Catapult_debug/Accelerator.v1/concat_rtl.v: src/Accelerator.cc $(wildcard 
 	catapult -shell -file scripts/hls.tcl
 
 sim: build/TestRunner
-	LD_LIBRARY_PATH=/home/kartik/minotaur/systemc-2.3.3/lib-linux64 ./build/TestRunner 
+	./build/TestRunner 
 
 rtl_sim_clean:
 	rm -rf build/Catapult_debug/Accelerator.v1/scverify/concat_sim_rtl_v_vcs
@@ -56,4 +56,3 @@ build/TestRunner.o: test/common/TestRunner.cc test/mobilebert/params.h test/simp
 .PHONY: clean rtl sim
 clean:
 	rm -rf build/*.o
-
