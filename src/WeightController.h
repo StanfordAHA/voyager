@@ -69,6 +69,7 @@ SC_MODULE(WeightController) {
       int c0_bound = NROWS;
       if (params.REPLICATION) {
         c0_bound = 3;
+        loop_bounds[1][params.fxIndex] = 7;
       }
 
 #pragma hls_pipeline_init_interval 1
@@ -108,7 +109,7 @@ SC_MODULE(WeightController) {
                           int c1 =
                               loop_counters[1][params.reductionLoopIndex[1]];
                           int fx = loop_counters[1][params.fxIndex];
-                          int FX = params.loops[1][params.fxIndex];
+                          int FX = loop_bounds[1][params.fxIndex];
                           int fy = loop_counters[1][params.fyIndex];
                           int FY = params.loops[1][params.fyIndex];
 
@@ -172,6 +173,7 @@ SC_MODULE(WeightController) {
       int c0_bound = NROWS;
       if (params.REPLICATION) {
         c0_bound = 3;
+        loop_bounds[1][params.fxIndex] = 7;
       }
 
 #pragma hls_pipeline_init_interval 1
@@ -211,7 +213,7 @@ SC_MODULE(WeightController) {
                           int c1 =
                               loop_counters[1][params.reductionLoopIndex[1]];
                           int fx = loop_counters[1][params.fxIndex];
-                          int FX = params.loops[1][params.fxIndex];
+                          int FX = loop_bounds[1][params.fxIndex];
                           int fy = loop_counters[1][params.fyIndex];
                           int FY = params.loops[1][params.fyIndex];
 
@@ -323,8 +325,8 @@ SC_MODULE(WeightController) {
                           }
                         }
 
-                        for (int fx_repl = 0; fx_repl < replicationBound;
-                             fx_repl++) {
+                        for (int fx_repl = replicationBound - 1; fx_repl >= 0;
+                             fx_repl--) {
                           for (int c = startingC; c >= 0;
                                c--) {  // reverse order
                             int k2 =
@@ -345,7 +347,12 @@ SC_MODULE(WeightController) {
                             int C = DIMENSION;
                             if (params.REPLICATION) {
                               C = 3;
+                              fx = loop_counters[1][params.fxIndex] * 4 +
+                                   fx_repl;
+                              FX = 7;
                             }
+
+                            CCS_LOG("fx: " << fx);
 
                             int k = k2 * K1 * DIMENSION + k1 * DIMENSION;
                             int K = K2 * K1 * DIMENSION;
