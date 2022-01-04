@@ -21,11 +21,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{7, 7, 1, 2, 1, 1}, {1, 2, 7, 7, 16, 16}},  // LOOPS
+         {{7, 7, 2, 1, 1, 1}, {1, 2, 7, 2, 16, 16}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -51,11 +51,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{2, 2, 1, 4, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
+         {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -81,11 +81,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{2, 2, 1, 4, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
+         {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -111,11 +111,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{2, 2, 1, 4, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
+         {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -141,11 +141,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{2, 2, 1, 4, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
+         {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -171,11 +171,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{2, 2, 1, 4, 1, 1}, {4, 1, 1, 1, 14, 14}},  // LOOPS
+         {{2, 2, 4, 1, 1, 1}, {4, 1, 1, 1, 14, 14}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -201,11 +201,11 @@ std::map<std::string, Params> resnet{
          0,                                         // VEC_SCALE_OFFSET
          0,                                         // VEC_SUB_OFFSET
          false,                                     // RELU
-         {{4, 4, 1, 4, 1, 1}, {4, 2, 3, 3, 7, 7}},  // LOOPS
+         {{4, 4, 4, 1, 1, 1}, {4, 2, 3, 3, 7, 7}},  // LOOPS
          {0, 5},                                    // INPUTX
          {1, 4},                                    // INPUTY
-         {2, 0},                                    // REDUCTION
-         {3, 1},                                    // WEIGHT
+         {3, 0},                                    // REDUCTION
+         {2, 1},                                    // WEIGHT
          3,                                         // fxIndex
          2,                                         // fyIndex
          {4, 5},                                    // weightReuseIndex
@@ -231,11 +231,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 1, 8, 1, 1}, {8, 1, 3, 3, 28, 28}},  // LOOPS
+         {{1, 1, 8, 1, 1, 1}, {8, 1, 3, 3, 28, 28}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -260,11 +260,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 1, 8, 1, 1}, {8, 1, 3, 3, 28, 28}},  // LOOPS
+         {{1, 1, 8, 1, 1, 1}, {8, 1, 3, 3, 28, 28}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -289,11 +289,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 1, 8, 1, 1}, {8, 1, 3, 3, 28, 28}},  // LOOPS
+         {{1, 1, 8, 1, 1, 1}, {8, 1, 3, 3, 28, 28}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -319,11 +319,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 1, 2, 1, 1}, {8, 8, 1, 1, 14, 14}},  // LOOPS
+         {{1, 1, 2, 1, 1, 1}, {8, 8, 1, 1, 14, 14}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -349,11 +349,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 1, 2, 1, 1}, {8, 8, 3, 3, 14, 14}},  // LOOPS
+         {{1, 1, 2, 1, 1, 1}, {8, 8, 3, 3, 14, 14}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -379,11 +379,11 @@ std::map<std::string, Params> resnet{
          0,                                            // VEC_SCALE_OFFSET
          0,                                            // VEC_SUB_OFFSET
          false,                                        // RELU
-         {{1, 1, 1, 2, 1, 1}, {16, 8, 3, 3, 14, 14}},  // LOOPS
+         {{1, 1, 2, 1, 1, 1}, {16, 8, 3, 3, 14, 14}},  // LOOPS
          {0, 5},                                       // INPUTX
          {1, 4},                                       // INPUTY
-         {2, 0},                                       // REDUCTION
-         {3, 1},                                       // WEIGHT
+         {3, 0},                                       // REDUCTION
+         {2, 1},                                       // WEIGHT
          3,                                            // fxIndex
          2,                                            // fyIndex
          {4, 5},                                       // weightReuseIndex
@@ -408,11 +408,11 @@ std::map<std::string, Params> resnet{
          0,                                            // VEC_SCALE_OFFSET
          0,                                            // VEC_SUB_OFFSET
          false,                                        // RELU
-         {{1, 1, 1, 2, 1, 1}, {16, 8, 3, 3, 14, 14}},  // LOOPS
+         {{1, 1, 2, 1, 1, 1}, {16, 8, 3, 3, 14, 14}},  // LOOPS
          {0, 5},                                       // INPUTX
          {1, 4},                                       // INPUTY
-         {2, 0},                                       // REDUCTION
-         {3, 1},                                       // WEIGHT
+         {3, 0},                                       // REDUCTION
+         {2, 1},                                       // WEIGHT
          3,                                            // fxIndex
          2,                                            // fyIndex
          {4, 5},                                       // weightReuseIndex
@@ -437,11 +437,11 @@ std::map<std::string, Params> resnet{
          0,                                            // VEC_SCALE_OFFSET
          0,                                            // VEC_SUB_OFFSET
          false,                                        // RELU
-         {{1, 1, 1, 2, 1, 1}, {16, 8, 3, 3, 14, 14}},  // LOOPS
+         {{1, 1, 2, 1, 1, 1}, {16, 8, 3, 3, 14, 14}},  // LOOPS
          {0, 5},                                       // INPUTX
          {1, 4},                                       // INPUTY
-         {2, 0},                                       // REDUCTION
-         {3, 1},                                       // WEIGHT
+         {3, 0},                                       // REDUCTION
+         {2, 1},                                       // WEIGHT
          3,                                            // fxIndex
          2,                                            // fyIndex
          {4, 5},                                       // weightReuseIndex
@@ -466,11 +466,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 1, 2, 1, 1}, {16, 16, 1, 1, 7, 7}},  // LOOPS
+         {{1, 1, 2, 1, 1, 1}, {16, 16, 1, 1, 7, 7}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -495,11 +495,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 1, 2, 1, 1}, {16, 16, 3, 3, 7, 7}},  // LOOPS
+         {{1, 1, 2, 1, 1, 1}, {16, 16, 3, 3, 7, 7}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -524,11 +524,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 1, 2, 1, 1}, {32, 16, 3, 3, 7, 7}},  // LOOPS
+         {{1, 1, 2, 1, 1, 1}, {32, 16, 3, 3, 7, 7}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -553,11 +553,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 1, 2, 1, 1}, {32, 16, 3, 3, 7, 7}},  // LOOPS
+         {{1, 1, 2, 1, 1, 1}, {32, 16, 3, 3, 7, 7}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -582,11 +582,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 1, 2, 1, 1}, {32, 16, 3, 3, 7, 7}},  // LOOPS
+         {{1, 1, 2, 1, 1, 1}, {32, 16, 3, 3, 7, 7}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
@@ -613,11 +613,11 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 1, 2, 1, 1}, {32, 16, 3, 3, 1, 1}},  // LOOPS
+         {{1, 1, 2, 1, 1, 1}, {32, 16, 3, 3, 1, 1}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
-         {2, 0},                                      // REDUCTION
-         {3, 1},                                      // WEIGHT
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
          3,                                           // fxIndex
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
