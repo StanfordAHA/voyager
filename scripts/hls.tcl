@@ -10,7 +10,7 @@ if { [file exists $project_folder] } {
   file delete -force -- $project_folder
 }
 
-project new -dir $project_folder 
+project new -dir $project_folder
 
 project save
 
@@ -28,7 +28,7 @@ flow package require /SCVerify
 flow package option set /SCVerify/USE_VCS true
 
 set clocks {clk {-CLOCK_PERIOD 5 -CLOCK_EDGE rising -CLOCK_HIGH_TIME 2.5 -CLOCK_OFFSET 0.000000 -CLOCK_UNCERTAINTY 0.0 -RESET_KIND async -RESET_SYNC_NAME rst -RESET_SYNC_ACTIVE high -RESET_ASYNC_NAME arst_n -RESET_ASYNC_ACTIVE low -ENABLE_NAME {} -ENABLE_ACTIVE high}}
-
+directive set -CLOCK_OVERHEAD 0
 go new
 
 solution file add ./src/Accelerator.cc
@@ -52,7 +52,7 @@ if {[info exists env(DEBUG)]} {
   solution library add ccs_sample_mem
 } else {
   solution library add ts1n40lpb1024x128m4fb_tt1p1v25c
-  solution library add custom1024x128  
+  solution library add custom1024x128
 }
 
 
