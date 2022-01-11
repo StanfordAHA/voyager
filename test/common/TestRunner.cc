@@ -8,7 +8,38 @@
 #include "test/resnet/params.h"
 #include "test/simple/params.h"
 
+void validateMapping(Params params) {
+  int x0 = params.loops[1][params.inputXLoopIndex[1]];
+  int y0 = params.loops[1][params.inputYLoopIndex[1]];
+  int c0 = params.loops[1][params.reductionLoopIndex[1]];
+  int k0 = params.loops[1][params.weightLoopIndex[1]];
+  int fx = params.loops[1][params.fxIndex];
+  int fy = params.loops[1][params.fyIndex];
+  int stride = params.STRIDE;
+
+  // Input buffer
+  if ((x0 * stride + fx - 1) * (y0 * stride + fy - 1) * c0 >
+      INPUT_BUFFER_SIZE) {
+    std::cout << "[ERROR] Input buffer tile size violation." << std::endl;
+    std::terminate();
+  }
+
+  // Weight buffer
+  if (fx * fy * c0 * k0 > WEIGHT_BUFFER_SIZE) {
+    std::cout << "[ERROR] Weight buffer tile size violation." << std::endl;
+    std::terminate();
+  }
+
+  if (x0 * y0 * c0 * k0 > ACCUMULATION_BUFFER_SIZE) {
+    std::cout << "[ERROR] Accumulation buffer tile size violation."
+              << std::endl;
+    std::terminate();
+  }
+}
+
 void run_test(Params params) {
+  validateMapping(params);
+
   INPUT_DATATYPE *mainMemory = new INPUT_DATATYPE[4 * 1024 * 1024];
 
   int X = params.loops[0][params.inputXLoopIndex[0]] *
