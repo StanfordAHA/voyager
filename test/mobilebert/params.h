@@ -8,8 +8,8 @@ std::map<std::string, Params> mobilebert{
     {"inputBottleneck",
      {
          0,                         // INPUT_OFFSET
-         1024 * 1024,               // WEIGHT_OFFSET
-         2 * 1024 * 1024,           // OUTPUT_OFFSET
+         0,               // WEIGHT_OFFSET
+         131072,           // OUTPUT_OFFSET
          false,                     // SOFTMAX
          1,                         // SCALE
          false,                     // TRANSPOSE
@@ -31,9 +31,9 @@ std::map<std::string, Params> mobilebert{
     // (128 x 128) x (128 x 32)
     {"qkvProjection",
      {
-         0,                        // INPUT_OFFSET
-         1024 * 1024,              // WEIGHT_OFFSET
-         2 * 1024 * 1024,          // OUTPUT_OFFSET
+         131072,                        // INPUT_OFFSET
+         65536,              // WEIGHT_OFFSET
+         0,          // OUTPUT_OFFSET
          false,                    // SOFTMAX
          1,                        // SCALE
          false,                    // TRANSPOSE
@@ -57,8 +57,8 @@ std::map<std::string, Params> mobilebert{
     {"qkAttention",
      {
          0,                        // INPUT_OFFSET
-         1024 * 1024,              // WEIGHT_OFFSET
-         2 * 1024 * 1024,          // OUTPUT_OFFSET
+         69632,              // WEIGHT_OFFSET
+         131072,          // OUTPUT_OFFSET
          false,                    // SOFTMAX
          1,                        // SCALE
          false,                    // TRANSPOSE
@@ -81,9 +81,9 @@ std::map<std::string, Params> mobilebert{
     // (128 x 128) * (128 x 32)
     {"vAttention",
      {
-         0,                        // INPUT_OFFSET
-         1024 * 1024,              // WEIGHT_OFFSET
-         2 * 1024 * 1024,          // OUTPUT_OFFSET
+         131072,                        // INPUT_OFFSET
+         73728,              // WEIGHT_OFFSET
+         0,          // OUTPUT_OFFSET
          false,                    // SOFTMAX
          1,                        // SCALE
          false,                    // TRANSPOSE
@@ -107,8 +107,8 @@ std::map<std::string, Params> mobilebert{
     {"wProjection",
      {
          0,                        // INPUT_OFFSET
-         1024 * 1024,              // WEIGHT_OFFSET
-         2 * 1024 * 1024,          // OUTPUT_OFFSET
+         77824,              // WEIGHT_OFFSET
+         131072,          // OUTPUT_OFFSET
          false,                    // SOFTMAX
          1,                        // SCALE
          false,                    // TRANSPOSE
@@ -131,9 +131,9 @@ std::map<std::string, Params> mobilebert{
     // (128 x 128) * (128 x 512)
     {"ffn1",
      {
-         0,                        // INPUT_OFFSET
-         1024 * 1024,              // WEIGHT_OFFSET
-         2 * 1024 * 1024,          // OUTPUT_OFFSET
+         131072,                        // INPUT_OFFSET
+         94208,              // WEIGHT_OFFSET
+         0,          // OUTPUT_OFFSET
          false,                    // SOFTMAX
          1,                        // SCALE
          false,                    // TRANSPOSE
@@ -157,8 +157,8 @@ std::map<std::string, Params> mobilebert{
     {"ffn2",
      {
          0,                         // INPUT_OFFSET
-         1024 * 1024,               // WEIGHT_OFFSET
-         2 * 1024 * 1024,           // OUTPUT_OFFSET
+         159744,               // WEIGHT_OFFSET
+         131072,           // OUTPUT_OFFSET
          false,                     // SOFTMAX
          1,                         // SCALE
          false,                     // TRANSPOSE
@@ -181,9 +181,9 @@ std::map<std::string, Params> mobilebert{
     // (128 x 128) x (128 x 512)
     {"outputBottleneck",
      {
-         0,                        // INPUT_OFFSET
-         1024 * 1024,              // WEIGHT_OFFSET
-         2 * 1024 * 1024,          // OUTPUT_OFFSET
+         131072,                        // INPUT_OFFSET
+         225280,              // WEIGHT_OFFSET
+         0,          // OUTPUT_OFFSET
          false,                    // SOFTMAX
          1,                        // SCALE
          false,                    // TRANSPOSE
