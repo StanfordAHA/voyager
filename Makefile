@@ -10,6 +10,7 @@ rtl: build/Catapult/Accelerator.v1/concat_rtl.v
 
 build/Catapult/Accelerator.v1/concat_rtl.v: src/Accelerator.cc $(wildcard src/*.h) scripts/hls.tcl
 	catapult -shell -file scripts/hls.tcl
+	sed '/module CGHpart/,/endmodule/d;/module TSDN/,/endmodule/d;/^`include/d' build/Catapult/Accelerator.v1/concat_rtl.v > build/Catapult/Accelerator.v1/concat_rtl_clean.v
 
 debug_rtl: build/Catapult_debug/Accelerator.v1/concat_rtl.v
 
@@ -24,10 +25,10 @@ sim: build/TestRunner
 rtl_sim_clean:
 	rm -rf build/Catapult_debug/Accelerator.v1/scverify/concat_sim_rtl_v_vcs
 
-rtl_sim: rtl
+rtl_sim: debug_rtl
 	cd build/Catapult_debug/Accelerator.v1 && make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs sim
 
-rtl_sim_debug: rtl
+rtl_sim_debug: debug_rtl
 	rm -rf build/inter.fsdb*
 	cd build/Catapult_debug/Accelerator.v1 && make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs simgui
 
