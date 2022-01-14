@@ -47,23 +47,34 @@ SC_MODULE(Harness) {
   Connections::SyncChannel CCS_INIT_S1(start);
   Connections::SyncChannel CCS_INIT_S1(done);
 
-  Harness(sc_module_name, Params, INPUT_DATATYPE *);
+  Harness(sc_module_name, Params, INPUT_DATATYPE *, INPUT_DATATYPE *);
   SC_HAS_PROCESS(Harness);
 
  private:
   Params params;
-  INPUT_DATATYPE *mainMemory;
+  INPUT_DATATYPE *sramMemory, *rramMemory;
   CCS_DESIGN(Accelerator) CCS_INIT_S1(accelerator);
 
-  void memAccessBurst(
+  void memAccessBurstRRAM(
       Connections::Combinational<MemoryRequest> * addressRequest,
       Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *
           dataResponse);
-  void memAccessPack(
+  void memAccessPackRRAM(
       Connections::Combinational<int> * addressRequest,
       Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *
           dataResponse);
-  void memAccess(Connections::Combinational<int> * addressRequest,
+  void memAccessRRAM(Connections::Combinational<int> * addressRequest,
+                 Connections::Combinational<INPUT_DATATYPE> * dataResponse);
+
+  void memAccessBurstSRAM(
+      Connections::Combinational<MemoryRequest> * addressRequest,
+      Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *
+          dataResponse);
+  void memAccessPackSRAM(
+      Connections::Combinational<int> * addressRequest,
+      Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *
+          dataResponse);
+  void memAccessSRAM(Connections::Combinational<int> * addressRequest,
                  Connections::Combinational<INPUT_DATATYPE> * dataResponse);
 
   void memAccessInputs();
@@ -81,4 +92,4 @@ SC_MODULE(Harness) {
   void waitForDone();
 };
 
-void run_op(const Params params, INPUT_DATATYPE *mainMemory);
+void run_op(const Params params, INPUT_DATATYPE *sramMemory, INPUT_DATATYPE *rramMemory);

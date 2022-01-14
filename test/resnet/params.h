@@ -34,9 +34,10 @@ std::map<std::string, Params> resnet{
          true,                                        // replication
          false,                                       // maxpool
          true,                                        // bias
-         11166912,                                   // BIAS_OFFSET
+         11678912,                                   // BIAS_OFFSET
+        //  0,                                   // BIAS_OFFSET
          false,                                       // residual
-         40 * 1024,                                   // RESIDUAL_OFFSET
+         0 * 1024,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
 
@@ -70,9 +71,9 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11166976,                                   // BIAS_OFFSET
+         11678976,                                   // BIAS_OFFSET
          false,                                       // residual
-         40 * 1024,                                   // RESIDUAL_OFFSET
+         0 * 1024,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
 
@@ -106,9 +107,9 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11167040,                                   // BIAS_OFFSET
+         11679040,                                   // BIAS_OFFSET
          false,                                       // residual
-         40 * 1024,                                   // RESIDUAL_OFFSET
+         0 * 1024,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
 
@@ -142,7 +143,7 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11167104,                                   // BIAS_OFFSET
+         11679104,                                   // BIAS_OFFSET
          true,                                       // residual
          802816,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
@@ -178,9 +179,9 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11167168,                                   // BIAS_OFFSET
+         11679168,                                   // BIAS_OFFSET
          false,                                       // residual
-         40 * 1024,                                   // RESIDUAL_OFFSET
+         0 * 1024,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
 
@@ -214,7 +215,7 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11167232,                                   // BIAS_OFFSET
+         11679232,                                   // BIAS_OFFSET
          true,                                       // residual
          1204224,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
@@ -250,9 +251,9 @@ std::map<std::string, Params> resnet{
          false,                                     // replication
          false,                                     // maxpool
          true,                                      // bias
-         11167360,                                 // BIAS_OFFSET
+         11679360,                                 // BIAS_OFFSET
          false,                                     // residual
-         40 * 1024,                                 // RESIDUAL_OFFSET
+         0 * 1024,                                 // RESIDUAL_OFFSET
          false                                      // avgpool
      }},
 
@@ -286,9 +287,9 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11167488,                                   // BIAS_OFFSET
+         11679488,                                   // BIAS_OFFSET
          false,                                       // residual
-         40 * 1024,                                   // RESIDUAL_OFFSET
+         0 * 1024,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
     {"layer2_1_conv1",
@@ -321,7 +322,7 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11167616,                                   // BIAS_OFFSET
+         11679616,                                   // BIAS_OFFSET
          true,                                       // residual
          802816,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
@@ -356,9 +357,9 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11167744,                                   // BIAS_OFFSET
+         11679744,                                   // BIAS_OFFSET
          false,                                       // residual
-         40 * 1024,                                   // RESIDUAL_OFFSET
+         0 * 1024,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
 
@@ -392,13 +393,13 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11167872,                                   // BIAS_OFFSET
+         11679872,                                   // BIAS_OFFSET
          true,                                       // residual
          1204224,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
 
-    {"layer3_0_conv_1",
+    {"layer3_0_conv1",
      {
          802816,                                           // INPUT_OFFSET
          713920,                                 // WEIGHT_OFFSET
@@ -428,13 +429,13 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11168128,                                   // BIAS_OFFSET
+         11680128,                                   // BIAS_OFFSET
          false,                                       // residual
-         40 * 1024,                                   // RESIDUAL_OFFSET
+         0 * 1024,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
 
-    {"layer3_0_conv_2",
+    {"layer3_0_conv2",
      {
          0,                                            // INPUT_OFFSET
          1008832,                                  // WEIGHT_OFFSET
@@ -464,12 +465,12 @@ std::map<std::string, Params> resnet{
          false,                                        // replication
          false,                                        // maxpool
          true,                                         // bias
-         11168384,                                    // BIAS_OFFSET
+         11680384,                                    // BIAS_OFFSET
          false,                                        // residual
-         40 * 1024,                                    // RESIDUAL_OFFSET
+         0 * 1024,                                    // RESIDUAL_OFFSET
          false                                         // avgpool
      }},
-    {"layer3_1_conv_1",
+    {"layer3_1_conv1",
      {
          1204224,                                            // INPUT_OFFSET
          1598656,                                  // WEIGHT_OFFSET
@@ -499,12 +500,12 @@ std::map<std::string, Params> resnet{
          false,                                        // replication
          false,                                        // maxpool
          true,                                         // bias
-         11168640,                                    // BIAS_OFFSET
+         11680640,                                    // BIAS_OFFSET
          true,                                        // residual
          802816,                                    // RESIDUAL_OFFSET
          false                                         // avgpool
      }},
-    {"layer3_1_conv_2",
+    {"layer3_1_conv2",
      {
          401408,                                            // INPUT_OFFSET
          2188480,                                  // WEIGHT_OFFSET
@@ -534,9 +535,9 @@ std::map<std::string, Params> resnet{
          false,                                        // replication
          false,                                        // maxpool
          true,                                         // bias
-         11168896,                                    // BIAS_OFFSET
+         111680896,                                    // BIAS_OFFSET
          false,                                        // residual
-         40 * 1024,                                    // RESIDUAL_OFFSET
+         0 * 1024,                                    // RESIDUAL_OFFSET
          false                                         // avgpool
      }},
     {"layer4_0_downsample",
@@ -569,12 +570,12 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11169152,                                   // BIAS_OFFSET
+         11681152,                                   // BIAS_OFFSET
          true,                                       // residual
          1204224,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
-    {"layer4_0_conv_1",
+    {"layer4_0_conv1",
      {
          802816,                                           // INPUT_OFFSET
          2909376,                                 // WEIGHT_OFFSET
@@ -604,12 +605,12 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11169664,                                   // BIAS_OFFSET
+         11681664,                                   // BIAS_OFFSET
          false,                                       // residual
-         40 * 1024,                                   // RESIDUAL_OFFSET
+         0 * 1024,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
-    {"layer4_0_conv_2",
+    {"layer4_0_conv2",
      {
          401408,                                           // INPUT_OFFSET
          4089024,                                 // WEIGHT_OFFSET
@@ -639,12 +640,12 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11170176,                                   // BIAS_OFFSET
+         11682176,                                   // BIAS_OFFSET
          false,                                       // residual
-         40 * 1024,                                   // RESIDUAL_OFFSET
+         0 * 1024,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
-    {"layer4_1_conv_1",
+    {"layer4_1_conv1",
      {
          1204224,                                           // INPUT_OFFSET
          6448320,                                 // WEIGHT_OFFSET
@@ -674,12 +675,12 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11170688,                                   // BIAS_OFFSET
+         11682688,                                   // BIAS_OFFSET
          true,                                       // residual
          802816,                                   // RESIDUAL_OFFSET
          false                                        // avgpool
      }},
-    {"layer4_1_conv_2",
+    {"layer4_1_conv2",
      {
          0,                                           // INPUT_OFFSET
          8807616,                                 // WEIGHT_OFFSET
@@ -709,9 +710,9 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
-         11171200,                                   // BIAS_OFFSET
+         11683200,                                   // BIAS_OFFSET
          false,                                       // residual
-         40 * 1024,                                   // RESIDUAL_OFFSET
+         0 * 1024,                                   // RESIDUAL_OFFSET
          true                                         // avgpool
      }},
 
@@ -746,7 +747,7 @@ std::map<std::string, Params> resnet{
          false,                                       // replication
          false,                                       // maxpool
          false,                                       // bias
-         11171712,                                   // BIAS_OFFSET
+         11683712,                                   // BIAS_OFFSET
          true,                                       // residual
          1204224,                                   // RESIDUAL_OFFSET
          false                                        // avgpool

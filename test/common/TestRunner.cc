@@ -8,6 +8,10 @@
 #include "test/resnet/params.h"
 #include "test/simple/params.h"
 
+#include <stdexcept>
+#define SRAM_MEMORY_SIZE (2*1024*1024)
+#define RRAM_MEMORY_SIZE (12*1024*1024)
+
 void validateMapping(Params params) {
   int x0 = params.loops[1][params.inputXLoopIndex[1]];
   int y0 = params.loops[1][params.inputYLoopIndex[1]];
@@ -44,7 +48,11 @@ void validateMapping(Params params) {
 int run_test(Params params) {
   validateMapping(params);
 
-  INPUT_DATATYPE *mainMemory = new INPUT_DATATYPE[4 * 1024 * 1024];
+  INPUT_DATATYPE *sramMemory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  INPUT_DATATYPE *rramMemory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
+
+  if (sramMemory == nullptr || rramMemory == nullptr)
+    throw std::runtime_error("Failed to allocate accelerator memory");
 
   int X = params.loops[0][params.inputXLoopIndex[0]] *
           params.loops[1][params.inputXLoopIndex[1]];
@@ -80,7 +88,7 @@ int run_test(Params params) {
             int val = rand() % 128;
 
             int address = y * ((STRIDE * X) / 4) * 16 + x_o * 16 + x_i * 3 + c;
-            mainMemory[params.INPUT_OFFSET + address] = val;
+            sramMemory[params.INPUT_OFFSET + address] = val;
 
             address = y * (STRIDE * X) * C + x * C + c;
             matrixA[address] = val;
@@ -96,7 +104,7 @@ int run_test(Params params) {
 
           int address = y * (STRIDE * X) * C + x * C + c;
 
-          mainMemory[params.INPUT_OFFSET + address] = val;
+          sramMemory[params.INPUT_OFFSET + address] = val;
           matrixA[address] = val;
         }
       }
@@ -107,7 +115,7 @@ int run_test(Params params) {
     if (i % 16 == 0) {
       std::cout << std::endl;
     }
-    std::cout << mainMemory[params.INPUT_OFFSET + i] << " ";
+    std::cout << sramMemory[params.INPUT_OFFSET + i] << " ";
   }
 
   INPUT_DATATYPE *matrixB = new INPUT_DATATYPE[FX * FY * C * K];
@@ -118,7 +126,7 @@ int run_test(Params params) {
           int val = rand() % 128;
 
           int address = fy * FX * C * K + fx * C * K + c * K + k;
-          mainMemory[params.WEIGHT_OFFSET + address] = val;
+          rramMemory[params.WEIGHT_OFFSET + address] = val;
           matrixB[address] = val;
         }
       }
@@ -130,7 +138,7 @@ int run_test(Params params) {
   if (params.BIAS) {
     for (int k = 0; k < K; k++) {
       int val = rand() % 128;
-      mainMemory[params.BIAS_OFFSET + k] = val;
+      rramMemory[params.BIAS_OFFSET + k] = val;
       biasMatrix[k] = val;
     }
   }
@@ -143,7 +151,7 @@ int run_test(Params params) {
           int val = rand() % 128;
 
           int address = y * X * K + x * K + k;
-          mainMemory[params.RESIDUAL_OFFSET + address] = val;
+          sramMemory[params.RESIDUAL_OFFSET + address] = val;
           residualMatrix[address] = val;
         }
       }
@@ -162,15 +170,16 @@ int run_test(Params params) {
     Y = 1;
   }
 
-  run_op(params, mainMemory);
+  run_op(params, sramMemory, rramMemory);
   run_gold_op(params, matrixA, matrixB, matrixC, biasMatrix, residualMatrix);
   int errors =
-      compare_arrays(&mainMemory[params.OUTPUT_OFFSET], matrixC, X * Y * K);
+      compare_arrays(&sramMemory[params.OUTPUT_OFFSET], matrixC, X * Y * K);
 
   delete[] matrixA;
   delete[] matrixB;
   delete[] matrixC;
-  delete[] mainMemory;
+  delete[] sramMemory;
+  delete[] rramMemory;
 
   if (errors == 0) {
     std::cout << "Test passed!" << std::endl;
