@@ -78,7 +78,6 @@ int run_test(Params params) {
           for (int c = 0; c < C; c++) {
             int x = x_o * 4 + x_i;
             int val = rand() % 128;
-            // int val = x;
 
             int address = y * ((STRIDE * X) / 4) * 16 + x_o * 16 + x_i * 3 + c;
             mainMemory[params.INPUT_OFFSET + address] = val;
@@ -93,9 +92,7 @@ int run_test(Params params) {
     for (int y = 0; y < STRIDE * Y; y++) {
       for (int x = 0; x < STRIDE * X; x++) {
         for (int c = 0; c < C; c++) {
-          // int val = i * 10 + j;
-          // int val = rand() % 128;
-          int val = x;
+          int val = rand() % 128;
 
           int address = y * (STRIDE * X) * C + x * C + c;
 
@@ -118,7 +115,6 @@ int run_test(Params params) {
     for (int fx = 0; fx < FX; fx++) {
       for (int c = 0; c < C; c++) {
         for (int k = 0; k < K; k++) {
-          // int val = i;
           int val = rand() % 128;
 
           int address = fy * FX * C * K + fx * C * K + c * K + k;
