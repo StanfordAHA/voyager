@@ -1,5 +1,6 @@
 #define INPUT_DATATYPE ac_int<8, true>
 #define WEIGHT_DATATYPE ac_int<8, true>
+#define ACCUM_DATATYPE ac_int<32, true>
 #define OUTPUT_DATATYPE ac_int<8, true>
 
 #define DIMENSION 16

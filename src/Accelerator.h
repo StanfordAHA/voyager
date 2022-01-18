@@ -51,7 +51,7 @@ SC_MODULE(Accelerator) {
   Connections::Combinational<int> weightBufferReadControl[2];
   Connections::Combinational<Params> weightControllerParams;
 
-  MatrixProcessor<INPUT_DATATYPE, WEIGHT_DATATYPE, OUTPUT_DATATYPE, DIMENSION,
+  MatrixProcessor<INPUT_DATATYPE, WEIGHT_DATATYPE, ACCUM_DATATYPE, OUTPUT_DATATYPE, DIMENSION,
                   DIMENSION, ACCUMULATION_BUFFER_SIZE>
       CCS_INIT_S1(matrixProcessor);
   Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(

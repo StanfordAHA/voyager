@@ -90,7 +90,7 @@ void run_gold_op(const Params params, INPUT_DATATYPE *matrixA,
     for (int x = 0; x < X; x++) {
       for (int y = 0; y < Y; y++) {
         for (int k = 0; k < K; k++) {
-          OUTPUT_DATATYPE acc = 0;
+          ACCUM_DATATYPE acc = 0;
           for (int c = 0; c < C; c++) {
             for (int fy = -(FY - 1) / 2; fy <= (FY - 1) / 2; fy++) {
               for (int fx = -(FX - 1) / 2; fx <= (FX - 1) / 2; fx++) {
