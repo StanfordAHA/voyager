@@ -101,4 +101,8 @@ SC_MODULE(ProcessingElement) {
     // CCS_LOG(input << " * " << weight << " + " << psum);
     return input * weight + psum;
   }
+
+  PositFP fma(PositFP input, PositFP weight, PositFP psum) {
+    return input.fma(weight, psum);
+  }
 };

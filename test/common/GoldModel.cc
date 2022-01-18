@@ -166,7 +166,7 @@ void run_gold_op(const Params params, INPUT_DATATYPE *matrixA,
       memcpy(tmpMatrixC, matrixC, sizeof(OUTPUT_DATATYPE) * X * Y * K);
 
       for (int k = 0; k < K; k++) {
-        int acc = 0;
+        OUTPUT_DATATYPE acc = 0;
         for (int y = 0; y < Y; y++) {
           for (int x = 0; x < X; x++) {
             acc += tmpMatrixC[y * X * K + x * K + k];

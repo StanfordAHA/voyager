@@ -2,7 +2,7 @@
 
 #include <ac_int.h>
 
-int max(int a, int b) { return a > b ? a : b; }
+inline int max(int a, int b) { return a > b ? a : b; }
 
 class PositFP;
 
@@ -10,8 +10,33 @@ class Posit {
  public:
   Posit() {}
   Posit(const PositFP &input);
+  Posit(int i) { bits = i; }
+
+  // overridden operators
+  Posit &operator+=(const Posit &rhs);
+  Posit &operator-=(const Posit &rhs);
+  Posit &operator*=(const Posit &rhs);
+  Posit operator*(const Posit &rhs);
+  bool operator<(const Posit &rhs) const;
+  operator float() const;
 
   ac_int<8, false> bits;
+  static const unsigned int width = 8;
+
+  template <unsigned int Size>
+  void Marshall(Marshaller<Size> &m) {
+    m &bits;
+  }
+
+  inline friend void sc_trace(sc_trace_file *tf, const Posit &posit,
+                              const std::string &name) {
+    // TODO
+  }
+
+  inline friend std::ostream &operator<<(ostream &os, const Posit &posit) {
+    os << posit.bits;
+    return os;
+  }
 
  private:
   static const int nbits = 8;
@@ -22,12 +47,15 @@ class PositFP {
  public:
   PositFP() {}
   PositFP(const Posit &input);
+  PositFP(int i) { setZero(); }
 
   bool isZero() const { return scale == -127; }
   void setZero() {
     fraction = 0;
     scale = -127;
   }
+
+  PositFP &operator+=(const Posit &rhs);
 
   PositFP operator*(const PositFP &op) {
     PositFP result;
@@ -84,6 +112,13 @@ class PositFP {
     return result;
   }
 
+  PositFP operator-(const PositFP &op) {
+    PositFP negOp = op;
+    negOp.sign = !negOp.sign;
+
+    return *this + negOp;
+  }
+
   PositFP fma(const PositFP &op2, const PositFP &op3) {
     if (isZero() || op2.isZero()) {
       return op3;
@@ -99,9 +134,36 @@ class PositFP {
     }
   }
 
+  bool operator<(const PositFP &rhs) const {
+    if (sign ^ rhs.sign) return sign;
+    if (scale != rhs.scale) return scale < rhs.scale;
+    return fraction < rhs.fraction;
+  }
+
   ac_int<1, false> sign;
   ac_int<8, true> scale;       // regime + exponent
   ac_int<16, false> fraction;  // 1 hidden bit + max 5 bit
+
+  static const unsigned int width = 1 + 8 + 16;
+
+  template <unsigned int Size>
+  void Marshall(Marshaller<Size> &m) {
+    m &sign;
+    m &scale;
+    m &fraction;
+  }
+
+  inline friend void sc_trace(sc_trace_file *tf, const PositFP &positFP,
+                              const std::string &name) {
+    // TODO
+  }
+
+  inline friend std::ostream &operator<<(ostream &os, const PositFP &positFP) {
+    os << positFP.sign;
+    os << positFP.scale;
+    os << positFP.fraction;
+    return os;
+  }
 
  private:
   static const int nbits = 8;
@@ -126,7 +188,7 @@ class PositFP {
 };
 
 // Encoder
-Posit::Posit(const PositFP &input) {
+inline Posit::Posit(const PositFP &input) {
   if (input.isZero()) {
     bits = 0;
   } else {
@@ -169,7 +231,7 @@ Posit::Posit(const PositFP &input) {
 }
 
 // decoder
-PositFP::PositFP(const Posit &input) {
+inline PositFP::PositFP(const Posit &input) {
   ac_int<8, false> bits = input.bits;
   if (bits == 0) {
     fraction = 0;
@@ -197,4 +259,65 @@ PositFP::PositFP(const Posit &input) {
     fraction = (fraction << 7) | 0x8000;
     // printf("fraction: %s\n", fraction.to_string(AC_BIN).c_str());
   }
+}
+
+inline Posit &Posit::operator+=(const Posit &rhs) {
+  PositFP op1 = *this;
+  PositFP op2 = rhs;
+
+  *this = op1 + op2;
+  return *this;
+}
+
+inline Posit &Posit::operator-=(const Posit &rhs) {
+  PositFP op1 = *this;
+  PositFP op2 = rhs;
+
+  *this = op1 - op2;
+  return *this;
+}
+
+inline Posit &Posit::operator*=(const Posit &rhs) {
+  *this = *this * rhs;
+  return *this;
+}
+
+inline Posit Posit::operator*(const Posit &rhs) {
+  PositFP op1 = *this;
+  PositFP op2 = rhs;
+
+  return op1 * op2;
+}
+
+inline bool Posit::operator<(const Posit &rhs) const {
+  PositFP op1 = *this;
+  PositFP op2 = rhs;
+
+  return op1 < op2;
+}
+
+inline PositFP &PositFP::operator+=(const Posit &rhs) {
+  PositFP op = rhs;
+  *this = *this + op;
+
+  return *this;
+}
+
+inline Posit::operator float() const {
+  union ufloat {
+    float f;
+    uint32_t u;
+  };
+  union ufloat uf;
+
+  PositFP p = *this;
+  uf.u = p.sign ? 1 << 31 : 0;
+  uf.u += (p.scale + 127) << 23;
+  uf.u += (p.fraction & ((1 << 15) - 1)) << 8;
+  return uf.f;
+}
+
+inline bool operator==(const PositFP &lhs, const PositFP &rhs) {
+  return (lhs.sign == rhs.sign) && (lhs.scale == rhs.scale) &&
+         (lhs.fraction == rhs.fraction);
 }
