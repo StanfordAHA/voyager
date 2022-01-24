@@ -202,7 +202,7 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{2, 2, 4, 1, 1, 1}, {4, 1, 1, 1, 14, 14}},  // LOOPS
+         {{2, 2, 4, 1, 1, 1}, {4, 2, 1, 1, 14, 14}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
          {3, 0},                                      // REDUCTION
@@ -380,7 +380,7 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 2, 1, 1, 1}, {8, 8, 1, 1, 14, 14}},  // LOOPS
+         {{2, 2, 2, 1, 1, 1}, {8, 8, 1, 1, 7, 7}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
          {3, 0},                                      // REDUCTION
@@ -416,7 +416,7 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          false,                                       // RELU
-         {{1, 1, 2, 1, 1, 1}, {8, 8, 3, 3, 14, 14}},  // LOOPS
+         {{2, 2, 2, 1, 1, 1}, {8, 8, 3, 3, 7, 7}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
          {3, 0},                                      // REDUCTION
@@ -452,7 +452,7 @@ std::map<std::string, Params> resnet{
          0,                                            // VEC_SCALE_OFFSET
          0,                                            // VEC_SUB_OFFSET
          false,                                        // RELU
-         {{1, 1, 2, 1, 1, 1}, {16, 8, 3, 3, 14, 14}},  // LOOPS
+         {{2, 2, 2, 1, 1, 1}, {16, 8, 3, 3, 7, 7}},  // LOOPS
          {0, 5},                                       // INPUTX
          {1, 4},                                       // INPUTY
          {3, 0},                                       // REDUCTION
@@ -487,7 +487,7 @@ std::map<std::string, Params> resnet{
          0,                                            // VEC_SCALE_OFFSET
          0,                                            // VEC_SUB_OFFSET
          false,                                        // RELU
-         {{1, 1, 2, 1, 1, 1}, {16, 8, 3, 3, 14, 14}},  // LOOPS
+         {{2, 2, 2, 1, 1, 1}, {16, 8, 3, 3, 7, 7}},  // LOOPS
          {0, 5},                                       // INPUTX
          {1, 4},                                       // INPUTY
          {3, 0},                                       // REDUCTION
@@ -522,7 +522,7 @@ std::map<std::string, Params> resnet{
          0,                                            // VEC_SCALE_OFFSET
          0,                                            // VEC_SUB_OFFSET
          false,                                        // RELU
-         {{1, 1, 2, 1, 1, 1}, {16, 8, 3, 3, 14, 14}},  // LOOPS
+         {{2, 2, 2, 1, 1, 1}, {16, 8, 3, 3, 7, 7}},  // LOOPS
          {0, 5},                                       // INPUTX
          {1, 4},                                       // INPUTY
          {3, 0},                                       // REDUCTION
