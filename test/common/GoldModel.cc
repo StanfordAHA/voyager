@@ -1,5 +1,7 @@
 #include "test/common/GoldModel.h"
 
+#include <algorithm>
+
 void run_gold_op(const Params params, INPUT_DATATYPE *matrixA,
                  INPUT_DATATYPE *matrixB, OUTPUT_DATATYPE *matrixC,
                  INPUT_DATATYPE *biasMatrix, OUTPUT_DATATYPE *residualMatrix) {
@@ -112,6 +114,10 @@ void run_gold_op(const Params params, INPUT_DATATYPE *matrixA,
           if (params.RESIDUAL) {
             acc += residualMatrix[y * X * K + x * K + k];
           }
+
+          if(params.RELU) 
+            acc = std::max(0,(int)acc);
+
           matrixC[y * X * K + x * K + k] = acc;
         }
       }
