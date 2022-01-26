@@ -187,34 +187,34 @@ std::map<std::string, Params> resnet{
 
     {"layer2_0_downsample",
      {
-         0,                                          // INPUT_OFFSET
-         156864,                                     // WEIGHT_OFFSET
-         802816,                                     // OUTPUT_OFFSET
-         false,                                      // SOFTMAX
-         1,                                          // SCALE
-         false,                                      // TRANSPOSE
-         0,                                          // VECTOR_OFFSET
-         false,                                      // VEC_OP
-         false,                                      // VEC_SUB
-         false,                                      // VEC_SQUARE
-         false,                                      // VEC_REDUCE
-         true,                                       // CONST_SCALE
-         0,                                          // VEC_SCALE_OFFSET
-         0,                                          // VEC_SUB_OFFSET
-         false,                                      // RELU
-         {{2, 2, 4, 1, 1, 1}, {4, 2, 1, 1, 14, 14}}, // LOOPS
-         {0, 5},                                     // INPUTX
-         {1, 4},                                     // INPUTY
-         {3, 0},                                     // REDUCTION
-         {2, 1},                                     // WEIGHT
-         3,                                          // fxIndex
-         2,                                          // fyIndex
-         {4, 5},                                     // weightReuseIndex
-         false,                                      // matmul
-         2,                                          // stride
-         false,                                      // replication
-         false,                                      // maxpool
-         true,                                       // bias
+         0,                                           // INPUT_OFFSET
+         156864,                                 // WEIGHT_OFFSET
+         802816,                             // OUTPUT_OFFSET
+         false,                                       // SOFTMAX
+         1,                                           // SCALE
+         false,                                       // TRANSPOSE
+         0,                                           // VECTOR_OFFSET
+         false,                                       // VEC_OP
+         false,                                       // VEC_SUB
+         false,                                       // VEC_SQUARE
+         false,                                       // VEC_REDUCE
+         true,                                        // CONST_SCALE
+         0,                                           // VEC_SCALE_OFFSET
+         0,                                           // VEC_SUB_OFFSET
+         false,                                       // RELU
+         {{2, 2, 4, 1, 1, 1}, {4, 2, 1, 1, 14, 14}},  // LOOPS
+         {0, 5},                                      // INPUTX
+         {1, 4},                                      // INPUTY
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
+         3,                                           // fxIndex
+         2,                                           // fyIndex
+         {4, 5},                                      // weightReuseIndex
+         false,                                       // matmul
+         2,                                           // stride
+         false,                                       // replication
+         false,                                       // maxpool
+         true,                                        // bias
          11679232,                                   // BIAS_OFFSET
          false,                                       // residual
          1204224,                                    // RESIDUAL_OFFSET
@@ -365,34 +365,34 @@ std::map<std::string, Params> resnet{
 
     {"layer3_0_downsample",
      {
-         401408,                                     // INPUT_OFFSET
-         681152,                                     // WEIGHT_OFFSET
-         802816,                                     // OUTPUT_OFFSET
-         false,                                      // SOFTMAX
-         1,                                          // SCALE
-         false,                                      // TRANSPOSE
-         0,                                          // VECTOR_OFFSET
-         false,                                      // VEC_OP
-         false,                                      // VEC_SUB
-         false,                                      // VEC_SQUARE
-         false,                                      // VEC_REDUCE
-         true,                                       // CONST_SCALE
-         0,                                          // VEC_SCALE_OFFSET
-         0,                                          // VEC_SUB_OFFSET
-         false,                                      // RELU
-         {{1, 1, 2, 1, 1, 1}, {8, 8, 1, 1, 7, 7}}, // LOOPS
-         {0, 5},                                     // INPUTX
-         {1, 4},                                     // INPUTY
-         {3, 0},                                     // REDUCTION
-         {2, 1},                                     // WEIGHT
-         3,                                          // fxIndex
-         2,                                          // fyIndex
-         {4, 5},                                     // weightReuseIndex
-         false,                                      // matmul
-         2,                                          // stride
-         false,                                      // replication
-         false,                                      // maxpool
-         true,                                       // bias
+         401408,                                           // INPUT_OFFSET
+         681152,                                 // WEIGHT_OFFSET
+         802816,                             // OUTPUT_OFFSET
+         false,                                       // SOFTMAX
+         1,                                           // SCALE
+         false,                                       // TRANSPOSE
+         0,                                           // VECTOR_OFFSET
+         false,                                       // VEC_OP
+         false,                                       // VEC_SUB
+         false,                                       // VEC_SQUARE
+         false,                                       // VEC_REDUCE
+         true,                                        // CONST_SCALE
+         0,                                           // VEC_SCALE_OFFSET
+         0,                                           // VEC_SUB_OFFSET
+         false,                                       // RELU
+         {{2, 2, 2, 1, 1, 1}, {8, 8, 1, 1, 7, 7}},  // LOOPS
+         {0, 5},                                      // INPUTX
+         {1, 4},                                      // INPUTY
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
+         3,                                           // fxIndex
+         2,                                           // fyIndex
+         {4, 5},                                      // weightReuseIndex
+         false,                                       // matmul
+         2,                                           // stride
+         false,                                       // replication
+         false,                                       // maxpool
+         true,                                        // bias
          11679872,                                   // BIAS_OFFSET
          false,                                       // residual
          1204224,                                    // RESIDUAL_OFFSET
@@ -401,45 +401,9 @@ std::map<std::string, Params> resnet{
 
     {"layer3_0_conv1",
      {
-         802816,                                     // INPUT_OFFSET
-         713920,                                     // WEIGHT_OFFSET
-         0,                                          // OUTPUT_OFFSET
-         false,                                      // SOFTMAX
-         1,                                          // SCALE
-         false,                                      // TRANSPOSE
-         0,                                          // VECTOR_OFFSET
-         false,                                      // VEC_OP
-         false,                                      // VEC_SUB
-         false,                                      // VEC_SQUARE
-         false,                                      // VEC_REDUCE
-         true,                                       // CONST_SCALE
-         0,                                          // VEC_SCALE_OFFSET
-         0,                                          // VEC_SUB_OFFSET
-         true,                                      // RELU
-         {{1, 1, 2, 1, 1, 1}, {8, 8, 3, 3, 7, 7}}, // LOOPS
-         {0, 5},                                     // INPUTX
-         {1, 4},                                     // INPUTY
-         {3, 0},                                     // REDUCTION
-         {2, 1},                                     // WEIGHT
-         3,                                          // fxIndex
-         2,                                          // fyIndex
-         {4, 5},                                     // weightReuseIndex
-         false,                                      // matmul
-         2,                                          // stride
-         false,                                      // replication
-         false,                                      // maxpool
-         true,                                       // bias
-         11680128,                                   // BIAS_OFFSET
-         false,                                      // residual
-         0 * 1024,                                   // RESIDUAL_OFFSET
-         false                                       // avgpool
-     }},
-
-    {"layer3_0_conv2",
-     {
-         0,                                           // INPUT_OFFSET
-         1008832,                                     // WEIGHT_OFFSET
-         1204224,                                     // OUTPUT_OFFSET
+         802816,                                           // INPUT_OFFSET
+         713920,                                 // WEIGHT_OFFSET
+         0,                             // OUTPUT_OFFSET
          false,                                       // SOFTMAX
          1,                                           // SCALE
          false,                                       // TRANSPOSE
@@ -452,7 +416,7 @@ std::map<std::string, Params> resnet{
          0,                                           // VEC_SCALE_OFFSET
          0,                                           // VEC_SUB_OFFSET
          true,                                       // RELU
-         {{1, 1, 2, 1, 1, 1}, {16, 8, 3, 3, 7, 7}}, // LOOPS
+         {{2, 2, 2, 1, 1, 1}, {8, 8, 3, 3, 7, 7}},  // LOOPS
          {0, 5},                                      // INPUTX
          {1, 4},                                      // INPUTY
          {3, 0},                                      // REDUCTION
@@ -461,14 +425,50 @@ std::map<std::string, Params> resnet{
          2,                                           // fyIndex
          {4, 5},                                      // weightReuseIndex
          false,                                       // matmul
-         1,                                           // stride
+         2,                                           // stride
          false,                                       // replication
          false,                                       // maxpool
          true,                                        // bias
+         11680128,                                   // BIAS_OFFSET
+         false,                                      // residual
+         0 * 1024,                                   // RESIDUAL_OFFSET
+         false                                       // avgpool
+     }},
+
+    {"layer3_0_conv2",
+     {
+         0,                                            // INPUT_OFFSET
+         1008832,                                  // WEIGHT_OFFSET
+         1204224,                              // OUTPUT_OFFSET
+         false,                                        // SOFTMAX
+         1,                                            // SCALE
+         false,                                        // TRANSPOSE
+         0,                                            // VECTOR_OFFSET
+         false,                                        // VEC_OP
+         false,                                        // VEC_SUB
+         false,                                        // VEC_SQUARE
+         false,                                        // VEC_REDUCE
+         true,                                         // CONST_SCALE
+         0,                                            // VEC_SCALE_OFFSET
+         0,                                            // VEC_SUB_OFFSET
+         true,                                        // RELU
+         {{2, 2, 2, 1, 1, 1}, {16, 8, 3, 3, 7, 7}},  // LOOPS
+         {0, 5},                                       // INPUTX
+         {1, 4},                                       // INPUTY
+         {3, 0},                                       // REDUCTION
+         {2, 1},                                       // WEIGHT
+         3,                                            // fxIndex
+         2,                                            // fyIndex
+         {4, 5},                                       // weightReuseIndex
+         false,                                        // matmul
+         1,                                            // stride
+         false,                                        // replication
+         false,                                        // maxpool
+         true,                                         // bias
          11680384,                                    // BIAS_OFFSET
          true,                                        // residual
-         802816,                                      // RESIDUAL_OFFSET
-         false                                        // avgpool
+         802816,                                    // RESIDUAL_OFFSET
+         false                                         // avgpool
      }},
     {"layer3_1_conv1",
      {
