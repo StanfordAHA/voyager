@@ -123,6 +123,7 @@ int run_test(const Params params, const std::string& dataDir,
   delete[] matrixC;
   delete[] sramMemory;
   delete[] rramMemory;
+  delete[] dataFileOutput;
 
   if (errors == 0) {
     std::cout << "Test passed!" << std::endl;
