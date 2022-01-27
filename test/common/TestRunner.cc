@@ -187,8 +187,8 @@ int sc_main(int argc, char* argv[]) {
     }
 
     auto memoryMapSearch = resnetMemoryMap.find(test);
-    if (fileSearch != resnetFiles.end()) {
-      files = fileSearch->second;
+    if (memoryMapSearch != resnetMemoryMap.end()) {
+      memoryMap = memoryMapSearch->second;
     } else {
       throw std::runtime_error("Memory map for " + test + " not found");
     }
