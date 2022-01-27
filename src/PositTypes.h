@@ -29,6 +29,9 @@ class Posit {
     m &bits;
   }
 
+  bool isNegative() const { return bits.slc<1>(width - 1) == 1; }
+  void setZero() { bits = 0; }
+
   inline friend void sc_trace(sc_trace_file *tf, const Posit &posit,
                               const std::string &name) {
     // TODO

@@ -129,7 +129,15 @@ void run_gold_op(const Params params, INPUT_DATATYPE *matrixA,
             acc += residualMatrix[y * X * K + x * K + k];
           }
 
-          if (params.RELU) acc = std::max(0, (int)acc);
+          if (params.RELU) {
+#ifdef POSIT
+            if (acc.get_sign() == 1) {
+              acc.setZero();
+            }
+#else
+            acc = std::max(0, (int)acc);
+#endif
+          }
 
           matrixC[y * X * K + x * K + k] = acc;
         }
