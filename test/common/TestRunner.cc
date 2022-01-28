@@ -39,7 +39,8 @@ void validateMapping(Params params) {
   }
 
   // Weight buffer
-  if (fx * fy * k0 > WEIGHT_BUFFER_SIZE) {
+  int c0_bound = DIMENSION;
+  if (fx * fy * c0_bound * k0 > WEIGHT_BUFFER_SIZE) {
     std::cout << "[ERROR] Weight buffer tile size violation." << std::endl;
     std::terminate();
   }
