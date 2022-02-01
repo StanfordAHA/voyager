@@ -39,8 +39,7 @@ void validateMapping(Params params) {
   }
 
   // Weight buffer
-  int c0_bound = DIMENSION;
-  if (fx * fy * c0_bound * k0 > WEIGHT_BUFFER_SIZE) {
+  if (fx * fy * k0 > WEIGHT_BUFFER_SIZE) {
     std::cout << "[ERROR] Weight buffer tile size violation." << std::endl;
     std::terminate();
   }
@@ -52,10 +51,15 @@ void validateMapping(Params params) {
   }
 }
 
-int run_test(const Params params, const std::string& dataDir,
-             const Files& files, const MemoryMap& memoryMap, bool useDataFile,
-             std::string& fileOutputPrefix) {
+int run_complete(const std::string& dataDir,
+             const Files& files)
+             {
+  bool useDataFile = true;
+  MemoryMap& memoryMap = resnetMemoryMap["conv1"];
+  Params params = resnetParams["conv1"];
+
   validateMapping(params);
+
 
   INPUT_DATATYPE* sramMemory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
   INPUT_DATATYPE* rramMemory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
@@ -96,6 +100,95 @@ int run_test(const Params params, const std::string& dataDir,
   std::cout << "Outputs: " << (memoryMap.outputs == 0 ? "SRAM" : "RRAM")
             << std::endl;
 
+  INPUT_DATATYPE* matrixA = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* matrixB = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* biasMatrix = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* residualMatrix = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  OUTPUT_DATATYPE* matrixC = new OUTPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  OUTPUT_DATATYPE* dataFileOutput = new OUTPUT_DATATYPE[SRAM_MEMORY_SIZE];
+
+  load_memory(resnetParams["conv1"], dataDir, resnetFiles["conv1"], memoryMap, useDataFile, sramMemory,
+              rramMemory, matrixA, matrixB, biasMatrix, residualMatrix, matrixC,
+              dataFileOutput);
+
+  for (const std::string& param_name : resnet_order)
+  {
+    std::cout << param_name << std::endl;
+    load_wb(resnetParams[param_name], dataDir, resnetFiles[param_name], memoryMap, useDataFile, sramMemory,
+              rramMemory, matrixA, matrixB, biasMatrix, residualMatrix, matrixC,
+              dataFileOutput);
+  }
+
+  if (params.MAXPOOL) {
+    X = X / 2;
+    Y = Y / 2;
+  }
+
+  if (params.AVGPOOL) {
+    X = 1;
+    Y = 1;
+  }
+
+  std::vector<Params> ops;
+  for (const std::string& param_name : resnet_order)
+  {
+    ops.push_back(resnetParams[param_name]);
+  }
+  run_op(ops, sramMemory, rramMemory, memoryMap);
+  // run_gold_op(params, matrixA, matrixB, matrixC, biasMatrix, residualMatrix);
+
+  std::ofstream wf("pybuild/output", std::ios::out | std::ios::binary);
+  if (!wf.good())
+    throw std::runtime_error("File write failed");
+
+  wf.write((char*)sramMemory + resnetParams["fc"].OUTPUT_OFFSET, 1000*sizeof(char));
+  wf.close();
+
+  delete[] matrixA;
+  delete[] matrixB;
+  delete[] matrixC;
+  delete[] sramMemory;
+  delete[] rramMemory;
+  delete[] dataFileOutput;
+
+  return 0;
+
+}
+
+
+int run_test(const Params params, const std::string& dataDir,
+             const Files& files, const MemoryMap& memoryMap, bool useDataFile,
+             std::string& fileOutputPrefix) {
+  validateMapping(params);
+
+  INPUT_DATATYPE* sramMemory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* rramMemory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
+
+  if (sramMemory == nullptr || rramMemory == nullptr)
+    throw std::runtime_error("Failed to allocate accelerator memory");
+
+  int X = params.loops[0][params.inputXLoopIndex[0]] *
+          params.loops[1][params.inputXLoopIndex[1]];
+  int Y = params.loops[0][params.inputYLoopIndex[0]] *
+          params.loops[1][params.inputYLoopIndex[1]];
+  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int K = params.loops[0][params.weightLoopIndex[0]] *
+          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+  int FX = params.loops[1][params.fxIndex];
+  int FY = params.loops[1][params.fyIndex];
+  int STRIDE = params.STRIDE;
+
+  if (params.REPLICATION) {
+    FX = 7;
+    C = 3;
+  }
+
+  std::cout << "Performing the following operation:" << std::endl;
+  std::cout << "(" << X << "x" << Y << "x" << C << ")"
+            << " * "
+            << "(" << FX << "x" << FY << "x" << C << "x" << K << ")"
+            << std::endl;
+
   INPUT_DATATYPE* matrixA = new INPUT_DATATYPE[(STRIDE * X) * (STRIDE * Y) * C];
   INPUT_DATATYPE* matrixB = new INPUT_DATATYPE[FX * FY * C * K];
   INPUT_DATATYPE* biasMatrix = new INPUT_DATATYPE[K];
@@ -117,7 +210,7 @@ int run_test(const Params params, const std::string& dataDir,
     Y = 1;
   }
 
-  run_op(params, sramMemory, rramMemory, memoryMap);
+  run_op({params}, sramMemory, rramMemory, memoryMap);
   run_gold_op(params, matrixA, matrixB, matrixC, biasMatrix, residualMatrix);
 
   std::cout << "Accelerator vs. Gold Model" << std::endl;
@@ -189,10 +282,10 @@ int sc_main(int argc, char* argv[]) {
     throw std::runtime_error("Test: " + test + " not found");
   }
 
-  bool useDataFiles = false;
-  std::string dataDir = "";
+  bool useDataFiles = true;
+  std::string dataDir;
   Files files;
-  MemoryMap memoryMap = {SRAM, RRAM, RRAM, SRAM, SRAM};
+  MemoryMap memoryMap;
   if (group == "resnet") {  // currently only resnet has data files
     useDataFiles = true;
 
@@ -213,5 +306,6 @@ int sc_main(int argc, char* argv[]) {
     }
   }
 
-  return run_test(params, dataDir, files, memoryMap, useDataFiles, fullName);
+  run_complete(dataDir, files);
+  // run_test(params, dataDir, files, memoryMap, useDataFiles, fullName);
 }

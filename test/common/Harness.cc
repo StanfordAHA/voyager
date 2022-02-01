@@ -5,11 +5,11 @@
 
 #include "AccelTypes.h"
 
-Harness::Harness(sc_module_name name, Params params, INPUT_DATATYPE *sram,
+Harness::Harness(sc_module_name name, std::vector<Params> params_list, INPUT_DATATYPE *sram,
                  INPUT_DATATYPE *rram, MemoryMap memoryMap)
     : sc_module(name),
       clk("clk", 1, SC_NS, 0.5, 0, SC_NS, true),
-      params(params),
+      params_list(params_list),
       sramMemory(sram),
       rramMemory(rram),
       memoryMap(memoryMap) {
@@ -190,6 +190,7 @@ void Harness::sendParams() {
 
   wait();
 
+  for (Params params : params_list){
   serialParamsIn.Push(params.INPUT_OFFSET);
   serialParamsIn.Push(params.WEIGHT_OFFSET);
   serialParamsIn.Push(params.OUTPUT_OFFSET);
@@ -241,7 +242,9 @@ void Harness::sendParams() {
 
   serialParamsIn.Push(params.AVGPOOL);
 
+  CCS_LOG("Accelerator Params Sent.");
   wait();
+  }
 }
 
 void Harness::storeOutputs() {
@@ -264,23 +267,36 @@ void Harness::waitForStart() {
 
   wait();
 
+  int i = 0;
+  for (Params params : params_list){
   start.SyncPop();
+  CCS_LOG("Accelerator Layer "+ std::to_string(i) +" Started.");
+  i++;
+  }
 
-  CCS_LOG("Accelerator Started.");
 }
 
 void Harness::waitForDone() {
   done.ResetRead();
   wait();
 
-  done.SyncPop();
+  for (Params params : params_list){
+    done.SyncPop();
+    CCS_LOG("Accelerator Layer Finished.");
+  }
 
   CCS_LOG("Accelerator Finished.");
   sc_stop();
 }
 
-void run_op(const Params params, INPUT_DATATYPE *sramMemory,
+// void run_op(const Params params, INPUT_DATATYPE *sramMemory,
+//             INPUT_DATATYPE *rramMemory, MemoryMap memoryMap) {
+//   Harness harness("harness", params, sramMemory, rramMemory, memoryMap);
+//   sc_start();
+// }
+
+void run_op(std::vector<Params> params_list, INPUT_DATATYPE *sramMemory,
             INPUT_DATATYPE *rramMemory, MemoryMap memoryMap) {
-  Harness harness("harness", params, sramMemory, rramMemory, memoryMap);
+  Harness harness("harness", params_list, sramMemory, rramMemory, memoryMap);
   sc_start();
 }

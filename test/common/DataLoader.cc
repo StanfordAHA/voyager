@@ -107,9 +107,9 @@ void load_weights(const Params& params, const std::string& filename,
     for (int fx = 0; fx < FX; fx++) {
       for (int c = 0; c < C; c++) {
         for (int k = 0; k < K; k++) {
+          int address = fy * FX * C * K + fx * C * K + c * K + k;
           int val = (int)*(tmpValuePtr++);
 
-          int address = fy * FX * C * K + fx * C * K + c * K + k;
           acceleratorMemory[params.WEIGHT_OFFSET + address] = val;
           goldMemory[address] = val;
         }
@@ -284,5 +284,20 @@ void load_memory(const Params& params, const std::string& dataDir,
   }
   if (useDataFile) {
     load_datafile_outputs(params, dataDir + files.outputs_file, dataFileOutput);
+  }
+}
+
+void load_wb(const Params& params, const std::string& dataDir,
+                 const Files& files, const MemoryMap& memoryMap,
+                 bool useDataFile, INPUT_DATATYPE* sramMemory,
+                 INPUT_DATATYPE* rramMemory, INPUT_DATATYPE* matrixA,
+                 INPUT_DATATYPE* matrixB, INPUT_DATATYPE* biasMatrix,
+                 INPUT_DATATYPE* residualMatrix, INPUT_DATATYPE* matrixC,
+                 INPUT_DATATYPE* dataFileOutput) {
+  load_weights(params, dataDir + files.weights_file, useDataFile,
+               memoryMap.weights == SRAM ? sramMemory : rramMemory, matrixB);
+  if (params.BIAS) {
+    load_bias(params, dataDir + files.bias_file, useDataFile,
+              memoryMap.bias == SRAM ? sramMemory : rramMemory, biasMatrix);
   }
 }
