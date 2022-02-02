@@ -30,7 +30,7 @@ def clean_name(name):
     return result
 
 # Test settings
-sample_size = 1000
+sample_size = 2
 buildfolder = "pybuild"
 imagenetfolder = "data/imagenet"
 toolfolder = "tools"
@@ -77,6 +77,7 @@ while(samples < sample_size):
         # Convert input to posit
         write_fp64(prefilename, value)
         os.system(toolfolder+"/decode " + prefilename + " " + postfilename)
+        print(postfilename)
     infile.close()
 
     # Run complete simulation to file

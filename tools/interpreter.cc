@@ -4,9 +4,21 @@
 #include <stdexcept>
 #include <vector>
 #include <string>
+#include <stdint.h>
 #include "universal/number/posit/posit.hpp"
 
 using Real = sw::universal::posit<8, 1>;
+
+void print_posit(Real posit) {
+  int64_t* num = reinterpret_cast<int64_t*>(&posit);
+  std::string result;
+  for (int i = 0; i < 64; i++)
+  {
+    result = std::to_string(*num & 1) + result;
+    *num = *num >> 1;
+  }
+  std::cout << result << std::endl;
+}
 
 int readp(const std::string &filename)
 {
@@ -21,15 +33,23 @@ int readp(const std::string &filename)
 
 assert(vec.size() == 1000);
   int index = 0;
-      Real* mx = reinterpret_cast<Real*>(&vec[0]);
+  Real mx;
+  uint64_t tmp = (uint64_t)vec[0];
+  memcpy(&mx, &tmp, sizeof(Real));
+  // mx = *reinterpret_cast<Real*>(&tmp);
+  print_posit(mx);
+
   for (int i = 0;i < vec.size();i++)
   {
-      Real* posit = reinterpret_cast<Real*>(&vec[i]);
-        // std::cout << *posit << " " << i << std::endl;
+    Real posit;
+tmp = (uint64_t)vec[i];
+    memcpy(&posit, &tmp, sizeof(Real));
+        std::cout << posit << " " << mx <<" "<< i << std::endl;
+        // break;
 
-      if (*posit > *mx)
+      if (posit >= mx)
       {
-        *mx = *posit;
+          mx = posit;
           index = i;
       }
   }

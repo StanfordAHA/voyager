@@ -7,6 +7,40 @@
 
 using Real = sw::universal::posit<8, 1>;
 
+void print_posit(Real posit) {
+  int64_t* num = reinterpret_cast<int64_t*>(&posit);
+  std::string result;
+  for (int i = 0; i < 64; i++)
+  {
+    result = std::to_string(*num & 1) + result;
+    *num = *num >> 1;
+  }
+  std::cout << result << std::endl;
+}
+
+void print_char(char c) {
+  std::string result;
+  for (int i = 0; i < 8; i++)
+  {
+    result = std::to_string(c & 1) + result;
+    c = c>> 1;
+  }
+  std::cout << result << std::endl;
+}
+
+char posit_char(Real posit)
+{
+
+  // int64_t* num = reinterpret_cast<int64_t*>(posit);
+  // char result = 0;
+  // for (int i = 0; i < 8; i++)
+  // {
+  //   result += (*num & 1) << i;
+  //   *num = *num >> 1;
+  // }
+  // return result;
+}
+
 size_t readdp(const std::string &filename, double *buf)
 {
   // Read file into vector
@@ -37,7 +71,15 @@ void rewrite_data(std::string infile, std::string outfile)
     // Posit conversion from double
     // std::cout << size << std::endl;
     Real intermediate = tmp[i];
+    // print_char(posit_char(&intermediate));
+    // print_posit(&intermediate);
     char *posit = reinterpret_cast<char *>(&intermediate);
+    // print_char(*posit);
+    // // for (int i = 0; i< 8; i++)
+    // // {
+
+    // // print_char(*(posit + i));
+    // // }
     buf[i] = *posit;
   }
   std::ofstream wf(outfile, std::ios::out | std::ios::binary);

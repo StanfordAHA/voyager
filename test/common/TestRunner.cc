@@ -144,12 +144,12 @@ int run_complete(const std::string& dataDir,
   wf.write((char*)sramMemory + resnetParams["fc"].OUTPUT_OFFSET, 1000*sizeof(char));
   wf.close();
 
-  delete[] matrixA;
-  delete[] matrixB;
-  delete[] matrixC;
-  delete[] sramMemory;
-  delete[] rramMemory;
-  delete[] dataFileOutput;
+  // delete[] matrixA;
+  // delete[] matrixB;
+  // delete[] matrixC;
+  // delete[] sramMemory;
+  // delete[] rramMemory;
+  // delete[] dataFileOutput;
 
   return 0;
 
@@ -213,6 +213,13 @@ int run_test(const Params params, const std::string& dataDir,
   run_op({params}, sramMemory, rramMemory, memoryMap);
   run_gold_op(params, matrixA, matrixB, matrixC, biasMatrix, residualMatrix);
 
+  std::ofstream wf("pybuild/output", std::ios::out | std::ios::binary);
+  if (!wf.good())
+    throw std::runtime_error("File write failed");
+
+  wf.write((char*)sramMemory + resnetParams["fc"].OUTPUT_OFFSET, 1000*sizeof(char));
+  wf.close();
+
   std::cout << "Accelerator vs. Gold Model" << std::endl;
   std::cout << "(reveals bugs in accelerator or memory placement)" << std::endl;
   std::string diffFile = fileOutputPrefix + "accel_vs_gold.txt";
@@ -227,12 +234,12 @@ int run_test(const Params params, const std::string& dataDir,
     errors += compare_arrays(matrixC, dataFileOutput, X * Y * K, diffFile);
   }
 
-  delete[] matrixA;
-  delete[] matrixB;
-  delete[] matrixC;
-  delete[] sramMemory;
-  delete[] rramMemory;
-  delete[] dataFileOutput;
+  // delete[] matrixA;
+  // delete[] matrixB;
+  // delete[] matrixC;
+  // delete[] sramMemory;
+  // delete[] rramMemory;
+  // delete[] dataFileOutput;
 
   if (errors == 0) {
     std::cout << "Test passed!" << std::endl;
@@ -306,6 +313,6 @@ int sc_main(int argc, char* argv[]) {
     }
   }
 
-  run_complete(dataDir, files);
-  // run_test(params, dataDir, files, memoryMap, useDataFiles, fullName);
+  // run_complete(dataDir, files);
+  run_test(params, dataDir, files, memoryMap, useDataFiles, fullName);
 }
