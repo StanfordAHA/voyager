@@ -185,61 +185,28 @@ void Harness::memAccessResidual() {
                  memoryMap.residual);
 }
 
+template <typename T, unsigned int interfaceWidth>
+void sendSerializedParams(T params,
+                          Connections::Combinational<int> *serialParamsIn) {
+  ac_int<T::width, false> serializedParam;
+  vector_to_type(TypeToBits<T>(params), false, &serializedParam);
+
+  ac_int<(T::width + interfaceWidth - 1) / interfaceWidth, false>
+      serializedParamsPadded = serializedParam;
+  for (int i = 0; i < serializedParamsPadded.width; i++) {
+    serialParamsIn->Push(serializedParamsPadded.template slc<interfaceWidth>(
+        i * interfaceWidth));
+  }
+}
+
 void Harness::sendParams() {
   serialParamsIn.ResetWrite();
 
   wait();
 
-  serialParamsIn.Push(params.INPUT_OFFSET);
-  serialParamsIn.Push(params.WEIGHT_OFFSET);
-  serialParamsIn.Push(params.OUTPUT_OFFSET);
-  serialParamsIn.Push(params.SOFTMAX);
-  serialParamsIn.Push(params.SCALE);
-  serialParamsIn.Push(params.TRANSPOSE);
-  serialParamsIn.Push(params.VECTOR_OFFSET);
-  serialParamsIn.Push(params.VEC_OP);
-  serialParamsIn.Push(params.VEC_SUB);
-  serialParamsIn.Push(params.VEC_SQUARE);
-  serialParamsIn.Push(params.VEC_REDUCE);
-  serialParamsIn.Push(params.CONST_SCALE);
-  serialParamsIn.Push(params.VEC_SCALE_OFFSET);
-  serialParamsIn.Push(params.VEC_SUB_OFFSET);
-  serialParamsIn.Push(params.RELU);
+  sendSerializedParams<Params, 32>(params, &serialParamsIn);
 
-  for (int i = 0; i < 2; i++) {
-    for (int j = 0; j < 6; j++) {
-      serialParamsIn.Push(params.loops[i][j]);
-    }
-  }
-  for (int i = 0; i < 2; i++) {
-    serialParamsIn.Push(params.inputXLoopIndex[i]);
-  }
-  for (int i = 0; i < 2; i++) {
-    serialParamsIn.Push(params.inputYLoopIndex[i]);
-  }
-  for (int i = 0; i < 2; i++) {
-    serialParamsIn.Push(params.reductionLoopIndex[i]);
-  }
-  for (int i = 0; i < 2; i++) {
-    serialParamsIn.Push(params.weightLoopIndex[i]);
-  }
-  serialParamsIn.Push(params.fxIndex);
-  serialParamsIn.Push(params.fyIndex);
-  for (int i = 0; i < 2; i++) {
-    serialParamsIn.Push(params.weightReuseIndex[i]);
-  }
-  serialParamsIn.Push(params.matMul);
-  serialParamsIn.Push(params.STRIDE);
-  serialParamsIn.Push(params.REPLICATION);
-  serialParamsIn.Push(params.MAXPOOL);
-
-  serialParamsIn.Push(params.BIAS);
-  serialParamsIn.Push(params.BIAS_OFFSET);
-
-  serialParamsIn.Push(params.RESIDUAL);
-  serialParamsIn.Push(params.RESIDUAL_OFFSET);
-
-  serialParamsIn.Push(params.AVGPOOL);
+  serialParamsIn.Push(0);  // FIXME to send vector parameters
 
   wait();
 }
