@@ -585,6 +585,33 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // SOFTMAX
          true,                                        // FC
          false,                                       // no-norm
+     }},
+    {"softmax",
+     {
+         1605632,                                      // INPUT_OFFSET
+         11166912,                                     // WEIGHT_OFFSET
+         0,                                            // OUTPUT_OFFSET
+         false,                                        // TRANSPOSE
+         {{1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 1, 1008}},  // LOOPS
+         {0, 5},                                       // INPUTX
+         {1, 4},                                       // INPUTY
+         {3, 0},                                       // REDUCTION
+         {2, 1},                                       // WEIGHT
+         3,                                            // fxIndex
+         2,                                            // fyIndex
+         {4, 5},                                       // weightReuseIndex
+         1,                                            // stride
+         false,                                        // replication
+         false,                                        // RELU
+         false,                                        // bias
+         11683712,                                     // BIAS_OFFSET
+         false,                                        // residual
+         1204224,                                      // RESIDUAL_OFFSET
+         false,                                        // maxpool
+         false,                                        // avgpool
+         true,                                         // SOFTMAX
+         false,                                        // FC
+         false,                                        // no-norm
      }}};
 
 std::array<std::string, 21> resnet_order{"conv1",
