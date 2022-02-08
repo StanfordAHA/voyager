@@ -98,7 +98,59 @@ struct MatrixParams {
 
   inline friend std::ostream& operator<<(ostream& os,
                                          const MatrixParams& params) {
-    // TODO
+    os << "INPUT_OFFSET: " << params.INPUT_OFFSET << std::endl;
+    os << "WEIGHT_OFFSET: " << params.WEIGHT_OFFSET << std::endl;
+    os << "OUTPUT_OFFSET: " << params.OUTPUT_OFFSET << std::endl;
+    os << "SOFTMAX: " << params.SOFTMAX << std::endl;
+    os << "SCALE: " << params.SCALE << std::endl;
+    os << "TRANSPOSE: " << params.TRANSPOSE << std::endl;
+    os << "VECTOR_OFFSET: " << params.VECTOR_OFFSET << std::endl;
+    os << "VEC_OP: " << params.VEC_OP << std::endl;
+    os << "VEC_SUB: " << params.VEC_SUB << std::endl;
+    os << "VEC_SQUARE: " << params.VEC_SQUARE << std::endl;
+    os << "VEC_REDUCE: " << params.VEC_REDUCE << std::endl;
+    os << "CONST_SCALE: " << params.CONST_SCALE << std::endl;
+    os << "VEC_SCALE_OFFSET: " << params.VEC_SCALE_OFFSET << std::endl;
+    os << "VEC_SUB_OFFSET: " << params.VEC_SUB_OFFSET << std::endl;
+    os << "RELU: " << params.RELU << std::endl;
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 6; j++) {
+        os << "loops[" << i << "][" << j << "]: " << params.loops[i][j]
+           << std::endl;
+      }
+    }
+    for (int i = 0; i < 2; i++) {
+      os << "inputXLoopIndex[" << i << "]: " << params.inputXLoopIndex[i]
+         << std::endl;
+    }
+    for (int i = 0; i < 2; i++) {
+      os << "inputYLoopIndex[" << i << "]: " << params.inputYLoopIndex[i]
+         << std::endl;
+    }
+    for (int i = 0; i < 2; i++) {
+      os << "reductionLoopIndex[" << i << "]: " << params.reductionLoopIndex[i]
+         << std::endl;
+    }
+    for (int i = 0; i < 2; i++) {
+      os << "weightLoopIndex[" << i << "]: " << params.weightLoopIndex[i]
+         << std::endl;
+    }
+    os << "fxIndex: " << params.fxIndex << std::endl;
+    os << "fyIndex: " << params.fyIndex << std::endl;
+    for (int i = 0; i < 2; i++) {
+      os << "weightReuseIndex[" << i << "]: " << params.weightReuseIndex[i]
+         << std::endl;
+    }
+    os << "matMul: " << params.matMul << std::endl;
+    os << "STRIDE: " << params.STRIDE << std::endl;
+    os << "REPLICATION: " << params.REPLICATION << std::endl;
+    os << "MAXPOOL: " << params.MAXPOOL << std::endl;
+    os << "BIAS: " << params.BIAS << std::endl;
+    os << "BIAS_OFFSET: " << params.BIAS_OFFSET << std::endl;
+    os << "RESIDUAL: " << params.RESIDUAL << std::endl;
+    os << "RESIDUAL_OFFSET: " << params.RESIDUAL_OFFSET << std::endl;
+    os << "AVGPOOL: " << params.AVGPOOL << std::endl;
+
     return os;
   }
 };

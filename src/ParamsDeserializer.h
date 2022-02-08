@@ -23,14 +23,15 @@ SC_MODULE(ParamsDeserializer) {
 
   template <typename T, unsigned int interfaceWidth>
   T getSerializedParams() {
-    ac_int<(T::width + interfaceWidth - 1) / interfaceWidth, false>
+    ac_int<((T::width + interfaceWidth - 1) / interfaceWidth) * interfaceWidth,
+           false>
         serializedParamsPadded;
-    for (int i = 0; i < serializedParamsPadded.width; i++) {
+    for (int i = 0; i < serializedParamsPadded.width / interfaceWidth; i++) {
       ac_int<interfaceWidth, false> val = serialParamsIn.Pop();
       serializedParamsPadded.set_slc(i * interfaceWidth, val);
     }
     ac_int<T::width, false> serializedParams =
-        serializedParamsPadded.template slc<interfaceWidth>(0);
+        serializedParamsPadded.template slc<T::width>(0);
     sc_lv<T::width> serializedParamsLV;
     type_to_vector(serializedParams, T::width, serializedParamsLV);
     return BitsToType<T>(serializedParamsLV);
@@ -46,6 +47,9 @@ SC_MODULE(ParamsDeserializer) {
       // Matrix Unit Params
       while (serialParamsIn.Pop() == 1) {
         MatrixParams params = getSerializedParams<MatrixParams, 32>();
+
+        std::cout << "Params received:" << std::endl;
+        std::cout << params << std::endl;
         paramsOut.Push(params);
       }
 
