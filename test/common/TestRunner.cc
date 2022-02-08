@@ -90,6 +90,13 @@ int run_test(const SimplifiedParams params, const std::string& dataDir,
             << "(" << FX << "x" << FY << "x" << C << "x" << K << ")"
             << std::endl;
 
+  std::cout << "Additional Ops: " << std::endl;
+  std::cout << "Bias: " << params.BIAS << std::endl;
+  std::cout << "Residual: " << params.RESIDUAL << std::endl;
+  std::cout << "Relu: " << params.RELU << std::endl;
+  std::cout << "Maxpool: " << params.MAXPOOL << std::endl;
+  std::cout << "Avgpool: " << params.AVGPOOL << std::endl;
+
   std::cout << "Using the following memory map:" << std::endl;
   std::cout << "Inputs: " << (memoryMap.inputs == 0 ? "SRAM" : "RRAM")
             << std::endl;
