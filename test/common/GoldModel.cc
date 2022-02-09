@@ -198,7 +198,7 @@ void run_gold_op(const SimplifiedParams params, INPUT_DATATYPE *matrixA,
             acc += tmpMatrixC[y * X * K + x * K + k];
           }
         }
-        matrixC[k] = acc;
+        matrixC[k] = acc / (Y * X); // Average
       }
 
       delete[] tmpMatrixC;
