@@ -12,6 +12,8 @@ SC_MODULE(MaxpoolUnit) {
   Connections::In<Pack1D<DTYPE, WIDTH> > CCS_INIT_S1(tensorIn);
   Connections::Out<Pack1D<DTYPE, WIDTH> > CCS_INIT_S1(tensorOut);
 
+  Connections::SyncOut CCS_INIT_S1(doneSignal);
+
   SC_CTOR(MaxpoolUnit) {
     SC_THREAD(run);
     sensitive << clk.pos();
@@ -22,6 +24,7 @@ SC_MODULE(MaxpoolUnit) {
     paramsIn.Reset();
     tensorIn.Reset();
     tensorOut.Reset();
+    doneSignal.Reset();
 
     wait();
 
@@ -151,6 +154,8 @@ SC_MODULE(MaxpoolUnit) {
           break;
         }
       }
+
+      doneSignal.SyncPush();
     }
   }
 };

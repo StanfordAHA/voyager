@@ -141,7 +141,7 @@ SC_MODULE(VectorOpUnit) {
       Pack1D<INTER_DTYPE, WIDTH> op3Src1;
       if (inst.vOp3Src1 == VectorInstructions::readReduceInterface) {
         op3Src1 = reductionOpOutputSrc1.Pop();
-      } else {
+      } else if (inst.vOp3Src1 == VectorInstructions::readNormalInterface) {
         Pack1D<IDTYPE, WIDTH> tmp = vectorFetch2Output.Pop();
 #pragma hls_unroll yes
         for (int i = 0; i < WIDTH; i++) {
@@ -309,6 +309,7 @@ SC_MODULE(VectorUnit) {
     maxpoolUnit.paramsIn(maxpoolUnitParams);
     maxpoolUnit.tensorIn(vectorOpUnitOutput);
     maxpoolUnit.tensorOut(finalVectorOutput);
+    maxpoolUnit.doneSignal(done);
 
     outputAddressGenerator.clk(clk);
     outputAddressGenerator.rstn(rstn);
@@ -343,6 +344,9 @@ SC_MODULE(VectorUnit) {
   }
 
   void instructionSender() {
+    vectorOpInstructions.ResetWrite();
+    reduceOpInstructions.ResetWrite();
+
     wait();
 
     while (true) {
