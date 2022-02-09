@@ -47,12 +47,13 @@ SC_MODULE(Harness) {
   Connections::SyncChannel CCS_INIT_S1(start);
   Connections::SyncChannel CCS_INIT_S1(done);
 
-  Harness(sc_module_name, std::vector<SimplifiedParams>, INPUT_DATATYPE *, INPUT_DATATYPE *,
-          MemoryMap);
+  Harness(sc_module_name, std::vector<SimplifiedParams>, INPUT_DATATYPE *,
+          INPUT_DATATYPE *, MemoryMap);
   SC_HAS_PROCESS(Harness);
 
  private:
-    std::vector<SimplifiedParams> params_list;
+  std::vector<SimplifiedParams> params_list;
+  SimplifiedParams currentParams;
   INPUT_DATATYPE *sramMemory, *rramMemory;
   MemoryMap memoryMap;
   CCS_DESIGN(Accelerator) CCS_INIT_S1(accelerator);
@@ -85,5 +86,6 @@ SC_MODULE(Harness) {
   void waitForDone();
 };
 
-void run_op(const std::vector<SimplifiedParams> params_list, INPUT_DATATYPE *sramMemory,
-            INPUT_DATATYPE *rramMemory, MemoryMap memoryMap);
+void run_op(const std::vector<SimplifiedParams> params_list,
+            INPUT_DATATYPE *sramMemory, INPUT_DATATYPE *rramMemory,
+            MemoryMap memoryMap);

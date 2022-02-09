@@ -165,14 +165,14 @@ void Harness::memAccessVector0() {
 }
 
 void Harness::memAccessVector1() {
-  // FIXME!
-  // if (params.FC) {
-  //   memAccessBurst(&vectorFetch1AddressRequest, &vectorFetch1DataResponse,
-  //                  memoryMap.weights);
-  // } else {
-  memAccessBurst(&vectorFetch1AddressRequest, &vectorFetch1DataResponse,
-                 memoryMap.residual);
-  // }
+  // FIXME: memory map should also be dependent on the layer being run
+  if (currentParams.FC) {
+    memAccessBurst(&vectorFetch1AddressRequest, &vectorFetch1DataResponse,
+                   memoryMap.weights);
+  } else {
+    memAccessBurst(&vectorFetch1AddressRequest, &vectorFetch1DataResponse,
+                   memoryMap.residual);
+  }
 }
 
 void Harness::memAccessVector2() {
@@ -198,11 +198,14 @@ void sendSerializedParams(T params,
 }
 
 void Harness::sendParams() {
+  done.ResetRead();
   serialParamsIn.ResetWrite();
 
   wait();
 
   for (SimplifiedParams params : params_list) {
+    currentParams = params;
+
     // create Matrix and Vector Params from SimplifiedParams
     if (params.SOFTMAX) {
       // TODO
@@ -384,9 +387,12 @@ void Harness::sendParams() {
                                                         &serialParamsIn);
 
       serialParamsIn.Push(0);
+
+      done.SyncPop();
+      CCS_LOG("Accelerator Layer Finished.");
     }
 
-    wait();
+    sc_stop();
   }
 }
 
@@ -430,16 +436,15 @@ void Harness::waitForStart() {
   }
 }
 void Harness::waitForDone() {
-  done.ResetRead();
-  wait();
+  // done.ResetRead();
+  // wait();
 
-  for (SimplifiedParams params : params_list) {
-    done.SyncPop();
-    CCS_LOG("Accelerator Layer Finished.");
-  }
+  // for (SimplifiedParams params : params_list) {
 
-  CCS_LOG("Accelerator Finished.");
-  sc_stop();
+  // }
+
+  // CCS_LOG("Accelerator Finished.");
+  // sc_stop();
 }
 
 void run_op(std::vector<SimplifiedParams> params_list,
