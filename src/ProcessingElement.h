@@ -5,7 +5,7 @@
 
 #include "AccelTypes.h"
 
-template <typename IDTYPE, typename INTERMEDIATE_DTYPE, typename ODTYPE>
+template <typename IDTYPE, typename ODTYPE>
 SC_MODULE(ProcessingElement) {
  public:
   sc_in<bool> CCS_INIT_S1(clk);
@@ -28,7 +28,8 @@ SC_MODULE(ProcessingElement) {
 
   sc_out<bool> CCS_INIT_S1(valid_output);
 
-  INTERMEDIATE_DTYPE weight_reg;
+  IDTYPE weight_reg;  // FIXME: use decoded Posit form so that we aren't
+                      // decoding over and over again
   IDTYPE weight_fifo;
 
   IDTYPE input_reg;
@@ -73,7 +74,7 @@ SC_MODULE(ProcessingElement) {
           weight_reg = weight_fifo;
         }
 
-        psum_reg = fma(input_reg, weight_reg, psum);
+        psum_reg = pe_fma(input_reg, weight_reg, psum);
 
         input_out.write(input_reg);
         psum_out.write(psum_reg);
@@ -97,22 +98,13 @@ SC_MODULE(ProcessingElement) {
   }
 
   template <typename DTYPE>
-  DTYPE fma(DTYPE input, DTYPE weight, DTYPE psum) {
+  DTYPE pe_fma(DTYPE input, DTYPE weight, DTYPE psum) {
     // CCS_LOG(input << " * " << weight << " + " << psum);
     return input * weight + psum;
   }
 
-  // Posit<16, 1, 8, 16> fma(Posit<8, 1, 8, 16> input, PositFP<8, 16> weight,
-  //                         Posit<16, 1, 8, 16> psum) {
-  //   PositFP<8, 16> intermediate = weight.fma(input, psum);
-  //   Posit<16, 1, 8, 16> output = intermediate;
-  //   return output;
-  // }
-
-  ODTYPE fma(IDTYPE input, INTERMEDIATE_DTYPE weight,
-             ODTYPE psum) {
-    INTERMEDIATE_DTYPE intermediate = weight.fma(input, psum);
-    ODTYPE output = intermediate;
-    return output;
+  ODTYPE pe_fma(IDTYPE input, IDTYPE weight, ODTYPE psum) {
+    return fma<IDTYPE::width, IDTYPE::esbits, ODTYPE::width, ODTYPE::esbits>(
+        input, weight, psum);
   }
 };

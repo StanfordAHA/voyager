@@ -5,7 +5,7 @@
 
 #include "SystolicArray.h"
 
-template <typename IDTYPE, typename INTERMEDIATE_DTYPE, typename ODTYPE,
+template <typename IDTYPE, typename ODTYPE,
           int NROWS, int NCOLS, int BUFFER_SIZE>
 SC_MODULE(MatrixProcessor) {
  private:
@@ -32,7 +32,7 @@ SC_MODULE(MatrixProcessor) {
   Skewer<ac_int<1, false>, NROWS> CCS_INIT_S1(weightSwapSkewer);
   Connections::Combinational<Pack1D<ac_int<1, false>, NROWS> > CCS_INIT_S1(
       weightSwapSkewerDin);
-  SystolicArray<IDTYPE, INTERMEDIATE_DTYPE, ODTYPE, NROWS, NCOLS> CCS_INIT_S1(
+  SystolicArray<IDTYPE, ODTYPE, NROWS, NCOLS> CCS_INIT_S1(
       systolicArray);
 
  public:

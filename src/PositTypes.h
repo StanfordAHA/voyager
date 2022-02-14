@@ -114,6 +114,13 @@ class PositFP;
 template <int nbits, int es>
 class Posit {
  public:
+  // static const definitions
+  static const unsigned int width = nbits;
+  static const unsigned int esbits = es;
+  static const size_t sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
+  static const size_t fbits = nbits - 2 - es;
+  typedef PositFP<sbits, fbits> DecomposedPosit;
+
   ac_int<nbits, false> bits;
   Posit() {}
   Posit(int i);
@@ -121,8 +128,8 @@ class Posit {
   template <int nbits2, int es2>
   Posit(const Posit<nbits2, es2> &input);
 
-  template <int sbits, int fbits>
-  Posit(const PositFP<sbits, fbits> &input);
+  template <int fp_sbits, int fp_fbits>
+  Posit(const PositFP<fp_sbits, fp_fbits> &input);
 
 #ifndef __SYNTHESIS__
   Posit(const float f);
@@ -161,8 +168,6 @@ class Posit {
   operator float() const;
 #endif
 
-  static const unsigned int width = nbits;
-
 #ifdef __SYNTHESIS__
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
@@ -188,17 +193,17 @@ Posit<nbits, es>::Posit(int i) {
 }
 
 template <int nbits, int es>
-template <int sbits, int fbits>
-Posit<nbits, es>::Posit(const PositFP<sbits, fbits> &input) {
-  convert_<nbits, es, fbits>(input.sign, input.scale, input.fraction,
-                             this->bits);
+template <int fp_sbits, int fp_fbits>
+Posit<nbits, es>::Posit(const PositFP<fp_sbits, fp_fbits> &input) {
+  convert_<nbits, es, fp_fbits>(input.sign, input.scale, input.fraction,
+                                this->bits);
 }
 
 template <int nbits, int es>
 template <int nbits2, int es2>
 Posit<nbits, es>::Posit(const Posit<nbits2, es2> &input) {
-  constexpr size_t sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
-  constexpr size_t fbits = nbits - 2 - es;
+  // constexpr size_t sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
+  // constexpr size_t fbits = nbits - 2 - es;
   PositFP<sbits, fbits> tmp(input);
   *this = tmp;
 }
@@ -216,11 +221,39 @@ Posit<nbits, es>::Posit(const float f) {
 }
 #endif
 
+#pragma hls_design ccore
+#pragma ccore_type combinational
+template <int nbits, int es>
+inline void Posit<nbits, es>::exp() {
+  // std::cout << "original:\t" << bits.to_string(AC_BIN, false, true)
+  //           << std::endl;
+  negate();
+  // std::cout << "negative:\t" << bits.to_string(AC_BIN, false, true)
+  //           << std::endl;
+
+  Posit<nbits, 0> es0Posit = *this;
+  es0Posit.sigmoid();
+  *this = es0Posit;
+  // std::cout << "sigmoid:\t" << bits.to_string(AC_BIN, false, true)
+  //           << std::endl;
+  reciprocal();
+  // std::cout << "reciprocal:\t" << bits.to_string(AC_BIN, false, true)
+  //           << std::endl;
+  Posit one = 1 << (nbits - 1) - 1;
+
+  DecomposedPosit op1 = *this;
+  DecomposedPosit op2 = one;
+  DecomposedPosit res = op1 - op2;
+  *this = res;
+  // std::cout << "final  :\t" << bits.to_string(AC_BIN, false, true)
+  //           << std::endl;
+}
+
 template <int nbits, int es>
 template <int nbits2, int es2>
 Posit<nbits, es> Posit<nbits, es>::operator+(const Posit<nbits2, es2> &rhs) {
-  constexpr size_t sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
-  constexpr size_t fbits = nbits - 2 - es;
+  // constexpr size_t sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
+  // constexpr size_t fbits = nbits - 2 - es;
   PositFP<sbits, fbits> op1 = *this;
   PositFP<sbits, fbits> op2 = rhs;
   return op1 + op2;
@@ -229,8 +262,8 @@ Posit<nbits, es> Posit<nbits, es>::operator+(const Posit<nbits2, es2> &rhs) {
 template <int nbits, int es>
 inline Posit<nbits, es> Posit<nbits, es>::operator*(
     const Posit<nbits, es> &rhs) {
-  constexpr size_t sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
-  constexpr size_t fbits = nbits - 2 - es;
+  // constexpr size_t sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
+  // constexpr size_t fbits = nbits - 2 - es;
   PositFP<sbits, fbits> op1 = *this;
   PositFP<sbits, fbits> op2 = rhs;
   return op1 * op2;
@@ -239,8 +272,8 @@ inline Posit<nbits, es> Posit<nbits, es>::operator*(
 template <int nbits, int es>
 inline Posit<nbits, es> &Posit<nbits, es>::operator+=(
     const Posit<nbits, es> &rhs) {
-  constexpr size_t sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
-  constexpr size_t fbits = nbits - 2 - es;
+  // constexpr size_t sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
+  // constexpr size_t fbits = nbits - 2 - es;
   PositFP<sbits, fbits> op1 = *this;
   PositFP<sbits, fbits> op2 = rhs;
 
@@ -251,8 +284,8 @@ inline Posit<nbits, es> &Posit<nbits, es>::operator+=(
 template <int nbits, int es>
 inline Posit<nbits, es> &Posit<nbits, es>::operator-=(
     const Posit<nbits, es> &rhs) {
-  constexpr size_t sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
-  constexpr size_t fbits = nbits - 2 - es;
+  // constexpr size_t sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
+  // constexpr size_t fbits = nbits - 2 - es;
   PositFP<sbits, fbits> op1 = *this;
   PositFP<sbits, fbits> op2 = rhs;
 
@@ -273,10 +306,13 @@ inline bool Posit<nbits, es>::operator<(const Posit<nbits, es> &rhs) const {
   if (lhs_sign ^ rhs_sign) {
     return lhs_sign;
   } else {
-    ac_int<nbits, false> r1 =
-        lhs_sign ? this->bits.bit_complement() + 1 : this->bits;
+    ac_int<nbits, false> r1 = lhs_sign ? static_cast<ac_int<nbits, false> >(
+                                             this->bits.bit_complement() + 1)
+                                       : this->bits;
     ac_int<nbits, false> r2 =
-        rhs_sign ? rhs.bits.bit_complement() + 1 : rhs.bits;
+        rhs_sign
+            ? static_cast<ac_int<nbits, false> >(rhs.bits.bit_complement() + 1)
+            : rhs.bits;
     return r1 < r2;
   }
 }
@@ -315,6 +351,13 @@ class PositFP {
     scale = 0;
   }
 
+  void negate() { sign = !sign; }
+  void relu() {
+    if (sign == 1) {
+      setZero();
+    }
+  }
+
   PositFP<sbits, fbits + 5> operator+(const PositFP &op) const;
   PositFP<sbits, 2 * fbits> operator*(const PositFP &op) const;
   PositFP operator-(const PositFP &op) const;
@@ -326,10 +369,10 @@ class PositFP {
                const PositFP<sbits2, fbits2> &op3);
 
 #ifndef __SYNTHESIS__
-  operator float() const {
+  explicit operator float() const {
     if (!fraction) return 0;
 
-    union ufloat uf = {.u{0}};
+    union ufloat uf;
     uf.u += sign ? 1 << 31 : 0;
     uf.u += (scale + 127) << 23;
 
@@ -437,7 +480,7 @@ PositFP<sbits, fbits> PositFP<sbits, fbits>::operator-(
   PositFP<sbits, fbits> negOp = op;
   negOp.sign = !negOp.sign;
 
-  return *this + negOp;
+  return static_cast<PositFP<sbits, fbits> >(*this + negOp);
 }
 
 template <int sbits, int fbits>
@@ -445,7 +488,7 @@ PositFP<sbits, 2 * fbits> PositFP<sbits, fbits>::operator*(
     const PositFP<sbits, fbits> &op) const {
   PositFP<sbits, fbits> lhs = *this;
   PositFP<sbits, fbits> rhs = op;
-  PositFP<sbits + 1, 2 * fbits> result;
+  PositFP<sbits, 2 * fbits> result;
 
   result.sign = lhs.sign ^ rhs.sign;
   result.scale = lhs.scale + rhs.scale;
@@ -463,7 +506,7 @@ PositFP<sbits, 2 * fbits> PositFP<sbits, fbits>::operator*(
 template <int sbits, int fbits>
 inline PositFP<sbits, fbits> &PositFP<sbits, fbits>::operator+=(
     const PositFP<sbits, fbits> &rhs) {
-  *this = *this + rhs;
+  *this = static_cast<PositFP<sbits, fbits> >(*this + rhs);
 
   return *this;
 }

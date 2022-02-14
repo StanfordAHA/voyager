@@ -7,7 +7,7 @@ void vadd(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
           Pack1D<ACC_DTYPE, WIDTH>& res) {
 #pragma hls_unroll yes
   for (int i = 0; i < WIDTH; i++) {
-    res[i] = op0[i] + op1[i];
+    res[i] = static_cast<ACC_DTYPE>(op0[i] + op1[i]);
   }
 }
 
@@ -18,7 +18,7 @@ void vmult(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
            Pack1D<ACC_DTYPE, WIDTH>& res) {
 #pragma hls_unroll yes
   for (int i = 0; i < WIDTH; i++) {
-    res[i] = op0[i] * op1[i];
+    res[i] = static_cast<ACC_DTYPE>(op0[i] * op1[i]);
   }
 }
 
@@ -136,7 +136,9 @@ template <typename ACC_DTYPE>
 struct TreeOps<ACC_DTYPE, 2> {
 #pragma hls_design ccore
 #pragma ccore_type combinational
-  ACC_DTYPE treeadd(Pack1D<ACC_DTYPE, 2>& op) { return op[0] + op[1]; }
+  ACC_DTYPE treeadd(Pack1D<ACC_DTYPE, 2>& op) {
+    return static_cast<ACC_DTYPE>(op[0] + op[1]);
+  }
   ACC_DTYPE treemax(Pack1D<ACC_DTYPE, 2>& op) {
     return op[0] < op[1] ? op[1] : op[0];
   }

@@ -9,7 +9,7 @@
 #include "VectorFetch.h"
 #include "VectorOps.h"
 
-template <typename IDTYPE, typename ACC_DTYPE, typename INTER_DTYPE, int WIDTH>
+template <typename IDTYPE, typename ACC_DTYPE, int WIDTH>
 SC_MODULE(VectorOpUnit) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
@@ -25,12 +25,15 @@ SC_MODULE(VectorOpUnit) {
   Connections::Out<Pack1D<IDTYPE, WIDTH> > CCS_INIT_S1(vectorOpUnitOutput);
   Connections::Out<Pack1D<IDTYPE, WIDTH> > CCS_INIT_S1(scalarOpUnitOutput);
 
-  Connections::Combinational<Pack1D<INTER_DTYPE, WIDTH> > CCS_INIT_S1(
-      reductionOpInput);
-  Connections::Combinational<Pack1D<INTER_DTYPE, WIDTH> > CCS_INIT_S1(
-      reductionOpOutputSrc0);
-  Connections::Combinational<Pack1D<INTER_DTYPE, WIDTH> > CCS_INIT_S1(
-      reductionOpOutputSrc1);
+  Connections::Combinational<
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      CCS_INIT_S1(reductionOpInput);
+  Connections::Combinational<
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      CCS_INIT_S1(reductionOpOutputSrc0);
+  Connections::Combinational<
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      CCS_INIT_S1(reductionOpOutputSrc1);
 
   SC_CTOR(VectorOpUnit) {
     SC_THREAD(vectorOpRun);
@@ -57,21 +60,21 @@ SC_MODULE(VectorOpUnit) {
     while (true) {
       VectorInstructions inst = vectorOpUnitInstructions.Pop();
 
-      Pack1D<INTER_DTYPE, WIDTH> op0;
-      Pack1D<INTER_DTYPE, WIDTH> op1;
-      Pack1D<INTER_DTYPE, WIDTH> op2;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op0;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op1;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op2;
 
-      Pack1D<INTER_DTYPE, WIDTH> res0;
-      Pack1D<INTER_DTYPE, WIDTH> res1;
-      Pack1D<INTER_DTYPE, WIDTH> res2;
-      Pack1D<INTER_DTYPE, WIDTH> res3;
-      Pack1D<INTER_DTYPE, WIDTH> res4;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res0;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res1;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res2;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res3;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res4;
 
       /*
        * Stage 0: add, sub, mult
        */
       // Read from interfaces
-      Pack1D<INTER_DTYPE, WIDTH> op0Src0;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op0Src0;
       if (inst.vInput == VectorInstructions::readFromSystolicArray) {
         Pack1D<ACC_DTYPE, WIDTH> tmp = systolicArrayOutput.Pop();
 #pragma hls_unroll yes
@@ -86,7 +89,7 @@ SC_MODULE(VectorOpUnit) {
         }
       }
 
-      Pack1D<INTER_DTYPE, WIDTH> op0Src1;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op0Src1;
       if (inst.vOp0Src1 == VectorInstructions::readInterface) {
         Pack1D<IDTYPE, WIDTH> tmp = vectorFetch1Output.Pop();
 #pragma hls_unroll yes
@@ -103,9 +106,11 @@ SC_MODULE(VectorOpUnit) {
             op0Src1[i].negate();
           }
         }
-        vadd<INTER_DTYPE, WIDTH>(op0Src0, op0Src1, res0);
+        vadd<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op0Src0, op0Src1,
+                                                         res0);
       } else if (inst.vOp0 == VectorInstructions::vmult) {
-        vmult<INTER_DTYPE, WIDTH>(op0Src0, op0Src1, res0);
+        vmult<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op0Src0, op0Src1,
+                                                          res0);
       } else {
         res0 = op0;
       }
@@ -114,7 +119,7 @@ SC_MODULE(VectorOpUnit) {
        * Stage 1: exp
        */
       if (inst.vOp1 == VectorInstructions::vexp) {
-        vexp<INTER_DTYPE, WIDTH>(res0, res1);
+        vexp<typename ACC_DTYPE::DecomposedPosit, WIDTH>(res0, res1);
       } else {
         res1 = res0;
       }
@@ -131,14 +136,14 @@ SC_MODULE(VectorOpUnit) {
       /*
        * Stage 3: add, div
        */
-      Pack1D<INTER_DTYPE, WIDTH> op3Src0;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op3Src0;
       if (inst.vOp3Src0 == VectorInstructions::readReduceInterface) {
         op3Src0 = reductionOpOutputSrc0.Pop();
       } else {
         op3Src0 = res2;
       }
 
-      Pack1D<INTER_DTYPE, WIDTH> op3Src1;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op3Src1;
       if (inst.vOp3Src1 == VectorInstructions::readReduceInterface) {
         op3Src1 = reductionOpOutputSrc1.Pop();
       } else if (inst.vOp3Src1 == VectorInstructions::readNormalInterface) {
@@ -150,9 +155,11 @@ SC_MODULE(VectorOpUnit) {
       }
 
       if (inst.vOp3 == VectorInstructions::vadd) {
-        vadd<INTER_DTYPE, WIDTH>(op3Src0, op3Src1, res3);
+        vadd<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op3Src0, op3Src1,
+                                                         res3);
       } else if (inst.vOp3 == VectorInstructions::vdiv) {
-        vdiv<INTER_DTYPE, WIDTH>(op3Src0, op3Src1, res3);
+        vdiv<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op3Src0, op3Src1,
+                                                         res3);
       } else {
         res3 = res2;
       }
@@ -161,7 +168,7 @@ SC_MODULE(VectorOpUnit) {
        * Stage 4: relu
        */
       if (inst.vOp4 == VectorInstructions::vrelu) {
-        vrelu<INTER_DTYPE, WIDTH>(res3, res4);
+        vrelu<typename ACC_DTYPE::DecomposedPosit, WIDTH>(res3, res4);
       } else {
         res4 = res3;
       }
@@ -188,22 +195,28 @@ SC_MODULE(VectorOpUnit) {
     while (true) {
       VectorInstructions inst = reductionOpUnitInstructions.Pop();
 
-      INTER_DTYPE prevResult;
+      typename ACC_DTYPE::DecomposedPosit prevResult;
 
       if (inst.rOp == VectorInstructions::radd) {
         for (int i = 0; i < inst.rCount; i++) {
-          Pack1D<INTER_DTYPE, WIDTH> op = reductionOpInput.Pop();
-          INTER_DTYPE result = TreeOps<INTER_DTYPE, WIDTH>().treeadd(op);
+          Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op =
+              reductionOpInput.Pop();
+          typename ACC_DTYPE::DecomposedPosit result =
+              TreeOps<typename ACC_DTYPE::DecomposedPosit, WIDTH>().treeadd(op);
           if (i != 0) {
-            result = result + prevResult;
+            // result = (typename ACC_DTYPE::DecomposedPosit)(result +
+            // prevResult);
+            result += prevResult;
           }
 
           prevResult = result;
         }
       } else if (inst.rOp == VectorInstructions::rmax) {
         for (int i = 0; i < inst.rCount; i++) {
-          Pack1D<INTER_DTYPE, WIDTH> op = reductionOpInput.Pop();
-          INTER_DTYPE result = TreeOps<INTER_DTYPE, WIDTH>().treemax(op);
+          Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op =
+              reductionOpInput.Pop();
+          typename ACC_DTYPE::DecomposedPosit result =
+              TreeOps<typename ACC_DTYPE::DecomposedPosit, WIDTH>().treemax(op);
           if (i != 0) {
             result = result < prevResult ? prevResult : result;
           }
@@ -214,7 +227,7 @@ SC_MODULE(VectorOpUnit) {
 
       if (inst.rDest != 0) {
         // Duplicate the scalar result into a vector
-        Pack1D<INTER_DTYPE, WIDTH> res;
+        Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res;
 #pragma hls_unroll yes
         for (int i = 0; i < WIDTH; i++) {
           res[i] = prevResult;
@@ -238,7 +251,7 @@ SC_MODULE(VectorOpUnit) {
   }
 };
 
-template <typename ODTYPE, typename ACC_DTYPE, typename INTER_DTYPE, int WIDTH>
+template <typename ODTYPE, typename ACC_DTYPE, int WIDTH>
 SC_MODULE(VectorUnit) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
@@ -270,7 +283,7 @@ SC_MODULE(VectorUnit) {
   VectorFetchUnit<WIDTH> CCS_INIT_S1(vectorFetch);
   Connections::Combinational<VectorParams> CCS_INIT_S1(vectorFetchParams);
 
-  VectorOpUnit<ODTYPE, ACC_DTYPE, INTER_DTYPE, WIDTH> CCS_INIT_S1(vectorOpUnit);
+  VectorOpUnit<ODTYPE, ACC_DTYPE, WIDTH> CCS_INIT_S1(vectorOpUnit);
 
   MaxpoolUnit<ODTYPE, WIDTH> CCS_INIT_S1(maxpoolUnit);
   Connections::Combinational<VectorParams> CCS_INIT_S1(maxpoolUnitParams);

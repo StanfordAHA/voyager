@@ -7,8 +7,7 @@
 #include "ProcessingElement.h"
 #include "Skewer.h"
 
-template <typename IDTYPE, typename INTERMEDIATE_DTYPE, typename ODTYPE,
-          int NROWS, int NCOLS>
+template <typename IDTYPE, typename ODTYPE, int NROWS, int NCOLS>
 SC_MODULE(SystolicArray) {
  public:
   sc_in<bool> CCS_INIT_S1(clk);
@@ -34,12 +33,11 @@ SC_MODULE(SystolicArray) {
   sc_fifo<Pack1D<ODTYPE, NROWS> > outputFifo;
 
   SC_CTOR(SystolicArray) {
-    ProcessingElement<IDTYPE, INTERMEDIATE_DTYPE, ODTYPE> *pe[NROWS * NCOLS];
+    ProcessingElement<IDTYPE, ODTYPE> *pe[NROWS * NCOLS];
     for (int i = 0; i < NROWS; i++) {
       for (int j = 0; j < NCOLS; j++) {
-        pe[i * NCOLS + j] =
-            new ProcessingElement<IDTYPE, INTERMEDIATE_DTYPE, ODTYPE>(
-                sc_gen_unique_name("pe_inst"));
+        pe[i * NCOLS + j] = new ProcessingElement<IDTYPE, ODTYPE>(
+            sc_gen_unique_name("pe_inst"));
         pe[i * NCOLS + j]->clk(clk);
         pe[i * NCOLS + j]->rstn(rstn);
         pe[i * NCOLS + j]->input_in(inputConnection[i][j]);

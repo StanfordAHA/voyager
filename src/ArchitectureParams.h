@@ -4,7 +4,6 @@
 #define INPUT_DATATYPE Posit<8, 1>
 #define WEIGHT_DATATYPE Posit<8, 1>
 #define ACCUM_DATATYPE Posit<16, 1>
-#define INTERMEDIATE_DATATYPE PositFP<8, 16>
 #define OUTPUT_DATATYPE Posit<8, 1>
 #else
 #define INPUT_DATATYPE ac_int<8, true>
