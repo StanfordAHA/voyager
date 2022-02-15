@@ -4,3 +4,4 @@ data/resnet
 data/mobilebert
 .direnv
 .vscode
+test_outputs/
