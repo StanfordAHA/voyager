@@ -22,3 +22,10 @@ void run_universal_posit_gold_model(const SimplifiedParams params,
   run_gold_op<UniversalPosit, UniversalPositAccum>(
       params, matrixA, matrixB, matrixC, biasMatrix, residualMatrix);
 }
+
+void run_fp_gold_model(const SimplifiedParams params, float *matrixA,
+                       float *matrixB, float *matrixC, float *biasMatrix,
+                       float *residualMatrix) {
+  run_gold_op<float, float>(params, matrixA, matrixB, matrixC, biasMatrix,
+                            residualMatrix);
+}

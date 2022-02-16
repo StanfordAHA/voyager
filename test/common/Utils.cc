@@ -106,3 +106,9 @@ int compare_arrays(UniversalPosit *matrixA, UniversalPosit *matrixB,
   return compare_arrays_internal<UniversalPosit, UniversalPosit>(
       matrixA, matrixB, size, filename);
 }
+
+int compare_arrays(float *matrixA, float *matrixB, size_t size,
+                   std::string &filename) {
+  return compare_arrays_internal<float, float>(matrixA, matrixB, size,
+                                               filename);
+}

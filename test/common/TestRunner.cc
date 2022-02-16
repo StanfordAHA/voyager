@@ -227,11 +227,20 @@ int run_test(const SimplifiedParams params, const std::string& dataDir,
   UniversalPosit* universalMatrixC = new UniversalPosit[X * Y * K];
   UniversalPosit* universalDataFileOutput = new UniversalPosit[X * Y * K];
 
+  float* floatMatrixA = new float[(STRIDE * X) * (STRIDE * Y) * C];
+  float* floatMatrixB = new float[FX * FY * C * K];
+  float* floatBiasMatrix = new float[K];
+  float* floatResidualMatrix = new float[X * Y * K];
+  float* floatMatrixC = new float[X * Y * K];
+  float* floatDataFileOutput = new float[X * Y * K];
+
   load_memory(params, dataDir, files, memoryMap, useDataFile, sramMemory,
               rramMemory, matrixA, matrixB, biasMatrix, residualMatrix, matrixC,
               dataFileOutput, universalMatrixA, universalMatrixB,
               universalBiasMatrix, universalResidualMatrix, universalMatrixC,
-              universalDataFileOutput);
+              universalDataFileOutput, floatMatrixA, floatMatrixB,
+              floatBiasMatrix, floatResidualMatrix, floatMatrixC,
+              floatDataFileOutput);
 
   if (params.MAXPOOL) {
     X = X / 2;
@@ -249,6 +258,8 @@ int run_test(const SimplifiedParams params, const std::string& dataDir,
   run_universal_posit_gold_model(params, universalMatrixA, universalMatrixB,
                                  universalMatrixC, universalBiasMatrix,
                                  universalResidualMatrix);
+  run_fp_gold_model(params, floatMatrixA, floatMatrixB, floatMatrixC,
+                    floatBiasMatrix, floatResidualMatrix);
 
   std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
   std::cout << "(reveals bugs in accelerator or memory placement)" << std::endl;
@@ -274,6 +285,12 @@ int run_test(const SimplifiedParams params, const std::string& dataDir,
     std::cout << "(reveals issues in representing float as Posit)" << std::endl;
     diffFile = fileOutputPrefix + "universalgold_vs_pytorch.txt";
     errors += compare_arrays(universalMatrixC, universalDataFileOutput,
+                             X * Y * K, diffFile);
+    
+    std::cout << "FP32 Gold Model vs. Pytorch" << std::endl;
+    std::cout << "(reveals issues in data loading or mapping)" << std::endl;
+    diffFile = fileOutputPrefix + "fpgold_vs_pytorch.txt";
+    errors += compare_arrays(floatMatrixC, floatDataFileOutput,
                              X * Y * K, diffFile);
   }
   // delete[] matrixA;

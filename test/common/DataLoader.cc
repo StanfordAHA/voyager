@@ -13,6 +13,11 @@ void save_double(UniversalPosit* array, double val) {
   *array = fval;
 }
 
+void save_double(float* array, double val) {
+  float fval = (float)val;
+  *array = fval;
+}
+
 double* read_file_as_double(const std::string& filename, int size,
                             bool useDataFile) {
   // Files are written in binary format as dtype=float64 (double in c)
@@ -36,7 +41,7 @@ double* read_file_as_double(const std::string& filename, int size,
 void load_inputs(const SimplifiedParams& params, const std::string& filename,
                  bool useDataFile, INPUT_DATATYPE* acceleratorMemory,
                  INPUT_DATATYPE* goldMemory,
-                 UniversalPosit* universalGoldMemory) {
+                 UniversalPosit* universalGoldMemory, float* floatGoldMemory) {
   int X = params.loops[0][params.inputXLoopIndex[0]] *
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
@@ -73,6 +78,7 @@ void load_inputs(const SimplifiedParams& params, const std::string& filename,
             address = y * (STRIDE * X) * C + x * C + c;
             save_double(&goldMemory[address], val);
             save_double(&universalGoldMemory[address], val);
+            save_double(&floatGoldMemory[address], val);
           }
         }
       }
@@ -88,6 +94,7 @@ void load_inputs(const SimplifiedParams& params, const std::string& filename,
           save_double(&acceleratorMemory[params.INPUT_OFFSET + address], val);
           save_double(&goldMemory[address], val);
           save_double(&universalGoldMemory[address], val);
+          save_double(&floatGoldMemory[address], val);
         }
       }
     }
@@ -99,7 +106,7 @@ void load_inputs(const SimplifiedParams& params, const std::string& filename,
 void load_weights(const SimplifiedParams& params, const std::string& filename,
                   bool useDataFile, INPUT_DATATYPE* acceleratorMemory,
                   INPUT_DATATYPE* goldMemory,
-                  UniversalPosit* universalGoldMemory) {
+                  UniversalPosit* universalGoldMemory, float* floatGoldMemory) {
   int X = params.loops[0][params.inputXLoopIndex[0]] *
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
@@ -129,6 +136,7 @@ void load_weights(const SimplifiedParams& params, const std::string& filename,
           save_double(&acceleratorMemory[params.WEIGHT_OFFSET + address], val);
           save_double(&goldMemory[address], val);
           save_double(&universalGoldMemory[address], val);
+          save_double(&floatGoldMemory[address], val);
         }
       }
     }
@@ -139,8 +147,8 @@ void load_weights(const SimplifiedParams& params, const std::string& filename,
 
 void load_bias(const SimplifiedParams& params, const std::string& filename,
                bool useDataFile, INPUT_DATATYPE* acceleratorMemory,
-               INPUT_DATATYPE* goldMemory,
-               UniversalPosit* universalGoldMemory) {
+               INPUT_DATATYPE* goldMemory, UniversalPosit* universalGoldMemory,
+               float* floatGoldMemory) {
   int X = params.loops[0][params.inputXLoopIndex[0]] *
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
@@ -166,6 +174,7 @@ void load_bias(const SimplifiedParams& params, const std::string& filename,
       save_double(&acceleratorMemory[params.BIAS_OFFSET + k], val);
       save_double(&goldMemory[k], val);
       save_double(&universalGoldMemory[k], val);
+      save_double(&floatGoldMemory[k], val);
     }
   }
 
@@ -175,7 +184,8 @@ void load_bias(const SimplifiedParams& params, const std::string& filename,
 void load_residual(const SimplifiedParams& params, const std::string& filename,
                    bool useDataFile, INPUT_DATATYPE* acceleratorMemory,
                    INPUT_DATATYPE* goldMemory,
-                   UniversalPosit* universalGoldMemory) {
+                   UniversalPosit* universalGoldMemory,
+                   float* floatGoldMemory) {
   int X = params.loops[0][params.inputXLoopIndex[0]] *
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
@@ -204,6 +214,7 @@ void load_residual(const SimplifiedParams& params, const std::string& filename,
         save_double(&acceleratorMemory[params.RESIDUAL_OFFSET + address], val);
         save_double(&goldMemory[address], val);
         save_double(&universalGoldMemory[address], val);
+        save_double(&floatGoldMemory[address], val);
       }
     }
   }
@@ -214,7 +225,8 @@ void load_residual(const SimplifiedParams& params, const std::string& filename,
 void load_datafile_outputs(const SimplifiedParams params,
                            const std::string& filename,
                            INPUT_DATATYPE* outputMatrix,
-                           UniversalPosit* universalOutputMatrix) {
+                           UniversalPosit* universalOutputMatrix,
+                           float* floatOutputMatrix) {
   int X = params.loops[0][params.inputXLoopIndex[0]] *
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
@@ -250,6 +262,7 @@ void load_datafile_outputs(const SimplifiedParams params,
         int address = y * X * K + x * K + k;
         save_double(&outputMatrix[address], val);
         save_double(&universalOutputMatrix[address], val);
+        save_double(&floatOutputMatrix[address], val);
       }
     }
   }
@@ -272,37 +285,37 @@ void load_datafile_outputs(const SimplifiedParams params,
 //   }
 // }
 
-void load_memory(const SimplifiedParams& params, const std::string& dataDir,
-                 const Files& files, const MemoryMap& memoryMap,
-                 bool useDataFile, INPUT_DATATYPE* sramMemory,
-                 INPUT_DATATYPE* rramMemory, INPUT_DATATYPE* matrixA,
-                 INPUT_DATATYPE* matrixB, INPUT_DATATYPE* biasMatrix,
-                 INPUT_DATATYPE* residualMatrix, INPUT_DATATYPE* matrixC,
-                 INPUT_DATATYPE* dataFileOutput,
-                 UniversalPosit* universalMatrixA,
-                 UniversalPosit* universalMatrixB,
-                 UniversalPosit* universalBiasMatrix,
-                 UniversalPosit* universalResidualMatrix,
-                 UniversalPosit* universalMatrixC,
-                 UniversalPosit* universalDataFileOutput) {
+void load_memory(
+    const SimplifiedParams& params, const std::string& dataDir,
+    const Files& files, const MemoryMap& memoryMap, bool useDataFile,
+    INPUT_DATATYPE* sramMemory, INPUT_DATATYPE* rramMemory,
+    INPUT_DATATYPE* matrixA, INPUT_DATATYPE* matrixB,
+    INPUT_DATATYPE* biasMatrix, INPUT_DATATYPE* residualMatrix,
+    INPUT_DATATYPE* matrixC, INPUT_DATATYPE* dataFileOutput,
+    UniversalPosit* universalMatrixA, UniversalPosit* universalMatrixB,
+    UniversalPosit* universalBiasMatrix,
+    UniversalPosit* universalResidualMatrix, UniversalPosit* universalMatrixC,
+    UniversalPosit* universalDataFileOutput, float* floatMatrixA,
+    float* floatMatrixB, float* floatBiasMatrix, float* floatResidualMatrix,
+    float* floatMatrixC, float* floatDataFileOutput) {
   load_inputs(params, dataDir + files.inputs_file, useDataFile,
               memoryMap.inputs == SRAM ? sramMemory : rramMemory, matrixA,
-              universalMatrixA);
+              universalMatrixA, floatMatrixA);
   load_weights(params, dataDir + files.weights_file, useDataFile,
                memoryMap.weights == SRAM ? sramMemory : rramMemory, matrixB,
-               universalMatrixB);
+               universalMatrixB, floatMatrixB);
   if (params.BIAS) {
     load_bias(params, dataDir + files.bias_file, useDataFile,
               memoryMap.bias == SRAM ? sramMemory : rramMemory, biasMatrix,
-              universalBiasMatrix);
+              universalBiasMatrix, floatBiasMatrix);
   }
   if (params.RESIDUAL) {
     load_residual(params, dataDir + files.residual_file, useDataFile,
                   memoryMap.residual == SRAM ? sramMemory : rramMemory,
-                  residualMatrix, universalResidualMatrix);
+                  residualMatrix, universalResidualMatrix, floatResidualMatrix);
   }
   if (useDataFile) {
     load_datafile_outputs(params, dataDir + files.outputs_file, dataFileOutput,
-                          universalDataFileOutput);
+                          universalDataFileOutput, floatDataFileOutput);
   }
 }

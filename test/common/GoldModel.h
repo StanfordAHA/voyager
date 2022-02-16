@@ -19,6 +19,10 @@ void run_universal_posit_gold_model(const SimplifiedParams params,
                                     UniversalPosit *biasMatrix,
                                     UniversalPosit *residualMatrix);
 
+void run_fp_gold_model(const SimplifiedParams params, float *matrixA,
+                       float *matrixB, float *matrixC, float *biasMatrix,
+                       float *residualMatrix);
+
 // Performs a*b + c
 inline UniversalPositAccum gold_fma(UniversalPosit a, UniversalPosit b,
                                     UniversalPositAccum c) {
@@ -34,6 +38,8 @@ inline ACCUM_DATATYPE gold_fma(INPUT_DATATYPE a, INPUT_DATATYPE b,
   return fma(a, b, c);
 }
 
+inline float gold_fma(float a, float b, float c) { return a * b + c; }
+
 inline void gold_relu(UniversalPositAccum &a) {
   if (a < 0) {
     a = 0;
@@ -41,6 +47,12 @@ inline void gold_relu(UniversalPositAccum &a) {
 }
 
 inline void gold_relu(ACCUM_DATATYPE &a) { a.relu(); }
+
+inline void gold_relu(float &a) {
+  if (a < 0.0f) {
+    a = 0.0f;
+  }
+}
 
 template <typename T, typename ACC_T>
 void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,

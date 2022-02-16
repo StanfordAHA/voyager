@@ -11,3 +11,5 @@ int compare_arrays(INPUT_DATATYPE *matrixA, UniversalPosit *matrixB,
                    size_t size, std::string &filename);
 int compare_arrays(UniversalPosit *matrixA, UniversalPosit *matrixB,
                    size_t size, std::string &filename);
+int compare_arrays(float *matrixA, float *matrixB, size_t size,
+                   std::string &filename);
