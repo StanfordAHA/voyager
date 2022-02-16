@@ -270,7 +270,7 @@ class ResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         #MOD: Changed padding to zero to match accelerator
         # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=0)
+        self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
@@ -343,6 +343,7 @@ class ResNet(nn.Module):
         global complete
         global export
 
+        print(np.shape(x))
 
         if export:
             complete["conv1.input"] = arrange_data("conv1.input", x)
@@ -351,6 +352,8 @@ class ResNet(nn.Module):
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
+
+        print(np.shape(x))
 
         if export:
             complete["conv1.comp"] = arrange_data("conv1.comp", x)
