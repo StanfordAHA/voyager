@@ -1,8 +1,9 @@
 CC = /opt/rh/devtoolset-10/root/bin/g++
-BASEFLAGS = -I/cad/mentor/2021.1/Mgc_home/shared/include/ -Ilib/ -Ilib/universal/include/ -Isrc/ -I. -DCONNECTIONS_FAST_SIM -DSC_INCLUDE_DYNAMIC_PROCESSES -DCONNECTIONS_NAMING_ORIGINAL -O3 
+INC = -I/cad/mentor/2021.1/Mgc_home/shared/include/ -Ilib/ -Ilib/universal/include/ -Isrc/ -I. -I/usr/include/python3.6m
+BASEFLAGS = $(INC) -DCONNECTIONS_FAST_SIM -DSC_INCLUDE_DYNAMIC_PROCESSES -DCONNECTIONS_NAMING_ORIGINAL -O3 
 C11FLAGS = $(BASEFLAGS) -std=c++11
 C17FLAGS = $(BASEFLAGS) -std=c++17
-LDFLAGS = -lsystemc
+LDFLAGS = -lsystemc -lpython3.6m
 LDLIBS = -L/cad/mentor/2021.1/Mgc_home/shared/lib/
 TEST ?= simple
 
