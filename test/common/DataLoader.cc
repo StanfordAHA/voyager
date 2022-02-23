@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <random>
 
 void save_double(INPUT_DATATYPE* array, double val) {
   float fval = (float)val;
@@ -30,8 +31,11 @@ double* read_file_as_double(const std::string& filename, int size,
       throw std::runtime_error("File \"" + filename + "\" does not exist");
     is.read(tmpValuesArray, size * sizeof(double));
   } else {
+    static std::default_random_engine e;
+    static std::uniform_real_distribution<> dis(-5, 5);
+
     for (int i = 0; i < size; i++) {
-      tmpValuePtr[i] = rand() % 128;
+      tmpValuePtr[i] = (double)dis(e);
     }
   }
 
