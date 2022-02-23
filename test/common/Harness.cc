@@ -271,6 +271,10 @@ void Harness::sendParams() {
       for (int i = 0; i < 3; i++) {
         vectorParams.addressGen1Loops[0][i] = params.loops[0][i];
       }
+      vectorParams.addressGen1InputXLoopIndex[0] = params.inputXLoopIndex[0];
+      vectorParams.addressGen1InputYLoopIndex[0] = params.inputYLoopIndex[0];
+      vectorParams.addressGen1WeightLoopIndex[0] = params.weightLoopIndex[0];
+
       int residualLoopIndex = 0;
       for (int i = 0; i < 6; i++) {
         // ignore the loops not present in outputs (reduction, fx, fy)
@@ -278,13 +282,17 @@ void Harness::sendParams() {
             i == params.inputYLoopIndex[1]) {
           vectorParams.addressGen1Loops[1][residualLoopIndex] =
               params.loops[1][i];
+          if (i == params.inputXLoopIndex[1]) {
+            vectorParams.addressGen1InputXLoopIndex[1] = residualLoopIndex;
+          }
+          if (i == params.inputYLoopIndex[1]) {
+            vectorParams.addressGen1InputYLoopIndex[1] = residualLoopIndex;
+          }
+          if (i == params.weightLoopIndex[1]) {
+            vectorParams.addressGen1WeightLoopIndex[1] = residualLoopIndex;
+          }
           residualLoopIndex++;
         }
-      }
-      for (int i = 0; i < 2; i++) {
-        vectorParams.addressGen1InputXLoopIndex[i] = params.inputXLoopIndex[i];
-        vectorParams.addressGen1InputYLoopIndex[i] = params.inputYLoopIndex[i];
-        vectorParams.addressGen1WeightLoopIndex[i] = params.weightLoopIndex[i];
       }
 
       // bias
@@ -293,19 +301,28 @@ void Harness::sendParams() {
       for (int i = 0; i < 3; i++) {
         vectorParams.addressGen2Loops[0][i] = params.loops[0][i];
       }
+
+      vectorParams.addressGen2InputXLoopIndex[0] = params.inputXLoopIndex[0];
+      vectorParams.addressGen2InputYLoopIndex[0] = params.inputYLoopIndex[0];
+      vectorParams.addressGen2WeightLoopIndex[0] = params.weightLoopIndex[0];
+
       int biasLoopIndex = 0;
       for (int i = 0; i < 6; i++) {
         // ignore the loops not present in outputs (reduction, fx, fy)
         if (i == params.weightLoopIndex[1] || i == params.inputXLoopIndex[1] ||
             i == params.inputYLoopIndex[1]) {
           vectorParams.addressGen2Loops[1][biasLoopIndex] = params.loops[1][i];
+          if (i == params.inputXLoopIndex[1]) {
+            vectorParams.addressGen2InputXLoopIndex[1] = biasLoopIndex;
+          }
+          if (i == params.inputYLoopIndex[1]) {
+            vectorParams.addressGen2InputYLoopIndex[1] = biasLoopIndex;
+          }
+          if (i == params.weightLoopIndex[1]) {
+            vectorParams.addressGen2WeightLoopIndex[1] = biasLoopIndex;
+          }
           biasLoopIndex++;
         }
-      }
-      for (int i = 0; i < 2; i++) {
-        vectorParams.addressGen2InputXLoopIndex[i] = params.inputXLoopIndex[i];
-        vectorParams.addressGen2InputYLoopIndex[i] = params.inputYLoopIndex[i];
-        vectorParams.addressGen2WeightLoopIndex[i] = params.weightLoopIndex[i];
       }
 
       vectorParams.VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
@@ -318,20 +335,29 @@ void Harness::sendParams() {
       for (int i = 0; i < 3; i++) {
         vectorParams.outputLoops[0][i] = params.loops[0][i];
       }
+      vectorParams.outputXLoopIndex[0] = params.inputXLoopIndex[0];
+      vectorParams.outputYLoopIndex[0] = params.inputYLoopIndex[0];
+      vectorParams.outputWeightLoopIndex[0] = params.weightLoopIndex[0];
+
       int outputLoopIndex = 0;
       for (int i = 0; i < 6; i++) {
         // ignore the loops not present in outputs (reduction, fx, fy)
         if (i == params.weightLoopIndex[1] || i == params.inputXLoopIndex[1] ||
             i == params.inputYLoopIndex[1]) {
           vectorParams.outputLoops[1][outputLoopIndex] = params.loops[1][i];
+          if (i == params.inputXLoopIndex[1]) {
+            vectorParams.outputXLoopIndex[1] = outputLoopIndex;
+          }
+          if (i == params.inputYLoopIndex[1]) {
+            vectorParams.outputYLoopIndex[1] = outputLoopIndex;
+          }
+          if (i == params.weightLoopIndex[1]) {
+            vectorParams.outputWeightLoopIndex[1] = outputLoopIndex;
+          }
           outputLoopIndex++;
         }
       }
-      for (int i = 0; i < 2; i++) {
-        vectorParams.outputXLoopIndex[i] = params.inputXLoopIndex[i];
-        vectorParams.outputYLoopIndex[i] = params.inputYLoopIndex[i];
-        vectorParams.outputWeightLoopIndex[i] = params.weightLoopIndex[i];
-      }
+
       sendSerializedParams<VectorParams, 32>(vectorParams, &serialParamsIn);
 
       // create instruction stream
@@ -405,6 +431,7 @@ void Harness::storeVectorOutputs() {
   while (true) {
     Pack1D<OUTPUT_DATATYPE, DIMENSION> data = vectorOutput.Pop();
     int address = vectorOutputAddress.Pop();
+    DLOG("address: " << address << " data: " << data);
     for (int i = 0; i < DIMENSION; i++) {
       sramMemory[address + i] = data[i];
     }
