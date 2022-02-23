@@ -470,8 +470,8 @@ extern "C" int sc_main(int argc, char* argv[]) {
     }
   }
 
-  run_sequence(group, std::vector<std::string>(resnet_order.begin(),
-                                               resnet_order.end()));
+  // run_sequence(group, std::vector<std::string>(resnet_order.begin(),
+  //                                              resnet_order.end()));
 
-  // return run_test(params, dataDir, files, memoryMap, useDataFiles, fullName);
+  return run_test(params, dataDir, files, memoryMap, useDataFiles, fullName);
 }
