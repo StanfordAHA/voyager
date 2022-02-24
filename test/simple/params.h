@@ -275,4 +275,30 @@ std::map<std::string, SimplifiedParams> simple{
          false,                                      // FC
          true,                                       // NO_NORM
      }},
-};
+    {"fc",
+     {
+         0,                                           // INPUT_OFFSET
+         0,                                           // WEIGHT_OFFSET
+         10 * 1024,                                   // OUTPUT_OFFSET
+         false,                                       // TRANSPOSE
+         {{1, 1, 1, 1, 1, 1}, {16, 16, 1, 1, 1, 1}},  // LOOPS
+         {0, 5},                                      // INPUTX
+         {1, 4},                                      // INPUTY
+         {3, 0},                                      // REDUCTION
+         {2, 1},                                      // WEIGHT
+         3,                                           // fxIndex
+         2,                                           // fyIndex
+         {4, 5},                                      // weightReuseIndex
+         1,                                           // stride
+         false,                                       // replication
+         false,                                       // RELU
+         false,                                       // bias
+         30 * 1024,                                   // BIAS_OFFSET
+         false,                                       // residual
+         40 * 1024,                                   // RESIDUAL_OFFSET
+         false,                                       // maxpool
+         false,                                       // avgpool
+         false,                                       // SOFTMAX
+         true,                                        // FC
+         false,                                       // no-norm
+     }}};
