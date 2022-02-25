@@ -15,6 +15,8 @@ SC_MODULE(VectorOpUnit) {
   sc_in<bool> CCS_INIT_S1(rstn);
 
   Connections::In<VectorInstructions> CCS_INIT_S1(vectorOpUnitInstructions);
+  Connections::In<VectorInstructions> CCS_INIT_S1(
+      accumulationOpUnitInstructions);
   Connections::In<VectorInstructions> CCS_INIT_S1(reductionOpUnitInstructions);
 
   Connections::In<Pack1D<ACC_DTYPE, WIDTH> > CCS_INIT_S1(systolicArrayOutput);
@@ -24,6 +26,13 @@ SC_MODULE(VectorOpUnit) {
 
   Connections::Out<Pack1D<IDTYPE, WIDTH> > CCS_INIT_S1(vectorOpUnitOutput);
   Connections::Out<Pack1D<IDTYPE, WIDTH> > CCS_INIT_S1(scalarOpUnitOutput);
+
+  Connections::Combinational<
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      CCS_INIT_S1(accumulationOpInput);
+  Connections::Combinational<
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      CCS_INIT_S1(accumulationOpOutput);
 
   Connections::Combinational<
       Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
@@ -40,6 +49,10 @@ SC_MODULE(VectorOpUnit) {
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
+    SC_THREAD(accumulationOpRun);
+    sensitive << clk.pos();
+    async_reset_signal_is(rstn, false);
+
     SC_THREAD(reductionOpRun);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
@@ -52,6 +65,11 @@ SC_MODULE(VectorOpUnit) {
     vectorFetch1Output.Reset();
     vectorFetch2Output.Reset();
     vectorOpUnitOutput.Reset();
+    accumulationOpInput.ResetWrite();
+    accumulationOpOutput.ResetRead();
+    reductionOpInput.ResetWrite();
+    reductionOpOutputSrc0.ResetRead();
+    reductionOpOutputSrc1.ResetRead();
 
     wait();
 
@@ -59,6 +77,7 @@ SC_MODULE(VectorOpUnit) {
 #pragma hls_pipeline_stall_mode flush
     while (true) {
       VectorInstructions inst = vectorOpUnitInstructions.Pop();
+      DLOG("vector inst: ");
 
       Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op0;
       Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op1;
@@ -87,6 +106,12 @@ SC_MODULE(VectorOpUnit) {
         for (int i = 0; i < WIDTH; i++) {
           op0Src0[i] = tmp[i];
         }
+      } else if (inst.vInput == VectorInstructions::readFromAccumulation) {
+        op0Src0 = accumulationOpOutput.Pop();
+      }
+
+      if (inst.vAccumulatePush) {
+        accumulationOpInput.Push(op0Src0);
       }
 
       Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op0Src1;
@@ -96,7 +121,10 @@ SC_MODULE(VectorOpUnit) {
         for (int i = 0; i < WIDTH; i++) {
           op0Src1[i] = tmp[i];
         }
+        DLOG("read from fetch: " << op0Src1);
       }
+
+      // DLOG("vector unit input: " << op0Src0);
 
       if (inst.vOp0 == VectorInstructions::vadd ||
           inst.vOp0 == VectorInstructions::vsub) {
@@ -111,10 +139,13 @@ SC_MODULE(VectorOpUnit) {
       } else if (inst.vOp0 == VectorInstructions::vmult) {
         vmult<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op0Src0, op0Src1,
                                                           res0);
+        DLOG(op0Src0 << " * " << op0Src1);
+
       } else {
-        res0 = op0;
+        res0 = op0Src0;
       }
 
+      DLOG("res0: " << res0);
       /*
        * Stage 1: exp
        */
@@ -123,6 +154,8 @@ SC_MODULE(VectorOpUnit) {
       } else {
         res1 = res0;
       }
+
+      DLOG("res1: " << res1);
 
       /*
        * Stage 2: reduction
@@ -133,12 +166,15 @@ SC_MODULE(VectorOpUnit) {
         res2 = res1;
       }
 
+      DLOG("res2: " << res2);
+
       /*
        * Stage 3: add, div
        */
       Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op3Src0;
       if (inst.vOp3Src0 == VectorInstructions::readReduceInterface) {
         op3Src0 = reductionOpOutputSrc0.Pop();
+        DLOG("reading from reduce: " << op3Src0);
       } else {
         op3Src0 = res2;
       }
@@ -161,8 +197,10 @@ SC_MODULE(VectorOpUnit) {
         vdiv<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op3Src0, op3Src1,
                                                          res3);
       } else {
-        res3 = res2;
+        res3 = op3Src0;
       }
+
+      DLOG("res3: " << res3);
 
       /*
        * Stage 4: relu
@@ -173,20 +211,62 @@ SC_MODULE(VectorOpUnit) {
         res4 = res3;
       }
 
-      if (inst.vWriteOut) {
+      DLOG("res4: " << res4);
+
+      if (inst.vDest == VectorInstructions::vWriteOut) {
         // convert to Posit8 and write out
         Pack1D<IDTYPE, WIDTH> tmp;
         for (int i = 0; i < WIDTH; i++) {
-          tmp[i] = res4[i];
+          tmp[i] = static_cast<IDTYPE>(res4[i]);
         }
+        DLOG("vector unit output: " << tmp);
+
         vectorOpUnitOutput.Push(tmp);
       }
+    }
+  }
+
+  void accumulationOpRun() {
+    accumulationOpInput.ResetRead();
+    accumulationOpOutput.ResetWrite();
+
+    wait();
+
+#pragma hls_pipeline_init_interval 1
+    while (true) {
+      VectorInstructions inst = accumulationOpUnitInstructions.Pop();
+
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> accum;
+
+#pragma hls_unroll yes
+      for (int i = 0; i < WIDTH; i++) {
+        accum[i].setZero();
+      }
+
+      for (int count = 0; count < inst.rCount; count++) {
+        DLOG("accumulation " << count << " / " << inst.rCount);
+        Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op =
+            accumulationOpInput.Pop();
+
+#pragma hls_unroll yes
+        for (int i = 0; i < WIDTH; i++) {
+          accum[i] += op[i];
+        }
+      }
+
+      DLOG("accumulation finished: " << accum);
+      accumulationOpOutput.Push(accum);
     }
   }
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
   void reductionOpRun() {
+    scalarOpUnitOutput.Reset();
+    reductionOpUnitInstructions.Reset();
+    reductionOpInput.ResetRead();
+    reductionOpOutputSrc0.ResetWrite();
+    reductionOpOutputSrc1.ResetWrite();
     scalarOpUnitOutput.Reset();
 
     wait();
@@ -195,44 +275,58 @@ SC_MODULE(VectorOpUnit) {
     while (true) {
       VectorInstructions inst = reductionOpUnitInstructions.Pop();
 
-      typename ACC_DTYPE::DecomposedPosit prevResult;
+      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res;
 
-      if (inst.rOp == VectorInstructions::radd) {
-        for (int i = 0; i < inst.rCount; i++) {
-          Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op =
-              reductionOpInput.Pop();
-          typename ACC_DTYPE::DecomposedPosit result =
-              TreeOps<typename ACC_DTYPE::DecomposedPosit, WIDTH>().treeadd(op);
-          if (i != 0) {
-            // result = (typename ACC_DTYPE::DecomposedPosit)(result +
-            // prevResult);
-            result += prevResult;
+      int iterationCount = inst.rDuplicate ? 1 : WIDTH;
+
+      for (int index = 0; index < iterationCount; index++) {
+        typename ACC_DTYPE::DecomposedPosit prevResult;
+
+        if (inst.rOp == VectorInstructions::radd) {
+          for (int i = 0; i < inst.rCount; i++) {
+            Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op =
+                reductionOpInput.Pop();
+            typename ACC_DTYPE::DecomposedPosit result =
+                TreeOps<typename ACC_DTYPE::DecomposedPosit, WIDTH>().treeadd(
+                    op);
+            DLOG("reduction: " << op << " = " << result);
+            if (i != 0) {
+              // result = (typename ACC_DTYPE::DecomposedPosit)(result +
+              // prevResult);
+              result += prevResult;
+            }
+
+            prevResult = result;
           }
+        } else if (inst.rOp == VectorInstructions::rmax) {
+          for (int i = 0; i < inst.rCount; i++) {
+            Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op =
+                reductionOpInput.Pop();
+            typename ACC_DTYPE::DecomposedPosit result =
+                TreeOps<typename ACC_DTYPE::DecomposedPosit, WIDTH>().treemax(
+                    op);
+            if (i != 0) {
+              result = result < prevResult ? prevResult : result;
+            }
 
-          prevResult = result;
-        }
-      } else if (inst.rOp == VectorInstructions::rmax) {
-        for (int i = 0; i < inst.rCount; i++) {
-          Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op =
-              reductionOpInput.Pop();
-          typename ACC_DTYPE::DecomposedPosit result =
-              TreeOps<typename ACC_DTYPE::DecomposedPosit, WIDTH>().treemax(op);
-          if (i != 0) {
-            result = result < prevResult ? prevResult : result;
+            prevResult = result;
           }
-
-          prevResult = result;
         }
+
+        if (inst.rDuplicate) {  // Duplicate the scalar result into a vector
+#pragma hls_unroll yes
+          for (int i = 0; i < WIDTH; i++) {
+            res[i] = prevResult;
+          }
+        } else {
+          res[index] = prevResult;
+        }
+        DLOG("Reduction " << index << "/" << iterationCount << " : "
+                          << prevResult << std::endl
+                          << res);
       }
 
       if (inst.rDest != 0) {
-        // Duplicate the scalar result into a vector
-        Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res;
-#pragma hls_unroll yes
-        for (int i = 0; i < WIDTH; i++) {
-          res[i] = prevResult;
-        }
-
         if (inst.rDest == VectorInstructions::toVectorSrc0) {
           reductionOpOutputSrc0.Push(res);
         } else if (inst.rDest == VectorInstructions::toVectorSrc1) {
@@ -241,7 +335,7 @@ SC_MODULE(VectorOpUnit) {
           Pack1D<IDTYPE, WIDTH> outputRes;
 #pragma hls_unroll yes
           for (int i = 0; i < WIDTH; i++) {
-            outputRes[i] = prevResult;
+            outputRes[i] = res[i];
           }
 
           scalarOpUnitOutput.Push(outputRes);
@@ -269,6 +363,8 @@ SC_MODULE(VectorUnit) {
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch2AddressRequest);
   Connections::In<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(vectorFetch2DataResponse);
+  Connections::Combinational<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(
+      vectorFetch2DataResponseReplicated);
 
   Connections::Out<int> CCS_INIT_S1(scalarOutputAddress);
   Connections::Out<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(scalarUnitOutput);
@@ -280,7 +376,7 @@ SC_MODULE(VectorUnit) {
 
   Connections::SyncOut CCS_INIT_S1(done);
 
-  VectorFetchUnit<WIDTH> CCS_INIT_S1(vectorFetch);
+  VectorFetchUnit<ODTYPE, WIDTH> CCS_INIT_S1(vectorFetch);
   Connections::Combinational<VectorParams> CCS_INIT_S1(vectorFetchParams);
 
   VectorOpUnit<ODTYPE, ACC_DTYPE, WIDTH> CCS_INIT_S1(vectorOpUnit);
@@ -296,6 +392,8 @@ SC_MODULE(VectorUnit) {
   Connections::Combinational<VectorInstructions> CCS_INIT_S1(
       vectorOpInstructions);
   Connections::Combinational<VectorInstructions> CCS_INIT_S1(
+      accumulationOpInstructions);
+  Connections::Combinational<VectorInstructions> CCS_INIT_S1(
       reduceOpInstructions);
 
   SC_CTOR(VectorUnit) {
@@ -305,15 +403,19 @@ SC_MODULE(VectorUnit) {
     vectorFetch.vectorFetch0AddressRequest(vectorFetch0AddressRequest);
     vectorFetch.vectorFetch1AddressRequest(vectorFetch1AddressRequest);
     vectorFetch.vectorFetch2AddressRequest(vectorFetch2AddressRequest);
+    vectorFetch.vectorFetch2DataResponse(vectorFetch2DataResponse);
+    vectorFetch.vectorFetch2DataResponseReplicated(
+        vectorFetch2DataResponseReplicated);
 
     vectorOpUnit.clk(clk);
     vectorOpUnit.rstn(rstn);
     vectorOpUnit.vectorOpUnitInstructions(vectorOpInstructions);
+    vectorOpUnit.accumulationOpUnitInstructions(accumulationOpInstructions);
     vectorOpUnit.reductionOpUnitInstructions(reduceOpInstructions);
     vectorOpUnit.systolicArrayOutput(systolicArrayOutput);
     vectorOpUnit.vectorFetch0Output(vectorFetch0DataResponse);
     vectorOpUnit.vectorFetch1Output(vectorFetch1DataResponse);
-    vectorOpUnit.vectorFetch2Output(vectorFetch2DataResponse);
+    vectorOpUnit.vectorFetch2Output(vectorFetch2DataResponseReplicated);
     vectorOpUnit.vectorOpUnitOutput(vectorOpUnitOutput);
     vectorOpUnit.scalarOpUnitOutput(scalarUnitOutput);
 
@@ -359,6 +461,7 @@ SC_MODULE(VectorUnit) {
   void instructionSender() {
     vectorOpInstructions.ResetWrite();
     reduceOpInstructions.ResetWrite();
+    accumulationOpInstructions.ResetWrite();
 
     wait();
 
@@ -376,6 +479,8 @@ SC_MODULE(VectorUnit) {
                instRepeatCount++) {
             if (inst.instType == VectorInstructions::vector) {
               vectorOpInstructions.Push(inst);
+            } else if (inst.instType == VectorInstructions::accumulation) {
+              accumulationOpInstructions.Push(inst);
             } else {
               reduceOpInstructions.Push(inst);
             }

@@ -184,17 +184,6 @@ class Posit {
 };
 
 template <int nbits, int es>
-template <int fp_sbits, int fp_fbits>
-Posit<nbits, es>::Posit(const PositFP<fp_sbits, fp_fbits> &input) {
-  if (input.isZero()) {
-    this->bits = 0;
-    return;
-  }
-  convert_<nbits, es, fp_fbits>(input.sign, input.scale, input.fraction,
-                                this->bits);
-}
-
-template <int nbits, int es>
 template <int nbits2, int es2>
 Posit<nbits, es>::Posit(const Posit<nbits2, es2> &input) {
   constexpr int sbits2 = ac::log2_ceil<nbits2 - 2>::val + es2 + 1;
@@ -575,6 +564,25 @@ Posit<nbits2, es2> fma(const Posit<nbits, es> &a, const Posit<nbits, es> &b,
       return Posit<nbits2, es2>(sum);
     }
   }
+}
+
+template <int sbits, int fbits>
+inline std::ostream &operator<<(std::ostream &os,
+                                const PositFP<sbits, fbits> &val) {
+  os << static_cast<float>(val) << " ";
+  return os;
+}
+
+template <int nbits, int es>
+template <int fp_sbits, int fp_fbits>
+Posit<nbits, es>::Posit(const PositFP<fp_sbits, fp_fbits> &input) {
+  if (input.isZero()) {
+    this->bits = 0;
+    return;
+  }
+  convert_<nbits, es, fp_fbits>(input.sign, input.scale, input.fraction,
+                                this->bits);
+  // std::cout << "cast " << input << " to " << *this << std::endl;
 }
 
 template <int sbits, int fbits>

@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <random>
 
 #define PIPE_INPUT 1
 
@@ -32,8 +33,11 @@ double* read_file_as_double(const std::string& filename, int size,
       throw std::runtime_error("File \"" + filename + "\" does not exist");
     is.read(tmpValuesArray, size * sizeof(double));
   } else {
+    static std::default_random_engine e;
+    static std::uniform_real_distribution<> dis(-1, 1);
+
     for (int i = 0; i < size; i++) {
-      tmpValuePtr[i] = rand() % 128;
+      tmpValuePtr[i] = (double)dis(e);
     }
   }
 
@@ -139,6 +143,11 @@ void load_weights(const SimplifiedParams& params, const std::string& filename,
     FX = 7;
     C = 3;
   }
+  if (params.NO_NORM) {
+    FX = 1;
+    FY = 1;
+    K = 1;
+  }
 
   int size = FY * FX * C * K;
   double* tmpValues = read_file_as_double(filename, size, useDataFile);
@@ -180,6 +189,9 @@ void load_bias(const SimplifiedParams& params, const std::string& filename,
   if (params.REPLICATION) {
     FX = 7;
     C = 3;
+  }
+  if (params.NO_NORM) {
+    K = C;
   }
 
   int size = K;
@@ -266,6 +278,9 @@ void load_datafile_outputs(const SimplifiedParams params,
   if (params.AVGPOOL) {
     X = 1;
     Y = 1;
+  }
+  if (params.NO_NORM) {
+    K = C;
   }
 
   int size = X * Y * K;

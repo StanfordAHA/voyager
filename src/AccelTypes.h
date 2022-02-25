@@ -12,6 +12,12 @@
 #include "PositTypes.h"
 #include "VInst.h"
 
+#ifdef DEBUG_LOG
+#define DLOG(x) CCS_LOG(x)
+#else
+#define DLOG(x)
+#endif
+
 struct MemoryRequest {
   int address;
   int burstSize;

@@ -5,8 +5,8 @@
 
 #include "SystolicArray.h"
 
-template <typename IDTYPE, typename ODTYPE,
-          int NROWS, int NCOLS, int BUFFER_SIZE>
+template <typename IDTYPE, typename ODTYPE, int NROWS, int NCOLS,
+          int BUFFER_SIZE>
 SC_MODULE(MatrixProcessor) {
  private:
   Connections::SyncChannel CCS_INIT_S1(weightSync);
@@ -32,8 +32,7 @@ SC_MODULE(MatrixProcessor) {
   Skewer<ac_int<1, false>, NROWS> CCS_INIT_S1(weightSwapSkewer);
   Connections::Combinational<Pack1D<ac_int<1, false>, NROWS> > CCS_INIT_S1(
       weightSwapSkewerDin);
-  SystolicArray<IDTYPE, ODTYPE, NROWS, NCOLS> CCS_INIT_S1(
-      systolicArray);
+  SystolicArray<IDTYPE, ODTYPE, NROWS, NCOLS> CCS_INIT_S1(systolicArray);
 
  public:
   sc_in<bool> CCS_INIT_S1(clk);
@@ -241,7 +240,7 @@ SC_MODULE(MatrixProcessor) {
       while (step < totalOps + (NROWS - 1) + (NCOLS - 1) + latency) {
 #ifndef __SYNTHESIS__
         if (step % 10000 == 0) {
-          CCS_LOG("step " << step << " out of " << totalOps);
+          DLOG("step " << step << " out of " << totalOps);
         }
 #endif
 
@@ -249,11 +248,11 @@ SC_MODULE(MatrixProcessor) {
         bool newWeights = loop_counters[1][params.weightReuseIndex[0]] == 0 &&
                           loop_counters[1][params.weightReuseIndex[1]] == 0;
         if (newWeights && step < totalOps) {
-          // CCS_LOG("*****");
+          // DLOG("*****");
           while (!weightReady) {
             wait();
           }
-          // CCS_LOG("weight ready");
+          // DLOG("weight ready");
 
 #pragma hls_unroll yes
           for (int i = 0; i < NROWS; i++) {
@@ -272,7 +271,7 @@ SC_MODULE(MatrixProcessor) {
         if (step < totalOps) {
           inputs = inputsChannel.Pop();
 
-          // CCS_LOG("input: " << inputs);
+          // DLOG("input: " << inputs);
         }
         toggle = !toggle;
         toggleOut.write(toggle);
@@ -302,7 +301,7 @@ SC_MODULE(MatrixProcessor) {
         READ_ACC_BUFFER:
 #endif
           psum = accumulation_buffer[readAddress];
-          // CCS_LOG("readAddress: " << readAddress << " psum " << psum);
+          // DLOG("readAddress: " << readAddress << " psum " << psum);
         }
 
         psumInSkewerDin.Push(psum);
@@ -328,6 +327,7 @@ SC_MODULE(MatrixProcessor) {
                params.loops[1][params.fyIndex] - 1);
           if (accumulationFinished) {
             outputsChannel.Push(flippedOutputs);
+            DLOG("matrix processor output: " << flippedOutputs);
             // std::cout << "Output: " << flippedOutputs << std::endl;
           } else {
             int writeAddress = loop_counters_out[1][params.weightLoopIndex[1]] *
@@ -341,7 +341,7 @@ SC_MODULE(MatrixProcessor) {
           WRITE_ACC_BUFFER:
 #endif
             accumulation_buffer[writeAddress] = flippedOutputs;
-            // CCS_LOG("writeAddress: " << writeAddress << " val "
+            // DLOG("writeAddress: " << writeAddress << " val "
             //                          << flippedOutputs);
           }
         }

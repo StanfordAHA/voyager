@@ -38,7 +38,13 @@ SC_MODULE(MaxpoolUnit) {
       for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 3; j++) {
           loop_bounds[i][j] = params.outputLoops[i][j];
+          DLOG(i << " " << j << " " << loop_bounds[i][j]);
         }
+      }
+
+      if (params.AVGPOOL) {
+        loop_bounds[1][params.outputXLoopIndex[1]] = 1;
+        loop_bounds[1][params.outputYLoopIndex[1]] = 1;
       }
 
       Pack1D<DTYPE, WIDTH> bias;

@@ -164,13 +164,17 @@ struct VectorInstructions {
    * Reduce Unit Configuration
    */
 
-  ac_int<1, false> instType;
+  ac_int<2, false> instType;
   static const unsigned int vector = 0;
   static const unsigned int reduction = 1;
+  static const unsigned int accumulation = 2;
 
-  ac_int<1, false> vInput;
+  ac_int<2, false> vInput;
   static const unsigned int readFromSystolicArray = 1;
-  static const unsigned int readFromVectorFetch = 1;
+  static const unsigned int readFromVectorFetch = 2;
+  static const unsigned int readFromAccumulation = 3;
+
+  ac_int<1, false> vAccumulatePush;
 
   // src0 refers to lhs and src1 refers to rhs
 
@@ -214,17 +218,20 @@ struct VectorInstructions {
   static const unsigned int radd = 1;
   static const unsigned int rmax = 2;
 
+  ac_int<1, false> rDuplicate;
+
   ac_int<2, false> rDest;
   static const unsigned int toVectorSrc0 = 1;
   static const unsigned int toVectorSrc1 = 2;
   static const unsigned int sWriteOut = 3;
 
-  static const unsigned int width = 34;
+  static const unsigned int width = 38;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
     m& instType;
     m& vInput;
+    m& vAccumulatePush;
     m& vOp0Src1;
     m& vOp0;
     m& vOp1;
@@ -236,6 +243,7 @@ struct VectorInstructions {
     m& vDest;
     m& rCount;
     m& rOp;
+    m& rDuplicate;
     m& rDest;
   }
 
@@ -386,7 +394,8 @@ struct VectorInstructionConfig {
   int instLen;
   int instLoopCount;
 
-  static const unsigned int width = 34 * 8 + 32 * 8 + 32 + 32;
+  static const unsigned int width =
+      VectorInstructions::width * 8 + 32 * 8 + 32 + 32;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
@@ -395,6 +404,9 @@ struct VectorInstructionConfig {
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].vInput;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vAccumulatePush;
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].vOp0Src1;
@@ -428,6 +440,9 @@ struct VectorInstructionConfig {
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].rOp;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].rDuplicate;
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].rDest;

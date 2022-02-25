@@ -1,10 +1,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <fstream>
 #include <locale>
 #include <stdexcept>
 #include <string>
-#include <fstream>
 
 #include "test/common/DataLoader.h"
 #include "test/common/GoldModel.h"
@@ -61,105 +61,88 @@ void validateMapping(SimplifiedParams params) {
   }
 }
 
-void run_sequence(const std::string& group, const std::vector<std::string> &tests)
-{
+void run_sequence(const std::string& group,
+                  const std::vector<std::string>& tests) {
   // Set data parameters
-    bool use_data_file = true;
-    std::string data_dir;
-    std::map<std::string, MemoryMap>* mem_map;
-    std::map<std::string, SimplifiedParams>* param_map;
-    std::map<std::string, Files>* file_map;
+  bool use_data_file = true;
+  std::string data_dir;
+  std::map<std::string, MemoryMap>* mem_map;
+  std::map<std::string, SimplifiedParams>* param_map;
+  std::map<std::string, Files>* file_map;
 
-    if (group == "resnet")
-    {
-     data_dir = resnetDataDir;
-     mem_map = &resnetMemoryMap;
-     param_map =& resnetParams;
-     file_map =& resnetFiles;
-    }
-    else
-    {
-     data_dir = mobilebertDataDir;
-     mem_map = &mobilebertMemoryMap;
-     param_map =& mobilebert;
-     file_map =& mobilebertFiles;
-    }
+  if (group == "resnet") {
+    data_dir = resnetDataDir;
+    mem_map = &resnetMemoryMap;
+    param_map = &resnetParams;
+    file_map = &resnetFiles;
+  } else {
+    data_dir = mobilebertDataDir;
+    mem_map = &mobilebertMemoryMap;
+    param_map = &mobilebert;
+    file_map = &mobilebertFiles;
+  }
 
   // Memory allocation
-  INPUT_DATATYPE *acc_sram_memory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
-  INPUT_DATATYPE *acc_rram_memory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
-  INPUT_DATATYPE *hls_gold_sram_memory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
-  INPUT_DATATYPE *hls_gold_rram_memory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
-  UniversalPosit *uni_gold_sram_memory = new UniversalPosit[SRAM_MEMORY_SIZE];
-  UniversalPosit *uni_gold_rram_memory = new UniversalPosit[RRAM_MEMORY_SIZE];
-  float *float_gold_sram_memory = new float[SRAM_MEMORY_SIZE];
-  float *float_gold_rram_memory = new float[RRAM_MEMORY_SIZE];
-  uint64_t *trash = new uint64_t[RRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* acc_sram_memory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* acc_rram_memory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* hls_gold_sram_memory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* hls_gold_rram_memory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
+  UniversalPosit* uni_gold_sram_memory = new UniversalPosit[SRAM_MEMORY_SIZE];
+  UniversalPosit* uni_gold_rram_memory = new UniversalPosit[RRAM_MEMORY_SIZE];
+  float* float_gold_sram_memory = new float[SRAM_MEMORY_SIZE];
+  float* float_gold_rram_memory = new float[RRAM_MEMORY_SIZE];
+  uint64_t* trash = new uint64_t[RRAM_MEMORY_SIZE];
 
-  if (acc_sram_memory == nullptr || acc_rram_memory == nullptr || hls_gold_sram_memory == nullptr|| hls_gold_rram_memory == nullptr || uni_gold_sram_memory == nullptr || uni_gold_rram_memory == nullptr || float_gold_sram_memory == nullptr || float_gold_rram_memory == nullptr || trash == nullptr)
+  if (acc_sram_memory == nullptr || acc_rram_memory == nullptr ||
+      hls_gold_sram_memory == nullptr || hls_gold_rram_memory == nullptr ||
+      uni_gold_sram_memory == nullptr || uni_gold_rram_memory == nullptr ||
+      float_gold_sram_memory == nullptr || float_gold_rram_memory == nullptr ||
+      trash == nullptr)
     throw std::runtime_error("Failed to allocate simulation memory");
 
   // Load first layer input
-  load_memory((*param_map)[tests[0]], data_dir,
-              (*file_map)[tests[0]], (*mem_map)[tests[0]],
-              use_data_file, acc_sram_memory,
-              acc_rram_memory, 
-              hls_gold_sram_memory + (*param_map)[tests[0]].INPUT_OFFSET, 
-              (INPUT_DATATYPE*)trash, 
-              (INPUT_DATATYPE*)trash, 
-              (INPUT_DATATYPE*)trash, 
-              (INPUT_DATATYPE*)trash, 
-              (INPUT_DATATYPE*)trash,
-              uni_gold_sram_memory + (*param_map)[tests[0]].INPUT_OFFSET,
-              (UniversalPosit*)trash,
-              (UniversalPosit*)trash,
-              (UniversalPosit*)trash,
-              (UniversalPosit*)trash,
-              (UniversalPosit*)trash,
-              float_gold_sram_memory + (*param_map)[tests[0]].INPUT_OFFSET,  
-              (float*) trash,  
-              (float*) trash,  
-              (float*) trash,  
-              (float*) trash,  
-              (float*) trash
-              );
+  load_memory(
+      (*param_map)[tests[0]], data_dir, (*file_map)[tests[0]],
+      (*mem_map)[tests[0]], use_data_file, acc_sram_memory, acc_rram_memory,
+      hls_gold_sram_memory + (*param_map)[tests[0]].INPUT_OFFSET,
+      (INPUT_DATATYPE*)trash, (INPUT_DATATYPE*)trash, (INPUT_DATATYPE*)trash,
+      (INPUT_DATATYPE*)trash, (INPUT_DATATYPE*)trash,
+      uni_gold_sram_memory + (*param_map)[tests[0]].INPUT_OFFSET,
+      (UniversalPosit*)trash, (UniversalPosit*)trash, (UniversalPosit*)trash,
+      (UniversalPosit*)trash, (UniversalPosit*)trash,
+      float_gold_sram_memory + (*param_map)[tests[0]].INPUT_OFFSET,
+      (float*)trash, (float*)trash, (float*)trash, (float*)trash,
+      (float*)trash);
 
   // Run tests in sequence
-  for (const std::string& test : tests)
-  {
+  for (const std::string& test : tests) {
     if (test == "softmax") continue;
     validateMapping((*param_map)[test]);
-    int X =
-        (*param_map)[test].loops[0][resnetParams[test].inputXLoopIndex[0]] *
-        (*param_map)[test].loops[1][resnetParams[test].inputXLoopIndex[1]];
-    int Y =
-        (*param_map)[test].loops[0][resnetParams[test].inputYLoopIndex[0]] *
-        (*param_map)[test].loops[1][resnetParams[test].inputYLoopIndex[1]];
+    int X = (*param_map)[test].loops[0][resnetParams[test].inputXLoopIndex[0]] *
+            (*param_map)[test].loops[1][resnetParams[test].inputXLoopIndex[1]];
+    int Y = (*param_map)[test].loops[0][resnetParams[test].inputYLoopIndex[0]] *
+            (*param_map)[test].loops[1][resnetParams[test].inputYLoopIndex[1]];
     int C =
-        (*param_map)[test].loops[1][resnetParams[test].reductionLoopIndex[1]] * DIMENSION;
-    int K =
-        (*param_map)[test].loops[0][resnetParams[test].weightLoopIndex[0]] *
-        (*param_map)[test].loops[1][resnetParams[test].weightLoopIndex[1]] * DIMENSION;
-    int FX =
-        (*param_map)[test].loops[1][resnetParams[test].fxIndex];
+        (*param_map)[test].loops[1][resnetParams[test].reductionLoopIndex[1]] *
+        DIMENSION;
+    int K = (*param_map)[test].loops[0][resnetParams[test].weightLoopIndex[0]] *
+            (*param_map)[test].loops[1][resnetParams[test].weightLoopIndex[1]] *
+            DIMENSION;
+    int FX = (*param_map)[test].loops[1][resnetParams[test].fxIndex];
     int FY = (*param_map)[test].loops[1][resnetParams[test].fyIndex];
-    int
-        STRIDE = (*param_map)[test].STRIDE;
+    int STRIDE = (*param_map)[test].STRIDE;
 
-    if ((*param_map)[test].REPLICATION)
-    {
+    if ((*param_map)[test].REPLICATION) {
       FX = 7;
       C = 3;
     }
 
-    if ((*param_map)[test].MAXPOOL)
-    {
+    if ((*param_map)[test].MAXPOOL) {
       X = X / 2;
       Y = Y / 2;
     }
 
-    if ((*param_map)[test].AVGPOOL)
-    {
+    if ((*param_map)[test].AVGPOOL) {
       X = 1;
       Y = 1;
     }
@@ -169,7 +152,6 @@ void run_sequence(const std::string& group, const std::vector<std::string> &test
               << " * "
               << "(" << FX << "x" << FY << "x" << C << "x" << K << ")"
               << std::endl;
-  
   // Allocate comparison
   INPUT_DATATYPE *hls_comp = new INPUT_DATATYPE[X*Y*K];
   UniversalPosit *uni_comp = new UniversalPosit[X*Y*K];
@@ -244,13 +226,12 @@ void run_sequence(const std::string& group, const std::vector<std::string> &test
   delete[] hls_comp;
   delete[] uni_comp;
   delete[] fp_comp;
-
   }
   std::ofstream wf("pybuild/result.txt", std::ios::out | std::ios::trunc);
-  if (!wf.good())
-    throw std::runtime_error("File write failed");
+  if (!wf.good()) throw std::runtime_error("File write failed");
 
-  INPUT_DATATYPE* output = hls_gold_sram_memory + (*param_map)["fc"].OUTPUT_OFFSET;
+  INPUT_DATATYPE* output =
+      hls_gold_sram_memory + (*param_map)["fc"].OUTPUT_OFFSET;
   int index = 0;
   float max = (float)output[0];
   for (int i = 0; i < 1000; i++)
@@ -264,9 +245,7 @@ void run_sequence(const std::string& group, const std::vector<std::string> &test
   }
   std::cout << "index" << index << "u" << std::endl;
   wf << index <<'\n';
-  printf("max: %f, index: %d", max, index);
   wf.close();
-  printf("donzo\n");
 }
 
 int run_test(const SimplifiedParams params, const std::string& dataDir,
@@ -290,6 +269,7 @@ int run_test(const SimplifiedParams params, const std::string& dataDir,
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
+  int outputSize = params.NO_NORM ? X * Y * C : X * Y * K;
 
   if (params.REPLICATION) {
     FX = 7;
@@ -304,25 +284,26 @@ int run_test(const SimplifiedParams params, const std::string& dataDir,
 
   INPUT_DATATYPE* matrixA = new INPUT_DATATYPE[(STRIDE * X) * (STRIDE * Y) * C];
   INPUT_DATATYPE* matrixB = new INPUT_DATATYPE[FX * FY * C * K];
-  INPUT_DATATYPE* biasMatrix = new INPUT_DATATYPE[K];
+  INPUT_DATATYPE* biasMatrix = new INPUT_DATATYPE[params.NO_NORM ? C : K];
   INPUT_DATATYPE* residualMatrix = new INPUT_DATATYPE[X * Y * K];
-  OUTPUT_DATATYPE* matrixC = new OUTPUT_DATATYPE[X * Y * K];
-  OUTPUT_DATATYPE* dataFileOutput = new OUTPUT_DATATYPE[X * Y * K];
+  OUTPUT_DATATYPE* matrixC = new OUTPUT_DATATYPE[outputSize];
+  OUTPUT_DATATYPE* dataFileOutput = new OUTPUT_DATATYPE[outputSize];
 
   UniversalPosit* universalMatrixA =
       new UniversalPosit[(STRIDE * X) * (STRIDE * Y) * C];
   UniversalPosit* universalMatrixB = new UniversalPosit[FX * FY * C * K];
-  UniversalPosit* universalBiasMatrix = new UniversalPosit[K];
+  UniversalPosit* universalBiasMatrix =
+      new UniversalPosit[params.NO_NORM ? C : K];
   UniversalPosit* universalResidualMatrix = new UniversalPosit[X * Y * K];
-  UniversalPosit* universalMatrixC = new UniversalPosit[X * Y * K];
-  UniversalPosit* universalDataFileOutput = new UniversalPosit[X * Y * K];
+  UniversalPosit* universalMatrixC = new UniversalPosit[outputSize];
+  UniversalPosit* universalDataFileOutput = new UniversalPosit[outputSize];
 
   float* floatMatrixA = new float[(STRIDE * X) * (STRIDE * Y) * C];
   float* floatMatrixB = new float[FX * FY * C * K];
-  float* floatBiasMatrix = new float[K];
+  float* floatBiasMatrix = new float[params.NO_NORM ? C : K];
   float* floatResidualMatrix = new float[X * Y * K];
-  float* floatMatrixC = new float[X * Y * K];
-  float* floatDataFileOutput = new float[X * Y * K];
+  float* floatMatrixC = new float[outputSize];
+  float* floatDataFileOutput = new float[outputSize];
 
   load_memory(params, dataDir, files, memoryMap, useDataFile, sramMemory,
               rramMemory, matrixA, matrixB, biasMatrix, residualMatrix, matrixC,
@@ -342,46 +323,48 @@ int run_test(const SimplifiedParams params, const std::string& dataDir,
     Y = 1;
   }
 
-  // run_op({params}, sramMemory, rramMemory, memoryMap);
+
+  run_op({params}, sramMemory, rramMemory, memoryMap);
   run_custom_posit_gold_model(params, matrixA, matrixB, matrixC, biasMatrix,
                               residualMatrix);
-  run_universal_posit_gold_model(params, universalMatrixA, universalMatrixB,
-                                 universalMatrixC, universalBiasMatrix,
-                                 universalResidualMatrix);
-  run_fp_gold_model(params, floatMatrixA, floatMatrixB, floatMatrixC,
-                    floatBiasMatrix, floatResidualMatrix);
+  // run_universal_posit_gold_model(params, universalMatrixA, universalMatrixB,
+  //                                universalMatrixC, universalBiasMatrix,
+  //                                universalResidualMatrix);
+  // run_fp_gold_model(params, floatMatrixA, floatMatrixB, floatMatrixC,
+  //                   floatBiasMatrix, floatResidualMatrix);
 
   std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
   std::cout << "(reveals bugs in accelerator or memory placement)" << std::endl;
   std::string diffFile = fileOutputPrefix + "accel_vs_hlsgold.txt";
   int errors = compare_arrays(&sramMemory[params.OUTPUT_OFFSET], matrixC,
-                              X * Y * K, diffFile);
+                              outputSize, diffFile);
 
   std::cout << "HLS Posit Gold Model vs. Universal Posit Gold Model"
             << std::endl;
   std::cout << "(reveals bugs in implementation of custom HLS Posit operators)"
             << std::endl;
   diffFile = fileOutputPrefix + "hlsgold_vs_universalgold.txt";
-  errors += compare_arrays(matrixC, universalMatrixC, X * Y * K, diffFile);
+  errors += compare_arrays(matrixC, universalMatrixC, outputSize, diffFile);
 
   if (useDataFile) {
     std::cout << "HLS Posit Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals bugs in mapping operations to accelerator)"
               << std::endl;
     diffFile = fileOutputPrefix + "hlsgold_vs_pytorch.txt";
-    errors += compare_arrays(matrixC, dataFileOutput, X * Y * K, diffFile);
+    errors += compare_arrays(matrixC, dataFileOutput, outputSize, diffFile);
 
     std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in representing float as Posit)" << std::endl;
     diffFile = fileOutputPrefix + "universalgold_vs_pytorch.txt";
     errors += compare_arrays(universalMatrixC, universalDataFileOutput,
-                             X * Y * K, diffFile);
-    
+                             outputSize, diffFile);
+
+
     std::cout << "FP32 Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
     diffFile = fileOutputPrefix + "fpgold_vs_pytorch.txt";
-    errors += compare_arrays(floatMatrixC, floatDataFileOutput,
-                             X * Y * K, diffFile);
+    errors +=
+        compare_arrays(floatMatrixC, floatDataFileOutput, outputSize, diffFile);
   }
   // delete[] matrixA;
   // delete[] matrixB;
@@ -431,14 +414,26 @@ extern "C" int sc_main(int argc, char* argv[]) {
     throw std::runtime_error("Group: " + group + " not found");
   }
 
-  auto search = mapPtr->find(test);
+  std::string operation;
+  if (group == "mobilebert") {
+    auto operationSearch = mobilebertOps.find(test);
+    if (operationSearch != mobilebertOps.end()) {
+      operation = operationSearch->second;
+    } else {
+      throw std::runtime_error("Operation for " + test + " not found");
+    }
+  } else {
+    operation = test;
+  }
+
+  auto search = mapPtr->find(operation);
   if (search != mapPtr->end()) {
     params = search->second;
   } else {
     throw std::runtime_error("Test: " + test + " not found");
   }
 
-  bool useDataFiles = true;
+  bool useDataFiles = false;
   std::string dataDir;
   Files files;
   MemoryMap memoryMap;
@@ -478,9 +473,14 @@ extern "C" int sc_main(int argc, char* argv[]) {
     } else {
       throw std::runtime_error("Memory map for " + test + " not found");
     }
+  } else if (group == "simple") {
+    useDataFiles = false;
+
+    memoryMap = {SRAM, RRAM, RRAM, SRAM, SRAM};
   }
 
-  run_sequence(group, std::vector<std::string>(resnet_order.begin(), resnet_order.end()));
+  // run_sequence(group, std::vector<std::string>(resnet_order.begin(),
+  //                                              resnet_order.end()));
 
-  // return run_test(params, dataDir, files, memoryMap, useDataFiles, fullName);
+  return run_test(params, dataDir, files, memoryMap, useDataFiles, fullName);
 }

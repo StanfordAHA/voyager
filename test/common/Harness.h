@@ -4,12 +4,12 @@
 #include <mc_scverify.h>
 #include <systemc.h>
 
+#include <vector>
+
 #include "AccelTypes.h"
 #include "Accelerator.h"
 #include "ArchitectureParams.h"
 #include "test/common/VerificationTypes.h"
-
-#include <vector>
 
 SC_MODULE(Harness) {
   sc_clock CCS_INIT_S1(clk);
@@ -65,6 +65,10 @@ SC_MODULE(Harness) {
       Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *
           dataResponse,
       MemorySource memSource);
+  void memAccessBurstVariable(
+      Connections::Combinational<MemoryRequest> * addressRequest,
+      Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *
+          dataResponse);
   void memAccessPack(
       Connections::Combinational<int> * addressRequest,
       Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *

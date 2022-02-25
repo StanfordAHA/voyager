@@ -99,7 +99,18 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
       ACC_T acc = 0;
       for (int c = 0; c < C; c++) {
         ACC_T a = matrixA[c];
+        std::cout << a << " ";
+      }
+      std::cout << " * ";
+      for (int c = 0; c < C; c++) {
         ACC_T b = matrixB[c * K + k];
+        std::cout << b << " ";
+      }
+      std::cout << std::endl;
+
+      for (int c = 0; c < C; c++) {
+        ACC_T a = matrixA[c];
+        ACC_T b = matrixB[k * C + c];
 
         acc = gold_fma(a, b, acc);
       }
@@ -111,7 +122,20 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
       matrixC[k] = acc;
     }
   } else if (params.NO_NORM) {
-    // not yet implemented
+    // elementwise multiplication and addition of matrices
+    int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+    int Y = params.loops[0][params.inputYLoopIndex[0]] *
+            params.loops[1][params.inputYLoopIndex[1]];
+    for (int y = 0; y < Y; y++) {
+      for (int c = 0; c < C; c++) {
+        ACC_T a = matrixA[y * C + c];
+        ACC_T b = matrixB[c];
+        ACC_T bias = biasMatrix[c];
+        ACC_T acc = gold_fma(a, b, bias);
+
+        matrixC[y * C + c] = acc;
+      }
+    }
   } else {  // normal operation
 
     int X = params.loops[0][params.inputXLoopIndex[0]] *
@@ -237,7 +261,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
             acc += tmpMatrixC[y * X * K + x * K + k];
           }
         }
-        matrixC[k] = acc / (Y * X);  // Average
+        matrixC[k] = acc;  /// (Y * X);  // Average
       }
 
       delete[] tmpMatrixC;

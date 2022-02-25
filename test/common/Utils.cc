@@ -4,9 +4,34 @@
 #include <iostream>
 #include <string>
 
+#include "matplotlib-cpp/matplotlibcpp.h"
+namespace plt = matplotlibcpp;
+
+template <typename T>
+std::vector<float> get_float_vector(T *matrix, size_t size) {
+  std::vector<float> vector(size);
+  for (int i = 0; i < size; i++) {
+    vector[i] = (float)matrix[i];
+  }
+  return vector;
+}
+
+template <typename TA, typename TB>
+void plot_histograms(TA *matrixA, TB *matrixB, size_t size,
+                     std::string &filename) {
+  // convert to float
+  std::vector<float> vectorA = get_float_vector<TA>(matrixA, size);
+  std::vector<float> vectorB = get_float_vector<TB>(matrixB, size);
+
+  plt::hist(vectorA, 100, "b");
+  plt::hist(vectorB, 100, "r");
+  plt::save(filename + ".png");
+}
+
 template <typename TA, typename TB>
 int compare_arrays_internal(TA *matrixA, TB *matrixB, size_t size,
                             std::string &filename) {
+  plot_histograms<TA, TB>(matrixA, matrixB, size, filename);
   // buckets of <0.001, <0.01, <0.1, <1, >1
   int diff_buckets[5] = {0, 0, 0, 0, 0};
   int percent_diff_buckets[5] = {0, 0, 0, 0, 0};
@@ -14,8 +39,13 @@ int compare_arrays_internal(TA *matrixA, TB *matrixB, size_t size,
   std::ofstream diffFile(filename);
   for (int index = 0; index < size; index++) {
     diffFile << (float)matrixA[index] << " vs. " << (float)matrixB[index]
-             << std::endl;
+             << " ";
     float diff = abs(((float)matrixA[index] - (float)matrixB[index]));
+
+    for (float i = 0.001; i < diff; i *= 10.0) {
+      diffFile << "*";
+    }
+    diffFile << std::endl;
 
     if (diff < 0.001) {
       diff_buckets[0]++;
@@ -30,8 +60,8 @@ int compare_arrays_internal(TA *matrixA, TB *matrixB, size_t size,
       diff_buckets[3]++;
     } else {
       diff_buckets[4]++;
-      // std::cerr << (float) matrixA[index] << '\t' << (float) matrixB[index] <<
-      // std::endl;
+      // std::cerr << (float) matrixA[index] << '\t' << (float) matrixB[index]
+      // << std::endl;
     }
     if (matrixA[index] != 0) {
       float percent_diff =
