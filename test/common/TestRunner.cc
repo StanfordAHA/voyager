@@ -180,7 +180,7 @@ void run_sequence(const std::string& group, const std::vector<std::string> &test
 
   // Load weights, biases, and comparisons
   // PROBLEM: Will load unwanted files to accelerator intermediate input files
-  load_memory((*param_map)[test], data_dir,
+  load_wb((*param_map)[test], data_dir,
               (*file_map)[test], (*mem_map)[test],
               use_data_file, acc_sram_memory,
               acc_rram_memory, (INPUT_DATATYPE*)trash,
@@ -231,9 +231,9 @@ void run_sequence(const std::string& group, const std::vector<std::string> &test
 // std::cout << unigold_diff_file << std::endl;
 //     compare_arrays(uni_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET, uni_comp, X * Y * K, unigold_diff_file);
 
-std::string hlsgold_diff_file = "test_outputs/"+group+"resnet."+test+"hlsgold_vs_pytorch.txt";
-std::cout << hlsgold_diff_file << std::endl;
-    compare_arrays(hls_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET, hls_comp, X * Y * K, hlsgold_diff_file);
+// std::string hlsgold_diff_file = "test_outputs/"+group+"resnet."+test+"hlsgold_vs_pytorch.txt";
+// std::cout << hlsgold_diff_file << std::endl;
+//     compare_arrays(hls_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET, hls_comp, X * Y * K, hlsgold_diff_file);
 
 // std::string input_diff_file = "test_outputs/series"+group+"."+test+".input_vs_pytorch.txt";
 //     compare_arrays(float_gold_sram_memory + (*param_map)[test].INPUT_OFFSET, fp_comp, X * Y * K, input_diff_file);
@@ -255,16 +255,14 @@ std::cout << hlsgold_diff_file << std::endl;
   float max = (float)output[0];
   for (int i = 0; i < 1000; i++)
   {
-   std::cout << (float)output[i] << " " << max<<" "<< i << std::endl;
+   // std::cout << (float)output[i] << " " << max<<" "<< i << std::endl;
    if ((float)output[i] >= max)
    { 
      index = i;
      max = (float)output[i];
    }
-    // printf("val: %f\n",(float)(*(hls_gold_sram_memory + resnetParams["fc"].OUTPUT_OFFSET + i * 4)));
-    // wf.write((char *)(uni_gold_sram_memory + resnetParams["fc"].OUTPUT_OFFSET + i * 4),
-    //          sizeof(char));
   }
+  std::cout << "index" << index << "u" << std::endl;
   wf << index <<'\n';
   printf("max: %f, index: %d", max, index);
   wf.close();
