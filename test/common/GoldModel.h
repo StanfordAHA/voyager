@@ -99,7 +99,18 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
       ACC_T acc = 0;
       for (int c = 0; c < C; c++) {
         ACC_T a = matrixA[c];
+        std::cout << a << " ";
+      }
+      std::cout << " * ";
+      for (int c = 0; c < C; c++) {
         ACC_T b = matrixB[c * K + k];
+        std::cout << b << " ";
+      }
+      std::cout << std::endl;
+
+      for (int c = 0; c < C; c++) {
+        ACC_T a = matrixA[c];
+        ACC_T b = matrixB[k * C + c];
 
         acc = gold_fma(a, b, acc);
       }
@@ -250,7 +261,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
             acc += tmpMatrixC[y * X * K + x * K + k];
           }
         }
-        matrixC[k] = acc / (Y * X);  // Average
+        matrixC[k] = acc;  /// (Y * X);  // Average
       }
 
       delete[] tmpMatrixC;

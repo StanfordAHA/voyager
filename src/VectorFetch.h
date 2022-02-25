@@ -51,12 +51,12 @@ SC_MODULE(VectorFetchUnit) {
       VectorParams params = addressGen0Params.Pop();
 
 #pragma hls_pipeline_init_interval 1
-      for (int i = 0; i < params.addressGen0Loop[2]; i++) {
+      for (int i = 0; i < params.addressGen0Loop[0]; i++) {
         for (int j = 0; j < params.addressGen0Loop[1]; j++) {
-          for (int k = 0; k < params.addressGen0Loop[0]; k++) {
-            int address = k * params.addressGen0Loop[0] * WIDTH + k * WIDTH;
-            address = params.VECTOR_OFFSET + address;
-            MemoryRequest memRequest = {address, WIDTH};
+          for (int k = 0; k < params.addressGen0Loop[2]; k++) {
+            int address = j * params.addressGen0Loop[2] * WIDTH + k * WIDTH;
+            // DLOG("addressgen0 " << j << " " << k << " " << address);
+            MemoryRequest memRequest = {params.VECTOR_OFFSET + address, WIDTH};
             vectorFetch0AddressRequest.Push(memRequest);
           }
         }
@@ -73,71 +73,88 @@ SC_MODULE(VectorFetchUnit) {
     while (true) {
       VectorParams params = addressGen1Params.Pop();
 
-      int loop_counters[2][3];
-      int loop_bounds[2][3];
+      if (params.addressGen2Mode == 1) {
+        int loop_counters[2][3];
+        int loop_bounds[2][3];
 
 #pragma hls_unroll yes
-      for (int i = 0; i < 2; i++) {
-        for (int j = 0; j < 3; j++) {
-          loop_bounds[i][j] = params.addressGen1Loops[i][j];
+        for (int i = 0; i < 2; i++) {
+          for (int j = 0; j < 3; j++) {
+            loop_bounds[i][j] = params.addressGen1Loops[i][j];
+          }
         }
-      }
 
 #pragma hls_pipeline_init_interval 1
-      for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
-           loop_counters[0][0]++) {
-        for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
-             loop_counters[0][1]++) {
-          for (loop_counters[0][2] = 0; loop_counters[0][2] < loop_bounds[0][2];
-               loop_counters[0][2]++) {
-            for (loop_counters[1][0] = 0;
-                 loop_counters[1][0] < loop_bounds[1][0];
-                 loop_counters[1][0]++) {
-              for (loop_counters[1][1] = 0;
-                   loop_counters[1][1] < loop_bounds[1][1];
-                   loop_counters[1][1]++) {
-                for (loop_counters[1][2] = 0;
-                     loop_counters[1][2] < loop_bounds[1][2];
-                     loop_counters[1][2]++) {
-                  int x0 =
-                      loop_counters[1][params.addressGen1InputXLoopIndex[1]];
-                  int x1 =
-                      loop_counters[0][params.addressGen1InputXLoopIndex[0]];
-                  int X0 = params.addressGen1Loops
-                               [1][params.addressGen1InputXLoopIndex[1]];
-                  int X1 = params.addressGen1Loops
-                               [0][params.addressGen1InputXLoopIndex[0]];
-                  int y0 =
-                      loop_counters[1][params.addressGen1InputYLoopIndex[1]];
-                  int y1 =
-                      loop_counters[0][params.addressGen1InputYLoopIndex[0]];
-                  int Y0 = params.addressGen1Loops
-                               [1][params.addressGen1InputYLoopIndex[1]];
-                  int Y1 = params.addressGen1Loops
-                               [0][params.addressGen1InputYLoopIndex[0]];
-                  int k2 =
-                      loop_counters[0][params.addressGen1WeightLoopIndex[0]];
-                  int K2 = params.addressGen1Loops
-                               [0][params.addressGen1WeightLoopIndex[0]];
-                  int k1 =
-                      loop_counters[1][params.addressGen1WeightLoopIndex[1]];
-                  int K1 = params.addressGen1Loops
-                               [1][params.addressGen1WeightLoopIndex[1]];
-                  int k = k2 * K1 * WIDTH + k1 * WIDTH;
-                  int K = K2 * K1 * WIDTH;
+        for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
+             loop_counters[0][0]++) {
+          for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
+               loop_counters[0][1]++) {
+            for (loop_counters[0][2] = 0;
+                 loop_counters[0][2] < loop_bounds[0][2];
+                 loop_counters[0][2]++) {
+              for (loop_counters[1][0] = 0;
+                   loop_counters[1][0] < loop_bounds[1][0];
+                   loop_counters[1][0]++) {
+                for (loop_counters[1][1] = 0;
+                     loop_counters[1][1] < loop_bounds[1][1];
+                     loop_counters[1][1]++) {
+                  for (loop_counters[1][2] = 0;
+                       loop_counters[1][2] < loop_bounds[1][2];
+                       loop_counters[1][2]++) {
+                    int x0 =
+                        loop_counters[1][params.addressGen1InputXLoopIndex[1]];
+                    int x1 =
+                        loop_counters[0][params.addressGen1InputXLoopIndex[0]];
+                    int X0 = params.addressGen1Loops
+                                 [1][params.addressGen1InputXLoopIndex[1]];
+                    int X1 = params.addressGen1Loops
+                                 [0][params.addressGen1InputXLoopIndex[0]];
+                    int y0 =
+                        loop_counters[1][params.addressGen1InputYLoopIndex[1]];
+                    int y1 =
+                        loop_counters[0][params.addressGen1InputYLoopIndex[0]];
+                    int Y0 = params.addressGen1Loops
+                                 [1][params.addressGen1InputYLoopIndex[1]];
+                    int Y1 = params.addressGen1Loops
+                                 [0][params.addressGen1InputYLoopIndex[0]];
+                    int k2 =
+                        loop_counters[0][params.addressGen1WeightLoopIndex[0]];
+                    int K2 = params.addressGen1Loops
+                                 [0][params.addressGen1WeightLoopIndex[0]];
+                    int k1 =
+                        loop_counters[1][params.addressGen1WeightLoopIndex[1]];
+                    int K1 = params.addressGen1Loops
+                                 [1][params.addressGen1WeightLoopIndex[1]];
+                    int k = k2 * K1 * WIDTH + k1 * WIDTH;
+                    int K = K2 * K1 * WIDTH;
 
-                  int x = x0 + x1 * X0;
-                  int X = X0 * X1;
+                    int x = x0 + x1 * X0;
+                    int X = X0 * X1;
 
-                  int y = y0 + y1 * Y0;
-                  int Y = Y0 * Y1;
+                    int y = y0 + y1 * Y0;
+                    int Y = Y0 * Y1;
 
-                  int address = y * X * K + x * K + k;
-                  MemoryRequest memRequest = {
-                      params.ADDRESS_GEN1_OFFSET + address, WIDTH};
-                  vectorFetch1AddressRequest.Push(memRequest);
+                    int address = y * X * K + x * K + k;
+                    MemoryRequest memRequest = {
+                        params.ADDRESS_GEN1_OFFSET + address, WIDTH};
+                    vectorFetch1AddressRequest.Push(memRequest);
+                  }
                 }
               }
+            }
+          }
+        }
+      } else {  // 2d tensor
+#pragma hls_pipeline_init_interval 1
+        for (int i = 0; i < params.addressGen1Loops[0][0]; i++) {
+          for (int j = 0; j < params.addressGen1Loops[0][1]; j++) {
+            for (int k = 0; k < params.addressGen1Loops[0][2]; k++) {
+              int address =
+                  j * params.addressGen1Loops[0][2] * WIDTH + k * WIDTH;
+              DLOG("addressgen1 " << j << " " << k << " " << address);
+              MemoryRequest memRequest = {params.ADDRESS_GEN1_OFFSET + address,
+                                          WIDTH};
+              vectorFetch1AddressRequest.Push(memRequest);
             }
           }
         }

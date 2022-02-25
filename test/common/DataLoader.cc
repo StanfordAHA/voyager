@@ -32,7 +32,7 @@ double* read_file_as_double(const std::string& filename, int size,
     is.read(tmpValuesArray, size * sizeof(double));
   } else {
     static std::default_random_engine e;
-    static std::uniform_real_distribution<> dis(-5, 5);
+    static std::uniform_real_distribution<> dis(-1, 1);
 
     for (int i = 0; i < size; i++) {
       tmpValuePtr[i] = (double)dis(e);
