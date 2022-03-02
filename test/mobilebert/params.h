@@ -205,7 +205,7 @@ std::map<std::string, SimplifiedParams> mobilebert{
          false,                                       // RELU
          true,                                        // bias
          30 * 1024,                                   // BIAS_OFFSET
-         false,                                       // residual
+         true,                                        // residual
          40 * 1024,                                   // RESIDUAL_OFFSET
          false,                                       // maxpool
          false,                                       // avgpool
@@ -235,7 +235,7 @@ std::map<std::string, SimplifiedParams> mobilebert{
          false,                                      // RELU
          true,                                       // bias
          30 * 1024,                                  // BIAS_OFFSET
-         false,                                      // residual
+         true,                                       // residual
          40 * 1024,                                  // RESIDUAL_OFFSET
          false,                                      // maxpool
          false,                                      // avgpool
@@ -243,15 +243,99 @@ std::map<std::string, SimplifiedParams> mobilebert{
          false,                                      // FC
          false,                                      // NO-NORM
      }},
+
+    // elementwise product and addition for matrix of size:
+    // 128 x 128
+    {"inputLayerNorm",
+     {
+         0,                                           // INPUT_OFFSET
+         0,                                           // WEIGHT_OFFSET
+         10 * 1024,                                   // OUTPUT_OFFSET
+         false,                                       // TRANSPOSE
+         {{1, 1, 1, 1, 1, 1}, {8, 1, 1, 1, 128, 1}},  // LOOPS
+         {0, 5},                                      // INPUTX
+         {1, 4},                                      // INPUTY
+         {2, 0},                                      // REDUCTION
+         {3, 1},                                      // WEIGHT
+         3,                                           // fxIndex
+         2,                                           // fyIndex
+         {4, 5},                                      // weightReuseIndex
+         1,                                           // stride
+         false,                                       // replication
+         false,                                       // RELU
+         true,                                        // bias
+         30 * 1024,                                   // BIAS_OFFSET
+         false,                                       // residual
+         40 * 1024,                                   // RESIDUAL_OFFSET
+         false,                                       // maxpool
+         false,                                       // avgpool
+         false,                                       // SOFTMAX
+         false,                                       // FC
+         true,                                        // NO_NORM
+     }},
+
+    // elementwise product and addition for matrix of size:
+    // 128 x 512
+    {"outputLayerNorm",
+     {
+         0,                                            // INPUT_OFFSET
+         0,                                            // WEIGHT_OFFSET
+         10 * 1024,                                    // OUTPUT_OFFSET
+         false,                                        // TRANSPOSE
+         {{1, 1, 1, 1, 1, 1}, {32, 1, 1, 1, 128, 1}},  // LOOPS
+         {0, 5},                                       // INPUTX
+         {1, 4},                                       // INPUTY
+         {2, 0},                                       // REDUCTION
+         {3, 1},                                       // WEIGHT
+         3,                                            // fxIndex
+         2,                                            // fyIndex
+         {4, 5},                                       // weightReuseIndex
+         1,                                            // stride
+         false,                                        // replication
+         false,                                        // RELU
+         true,                                         // bias
+         30 * 1024,                                    // BIAS_OFFSET
+         false,                                        // residual
+         40 * 1024,                                    // RESIDUAL_OFFSET
+         false,                                        // maxpool
+         false,                                        // avgpool
+         false,                                        // SOFTMAX
+         false,                                        // FC
+         true,                                         // NO_NORM
+     }},
 };
 
-std::array<std::string, 8> mobilebert_order{
-    "inputBottleneck", "qkvProjection", "qkAttention", "vAttention",
-    "wProjection",     "ffn1",          "ffn2",        "outputBottleneck"};
+std::array<std::string, 26> mobilebert_order{"bottleneck_input_dense",
+                                             "bottleneck_input_LayerNorm",
+                                             "bottleneck_attention_dense",
+                                             "bottleneck_attention_LayerNorm",
+                                             "attention_self_query",
+                                             "attention_self_key",
+                                             "ffattention_self_value",
+                                             "attention_self_attention_scores",
+                                             "attention_self_context_layer",
+                                             "attention_output_dense",
+                                             "attention_output_LayerNorm",
+                                             "ffn_0_intermediate_dense",
+                                             "ffn_0_output_dense",
+                                             "ffn_0_output_LayerNorm",
+                                             "ffn_1_intermediate_dense",
+                                             "ffn_1_output_dense",
+                                             "ffn_1_output_LayerNorm",
+                                             "ffn_2_intermediate_dense",
+                                             "ffn_2_output_dense",
+                                             "ffn_2_output_LayerNorm",
+                                             "intermediate_dense",
+                                             "output_dense",
+                                             "output_LayerNorm",
+                                             "output_bottleneck_dense",
+                                             "output_bottleneck_LayerNorm"};
 
 std::map<std::string, std::string> mobilebertOps{
     {"bottleneck_input_dense", "inputBottleneck"},
+    {"bottleneck_input_LayerNorm", "inputLayerNorm"},
     {"bottleneck_attention_dense", "inputBottleneck"},
+    {"bottleneck_attention_LayerNorm", "inputLayerNorm"},
     {"attention_self_query", "qkvProjection"},
     {"attention_self_key", "qkvProjection"},
     {"attention_self_value", "inputBottleneck"},
@@ -259,15 +343,21 @@ std::map<std::string, std::string> mobilebertOps{
     // {"attention_self_attention_probs", ""},
     {"attention_self_context_layer", "vAttention"},
     {"attention_output_dense", "wProjection"},
+    {"attention_output_LayerNorm", "inputLayerNorm"},
     {"ffn_0_intermediate_dense", "ffn1"},
     {"ffn_0_output_dense", "ffn2"},
+    {"ffn_0_output_LayerNorm", "inputLayerNorm"},
     {"ffn_1_intermediate_dense", "ffn1"},
     {"ffn_1_output_dense", "ffn2"},
+    {"ffn_1_output_LayerNorm", "inputLayerNorm"},
     {"ffn_2_intermediate_dense", "ffn1"},
     {"ffn_2_output_dense", "ffn2"},
+    {"ffn_2_output_LayerNorm", "inputLayerNorm"},
     {"intermediate_dense", "ffn1"},
     {"output_dense", "ffn2"},
-    {"output_bottleneck_dense", "outputBottleneck"}};
+    {"output_LayerNorm", "inputLayerNorm"},
+    {"output_bottleneck_dense", "outputBottleneck"},
+    {"output_bottleneck_LayerNorm", "outputLayerNorm"}};
 
 std::string mobilebertDataDir = "data/mobilebert/";
 
@@ -277,13 +367,22 @@ std::map<std::string, Files> mobilebertFiles{
       "weights/mobilebert_encoder_layer_0_bottleneck_input_dense_weight",
       "weights/mobilebert_encoder_layer_0_bottleneck_input_dense_bias",
       "activations/mobilebert_encoder_layer_0_bottleneck_input_dense"}},
-    // {"bottleneck_input_LayerNorm", {}},
+    {"bottleneck_input_LayerNorm",
+     {"activations/mobilebert_encoder_layer_0_bottleneck_input_dense",
+      "weights/mobilebert_encoder_layer_0_bottleneck_input_LayerNorm_weight",
+      "weights/mobilebert_encoder_layer_0_bottleneck_input_LayerNorm_bias",
+      "activations/mobilebert_encoder_layer_0_bottleneck_input_LayerNorm"}},
     {"bottleneck_attention_dense",
      {"activations/mobilebert_embeddings",
       "weights/mobilebert_encoder_layer_0_bottleneck_attention_dense_weight",
       "weights/mobilebert_encoder_layer_0_bottleneck_attention_dense_bias",
       "activations/mobilebert_encoder_layer_0_bottleneck_attention_dense"}},
-    // {"bottleneck_attention_LayerNorm", {}},
+    {"bottleneck_attention_LayerNorm",
+     {"activations/mobilebert_encoder_layer_0_bottleneck_attention_dense",
+      "weights/"
+      "mobilebert_encoder_layer_0_bottleneck_attention_LayerNorm_weight",
+      "weights/mobilebert_encoder_layer_0_bottleneck_attention_LayerNorm_bias",
+      "activations/mobilebert_encoder_layer_0_bottleneck_attention_LayerNorm"}},
     {"attention_self_query",
      {"activations/mobilebert_encoder_layer_0_bottleneck_attention_LayerNorm",
       "weights/mobilebert_encoder_layer_0_attention_self_query_weight",
@@ -302,10 +401,10 @@ std::map<std::string, Files> mobilebertFiles{
 
     // TODO: break the following operations into 4 sub-ops.
     {"attention_self_attention_scores",
-     {"activations/mobilebert_encoder_layer_0_attention_self_query",
-      "activations/mobilebert_encoder_layer_0_attention_self_key", "N/A",
+     {"activations/mobilebert_encoder_layer_0_attention_self_query_layer_1",
+      "activations/mobilebert_encoder_layer_0_attention_self_key_layer_1", "N/A",
       "activations/"
-      "mobilebert_encoder_layer_0_attention_self_attention_scores"}},
+      "mobilebert_encoder_layer_0_attention_self_attention_scores_1"}},
     // {"attention_self_attention_probs", {}},
     {"attention_self_context_layer",
      {"activations/mobilebert_encoder_layer_0_attention_self_attention_probs",
@@ -316,9 +415,13 @@ std::map<std::string, Files> mobilebertFiles{
       "weights/mobilebert_encoder_layer_0_attention_output_dense_weight",
       "weights/mobilebert_encoder_layer_0_attention_output_dense_bias",
       "activations/mobilebert_encoder_layer_0_attention_output_dense"}},
-    // {"attention_output_LayerNorm", {}},
     // TODO: end
 
+    {"attention_output_LayerNorm",
+     {"activations/mobilebert_encoder_layer_0_attention_output_residual",
+      "weights/mobilebert_encoder_layer_0_attention_output_LayerNorm_weight",
+      "weights/mobilebert_encoder_layer_0_attention_output_LayerNorm_bias",
+      "activations/mobilebert_encoder_layer_0_attention_output_LayerNorm"}},
     {"ffn_0_intermediate_dense",
      {"activations/mobilebert_encoder_layer_0_attention_output_LayerNorm",
       "weights/mobilebert_encoder_layer_0_ffn_0_intermediate_dense_weight",
@@ -328,8 +431,13 @@ std::map<std::string, Files> mobilebertFiles{
      {"activations/mobilebert_encoder_layer_0_ffn_0_intermediate_dense",
       "weights/mobilebert_encoder_layer_0_ffn_0_output_dense_weight",
       "weights/mobilebert_encoder_layer_0_ffn_0_output_dense_bias",
-      "activations/mobilebert_encoder_layer_0_ffn_0_output_dense"}},
-    // {"ffn_0_output_LayerNorm", {}},
+      "activations/mobilebert_encoder_layer_0_ffn_0_output_residual",
+      "activations/mobilebert_encoder_layer_0_attention_output_LayerNorm"}},
+    {"ffn_0_output_LayerNorm",
+     {"activations/mobilebert_encoder_layer_0_ffn_0_output_residual",
+      "weights/mobilebert_encoder_layer_0_ffn_0_output_LayerNorm_weight",
+      "weights/mobilebert_encoder_layer_0_ffn_0_output_LayerNorm_bias",
+      "activations/mobilebert_encoder_layer_0_ffn_0_output_LayerNorm"}},
     {"ffn_1_intermediate_dense",
      {"activations/mobilebert_encoder_layer_0_ffn_0_output_LayerNorm",
       "weights/mobilebert_encoder_layer_0_ffn_1_intermediate_dense_weight",
@@ -339,8 +447,13 @@ std::map<std::string, Files> mobilebertFiles{
      {"activations/mobilebert_encoder_layer_0_ffn_1_intermediate_dense",
       "weights/mobilebert_encoder_layer_0_ffn_1_output_dense_weight",
       "weights/mobilebert_encoder_layer_0_ffn_1_output_dense_bias",
-      "activations/mobilebert_encoder_layer_0_ffn_1_output_dense"}},
-    // {"ffn_1_output_LayerNorm", {}},
+      "activations/mobilebert_encoder_layer_0_ffn_1_output_residual",
+      "activations/mobilebert_encoder_layer_0_ffn_0_output_LayerNorm"}},
+    {"ffn_1_output_LayerNorm",
+     {"activations/mobilebert_encoder_layer_0_ffn_1_output_residual",
+      "weights/mobilebert_encoder_layer_0_ffn_1_output_LayerNorm_weight",
+      "weights/mobilebert_encoder_layer_0_ffn_1_output_LayerNorm_bias",
+      "activations/mobilebert_encoder_layer_0_ffn_1_output_LayerNorm"}},
     {"ffn_2_intermediate_dense",
      {"activations/mobilebert_encoder_layer_0_ffn_1_output_LayerNorm",
       "weights/mobilebert_encoder_layer_0_ffn_2_intermediate_dense_weight",
@@ -350,8 +463,13 @@ std::map<std::string, Files> mobilebertFiles{
      {"activations/mobilebert_encoder_layer_0_ffn_2_intermediate_dense",
       "weights/mobilebert_encoder_layer_0_ffn_2_output_dense_weight",
       "weights/mobilebert_encoder_layer_0_ffn_2_output_dense_bias",
-      "activations/mobilebert_encoder_layer_0_ffn_2_output_dense"}},
-    // {"ffn_2_output_LayerNorm", {}},
+      "activations/mobilebert_encoder_layer_0_ffn_2_output_residual",
+      "activations/mobilebert_encoder_layer_0_ffn_1_output_LayerNorm"}},
+    {"ffn_2_output_LayerNorm",
+     {"activations/mobilebert_encoder_layer_0_ffn_2_output_residual",
+      "weights/mobilebert_encoder_layer_0_ffn_2_output_LayerNorm_weight",
+      "weights/mobilebert_encoder_layer_0_ffn_2_output_LayerNorm_bias",
+      "activations/mobilebert_encoder_layer_0_ffn_2_output_LayerNorm"}},
     {"intermediate_dense",
      {"activations/mobilebert_encoder_layer_0_ffn_2_output_LayerNorm",
       "weights/mobilebert_encoder_layer_0_intermediate_dense_weight",
@@ -361,19 +479,31 @@ std::map<std::string, Files> mobilebertFiles{
      {"activations/mobilebert_encoder_layer_0_intermediate_dense",
       "weights/mobilebert_encoder_layer_0_output_dense_weight",
       "weights/mobilebert_encoder_layer_0_output_dense_bias",
-      "activations/mobilebert_encoder_layer_0_output_dense"}},
-    // {"output_LayerNorm", {}},
+      "activations/mobilebert_encoder_layer_0_output_residual",
+      "activations/mobilebert_encoder_layer_0_ffn_2_output_LayerNorm"}},
+    {"output_LayerNorm",
+     {"activations/mobilebert_encoder_layer_0_output_residual",
+      "weights/mobilebert_encoder_layer_0_output_LayerNorm_weight",
+      "weights/mobilebert_encoder_layer_0_output_LayerNorm_bias",
+      "activations/mobilebert_encoder_layer_0_output_LayerNorm"}},
     {"output_bottleneck_dense",
      {"activations/mobilebert_encoder_layer_0_output_LayerNorm",
       "weights/mobilebert_encoder_layer_0_output_bottleneck_dense_weight",
       "weights/mobilebert_encoder_layer_0_output_bottleneck_dense_bias",
-      "activations/mobilebert_encoder_layer_0_output_bottleneck_dense"}},
-    // {"output_bottleneck_LayerNorm", {}},
+      "activations/mobilebert_encoder_layer_0_output_bottleneck_residual",
+      "activations/mobilebert_embeddings"}},
+    {"output_bottleneck_LayerNorm",
+     {"activations/mobilebert_encoder_layer_0_output_bottleneck_residual",
+      "weights/mobilebert_encoder_layer_0_output_bottleneck_LayerNorm_weight",
+      "weights/mobilebert_encoder_layer_0_output_bottleneck_LayerNorm_bias",
+      "activations/mobilebert_encoder_layer_0_output_bottleneck_LayerNorm"}},
 };
 
 std::map<std::string, MemoryMap> mobilebertMemoryMap{
     {"bottleneck_input_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"bottleneck_input_LayerNorm", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"bottleneck_attention_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"bottleneck_attention_LayerNorm", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"attention_self_query", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"attention_self_key", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"attention_self_value", {SRAM, RRAM, RRAM, SRAM, SRAM}},
@@ -381,12 +511,18 @@ std::map<std::string, MemoryMap> mobilebertMemoryMap{
     {"attention_self_attention_probs", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"attention_self_context_layer", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"attention_output_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"attention_output_LayerNorm", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"ffn_0_intermediate_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"ffn_0_output_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"ffn_0_output_LayerNorm", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"ffn_1_intermediate_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"ffn_1_output_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"ffn_1_output_LayerNorm", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"ffn_2_intermediate_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"ffn_2_output_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"ffn_2_output_LayerNorm", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"intermediate_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"output_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
-    {"output_bottleneck_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}}};
+    {"output_LayerNorm", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"output_bottleneck_dense", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"output_bottleneck_LayerNorm", {SRAM, RRAM, RRAM, SRAM, SRAM}}};

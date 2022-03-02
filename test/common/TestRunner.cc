@@ -152,80 +152,88 @@ void run_sequence(const std::string& group,
               << " * "
               << "(" << FX << "x" << FY << "x" << C << "x" << K << ")"
               << std::endl;
-  // Allocate comparison
-  INPUT_DATATYPE *hls_comp = new INPUT_DATATYPE[X*Y*K];
-  UniversalPosit *uni_comp = new UniversalPosit[X*Y*K];
-  float *fp_comp = new float[X*Y*K];
+    // Allocate comparison
+    INPUT_DATATYPE* hls_comp = new INPUT_DATATYPE[X * Y * K];
+    UniversalPosit* uni_comp = new UniversalPosit[X * Y * K];
+    float* fp_comp = new float[X * Y * K];
 
-  if (hls_comp == nullptr || uni_comp == nullptr || fp_comp == nullptr)
-    throw std::runtime_error("Failed to allocate simulation memory in sequence");
+    if (hls_comp == nullptr || uni_comp == nullptr || fp_comp == nullptr)
+      throw std::runtime_error(
+          "Failed to allocate simulation memory in sequence");
 
-  // Load weights, biases, and comparisons
-  // PROBLEM: Will load unwanted files to accelerator intermediate input files
-  load_wb((*param_map)[test], data_dir,
-              (*file_map)[test], (*mem_map)[test],
-              use_data_file, acc_sram_memory,
-              acc_rram_memory, (INPUT_DATATYPE*)trash,
-                hls_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
-                hls_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
-(INPUT_DATATYPE*)trash,
-(INPUT_DATATYPE*)trash,
-                // hls_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET,
-                // hls_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
-                hls_comp,
-              (UniversalPosit*)trash,
-                uni_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
-                uni_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
-(UniversalPosit*)trash,
-                // uni_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET,
-                uni_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
-                uni_comp,
-              (float*) trash,  
-                float_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
-                float_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
-(float*)trash,
-                // float_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET,
-                float_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
-                fp_comp
-              );
+    // Load weights, biases, and comparisons
+    // PROBLEM: Will load unwanted files to accelerator intermediate input files
+    load_wb(
+        (*param_map)[test], data_dir, (*file_map)[test], (*mem_map)[test],
+        use_data_file, acc_sram_memory, acc_rram_memory, (INPUT_DATATYPE*)trash,
+        hls_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
+        hls_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
+        (INPUT_DATATYPE*)trash, (INPUT_DATATYPE*)trash,
+        // hls_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET,
+        // hls_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
+        hls_comp, (UniversalPosit*)trash,
+        uni_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
+        uni_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
+        (UniversalPosit*)trash,
+        // uni_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET,
+        uni_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET, uni_comp,
+        (float*)trash,
+        float_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
+        float_gold_rram_memory + (*param_map)[test].BIAS_OFFSET, (float*)trash,
+        // float_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET,
+        float_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET, fp_comp);
 
-  // Run everything
-  run_custom_posit_gold_model((*param_map)[test], 
-                hls_gold_sram_memory + (*param_map)[test].INPUT_OFFSET,
-                hls_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
-                hls_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
-                hls_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
-                hls_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET);
-  // run_universal_posit_gold_model((*param_map)[test],
-  //               uni_gold_sram_memory + (*param_map)[test].INPUT_OFFSET,
-  //               uni_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
-  //               uni_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
-  //               uni_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
-  //               uni_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET);
-  // run_fp_gold_model((*param_map)[test],
-  //               float_gold_sram_memory + (*param_map)[test].INPUT_OFFSET,
-  //               float_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
-  //               float_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
-  //               float_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
-  //               float_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET);
+    // Run everything
+    run_custom_posit_gold_model(
+        (*param_map)[test],
+        hls_gold_sram_memory + (*param_map)[test].INPUT_OFFSET,
+        hls_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
+        hls_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
+        hls_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
+        hls_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET);
+    // run_universal_posit_gold_model((*param_map)[test],
+    //               uni_gold_sram_memory + (*param_map)[test].INPUT_OFFSET,
+    //               uni_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
+    //               uni_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
+    //               uni_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
+    //               uni_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET);
+    // run_fp_gold_model((*param_map)[test],
+    //               float_gold_sram_memory + (*param_map)[test].INPUT_OFFSET,
+    //               float_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
+    //               float_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
+    //               float_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
+    //               float_gold_sram_memory +
+    //               (*param_map)[test].RESIDUAL_OFFSET);
 
-// std::string unigold_diff_file = "test_outputs/"+group+"resnet."+test+"unigold_vs_pytorch.txt";
-// std::cout << unigold_diff_file << std::endl;
-//     compare_arrays(uni_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET, uni_comp, X * Y * K, unigold_diff_file);
+    // std::string unigold_diff_file =
+    // "test_outputs/"+group+"resnet."+test+"unigold_vs_pytorch.txt"; std::cout
+    // << unigold_diff_file << std::endl;
+    //     compare_arrays(uni_gold_sram_memory +
+    //     (*param_map)[test].OUTPUT_OFFSET, uni_comp, X * Y * K,
+    //     unigold_diff_file);
 
-// std::string hlsgold_diff_file = "test_outputs/"+group+"resnet."+test+"hlsgold_vs_pytorch.txt";
-// std::cout << hlsgold_diff_file << std::endl;
-//     compare_arrays(hls_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET, hls_comp, X * Y * K, hlsgold_diff_file);
+    // std::string hlsgold_diff_file =
+    // "test_outputs/"+group+"resnet."+test+"hlsgold_vs_pytorch.txt"; std::cout
+    // << hlsgold_diff_file << std::endl;
+    //     compare_arrays(hls_gold_sram_memory +
+    //     (*param_map)[test].OUTPUT_OFFSET, hls_comp, X * Y * K,
+    //     hlsgold_diff_file);
 
-// std::string input_diff_file = "test_outputs/series"+group+"."+test+".input_vs_pytorch.txt";
-//     compare_arrays(float_gold_sram_memory + (*param_map)[test].INPUT_OFFSET, fp_comp, X * Y * K, input_diff_file);
+    // std::string input_diff_file =
+    // "test_outputs/series"+group+"."+test+".input_vs_pytorch.txt";
+    //     compare_arrays(float_gold_sram_memory +
+    //     (*param_map)[test].INPUT_OFFSET, fp_comp, X * Y * K,
+    //     input_diff_file);
 
-// std::string fpgold_diff_file = "test_outputs/"+group+"resnet."+test+"fpgold_vs_pytorch.txt";
-// std::cout << fpgold_diff_file << std::endl;
-//     compare_arrays(float_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET, fp_comp, X * Y * K, fpgold_diff_file);
-  delete[] hls_comp;
-  delete[] uni_comp;
-  delete[] fp_comp;
+    // std::string fpgold_diff_file =
+    // "test_outputs/"+group+"resnet."+test+"fpgold_vs_pytorch.txt"; std::cout
+    // << fpgold_diff_file << std::endl;
+    //     compare_arrays(float_gold_sram_memory +
+    //     (*param_map)[test].OUTPUT_OFFSET, fp_comp, X * Y * K,
+    //     fpgold_diff_file);
+    delete[] hls_comp;
+    delete[] uni_comp;
+    delete[] fp_comp;
   }
   std::ofstream wf("pybuild/result.txt", std::ios::out | std::ios::trunc);
   if (!wf.good()) throw std::runtime_error("File write failed");
@@ -234,17 +242,15 @@ void run_sequence(const std::string& group,
       hls_gold_sram_memory + (*param_map)["fc"].OUTPUT_OFFSET;
   int index = 0;
   float max = (float)output[0];
-  for (int i = 0; i < 1000; i++)
-  {
-   // std::cout << (float)output[i] << " " << max<<" "<< i << std::endl;
-   if ((float)output[i] >= max)
-   { 
-     index = i;
-     max = (float)output[i];
-   }
+  for (int i = 0; i < 1000; i++) {
+    // std::cout << (float)output[i] << " " << max<<" "<< i << std::endl;
+    if ((float)output[i] >= max) {
+      index = i;
+      max = (float)output[i];
+    }
   }
   std::cout << "index" << index << "u" << std::endl;
-  wf << index <<'\n';
+  wf << index << '\n';
   wf.close();
 }
 
@@ -323,42 +329,44 @@ int run_test(const SimplifiedParams params, const std::string& dataDir,
     Y = 1;
   }
 
+  std::string diffFile;
+  int errors;
 
-  run_op({params}, sramMemory, rramMemory, memoryMap);
-  run_custom_posit_gold_model(params, matrixA, matrixB, matrixC, biasMatrix,
-                              residualMatrix);
+  // run_op({params}, sramMemory, rramMemory, memoryMap);
+  // run_custom_posit_gold_model(params, matrixA, matrixB, matrixC, biasMatrix,
+  //                             residualMatrix);
   // run_universal_posit_gold_model(params, universalMatrixA, universalMatrixB,
   //                                universalMatrixC, universalBiasMatrix,
   //                                universalResidualMatrix);
-  // run_fp_gold_model(params, floatMatrixA, floatMatrixB, floatMatrixC,
-  //                   floatBiasMatrix, floatResidualMatrix);
+  run_fp_gold_model(params, floatMatrixA, floatMatrixB, floatMatrixC,
+                    floatBiasMatrix, floatResidualMatrix);
 
-  std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
-  std::cout << "(reveals bugs in accelerator or memory placement)" << std::endl;
-  std::string diffFile = fileOutputPrefix + "accel_vs_hlsgold.txt";
-  int errors = compare_arrays(&sramMemory[params.OUTPUT_OFFSET], matrixC,
-                              outputSize, diffFile);
+  // std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
+  // std::cout << "(reveals bugs in accelerator or memory placement)" <<
+  // std::endl; diffFile = fileOutputPrefix + "accel_vs_hlsgold.txt"; errors =
+  // compare_arrays(&sramMemory[params.OUTPUT_OFFSET], matrixC,
+  //                             outputSize, diffFile);
 
-  std::cout << "HLS Posit Gold Model vs. Universal Posit Gold Model"
-            << std::endl;
-  std::cout << "(reveals bugs in implementation of custom HLS Posit operators)"
-            << std::endl;
-  diffFile = fileOutputPrefix + "hlsgold_vs_universalgold.txt";
-  errors += compare_arrays(matrixC, universalMatrixC, outputSize, diffFile);
+  // std::cout << "HLS Posit Gold Model vs. Universal Posit Gold Model"
+  //           << std::endl;
+  // std::cout << "(reveals bugs in implementation of custom HLS Posit
+  // operators)"
+  //           << std::endl;
+  // diffFile = fileOutputPrefix + "hlsgold_vs_universalgold.txt";
+  // errors += compare_arrays(matrixC, universalMatrixC, outputSize, diffFile);
 
   if (useDataFile) {
-    std::cout << "HLS Posit Gold Model vs. Pytorch" << std::endl;
-    std::cout << "(reveals bugs in mapping operations to accelerator)"
-              << std::endl;
-    diffFile = fileOutputPrefix + "hlsgold_vs_pytorch.txt";
-    errors += compare_arrays(matrixC, dataFileOutput, outputSize, diffFile);
+    // std::cout << "HLS Posit Gold Model vs. Pytorch" << std::endl;
+    // std::cout << "(reveals bugs in mapping operations to accelerator)"
+    //           << std::endl;
+    // diffFile = fileOutputPrefix + "hlsgold_vs_pytorch.txt";
+    // errors += compare_arrays(matrixC, dataFileOutput, outputSize, diffFile);
 
-    std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
-    std::cout << "(reveals issues in representing float as Posit)" << std::endl;
-    diffFile = fileOutputPrefix + "universalgold_vs_pytorch.txt";
-    errors += compare_arrays(universalMatrixC, universalDataFileOutput,
-                             outputSize, diffFile);
-
+    // std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
+    // std::cout << "(reveals issues in representing float as Posit)" <<
+    // std::endl; diffFile = fileOutputPrefix + "universalgold_vs_pytorch.txt";
+    // errors += compare_arrays(universalMatrixC, universalDataFileOutput,
+    //                          outputSize, diffFile);
 
     std::cout << "FP32 Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
@@ -382,6 +390,223 @@ int run_test(const SimplifiedParams params, const std::string& dataDir,
   return errors;
 }
 
+int run_mobilebert() {
+  SimplifiedParams params;
+  Offsets offsets;
+  std::string dataDirectory;
+  Files files;
+  MemoryMap memoryMap;
+  std::string fileOutputPrefix = "test_outputs/";
+  std::string operation;
+  bool useDataFile = true;
+
+  // Memory allocation
+  INPUT_DATATYPE* acc_sram_memory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* acc_rram_memory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* hls_sram_memory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* hls_rram_memory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
+  UniversalPosit* uni_sram_memory = new UniversalPosit[SRAM_MEMORY_SIZE];
+  UniversalPosit* uni_rram_memory = new UniversalPosit[RRAM_MEMORY_SIZE];
+  float* float_sram_memory = new float[SRAM_MEMORY_SIZE];
+  float* float_rram_memory = new float[RRAM_MEMORY_SIZE];
+
+  if (!acc_sram_memory || !acc_rram_memory || !hls_sram_memory ||
+      !hls_rram_memory || !uni_sram_memory || !uni_rram_memory ||
+      !float_sram_memory || !float_rram_memory) {
+    throw std::runtime_error("Failed to allocate simulation memory");
+  }
+
+  // Load first layer input
+  std::string firstTest = mobilebertOrder[0];
+  operation = mobilebertOperations[firstTest];
+  params = mobilebert[operation];
+  files = mobilebertFiles[firstTest];
+  offsets = mobilebertOffsets[firstTest];
+  dataDirectory = mobilebertDataDir + "mobilebert_encoder_layer_0_";
+  load_inputs(params, dataDirectory + files.inputs_file, useDataFile,
+              acc_sram_memory, hls_sram_memory + offsets.INPUT_OFFSET,
+              uni_sram_memory + offsets.INPUT_OFFSET,
+              float_sram_memory + offsets.INPUT_OFFSET);
+
+  // Execute 23 encoder layers
+  for (int i = 0; i < 1; i++) {
+    dataDirectory = mobilebertDataDir + "mobilebert_encoder_layer_" +
+                    std::to_string(i) + "_";
+    for (const std::string& test : mobilebertOrder) {
+      if (test.empty()) continue;
+
+      auto operationSearch = mobilebertOperations.find(test);
+      if (operationSearch != mobilebertOperations.end()) {
+        operation = operationSearch->second;
+      } else {
+        throw std::runtime_error("Operation for " + test + " not found");
+      }
+
+      std::cerr << "test: " << test << std::endl;
+      std::cerr << "operation: " << operation << std::endl;
+
+      auto paramSearch = mobilebert.find(operation);
+      if (paramSearch != mobilebert.end()) {
+        params = paramSearch->second;
+      } else {
+        throw std::runtime_error("Parameters for " + test + " not found");
+      }
+
+      auto offsetsSearch = mobilebertOffsets.find(test);
+      if (offsetsSearch != mobilebertOffsets.end()) {
+        offsets = offsetsSearch->second;
+      } else {
+        throw std::runtime_error("Offsets for " + test + " not found");
+      }
+
+      auto filesSearch = mobilebertFiles.find(test);
+      if (filesSearch != mobilebertFiles.end()) {
+        files = filesSearch->second;
+      } else {
+        throw std::runtime_error("Files for " + test + " not found");
+      }
+
+      auto memSearch = mobilebertMemoryMap.find(test);
+      if (memSearch != mobilebertMemoryMap.end()) {
+        memoryMap = memSearch->second;
+      } else {
+        throw std::runtime_error("Memory map for " + test + " not found");
+      }
+
+      // int errCount = run_test(params, dataDirectory, files, memoryMap, true,
+      // fileOutputPrefix); if (errCount) return errCount;
+
+      validateMapping(params);
+      int X = params.loops[0][params.inputXLoopIndex[0]] *
+              params.loops[1][params.inputXLoopIndex[1]];
+      int Y = params.loops[0][params.inputYLoopIndex[0]] *
+              params.loops[1][params.inputYLoopIndex[1]];
+      int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+      int K = params.loops[0][params.weightLoopIndex[0]] *
+              params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+      int FX = params.loops[1][params.fxIndex];
+      int FY = params.loops[1][params.fyIndex];
+      int STRIDE = params.STRIDE;
+      int outputSize = params.NO_NORM ? X * Y * C : X * Y * K;
+
+      if (params.REPLICATION) {
+        FX = 7;
+        C = 3;
+      }
+
+      std::cout << "Performing the following operation:" << std::endl;
+      std::cout << "(" << X << "x" << Y << "x" << C << ")"
+                << " * "
+                << "(" << FX << "x" << FY << "x" << C << "x" << K << ")"
+                << std::endl;
+
+      // Allocate comparison
+      INPUT_DATATYPE* hlsDataFileOutput = new INPUT_DATATYPE[outputSize];
+      UniversalPosit* uniDataFileOutput = new UniversalPosit[outputSize];
+      float* floatDataFileOutput = new float[outputSize];
+
+      if (!hlsDataFileOutput || !uniDataFileOutput || !floatDataFileOutput) {
+        throw std::runtime_error(
+            "Failed to allocate simulation memory in sequence");
+      }
+
+      // Load weights, biases, and reference outputs
+      load_weight_and_bias(
+          params, dataDirectory, files, memoryMap, useDataFile, acc_sram_memory,
+          acc_rram_memory, hls_rram_memory + offsets.WEIGHT_OFFSET,
+          hls_rram_memory + offsets.BIAS_OFFSET, hlsDataFileOutput,
+          uni_rram_memory + offsets.WEIGHT_OFFSET,
+          uni_rram_memory + offsets.BIAS_OFFSET, uniDataFileOutput,
+          float_rram_memory + offsets.WEIGHT_OFFSET,
+          float_rram_memory + offsets.BIAS_OFFSET, floatDataFileOutput);
+
+      // run_custom_posit_gold_model(params,
+      //                             hls_sram_memory + offsets.INPUT_OFFSET,
+      //                             hls_rram_memory + offsets.WEIGHT_OFFSET,
+      //                             hls_sram_memory + offsets.OUTPUT_OFFSET,
+      //                             hls_rram_memory + offsets.BIAS_OFFSET,
+      //                             hls_sram_memory + offsets.RESIDUAL_OFFSET);
+      // run_universal_posit_gold_model(params,
+      //                                uni_sram_memory + offsets.INPUT_OFFSET,
+      //                                uni_rram_memory + offsets.WEIGHT_OFFSET,
+      //                                uni_sram_memory + offsets.OUTPUT_OFFSET,
+      //                                uni_rram_memory + offsets.BIAS_OFFSET,
+      //                                uni_sram_memory +
+      //                                offsets.RESIDUAL_OFFSET);
+      run_fp_gold_model(params, float_sram_memory + offsets.INPUT_OFFSET,
+                        float_rram_memory + offsets.WEIGHT_OFFSET,
+                        float_sram_memory + offsets.OUTPUT_OFFSET,
+                        float_rram_memory + offsets.BIAS_OFFSET,
+                        float_sram_memory + offsets.RESIDUAL_OFFSET);
+
+      std::string diffFile;
+      int errors;
+
+      // std::cout << "HLS Posit Gold Model vs. Pytorch" << std::endl;
+      // std::cout << "(reveals bugs in mapping operations to accelerator)"
+      //           << std::endl;
+      // diffFile = fileOutputPrefix + "hlsgold_vs_pytorch.txt";
+      // errors = compare_arrays(hls_sram_memory + offsets.OUTPUT_OFFSET,
+      //                         hlsDataFileOutput, outputSize, diffFile);
+
+      // std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
+      // std::cout << "(reveals issues in representing float as Posit)"
+      //           << std::endl;
+      // diffFile = fileOutputPrefix + "universalgold_vs_pytorch.txt";
+      // errors += compare_arrays(uni_sram_memory + offsets.OUTPUT_OFFSET,
+      //                          uniDataFileOutput, outputSize, diffFile);
+
+      std::cout << "FP32 Gold Model vs. Pytorch" << std::endl;
+      std::cout << "(reveals issues in data loading or mapping)" << std::endl;
+      diffFile = fileOutputPrefix + "fpgold_vs_pytorch.txt";
+      errors = compare_arrays(float_sram_memory + offsets.OUTPUT_OFFSET,
+                              floatDataFileOutput, outputSize, diffFile);
+      if (errors == 0) {
+        std::cout << "Test passed!" << std::endl;
+      } else {
+        std::cout << "Test failed!" << std::endl;
+        return errors;
+      }
+
+      if (test == "attention_self_query" or test == "attention_self_value") {
+        memcpy(floatDataFileOutput, float_sram_memory + offsets.OUTPUT_OFFSET,
+               outputSize * sizeof(float));
+        int writeAddr = 0;
+        for (int i = 0; i < 4; i++) {
+          for (int j = 0; j < 128; j++) {
+            for (int k = 0; k < 32; k++) {
+              float_sram_memory[offsets.OUTPUT_OFFSET + writeAddr++] =
+                  floatDataFileOutput[j * 128 + i * 32 + k];
+            }
+          }
+        }
+      }
+      if (test == "attention_self_key") {
+        memcpy(floatDataFileOutput, float_sram_memory + offsets.OUTPUT_OFFSET,
+               outputSize * sizeof(float));
+        int writeAddr = 0;
+        for (int i = 0; i < 4; i++) {
+          for (int j = 0; j < 32; j++) {
+            for (int k = 0; k < 128; k++) {
+              float_sram_memory[offsets.OUTPUT_OFFSET + writeAddr++] =
+                  floatDataFileOutput[k * 128 + i * 32 + j];
+            }
+          }
+        }
+      }
+      if (test == "attention_self_attention_scores_0" ||
+          test == "attention_self_attention_scores_1" ||
+          test == "attention_self_attention_scores_2" ||
+          test == "attention_self_attention_scores_3") {
+        for (int i = 0; i < outputSize; i++) {
+          float_sram_memory[offsets.OUTPUT_OFFSET + i] /= sqrt(32);
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 extern "C" int sc_main(int argc, char* argv[]) {
   SimplifiedParams params;
 
@@ -397,6 +622,10 @@ extern "C" int sc_main(int argc, char* argv[]) {
 
   std::string group(groupName);
   std::string test(testName);
+
+  if (group == "mobilebert" && test == "all") {
+    return run_mobilebert();
+  }
 
   std::string fullName = "test_outputs/" + group + "." + test + ".";
 
@@ -416,8 +645,8 @@ extern "C" int sc_main(int argc, char* argv[]) {
 
   std::string operation;
   if (group == "mobilebert") {
-    auto operationSearch = mobilebertOps.find(test);
-    if (operationSearch != mobilebertOps.end()) {
+    auto operationSearch = mobilebertOperations.find(test);
+    if (operationSearch != mobilebertOperations.end()) {
       operation = operationSearch->second;
     } else {
       throw std::runtime_error("Operation for " + test + " not found");
@@ -436,7 +665,7 @@ extern "C" int sc_main(int argc, char* argv[]) {
   bool useDataFiles = false;
   std::string dataDir;
   Files files;
-  MemoryMap memoryMap;
+  MemoryMap memoryMap = {SRAM, RRAM, RRAM, SRAM, SRAM};
   if (group == "resnet") {  // currently only resnet has data files
     useDataFiles = true;
 
@@ -458,7 +687,7 @@ extern "C" int sc_main(int argc, char* argv[]) {
   } else if (group == "mobilebert") {
     useDataFiles = true;
 
-    dataDir = mobilebertDataDir;
+    dataDir = mobilebertDataDir + "mobilebert_encoder_layer_0_";
 
     auto fileSearch = mobilebertFiles.find(test);
     if (fileSearch != mobilebertFiles.end()) {
@@ -466,17 +695,8 @@ extern "C" int sc_main(int argc, char* argv[]) {
     } else {
       throw std::runtime_error("Files for " + test + " not found");
     }
-
-    auto memoryMapSearch = mobilebertMemoryMap.find(test);
-    if (memoryMapSearch != mobilebertMemoryMap.end()) {
-      memoryMap = memoryMapSearch->second;
-    } else {
-      throw std::runtime_error("Memory map for " + test + " not found");
-    }
   } else if (group == "simple") {
     useDataFiles = false;
-
-    memoryMap = {SRAM, RRAM, RRAM, SRAM, SRAM};
   }
 
   // run_sequence(group, std::vector<std::string>(resnet_order.begin(),
