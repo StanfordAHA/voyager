@@ -4,22 +4,10 @@ struct MatrixParams {
   int INPUT_OFFSET;
   int WEIGHT_OFFSET;
   int OUTPUT_OFFSET;
-  bool SOFTMAX;
-
   int SCALE;
-
-  bool TRANSPOSE;
-
   int VECTOR_OFFSET;
-  bool VEC_OP;
-  bool VEC_SUB;
-  bool VEC_SQUARE;
-  bool VEC_REDUCE;
-  bool CONST_SCALE;
-
   int VEC_SCALE_OFFSET;
   int VEC_SUB_OFFSET;
-  bool RELU;
 
   int loops[2][6];
   int inputXLoopIndex[2];
@@ -29,14 +17,22 @@ struct MatrixParams {
   int fxIndex;
   int fyIndex;
   int weightReuseIndex[2];
-  bool matMul;
   int STRIDE;
+  int BIAS_OFFSET;
+  int RESIDUAL_OFFSET;
+  bool SOFTMAX;
+  bool TRANSPOSE;
+  bool VEC_OP;
+  bool VEC_SUB;
+  bool VEC_SQUARE;
+  bool VEC_REDUCE;
+  bool CONST_SCALE;
+  bool RELU;
+  bool matMul;
   bool REPLICATION;
   bool MAXPOOL;
   bool BIAS;
-  int BIAS_OFFSET;
   bool RESIDUAL;
-  int RESIDUAL_OFFSET;
   bool AVGPOOL;
 
   static const unsigned int width = 12 * 32 + 12 * 32 + 10 * 32 + 14 * 1;
@@ -46,18 +42,10 @@ struct MatrixParams {
     m& INPUT_OFFSET;
     m& WEIGHT_OFFSET;
     m& OUTPUT_OFFSET;
-    m& SOFTMAX;
     m& SCALE;
-    m& TRANSPOSE;
     m& VECTOR_OFFSET;
-    m& VEC_OP;
-    m& VEC_SUB;
-    m& VEC_SQUARE;
-    m& VEC_REDUCE;
-    m& CONST_SCALE;
     m& VEC_SCALE_OFFSET;
     m& VEC_SUB_OFFSET;
-    m& RELU;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 6; j++) {
         m& loops[i][j];
@@ -80,14 +68,22 @@ struct MatrixParams {
     for (int i = 0; i < 2; i++) {
       m& weightReuseIndex[i];
     }
-    m& matMul;
     m& STRIDE;
+    m& BIAS_OFFSET;
+    m& RESIDUAL_OFFSET;
+    m& SOFTMAX;
+    m& TRANSPOSE;
+    m& VEC_OP;
+    m& VEC_SUB;
+    m& VEC_SQUARE;
+    m& VEC_REDUCE;
+    m& CONST_SCALE;
+    m& RELU;
+    m& matMul;
     m& REPLICATION;
     m& MAXPOOL;
     m& BIAS;
-    m& BIAS_OFFSET;
     m& RESIDUAL;
-    m& RESIDUAL_OFFSET;
     m& AVGPOOL;
   }
 
@@ -213,7 +209,7 @@ struct VectorInstructions {
   ac_int<1, false> vDest;
   static const unsigned int vWriteOut = 1;
 
-  ac_int<16, false> rCount;
+  ac_int<10, false> rCount;
   ac_int<2, false> rOp;
   static const unsigned int radd = 1;
   static const unsigned int rmax = 2;
@@ -225,7 +221,7 @@ struct VectorInstructions {
   static const unsigned int toVectorSrc1 = 2;
   static const unsigned int sWriteOut = 3;
 
-  static const unsigned int width = 38;
+  static const unsigned int width = 32;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
@@ -281,12 +277,10 @@ struct VectorParams {
 
   // Address Gen 0 (vector input)
   int VECTOR_OFFSET;
-  bool addressGen0Enable;
   int addressGen0Loop[3];  // 2d tensor
 
   // Address Gen 1 (residual/op0src1)
   int ADDRESS_GEN1_OFFSET;
-  ac_int<2, false> addressGen1Mode;  // 1- residual, 2- 2dtensor
   int addressGen1Loops[2][3];
   int addressGen1InputXLoopIndex[2];
   int addressGen1InputYLoopIndex[2];
@@ -294,7 +288,6 @@ struct VectorParams {
 
   // Address Gen 2 (bias/op3src1)
   int ADDRESS_GEN2_OFFSET;
-  ac_int<2, false> addressGen2Mode;  // 1- bias, 2- 2dtensor
   int addressGen2Loops[2][3];
   int addressGen2InputXLoopIndex[2];
   int addressGen2InputYLoopIndex[2];
@@ -305,25 +298,26 @@ struct VectorParams {
 
   int scalarOutputCount;
 
-  bool MAXPOOL;
-  bool AVGPOOL;
-
   int outputLoops[2][3];
   int outputXLoopIndex[2];
   int outputYLoopIndex[2];
   int outputWeightLoopIndex[2];
+
+  bool addressGen0Enable;
+  ac_int<2, false> addressGen1Mode;  // 1- residual, 2- 2dtensor
+  ac_int<2, false> addressGen2Mode;  // 1- bias, 2- 2dtensor
+  bool MAXPOOL;
+  bool AVGPOOL;
 
   static const unsigned int width = 9 * 32 + 1 + 2 + 2 + 1 + 1 + 32 * 36;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
     m& VECTOR_OFFSET;
-    m& addressGen0Enable;
     for (int i = 0; i < 3; i++) {
       m& addressGen0Loop[i];
     }
     m& ADDRESS_GEN1_OFFSET;
-    m& addressGen1Mode;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
         m& addressGen1Loops[i][j];
@@ -339,7 +333,6 @@ struct VectorParams {
       m& addressGen1WeightLoopIndex[i];
     }
     m& ADDRESS_GEN2_OFFSET;
-    m& addressGen2Mode;
 
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
@@ -358,8 +351,6 @@ struct VectorParams {
     m& VECTOR_OUTPUT_OFFSET;
     m& SCALAR_OUTPUT_OFFSET;
     m& scalarOutputCount;
-    m& MAXPOOL;
-    m& AVGPOOL;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
         m& outputLoops[i][j];
@@ -374,6 +365,11 @@ struct VectorParams {
     for (int i = 0; i < 2; i++) {
       m& outputWeightLoopIndex[i];
     }
+    m& addressGen0Enable;
+    m& addressGen1Mode;
+    m& addressGen2Mode;
+    m& MAXPOOL;
+    m& AVGPOOL;
   }
 
   inline friend void sc_trace(sc_trace_file* tf, const VectorParams& params,
