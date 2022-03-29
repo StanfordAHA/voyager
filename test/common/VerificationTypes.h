@@ -1,5 +1,5 @@
 #pragma once
-
+#include <iostream>
 #include <string>
 
 struct Files {
@@ -11,6 +11,18 @@ struct Files {
 };
 
 enum MemorySource { SRAM, RRAM };
+
+inline std::ostream& operator<<(std::ostream& os, MemorySource& memory) {
+  switch (memory) {
+    case SRAM:
+      os << "SRAM";
+      break;
+    case RRAM:
+      os << "RRAM";
+      break;
+  }
+  return os;
+}
 
 struct MemoryMap {
   MemorySource inputs;

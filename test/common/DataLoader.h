@@ -1,5 +1,7 @@
 #pragma once
 
+#define NO_SYSC
+
 #include "src/ArchitectureParams.h"
 #include "src/PositTypes.h"
 #include "test/common/UniversalPosit.h"

@@ -1,5 +1,7 @@
 #pragma once
 
+#define NO_SYSC
+
 #include "VerificationTypes.h"
 #include "src/ArchitectureParams.h"
 #include "src/PositTypes.h"
@@ -7,9 +9,13 @@
 
 int compare_arrays(INPUT_DATATYPE *matrixA, INPUT_DATATYPE *matrixB,
                    size_t size, std::string &filename);
+int compare_arrays(INPUT_DATATYPE *matrixA, float *matrixB, size_t size,
+                   std::string &filename);
+#ifndef NO_UNIVERSAL
 int compare_arrays(INPUT_DATATYPE *matrixA, UniversalPosit *matrixB,
                    size_t size, std::string &filename);
 int compare_arrays(UniversalPosit *matrixA, UniversalPosit *matrixB,
                    size_t size, std::string &filename);
+#endif
 int compare_arrays(float *matrixA, float *matrixB, size_t size,
                    std::string &filename);

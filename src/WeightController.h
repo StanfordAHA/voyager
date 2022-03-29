@@ -4,6 +4,8 @@
 #include <systemc.h>
 
 #include "AccelTypes.h"
+#include "ArchitectureParams.h"
+#define DIMENSION 16
 
 template <typename DTYPE, int NROWS, int NCOLS>
 SC_MODULE(WeightController) {

@@ -10,7 +10,7 @@ std::map<std::string, SimplifiedParams> simple{
          0,                                          // WEIGHT_OFFSET
          10 * 1024,                                  // OUTPUT_OFFSET
          false,                                      // TRANSPOSE
-         {{1, 1, 1, 1, 1, 1}, {2, 2, 1, 1, 1, 32}},  // LOOPS
+         {{1, 1, 1, 1, 1, 1}, {1, 2, 1, 1, 1, 32}},  // LOOPS
          {0, 5},                                     // INPUTX
          {1, 4},                                     // INPUTY
          {3, 0},                                     // REDUCTION
@@ -302,3 +302,17 @@ std::map<std::string, SimplifiedParams> simple{
          true,                                      // FC
          false,                                     // no-norm
      }}};
+
+std::map<std::string, MemoryMap> simpleMemoryMap{
+    {"simple", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"transpose", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"conv", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"relu", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"conv_with_replication", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"maxpool", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"bias", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"bias_and_residual", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"avgpool", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"no_norm", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"fc", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+};

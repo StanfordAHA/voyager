@@ -58,7 +58,12 @@ SC_MODULE(Harness) {
   SimplifiedParams currentParams;
   INPUT_DATATYPE *sramMemory, *rramMemory;
   MemoryMap memoryMap;
+
+#ifdef SIM_Accelerator
   CCS_DESIGN(Accelerator) CCS_INIT_S1(accelerator);
+#else
+  Accelerator CCS_INIT_S1(accelerator);
+#endif
 
   void memAccessBurst(
       Connections::Combinational<MemoryRequest> * addressRequest,

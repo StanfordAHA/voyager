@@ -11,10 +11,12 @@ void save_double(INPUT_DATATYPE* array, double val) {
   *array = INPUT_DATATYPE(fval);
 }
 
+#ifndef NO_UNIVERSAL
 void save_double(UniversalPosit* array, double val) {
   float fval = (float)val;
   *array = fval;
 }
+#endif
 
 void save_double(float* array, double val) {
   float fval = (float)val;
@@ -320,14 +322,14 @@ void load_memory(
   load_inputs(params, dataDir + files.inputs_file, useDataFile,
               memoryMap.inputs == SRAM ? sramMemory : rramMemory, matrixA,
               universalMatrixA, floatMatrixA);
-  load_weights(params, dataDir + files.weights_file, useDataFile,
-               memoryMap.weights == SRAM ? sramMemory : rramMemory, matrixB,
-               universalMatrixB, floatMatrixB);
-  if (params.BIAS) {
-    load_bias(params, dataDir + files.bias_file, useDataFile,
-              memoryMap.bias == SRAM ? sramMemory : rramMemory, biasMatrix,
-              universalBiasMatrix, floatBiasMatrix);
-  }
+  // load_weights(params, dataDir + files.weights_file, useDataFile,
+  //              memoryMap.weights == SRAM ? sramMemory : rramMemory, matrixB,
+  //              universalMatrixB, floatMatrixB);
+  // if (params.BIAS) {
+  //   load_bias(params, dataDir + files.bias_file, useDataFile,
+  //             memoryMap.bias == SRAM ? sramMemory : rramMemory, biasMatrix,
+  //             universalBiasMatrix, floatBiasMatrix);
+  // }
   if (params.RESIDUAL) {
     load_residual(params, dataDir + files.residual_file, useDataFile,
                   memoryMap.residual == SRAM ? sramMemory : rramMemory,

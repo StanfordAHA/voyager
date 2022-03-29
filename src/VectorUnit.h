@@ -53,9 +53,9 @@ SC_MODULE(VectorOpUnit) {
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
-    // SC_THREAD(reductionOpRun);
-    // sensitive << clk.pos();
-    // async_reset_signal_is(rstn, false);
+    SC_THREAD(reductionOpRun);
+    sensitive << clk.pos();
+    async_reset_signal_is(rstn, false);
   }
 
   void vectorOpRun() {
@@ -390,8 +390,6 @@ SC_MODULE(VectorUnit) {
   OutputAddressGenerator<WIDTH> CCS_INIT_S1(outputAddressGenerator);
   Connections::Combinational<VectorParams> CCS_INIT_S1(outputAddressGenParams);
 
-  Connections::Combinational<VectorParams> CCS_INIT_S1(instructionSenderParams);
-
   Connections::Combinational<VectorInstructions> CCS_INIT_S1(
       vectorOpInstructions);
   Connections::Combinational<VectorInstructions> CCS_INIT_S1(
@@ -465,6 +463,7 @@ SC_MODULE(VectorUnit) {
     vectorOpInstructions.ResetWrite();
     reduceOpInstructions.ResetWrite();
     accumulationOpInstructions.ResetWrite();
+    vectorInstructionsIn.Reset();
 
     wait();
 

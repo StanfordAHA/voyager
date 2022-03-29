@@ -3,9 +3,10 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
-#include "matplotlib-cpp/matplotlibcpp.h"
-namespace plt = matplotlibcpp;
+// #include "matplotlib-cpp/matplotlibcpp.h"
+// namespace plt = matplotlibcpp;
 
 template <typename T>
 std::vector<float> get_float_vector(T *matrix, size_t size) {
@@ -23,9 +24,9 @@ void plot_histograms(TA *matrixA, TB *matrixB, size_t size,
   std::vector<float> vectorA = get_float_vector<TA>(matrixA, size);
   std::vector<float> vectorB = get_float_vector<TB>(matrixB, size);
 
-  plt::hist(vectorA, 100, "b");
-  plt::hist(vectorB, 100, "r");
-  plt::save(filename + ".png");
+  // plt::hist(vectorA, 100, "b");
+  // plt::hist(vectorB, 100, "r");
+  // plt::save(filename + ".png");
 }
 
 template <typename TA, typename TB>
@@ -36,16 +37,18 @@ int compare_arrays_internal(TA *matrixA, TB *matrixB, size_t size,
   int diff_buckets[5] = {0, 0, 0, 0, 0};
   int percent_diff_buckets[5] = {0, 0, 0, 0, 0};
 
-  // std::ofstream diffFile(filename);
+  // std::cout << "Dir: " << std::filesystem::current_path().str() << std::endl;
+  std::cout << "Writing comparison to file: " << filename << std::endl;
+  std::ofstream diffFile(filename);
   for (int index = 0; index < size; index++) {
-    // diffFile << (float)matrixA[index] << " vs. " << (float)matrixB[index]
-    //          << " ";
+    diffFile << (float)matrixA[index] << " vs. " << (float)matrixB[index]
+             << " ";
     float diff = abs(((float)matrixA[index] - (float)matrixB[index]));
 
-    // for (float i = 0.001; i < diff; i *= 10.0) {
-    //   diffFile << "*";
-    // }
-    // diffFile << std::endl;
+    for (float i = 0.001; i < diff; i *= 10.0) {
+      diffFile << "*";
+    }
+    diffFile << std::endl;
 
     if (diff < 0.001) {
       diff_buckets[0]++;
@@ -126,17 +129,24 @@ int compare_arrays(INPUT_DATATYPE *matrixA, INPUT_DATATYPE *matrixB,
       matrixA, matrixB, size, filename);
 }
 
+int compare_arrays(INPUT_DATATYPE *matrixA, float *matrixB, size_t size,
+                   std::string &filename) {
+  return compare_arrays_internal<INPUT_DATATYPE, float>(matrixA, matrixB, size,
+                                                        filename);
+}
+
+#ifndef NO_UNIVERSAL
 int compare_arrays(INPUT_DATATYPE *matrixA, UniversalPosit *matrixB,
                    size_t size, std::string &filename) {
   return compare_arrays_internal<INPUT_DATATYPE, UniversalPosit>(
       matrixA, matrixB, size, filename);
 }
-
 int compare_arrays(UniversalPosit *matrixA, UniversalPosit *matrixB,
                    size_t size, std::string &filename) {
   return compare_arrays_internal<UniversalPosit, UniversalPosit>(
       matrixA, matrixB, size, filename);
 }
+#endif
 
 int compare_arrays(float *matrixA, float *matrixB, size_t size,
                    std::string &filename) {

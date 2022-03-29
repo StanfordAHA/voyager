@@ -2,12 +2,14 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cstring>
 #include <fstream>
 #include <locale>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include "test/common/DataLoader.h"
 #include "test/common/GoldModel.h"
@@ -25,6 +27,9 @@ void validateMapping(SimplifiedParams params);
 void run_sequence(const std::string& group,
                   const std::vector<std::string>& tests,
                   const std::unordered_set<std::string>& comparisons);
+void run_op(std::vector<SimplifiedParams> params_list,
+            INPUT_DATATYPE* sramMemory, INPUT_DATATYPE* rramMemory,
+            MemoryMap memoryMap);
 std::vector<std::string> parse_csv(const std::string& csv);
 
 // NOTE: Binary data files are always supplied in [Y][X][C][K] ordering, except
@@ -99,16 +104,13 @@ void run_sequence(const std::string& group,
     mem_map = &resnetMemoryMap;
     param_map = &resnetParams;
     file_map = &resnetFiles;
-  } 
-  else if (group == "simple")
-  {
+  } else if (group == "simple") {
     data_dir = resnetDataDir;
-    mem_map = &resnetMemoryMap;
+    mem_map = &simpleMemoryMap;
     param_map = &simple;
     file_map = &resnetFiles;
     use_data_file = false;
-  }
-  else {
+  } else {
     data_dir = mobilebertDataDir;
     mem_map = &mobilebertMemoryMap;
     param_map = &mobilebert;
@@ -168,31 +170,30 @@ void run_sequence(const std::string& group,
   // Run tests in sequence
   int X, Y, C, K, FX, FY, STRIDE;
   for (const std::string& test : tests) {
-    validateMapping((*param_map)[test]);
-    X = (*param_map)[test].loops[0][resnetParams[test].inputXLoopIndex[0]] *
-        (*param_map)[test].loops[1][resnetParams[test].inputXLoopIndex[1]];
-    Y = (*param_map)[test].loops[0][resnetParams[test].inputYLoopIndex[0]] *
-        (*param_map)[test].loops[1][resnetParams[test].inputYLoopIndex[1]];
-    C = (*param_map)[test].loops[1][resnetParams[test].reductionLoopIndex[1]] *
-        DIMENSION;
-    K = (*param_map)[test].loops[0][resnetParams[test].weightLoopIndex[0]] *
-        (*param_map)[test].loops[1][resnetParams[test].weightLoopIndex[1]] *
-        DIMENSION;
-    FX = (*param_map)[test].loops[1][resnetParams[test].fxIndex];
-    FY = (*param_map)[test].loops[1][resnetParams[test].fyIndex];
-    STRIDE = (*param_map)[test].STRIDE;
+    SimplifiedParams currentParams = (*param_map)[test];
+    validateMapping(currentParams);
+    X = currentParams.loops[0][currentParams.inputXLoopIndex[0]] *
+        currentParams.loops[1][currentParams.inputXLoopIndex[1]];
+    Y = currentParams.loops[0][currentParams.inputYLoopIndex[0]] *
+        currentParams.loops[1][currentParams.inputYLoopIndex[1]];
+    C = currentParams.loops[1][currentParams.reductionLoopIndex[1]] * DIMENSION;
+    K = currentParams.loops[0][currentParams.weightLoopIndex[0]] *
+        currentParams.loops[1][currentParams.weightLoopIndex[1]] * DIMENSION;
+    FX = currentParams.loops[1][currentParams.fxIndex];
+    FY = currentParams.loops[1][currentParams.fyIndex];
+    STRIDE = currentParams.STRIDE;
 
-    if ((*param_map)[test].REPLICATION) {
+    if (currentParams.REPLICATION) {
       FX = 7;
       C = 3;
     }
 
-    if ((*param_map)[test].MAXPOOL) {
+    if (currentParams.MAXPOOL) {
       X = X / 2;
       Y = Y / 2;
     }
 
-    if ((*param_map)[test].AVGPOOL) {
+    if (currentParams.AVGPOOL) {
       X = 1;
       Y = 1;
     }
@@ -203,17 +204,7 @@ void run_sequence(const std::string& group,
               << "(" << FX << "x" << FY << "x" << C << "x" << K << ")"
               << std::endl;
 
-    // Run everything
-    if (std::find(comparisons.begin(), comparisons.end(), "accelerator") !=
-        comparisons.end()) {
-      run_custom_posit_gold_model(
-          (*param_map)[test],
-          hls_gold_sram_memory + (*param_map)[test].INPUT_OFFSET,
-          hls_gold_rram_memory + (*param_map)[test].WEIGHT_OFFSET,
-          hls_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
-          hls_gold_rram_memory + (*param_map)[test].BIAS_OFFSET,
-          hls_gold_sram_memory + (*param_map)[test].RESIDUAL_OFFSET);
-    }
+    // Run gold models
     if (std::find(comparisons.begin(), comparisons.end(), "customposit") !=
         comparisons.end()) {
       run_custom_posit_gold_model(
@@ -246,15 +237,15 @@ void run_sequence(const std::string& group,
     }
   }
 
-  // Run accelerator
-  std::vector<SimplifiedParams> params_list;
-  for (const std::string& test : tests) {
-    params_list.push_back((*param_map)[test]);
+  if (std::find(comparisons.begin(), comparisons.end(), "accelerator") !=
+      comparisons.end()) {
+    // Run accelerator
+    std::vector<SimplifiedParams> params_list;
+    for (const std::string& test : tests) {
+      params_list.push_back((*param_map)[test]);
+    }
+    run_op(params_list, acc_sram_memory, acc_rram_memory, (*mem_map)[tests[0]]);
   }
-  // if (comparisons.find("accelerator") != comparisons.end()) {
-  //   run_op(params_list, acc_sram_memory, acc_rram_memory,
-  //   (*mem_map)["conv1"]);
-  // }
 
   // Allocate comparison
   INPUT_DATATYPE* hls_comp = new INPUT_DATATYPE[X * Y * K];
@@ -262,10 +253,11 @@ void run_sequence(const std::string& group,
   float* fp_comp = new float[X * Y * K];
 
   std::string last_test = *(tests.end() - 1);
-  if (use_data_file)
-  load_datafile_outputs((*param_map)[last_test],
-                        data_dir + (*file_map)[last_test].outputs_file,
-                        hls_comp, uni_comp, fp_comp);
+  if (use_data_file) {
+    load_datafile_outputs((*param_map)[last_test],
+                          data_dir + (*file_map)[last_test].outputs_file,
+                          hls_comp, uni_comp, fp_comp);
+  }
 
   if (hls_comp == nullptr || uni_comp == nullptr || fp_comp == nullptr)
     throw std::runtime_error(
@@ -317,6 +309,14 @@ void run_sequence(const std::string& group,
       compare_arrays(
           float_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
           fp_comp, X * Y * K, diff_file);
+    } else if ((comparisons[i] == "customposit" &&
+                comparisons[i + 1] == "fp32") ||
+               (comparisons[i + 1] == "fp32" &&
+                comparisons[i] == "customposit")) {
+      compare_arrays(
+          hls_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
+          float_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
+          X * Y * K, diff_file);
     } else {
       std::cout << "Comparison not supported." << std::endl;
     }
@@ -699,12 +699,13 @@ int run_mobilebert() {
       }
 
       if (test == "attention_self_query" or test == "attention_self_value") {
-        memcpy(hlsDataFileOutput, hls_sram_memory + offsets.OUTPUT_OFFSET,
-               outputSize * sizeof(float));
-        memcpy(uniDataFileOutput, uni_sram_memory + offsets.OUTPUT_OFFSET,
-               outputSize * sizeof(float));
-        memcpy(floatDataFileOutput, float_sram_memory + offsets.OUTPUT_OFFSET,
-               outputSize * sizeof(float));
+        std::memcpy(hlsDataFileOutput, hls_sram_memory + offsets.OUTPUT_OFFSET,
+                    outputSize * sizeof(float));
+        std::memcpy(uniDataFileOutput, uni_sram_memory + offsets.OUTPUT_OFFSET,
+                    outputSize * sizeof(float));
+        std::memcpy(floatDataFileOutput,
+                    float_sram_memory + offsets.OUTPUT_OFFSET,
+                    outputSize * sizeof(float));
         int writeAddr = offsets.OUTPUT_OFFSET;
         for (int i = 0; i < 4; i++) {
           for (int j = 0; j < 128; j++) {
@@ -721,12 +722,13 @@ int run_mobilebert() {
         }
       }
       if (test == "attention_self_key") {
-        memcpy(hlsDataFileOutput, hls_sram_memory + offsets.OUTPUT_OFFSET,
-               outputSize * sizeof(float));
-        memcpy(uniDataFileOutput, uni_sram_memory + offsets.OUTPUT_OFFSET,
-               outputSize * sizeof(float));
-        memcpy(floatDataFileOutput, float_sram_memory + offsets.OUTPUT_OFFSET,
-               outputSize * sizeof(float));
+        std::memcpy(hlsDataFileOutput, hls_sram_memory + offsets.OUTPUT_OFFSET,
+                    outputSize * sizeof(float));
+        std::memcpy(uniDataFileOutput, uni_sram_memory + offsets.OUTPUT_OFFSET,
+                    outputSize * sizeof(float));
+        std::memcpy(floatDataFileOutput,
+                    float_sram_memory + offsets.OUTPUT_OFFSET,
+                    outputSize * sizeof(float));
         int writeAddr = offsets.OUTPUT_OFFSET;
         for (int i = 0; i < 4; i++) {
           for (int j = 0; j < 32; j++) {
@@ -751,15 +753,15 @@ int run_mobilebert() {
         float hlsTensor[128 * 128];
         float uniTensor[128 * 128];
         float floatTensor[128 * 128];
-        memcpy(hlsTensor,
-               hls_sram_memory + offsets.OUTPUT_OFFSET - 3 * 128 * 32,
-               128 * 128 * sizeof(float));
-        memcpy(uniTensor,
-               uni_sram_memory + offsets.OUTPUT_OFFSET - 3 * 128 * 32,
-               128 * 128 * sizeof(float));
-        memcpy(floatTensor,
-               float_sram_memory + offsets.OUTPUT_OFFSET - 3 * 128 * 32,
-               128 * 128 * sizeof(float));
+        std::memcpy(hlsTensor,
+                    hls_sram_memory + offsets.OUTPUT_OFFSET - 3 * 128 * 32,
+                    128 * 128 * sizeof(float));
+        std::memcpy(uniTensor,
+                    uni_sram_memory + offsets.OUTPUT_OFFSET - 3 * 128 * 32,
+                    128 * 128 * sizeof(float));
+        std::memcpy(floatTensor,
+                    float_sram_memory + offsets.OUTPUT_OFFSET - 3 * 128 * 32,
+                    128 * 128 * sizeof(float));
         int writeAddr = offsets.OUTPUT_OFFSET - 3 * 128 * 32;
         for (int i = 0; i < 128; i++) {
           for (int j = 0; j < 4; j++) {
@@ -789,17 +791,22 @@ int run_mobilebert() {
 }
 
 extern "C" int sc_main(int argc, char* argv[]) {
+  std::cout << "ex: " << argv[0] << std::endl;
   SimplifiedParams params;
 
   const char* groupName = std::getenv("GROUP");
   const char* testNames = std::getenv("TESTS");
-  const char* compNames = std::getenv("MODELS");
+  const char* compNames = std::getenv("SIMS");
 
   if (!(testNames && groupName)) {
     std::cout << "Warning! No group/test specified! Please set the environment "
                  "variables GROUP and TEST"
               << std::endl;
-    return -1;
+    // return -1;
+    std::cout << "Continuing with simple convolution...";
+    groupName = "simple";
+    testNames = "simple";
+    compNames = "accelerator,customposit";
   }
 
   std::string group(groupName);

@@ -104,6 +104,7 @@ SC_MODULE(ProcessingElement) {
   }
 
   ODTYPE pe_fma(IDTYPE input, IDTYPE weight, ODTYPE psum) {
+    // CCS_LOG(input << " * " << weight << " + " << psum);
     return fma<IDTYPE::width, IDTYPE::esbits, ODTYPE::width, ODTYPE::esbits>(
         input, weight, psum);
   }

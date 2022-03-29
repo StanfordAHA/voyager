@@ -41,6 +41,7 @@ SC_MODULE(ParamsDeserializer) {
     serialParamsIn.Reset();
     paramsOut.Reset();
     vectorParamsOut.Reset();
+    vectorInstructionsOut.Reset();
 
     wait();
     while (true) {

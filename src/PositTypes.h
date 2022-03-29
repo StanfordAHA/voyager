@@ -171,7 +171,10 @@ class Posit {
 
 #ifndef __SYNTHESIS__
   operator float() const;
-#else
+#endif
+
+// SystemC is not compatible with C++11
+#ifndef NO_SYSC
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
     m &bits;
@@ -226,14 +229,14 @@ void posit_exp(Posit<nbits, es> &val) {
   // std::cout << "reciprocal:\t" << bits.to_string(AC_BIN, false, true)
   //           << std::endl;
 
-  Posit<nbits, es>::DecomposedPosit op1(val);
-  Posit<nbits, es>::DecomposedPosit op2;
+  typename Posit<nbits, es>::DecomposedPosit op1(val);
+  typename Posit<nbits, es>::DecomposedPosit op2;
   op2.sign = 1;
   op2.scale = 0;
   op2.fraction = 0;
   op2._zero = false;
-  Posit<nbits, es>::DecomposedPosit res =
-      static_cast<Posit<nbits, es>::DecomposedPosit>(op1 + op2);
+  typename Posit<nbits, es>::DecomposedPosit res =
+      static_cast<typename Posit<nbits, es>::DecomposedPosit>(op1 + op2);
   // FIXME!! the following line does not work:
   //  val = res;
   //  std::cout << "final  :\t" << bits.to_string(AC_BIN, false, true)

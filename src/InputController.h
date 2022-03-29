@@ -801,11 +801,11 @@ SC_MODULE(InputController) {
    * Window buffer cuts down on memory accesses
    */
   void windowBuffer() {
-    wait();
-
     windowBufferParams.ResetRead();
     windowBufferIn.Reset();
     windowBufferOut.Reset();
+
+    wait();
 
     while (true) {
       MatrixParams params = windowBufferParams.Pop();

@@ -11,6 +11,7 @@
 #include "ParamsDeserializer.h"
 #include "VectorUnit.h"
 #include "WeightController.h"
+#include "mc_scverify.h"
 
 SC_MODULE(Accelerator) {
   sc_in<bool> CCS_INIT_S1(clk);
@@ -20,7 +21,14 @@ SC_MODULE(Accelerator) {
   ParamsDeserializer CCS_INIT_S1(paramsDeserializer);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
 
+// clang-format off
+  #ifdef SIM_InputController  
+  CCS_DESIGN((InputController<INPUT_DATATYPE, DIMENSION>)) CCS_INIT_S1(inputController);
+  #else
   InputController<INPUT_DATATYPE, DIMENSION> CCS_INIT_S1(inputController);
+  #endif
+  // clang-format on
+
   DoubleBuffer<INPUT_DATATYPE, DIMENSION, INPUT_BUFFER_SIZE> CCS_INIT_S1(
       inputBuffer);
   Connections::Out<MemoryRequest> CCS_INIT_S1(inputAddressRequest);
@@ -36,8 +44,15 @@ SC_MODULE(Accelerator) {
       inputsToWindowBuffer);
   Connections::Combinational<MatrixParams> inputControllerParams;
 
+#ifdef SIM_WeightController
+  // clang-format off
+  CCS_DESIGN( (WeightController<INPUT_DATATYPE, DIMENSION, DIMENSION>) ) CCS_INIT_S1(weightController);
+// clang-format on
+#else
   WeightController<INPUT_DATATYPE, DIMENSION, DIMENSION> CCS_INIT_S1(
       weightController);
+#endif
+
   DoubleBuffer<INPUT_DATATYPE, DIMENSION, WEIGHT_BUFFER_SIZE> CCS_INIT_S1(
       weightBuffer);
   Connections::Out<MemoryRequest> CCS_INIT_S1(weightAddressRequest);
@@ -51,9 +66,15 @@ SC_MODULE(Accelerator) {
   Connections::Combinational<int> weightBufferReadControl[2];
   Connections::Combinational<MatrixParams> weightControllerParams;
 
-  MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE,
-                  DIMENSION, DIMENSION, ACCUMULATION_BUFFER_SIZE>
+#ifdef SIM_MatrixProcessor
+  // clang-format off
+  CCS_DESIGN( (MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE, DIMENSION, DIMENSION, ACCUMULATION_BUFFER_SIZE>) ) CCS_INIT_S1(matrixProcessor);
+// clang-format on
+#else
+  MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE, DIMENSION, DIMENSION,
+                  ACCUMULATION_BUFFER_SIZE>
       CCS_INIT_S1(matrixProcessor);
+#endif
   Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       inputsToSystolicArray);
   Connections::Combinational<Pack1D<WEIGHT_DATATYPE, DIMENSION> > CCS_INIT_S1(
@@ -62,8 +83,14 @@ SC_MODULE(Accelerator) {
       outputsFromSystolicArray);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(matrixProcessorParams);
 
-  VectorUnit<OUTPUT_DATATYPE, ACCUM_DATATYPE, DIMENSION>
-      CCS_INIT_S1(vectorUnit);
+#ifdef SIM_VectorUnit
+  // clang-format off
+  CCS_DESIGN((VectorUnit<OUTPUT_DATATYPE, ACCUM_DATATYPE, DIMENSION>)) CCS_INIT_S1(vectorUnit);
+  // clang-format on
+#else
+  VectorUnit<OUTPUT_DATATYPE, ACCUM_DATATYPE, DIMENSION> CCS_INIT_S1(
+      vectorUnit);
+#endif
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch0AddressRequest);
   Connections::In<Pack1D<OUTPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       vectorFetch0DataResponse);

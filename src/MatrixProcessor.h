@@ -231,8 +231,10 @@ SC_MODULE(MatrixProcessor) {
 // TODO: figure out why this is the case
 #ifdef __SYNTHESIS__
       const int latency = 7;
-#else
+#elif CONNECTIONS_FAST_SIM
       const int latency = 2;
+#else
+      const int latency = 5;
 #endif
 
 #pragma hls_pipeline_init_interval 1
@@ -316,6 +318,8 @@ SC_MODULE(MatrixProcessor) {
         for (int i = 0; i < NCOLS; i++) {
           flippedOutputs[i] = outputs[NCOLS - 1 - i];
         }
+
+        DLOG("systolic array output: " << flippedOutputs);
 
         if (step >= (NCOLS - 1) + (NROWS - 1) + latency) {
           bool accumulationFinished =
