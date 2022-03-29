@@ -50,7 +50,7 @@ for group in TESTS:
     test_results.append(
       [
         group + ", " +test, 
-        subprocess.Popen(['make', 'sim', 'GROUP='+group, 'TEST='+test], stdout=file, stderr=subprocess.STDOUT)
+        subprocess.Popen(['make', 'sim', 'GROUP='+group, 'TESTS='+test, 'SIMS=accelerator,customposit'], stdout=file, stderr=subprocess.STDOUT)
       ])
 
 passing_tests = []

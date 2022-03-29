@@ -89,9 +89,9 @@ void validateMapping(SimplifiedParams params) {
   }
 }
 
-void run_sequence(const std::string& group,
-                  const std::vector<std::string>& tests,
-                  const std::vector<std::string>& comparisons) {
+int run_sequence(const std::string& group,
+                 const std::vector<std::string>& tests,
+                 const std::vector<std::string>& comparisons) {
   // Set data parameters
   bool use_data_file = true;
   std::string data_dir;
@@ -116,6 +116,8 @@ void run_sequence(const std::string& group,
     param_map = &mobilebert;
     file_map = &mobilebertFiles;
   }
+
+  int error_count = 0;
 
   // Memory allocation
   INPUT_DATATYPE* acc_sram_memory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
@@ -273,7 +275,7 @@ void run_sequence(const std::string& group,
          comparisons[i + 1] == "customposit") ||
         (comparisons[i + 1] == "accelerator" &&
          comparisons[i] == "customposit")) {
-      compare_arrays(
+      error_count += compare_arrays(
           acc_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
           hls_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
           X * Y * K, diff_file);
@@ -281,19 +283,21 @@ void run_sequence(const std::string& group,
                 comparisons[i + 1] == "file") ||
                (comparisons[i + 1] == "accelerator" &&
                 comparisons[i] == "file")) {
-      compare_arrays(acc_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
-                     hls_comp, X * Y * K, diff_file);
+      error_count += compare_arrays(
+          acc_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET, hls_comp,
+          X * Y * K, diff_file);
     } else if ((comparisons[i] == "customposit" &&
                 comparisons[i + 1] == "file") ||
                (comparisons[i + 1] == "customposit" &&
                 comparisons[i] == "file")) {
-      compare_arrays(acc_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
-                     hls_comp, X * Y * K, diff_file);
+      error_count += compare_arrays(
+          acc_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET, hls_comp,
+          X * Y * K, diff_file);
     } else if ((comparisons[i] == "universal" &&
                 comparisons[i + 1] == "customposit") ||
                (comparisons[i + 1] == "universal" &&
                 comparisons[i] == "customposit")) {
-      compare_arrays(
+      error_count += compare_arrays(
           hls_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
           uni_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
           X * Y * K, diff_file);
@@ -301,19 +305,19 @@ void run_sequence(const std::string& group,
                 comparisons[i + 1] == "file") ||
                (comparisons[i + 1] == "universal" &&
                 comparisons[i] == "file")) {
-      compare_arrays(
+      error_count += compare_arrays(
           uni_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
           uni_comp, X * Y * K, diff_file);
     } else if ((comparisons[i] == "fp32" && comparisons[i + 1] == "file") ||
                (comparisons[i + 1] == "fp32" && comparisons[i] == "file")) {
-      compare_arrays(
+      error_count += compare_arrays(
           float_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
           fp_comp, X * Y * K, diff_file);
     } else if ((comparisons[i] == "customposit" &&
                 comparisons[i + 1] == "fp32") ||
                (comparisons[i + 1] == "fp32" &&
                 comparisons[i] == "customposit")) {
-      compare_arrays(
+      error_count += compare_arrays(
           hls_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
           float_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
           X * Y * K, diff_file);
@@ -321,59 +325,8 @@ void run_sequence(const std::string& group,
       std::cout << "Comparison not supported." << std::endl;
     }
   }
-  // // if (comparisons.find("accelerator") != comparisons.end() &&
-  // //     comparisons.find("pytorch") != comparisons.end()) {
-  //   std::string acc_diff_file =
-  //       "test_outputs/" + group + "resnet." + test +
-  //       "unigold_vs_pytorch.txt";
-  //   std::cout << acc_diff_file << std::endl;
-  //   compare_arrays(acc_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
-  //                  uni_comp, X * Y * K, unigold_diff_file);
-  // // }
 
-  // // if (comparisons.find("accelerator") != comparisons.end()) {
-  //   std::string unigold_diff_file =
-  //       "test_outputs/" + group + "resnet." + test +
-  //       "unigold_vs_pytorch.txt";
-  //   std::cout << unigold_diff_file << std::endl;
-  //   compare_arrays(uni_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
-  //                  uni_comp, X * Y * K, unigold_diff_file);
-  // // }
-
-  // // if (comparisons.find("customposit") != comparisons.end()) {
-  //   std::string hlsgold_diff_file =
-  //       "test_outputs/" + group + "resnet." + test +
-  //       "hlsgold_vs_pytorch.txt";
-  //   std::cout << hlsgold_diff_file << std::endl;
-  //   compare_arrays(hls_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
-  //                  hls_comp, X * Y * K, hlsgold_diff_file);
-  // // }
-
-  // // if (comparisons.find("fp32") != comparisons.end()){
-  //   std::string fpgold_diff_file =
-  //       "test_outputs/" + group + "resnet." + test + "fpgold_vs_pytorch.txt";
-  //   std::cout << fpgold_diff_file << std::endl;
-  //   compare_arrays(float_gold_sram_memory + (*param_map)[test].OUTPUT_OFFSET,
-  //                  fp_comp, X * Y * K, fpgold_diff_file);
-  // // }
-
-  // std::ofstream wf("pybuild/result.txt", std::ios::out | std::ios::trunc);
-  // if (!wf.good()) throw std::runtime_error("File write failed");
-
-  // INPUT_DATATYPE* output =
-  //     hls_gold_sram_memory + (*param_map)["fc"].OUTPUT_OFFSET;
-  // int index = 0;
-  // float max = (float)output[0];
-  // for (int i = 0; i < 1000; i++) {
-  //   // std::cout << (float)output[i] << " " << max<<" "<< i << std::endl;
-  //   if ((float)output[i] >= max) {
-  //     index = i;
-  //     max = (float)output[i];
-  //   }
-  // }
-  // std::cout << "index" << index << "u" << std::endl;
-  // wf << index << '\n';
-  // wf.close();
+  return error_count;
 }
 
 int run_test(const SimplifiedParams params, const std::string& dataDir,
@@ -798,15 +751,19 @@ extern "C" int sc_main(int argc, char* argv[]) {
   const char* testNames = std::getenv("TESTS");
   const char* compNames = std::getenv("SIMS");
 
-  if (!(testNames && groupName)) {
+  if (!(testNames && groupName && compNames)) {
     std::cout << "Warning! No group/test specified! Please set the environment "
-                 "variables GROUP and TEST"
+                 "variables GROUP and TESTS"
               << std::endl;
     // return -1;
     std::cout << "Continuing with simple convolution...";
     groupName = "simple";
     testNames = "simple";
     compNames = "accelerator,customposit";
+  }
+
+  if (!compNames) {
+    std::cout << "You must set the environment variable SIMS" << std::endl;
   }
 
   std::string group(groupName);
@@ -898,6 +855,5 @@ extern "C" int sc_main(int argc, char* argv[]) {
     sequence.push_back(testList[0]);
   }
 
-  run_sequence(group, sequence, compList);
-  return 0;
+  return run_sequence(group, sequence, compList) != 0;
 }
