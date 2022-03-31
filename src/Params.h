@@ -1,5 +1,7 @@
 #pragma once
 
+#include "TypeToBits.h"
+
 struct MatrixParams {
   int INPUT_OFFSET;
   int WEIGHT_OFFSET;
@@ -222,6 +224,21 @@ struct VectorInstructions {
   static const unsigned int sWriteOut = 3;
 
   static const unsigned int width = 32;
+  VectorInstructions() {}
+  VectorInstructions(const int a) {
+    ac_int<32, false> val = a;
+    sc_lv<width> valLV;
+    type_to_vector(val, width, valLV);
+    *this = BitsToType<VectorInstructions>(valLV);
+  }
+
+  explicit operator int() const {
+    ac_int<32, false> val;
+    vector_to_type(TypeToBits<VectorInstructions>(*this), false, &val);
+
+    int a = val;
+    return a;
+  }
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
@@ -385,7 +402,7 @@ struct VectorParams {
 };
 
 struct VectorInstructionConfig {
-  VectorInstructions inst[8];
+  int inst[8];
   int instCount[8];
   int instLen;
   int instLoopCount;
@@ -396,54 +413,8 @@ struct VectorInstructionConfig {
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
     for (int j = 0; j < 8; j++) {
-      m& inst[j].instType;
+      m& inst[j];
     }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].vInput;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].vAccumulatePush;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].vOp0Src1;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].vOp0;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].vOp1;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].vOp2;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].vOp3Src0;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].vOp3Src1;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].vOp3;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].vOp4;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].vDest;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].rCount;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].rOp;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].rDuplicate;
-    }
-    for (int j = 0; j < 8; j++) {
-      m& inst[j].rDest;
-    }
-
     for (int i = 0; i < 8; i++) {
       m& instCount[i];
     }

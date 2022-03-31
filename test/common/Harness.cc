@@ -297,21 +297,21 @@ void Harness::sendParams() {
       VectorInstructionConfig vectorInstructionConfig;
 
       // inst 0- calculate max value and save
-      vectorInstructionConfig.inst[0].instType = VectorInstructions::vector;
-      vectorInstructionConfig.inst[0].vInput =
-          VectorInstructions::readFromVectorFetch;
-      vectorInstructionConfig.inst[0].vAccumulatePush = VectorInstructions::nop;
-      vectorInstructionConfig.inst[0].vOp0Src1 =
-          VectorInstructions::readInterface;
-      vectorInstructionConfig.inst[0].vOp0 = VectorInstructions::vmult;
-      vectorInstructionConfig.inst[0].vOp1 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[0].vOp2 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[0].vOp3Src0 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[0].vOp3Src1 =
-          VectorInstructions::readNormalInterface;
-      vectorInstructionConfig.inst[0].vOp3 = VectorInstructions::vadd;
-      vectorInstructionConfig.inst[0].vOp4 = params.RELU;
-      vectorInstructionConfig.inst[0].vDest = VectorInstructions::vWriteOut;
+      VectorInstructions vInst0;
+      vInst0.instType = VectorInstructions::vector;
+      vInst0.vInput = VectorInstructions::readFromVectorFetch;
+      vInst0.vAccumulatePush = VectorInstructions::nop;
+      vInst0.vOp0Src1 = VectorInstructions::readInterface;
+      vInst0.vOp0 = VectorInstructions::vmult;
+      vInst0.vOp1 = VectorInstructions::nop;
+      vInst0.vOp2 = VectorInstructions::nop;
+      vInst0.vOp3Src0 = VectorInstructions::nop;
+      vInst0.vOp3Src1 = VectorInstructions::readNormalInterface;
+      vInst0.vOp3 = VectorInstructions::vadd;
+      vInst0.vOp4 = params.RELU;
+      vInst0.vDest = VectorInstructions::vWriteOut;
+
+      vectorInstructionConfig.inst[0] = static_cast<int>(vInst0);
       // C/DIMENSION to do the complete reduction
       // DIMENSION to fill up the entire vector
       vectorInstructionConfig.instCount[0] = Y * C / DIMENSION;
@@ -393,47 +393,51 @@ void Harness::sendParams() {
       VectorInstructionConfig vectorInstructionConfig;
 
       // inst0- start reduction engine
-      vectorInstructionConfig.inst[0].instType = VectorInstructions::reduction;
-      vectorInstructionConfig.inst[0].rCount = C / DIMENSION;
-      vectorInstructionConfig.inst[0].rOp = VectorInstructions::radd;
-      vectorInstructionConfig.inst[0].rDuplicate = 0;
-      vectorInstructionConfig.inst[0].rDest = VectorInstructions::toVectorSrc0;
+      VectorInstructions vInst0;
+      vInst0.instType = VectorInstructions::reduction;
+      vInst0.rCount = C / DIMENSION;
+      vInst0.rOp = VectorInstructions::radd;
+      vInst0.rDuplicate = 0;
+      vInst0.rDest = VectorInstructions::toVectorSrc0;
+      vectorInstructionConfig.inst[0] = static_cast<int>(vInst0);
       vectorInstructionConfig.instCount[0] = 1;
 
       // inst 1- inputs x weights, send to reduce
-      vectorInstructionConfig.inst[1].instType = VectorInstructions::vector;
-      vectorInstructionConfig.inst[1].vInput =
-          VectorInstructions::readFromVectorFetch;
-      vectorInstructionConfig.inst[1].vAccumulatePush = VectorInstructions::nop;
-      vectorInstructionConfig.inst[1].vOp0Src1 =
-          VectorInstructions::readInterface;
-      vectorInstructionConfig.inst[1].vOp0 = VectorInstructions::vmult;
-      vectorInstructionConfig.inst[1].vOp1 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[1].vOp2 = VectorInstructions::toReduce;
-      vectorInstructionConfig.inst[1].vOp3Src0 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[1].vOp3Src1 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[1].vOp3 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[1].vOp4 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[1].vDest = VectorInstructions::nop;
+      VectorInstructions vInst1;
+      vInst1.instType = VectorInstructions::vector;
+      vInst1.vInput = VectorInstructions::readFromVectorFetch;
+      vInst1.vAccumulatePush = VectorInstructions::nop;
+      vInst1.vOp0Src1 = VectorInstructions::readInterface;
+      vInst1.vOp0 = VectorInstructions::vmult;
+      vInst1.vOp1 = VectorInstructions::nop;
+      vInst1.vOp2 = VectorInstructions::toReduce;
+      vInst1.vOp3Src0 = VectorInstructions::nop;
+      vInst1.vOp3Src1 = VectorInstructions::nop;
+      vInst1.vOp3 = VectorInstructions::nop;
+      vInst1.vOp4 = VectorInstructions::nop;
+      vInst1.vDest = VectorInstructions::nop;
+      vectorInstructionConfig.inst[1] = static_cast<int>(vInst1);
+
       // C/DIMENSION to do the complete reduction
       // DIMENSION to fill up the entire vector
       vectorInstructionConfig.instCount[1] = DIMENSION * C / DIMENSION;
 
       // inst2- add bias, write out
-      vectorInstructionConfig.inst[2].instType = VectorInstructions::vector;
-      vectorInstructionConfig.inst[2].vInput = VectorInstructions::nop;
-      vectorInstructionConfig.inst[2].vAccumulatePush = VectorInstructions::nop;
-      vectorInstructionConfig.inst[2].vOp0Src1 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[2].vOp0 = VectorInstructions::vmult;
-      vectorInstructionConfig.inst[2].vOp1 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[2].vOp2 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[2].vOp3Src0 =
-          VectorInstructions::readReduceInterface;
-      vectorInstructionConfig.inst[2].vOp3Src1 =
+      VectorInstructions vInst2;
+      vInst2.instType = VectorInstructions::vector;
+      vInst2.vInput = VectorInstructions::nop;
+      vInst2.vAccumulatePush = VectorInstructions::nop;
+      vInst2.vOp0Src1 = VectorInstructions::nop;
+      vInst2.vOp0 = VectorInstructions::vmult;
+      vInst2.vOp1 = VectorInstructions::nop;
+      vInst2.vOp2 = VectorInstructions::nop;
+      vInst2.vOp3Src0 = VectorInstructions::readReduceInterface;
+      vInst2.vOp3Src1 =
           VectorInstructions::nop;  // TODO: change to add for bias
-      vectorInstructionConfig.inst[2].vOp3 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[2].vOp4 = params.RELU;
-      vectorInstructionConfig.inst[2].vDest = VectorInstructions::vWriteOut;
+      vInst2.vOp3 = VectorInstructions::nop;
+      vInst2.vOp4 = params.RELU;
+      vInst2.vDest = VectorInstructions::vWriteOut;
+      vectorInstructionConfig.inst[2] = static_cast<int>(vInst2);
       vectorInstructionConfig.instCount[2] = 1;
 
       vectorInstructionConfig.instLen = 3;
@@ -498,21 +502,21 @@ void Harness::sendParams() {
       VectorInstructionConfig vectorInstructionConfig;
 
       // inst 1- inputs x weights, send to reduce
-      vectorInstructionConfig.inst[0].instType = VectorInstructions::vector;
-      vectorInstructionConfig.inst[0].vInput =
-          VectorInstructions::readFromVectorFetch;
-      vectorInstructionConfig.inst[0].vAccumulatePush = VectorInstructions::nop;
-      vectorInstructionConfig.inst[0].vOp0Src1 =
-          VectorInstructions::readInterface;
-      vectorInstructionConfig.inst[0].vOp0 = VectorInstructions::vmult;
-      vectorInstructionConfig.inst[0].vOp1 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[0].vOp2 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[0].vOp3Src0 = VectorInstructions::nop;
-      vectorInstructionConfig.inst[0].vOp3Src1 =
-          VectorInstructions::readNormalInterface;
-      vectorInstructionConfig.inst[0].vOp3 = VectorInstructions::vadd;
-      vectorInstructionConfig.inst[0].vOp4 = params.RELU;
-      vectorInstructionConfig.inst[0].vDest = VectorInstructions::vWriteOut;
+      VectorInstructions vInst0;
+      vInst0.instType = VectorInstructions::vector;
+      vInst0.vInput = VectorInstructions::readFromVectorFetch;
+      vInst0.vAccumulatePush = VectorInstructions::nop;
+      vInst0.vOp0Src1 = VectorInstructions::readInterface;
+      vInst0.vOp0 = VectorInstructions::vmult;
+      vInst0.vOp1 = VectorInstructions::nop;
+      vInst0.vOp2 = VectorInstructions::nop;
+      vInst0.vOp3Src0 = VectorInstructions::nop;
+      vInst0.vOp3Src1 = VectorInstructions::readNormalInterface;
+      vInst0.vOp3 = VectorInstructions::vadd;
+      vInst0.vOp4 = params.RELU;
+      vInst0.vDest = VectorInstructions::vWriteOut;
+      vectorInstructionConfig.inst[0] = static_cast<int>(vInst0);
+
       // C/DIMENSION to do the complete reduction
       // DIMENSION to fill up the entire vector
       vectorInstructionConfig.instCount[0] = Y * C / DIMENSION;
@@ -677,88 +681,80 @@ void Harness::sendParams() {
       VectorInstructionConfig vectorInstructionConfig;
 
       if (params.AVGPOOL) {
-        vectorInstructionConfig.inst[0].instType =
-            VectorInstructions::accumulation;
-        vectorInstructionConfig.inst[0].rCount = X * Y;
+        VectorInstructions vInst0;
+        vInst0.instType = VectorInstructions::accumulation;
+        vInst0.rCount = X * Y;
         vectorInstructionConfig.instCount[0] = 1;
+        vectorInstructionConfig.inst[0] = static_cast<int>(vInst0);
 
-        vectorInstructionConfig.inst[1].instType = VectorInstructions::vector;
-        vectorInstructionConfig.inst[1].vInput =
-            VectorInstructions::readFromSystolicArray;
-        vectorInstructionConfig.inst[1].vAccumulatePush = 1;
-
-        vectorInstructionConfig.inst[1].vOp0Src1 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[1].vOp0 = VectorInstructions::nop;
-
-        vectorInstructionConfig.inst[1].vOp1 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[1].vOp1 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[1].vOp3Src0 =
-            VectorInstructions::nop;  // use existing
-        vectorInstructionConfig.inst[1].vOp3Src1 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[1].vOp3 = VectorInstructions::nop;
-
-        vectorInstructionConfig.inst[1].vOp4 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[1].vDest = VectorInstructions::nop;
+        VectorInstructions vInst1;
+        vInst1.instType = VectorInstructions::vector;
+        vInst1.vInput = VectorInstructions::readFromSystolicArray;
+        vInst1.vAccumulatePush = 1;
+        vInst1.vOp0Src1 = VectorInstructions::nop;
+        vInst1.vOp0 = VectorInstructions::nop;
+        vInst1.vOp1 = VectorInstructions::nop;
+        vInst1.vOp1 = VectorInstructions::nop;
+        vInst1.vOp3Src0 = VectorInstructions::nop;  // use existing
+        vInst1.vOp3Src1 = VectorInstructions::nop;
+        vInst1.vOp3 = VectorInstructions::nop;
+        vInst1.vOp4 = VectorInstructions::nop;
+        vInst1.vDest = VectorInstructions::nop;
+        vectorInstructionConfig.inst[1] = static_cast<int>(vInst1);
         vectorInstructionConfig.instCount[1] = X * Y;
 
-        vectorInstructionConfig.inst[2].instType = VectorInstructions::vector;
-        vectorInstructionConfig.inst[2].vInput =
-            VectorInstructions::readFromAccumulation;
-        vectorInstructionConfig.inst[2].vAccumulatePush = 0;
-
-        vectorInstructionConfig.inst[2].vOp0Src1 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[2].vOp0 = VectorInstructions::nop;
-
-        vectorInstructionConfig.inst[2].vOp1 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[2].vOp1 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[2].vOp3Src0 =
-            VectorInstructions::nop;  // use existing
-        vectorInstructionConfig.inst[2].vOp3Src1 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[2].vOp3 = VectorInstructions::nop;
-
-        vectorInstructionConfig.inst[2].vOp4 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[2].vDest = VectorInstructions::vWriteOut;
+        VectorInstructions vInst2;
+        vInst2.instType = VectorInstructions::vector;
+        vInst2.vInput = VectorInstructions::readFromAccumulation;
+        vInst2.vAccumulatePush = 0;
+        vInst2.vOp0Src1 = VectorInstructions::nop;
+        vInst2.vOp0 = VectorInstructions::nop;
+        vInst2.vOp1 = VectorInstructions::nop;
+        vInst2.vOp1 = VectorInstructions::nop;
+        vInst2.vOp3Src0 = VectorInstructions::nop;  // use existing
+        vInst2.vOp3Src1 = VectorInstructions::nop;
+        vInst2.vOp3 = VectorInstructions::nop;
+        vInst2.vOp4 = VectorInstructions::nop;
+        vInst2.vDest = VectorInstructions::vWriteOut;
+        vectorInstructionConfig.inst[2] = static_cast<int>(vInst2);
         vectorInstructionConfig.instCount[2] = 1;
 
         vectorInstructionConfig.instLen = 3;
         vectorInstructionConfig.instLoopCount = K / DIMENSION;
       } else {
-        vectorInstructionConfig.inst[0].instType = VectorInstructions::vector;
-        vectorInstructionConfig.inst[0].vInput =
-            VectorInstructions::readFromSystolicArray;
-
-        vectorInstructionConfig.inst[0].vAccumulatePush = 0;
+        VectorInstructions vInst0;
+        vInst0.instType = VectorInstructions::vector;
+        vInst0.vInput = VectorInstructions::readFromSystolicArray;
+        vInst0.vAccumulatePush = 0;
 
         if (params.RESIDUAL) {
-          vectorInstructionConfig.inst[0].vOp0Src1 =
-              VectorInstructions::readInterface;
-          vectorInstructionConfig.inst[0].vOp0 = VectorInstructions::vadd;
+          vInst0.vOp0Src1 = VectorInstructions::readInterface;
+          vInst0.vOp0 = VectorInstructions::vadd;
         } else {
-          vectorInstructionConfig.inst[0].vOp0Src1 = VectorInstructions::nop;
-          vectorInstructionConfig.inst[0].vOp0 = VectorInstructions::nop;
+          vInst0.vOp0Src1 = VectorInstructions::nop;
+          vInst0.vOp0 = VectorInstructions::nop;
         }
 
-        vectorInstructionConfig.inst[0].vOp1 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[0].vOp1 = VectorInstructions::nop;
-        vectorInstructionConfig.inst[0].vOp3Src0 =
-            VectorInstructions::nop;  // use existing
+        vInst0.vOp1 = VectorInstructions::nop;
+        vInst0.vOp1 = VectorInstructions::nop;
+        vInst0.vOp3Src0 = VectorInstructions::nop;  // use existing
 
         if (params.BIAS) {
-          vectorInstructionConfig.inst[0].vOp3Src1 =
-              VectorInstructions::readNormalInterface;
-          vectorInstructionConfig.inst[0].vOp3 = VectorInstructions::vadd;
+          vInst0.vOp3Src1 = VectorInstructions::readNormalInterface;
+          vInst0.vOp3 = VectorInstructions::vadd;
         } else {
-          vectorInstructionConfig.inst[0].vOp3Src1 = VectorInstructions::nop;
-          vectorInstructionConfig.inst[0].vOp3 = VectorInstructions::nop;
+          vInst0.vOp3Src1 = VectorInstructions::nop;
+          vInst0.vOp3 = VectorInstructions::nop;
         }
 
         if (params.RELU) {
-          vectorInstructionConfig.inst[0].vOp4 = VectorInstructions::vrelu;
+          vInst0.vOp4 = VectorInstructions::vrelu;
         } else {
-          vectorInstructionConfig.inst[0].vOp4 = VectorInstructions::nop;
+          vInst0.vOp4 = VectorInstructions::nop;
         }
 
-        vectorInstructionConfig.inst[0].vDest = VectorInstructions::vWriteOut;
+        vInst0.vDest = VectorInstructions::vWriteOut;
+        vectorInstructionConfig.inst[0] = static_cast<int>(vInst0);
 
         // total output count
         vectorInstructionConfig.instCount[0] =
