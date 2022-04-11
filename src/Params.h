@@ -36,8 +36,10 @@ struct MatrixParams {
   bool BIAS;
   bool RESIDUAL;
   bool AVGPOOL;
+  bool STORE_IN_ACC;
+  bool ACC_FROM_ACC;
 
-  static const unsigned int width = 12 * 32 + 12 * 32 + 10 * 32 + 14 * 1;
+  static const unsigned int width = 12 * 32 + 12 * 32 + 10 * 32 + 16 * 1;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
@@ -87,6 +89,8 @@ struct MatrixParams {
     m& BIAS;
     m& RESIDUAL;
     m& AVGPOOL;
+    m& STORE_IN_ACC;
+    m& ACC_FROM_ACC;
   }
 
   inline friend void sc_trace(sc_trace_file* tf, const MatrixParams& params,

@@ -289,10 +289,12 @@ SC_MODULE(MatrixProcessor) {
           psum.value[i].setZero();
         }
 
-        if (!(loop_counters[1][params.reductionLoopIndex[1]] == 0 &&
-              loop_counters[1][params.fxIndex] == 0 &&
-              loop_counters[1][params.fyIndex] == 0) &&
-            step < totalOps) {
+        bool firstAccumulation =
+            loop_counters[1][params.reductionLoopIndex[1]] == 0 &&
+            loop_counters[1][params.fxIndex] == 0 &&
+            loop_counters[1][params.fyIndex] == 0;
+
+        if ((!firstAccumulation || params.ACC_FROM_ACC) && step < totalOps) {
           int readAddress = loop_counters[1][params.weightLoopIndex[1]] *
                                 params.loops[1][params.inputXLoopIndex[1]] *
                                 params.loops[1][params.inputYLoopIndex[1]] +
@@ -329,7 +331,7 @@ SC_MODULE(MatrixProcessor) {
                params.loops[1][params.fxIndex] - 1) &&
               (loop_counters_out[1][params.fyIndex] ==
                params.loops[1][params.fyIndex] - 1);
-          if (accumulationFinished) {
+          if (accumulationFinished && !params.STORE_IN_ACC) {
             outputsChannel.Push(flippedOutputs);
             DLOG("matrix processor output: " << flippedOutputs);
             // std::cout << "Output: " << flippedOutputs << std::endl;

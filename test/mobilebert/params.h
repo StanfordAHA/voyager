@@ -38,6 +38,8 @@ map<string, SimplifiedParams> inferenceParams{
          false,                                       // NO-NORM
          true,                                        // weight
          false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
 
     // elementwise product and addition for matrix of size:
@@ -70,6 +72,8 @@ map<string, SimplifiedParams> inferenceParams{
          true,                                        // NO_NORM
          true,                                        // weight
          false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
 
     // (128 x 128) x (128 x 128)
@@ -101,6 +105,8 @@ map<string, SimplifiedParams> inferenceParams{
          false,                                      // NO-NORM
          true,                                       // weight
          false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
 
     // Q x K
@@ -133,6 +139,8 @@ map<string, SimplifiedParams> inferenceParams{
          false,                                      // NO-NORM
          false,                                      // weight
          true,                                       // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
 
     // Attention probability
@@ -165,6 +173,8 @@ map<string, SimplifiedParams> inferenceParams{
          false,                                         // NO-NORM
          false,                                         // weight
          false,                                         // ATTENTION_SCALING
+         false,                                         // STORE_IN_ACC
+         false,                                         // ACC_FROM_ACC
      }},
 
     // QK x V
@@ -197,6 +207,8 @@ map<string, SimplifiedParams> inferenceParams{
          false,                                      // NO-NORM
          false,                                      // weight
          false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
 
     // Self-attention output
@@ -229,6 +241,8 @@ map<string, SimplifiedParams> inferenceParams{
          false,                                      // NO-NORM
          true,                                       // weight
          false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
 
     // FFN 1
@@ -261,6 +275,8 @@ map<string, SimplifiedParams> inferenceParams{
          false,                                      // NO-NORM
          true,                                       // weight
          false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
 
     // FFN 2
@@ -293,6 +309,8 @@ map<string, SimplifiedParams> inferenceParams{
          false,                                       // NO-NORM
          true,                                        // weight
          false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
 
     // output bottleneck
@@ -325,6 +343,8 @@ map<string, SimplifiedParams> inferenceParams{
          false,                                      // NO-NORM
          true,                                       // weight
          false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
 
     // elementwise product and addition for matrix of size:
@@ -357,6 +377,8 @@ map<string, SimplifiedParams> inferenceParams{
          true,                                          // NO_NORM
          true,                                          // weight
          false,                                         // ATTENTION_SCALING
+         false,                                         // STORE_IN_ACC
+         false,                                         // ACC_FROM_ACC
      }},
 
     // (1 x 512) * (512 x 2)
@@ -388,6 +410,8 @@ map<string, SimplifiedParams> inferenceParams{
          false,                                      // NO_NORM
          true,                                       // weight
          false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
 };
 

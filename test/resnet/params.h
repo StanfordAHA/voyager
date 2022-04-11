@@ -33,6 +33,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // softmax
          false,                                       // FC
          false,                                       // no-norm
+         true,                                        // weight
+         false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
 
     {"layer1_0_conv1",
@@ -61,6 +65,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // SOFTMAX
          false,                                       // FC
          false,                                       // no-norm
+         true,                                        // weight
+         false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
 
     {"layer1_0_conv2",
@@ -89,6 +97,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // SOFTMAX
          false,                                       // FC
          false,                                       // no-norm
+         true,                                        // weight
+         false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
 
     {"layer1_1_conv1",
@@ -117,13 +129,17 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // SOFTMAX
          false,                                       // FC
          false,                                       // no-norm
+         true,                                        // weight
+         false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
 
     {"layer1_1_conv2",
      {
          401408,                                      // INPUT_OFFSET
          120000,                                      // WEIGHT_OFFSET
-         1605632,                                           // OUTPUT_OFFSET
+         1605632,                                     // OUTPUT_OFFSET
          false,                                       // TRANSPOSE
          {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
          {0, 5},                                      // INPUTX
@@ -145,11 +161,15 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // SOFTMAX
          false,                                       // FC
          false,                                       // no-norm
+         true,                                        // weight
+         false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
 
     {"layer2_0_downsample",
      {
-         1605632,                                           // INPUT_OFFSET
+         1605632,                                     // INPUT_OFFSET
          156864,                                      // WEIGHT_OFFSET
          802816,                                      // OUTPUT_OFFSET
          false,                                       // TRANSPOSE
@@ -173,12 +193,16 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // SOFTMAX
          false,                                       // FC
          false,                                       // no-norm
+         true,                                        // weight
+         false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
 
     {"layer2_0_conv1",
      {
-        1605632,
-        //  802816,                                    // INPUT_OFFSET
+         1605632,
+         //  802816,                                    // INPUT_OFFSET
          165056,                                    // WEIGHT_OFFSET
          401408,                                    // OUTPUT_OFFSET
          false,                                     // TRANSPOSE
@@ -202,6 +226,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                     // SOFTMAX
          false,                                     // FC
          false,                                     // no-norm
+         true,                                      // weight
+         false,                                     // ATTENTION_SCALING
+         false,                                     // STORE_IN_ACC
+         false,                                     // ACC_FROM_ACC
      }},
 
     {"layer2_0_conv2",
@@ -230,6 +258,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // SOFTMAX
          false,                                       // FC
          false,                                       // no-norm
+         true,                                        // weight
+         false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
     {"layer2_1_conv1",
      {
@@ -257,12 +289,16 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // SOFTMAX
          false,                                       // FC
          false,                                       // no-norm
+         true,                                        // weight
+         false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
     {"layer2_1_conv2",
      {
          0,                                           // INPUT_OFFSET
          533696,                                      // WEIGHT_OFFSET
-         1605632,                                      // OUTPUT_OFFSET
+         1605632,                                     // OUTPUT_OFFSET
          false,                                       // TRANSPOSE
          {{1, 1, 8, 1, 1, 1}, {8, 1, 3, 3, 28, 28}},  // LOOPS
          {0, 5},                                      // INPUTX
@@ -284,11 +320,15 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // SOFTMAX
          false,                                       // FC
          false,                                       // no-norm
+         true,                                        // weight
+         false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
 
     {"layer3_0_downsample",
      {
-         1605632,                                    // INPUT_OFFSET
+         1605632,                                   // INPUT_OFFSET
          681152,                                    // WEIGHT_OFFSET
          802816,                                    // OUTPUT_OFFSET
          false,                                     // TRANSPOSE
@@ -312,11 +352,15 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                     // SOFTMAX
          false,                                     // FC
          false,                                     // no-norm
+         true,                                      // weight
+         false,                                     // ATTENTION_SCALING
+         false,                                     // STORE_IN_ACC
+         false,                                     // ACC_FROM_ACC
      }},
 
     {"layer3_0_conv1",
      {
-         1605632,                                    // INPUT_OFFSET
+         1605632,                                   // INPUT_OFFSET
          713920,                                    // WEIGHT_OFFSET
          0,                                         // OUTPUT_OFFSET
          false,                                     // TRANSPOSE
@@ -340,6 +384,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                     // SOFTMAX
          false,                                     // FC
          false,                                     // no-norm
+         true,                                      // weight
+         false,                                     // ATTENTION_SCALING
+         false,                                     // STORE_IN_ACC
+         false,                                     // ACC_FROM_ACC
      }},
 
     {"layer3_0_conv2",
@@ -368,6 +416,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                      // SOFTMAX
          false,                                      // FC
          false,                                      // no-norm
+         true,                                       // weight
+         false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
     {"layer3_1_conv1",
      {
@@ -395,12 +447,16 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                      // SOFTMAX
          false,                                      // FC
          false,                                      // no-norm
+         true,                                       // weight
+         false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
     {"layer3_1_conv2",
      {
          401408,                                     // INPUT_OFFSET
          2188480,                                    // WEIGHT_OFFSET
-         1605632,                                          // OUTPUT_OFFSET
+         1605632,                                    // OUTPUT_OFFSET
          false,                                      // TRANSPOSE
          {{2, 2, 4, 1, 1, 1}, {16, 4, 3, 3, 7, 7}},  // LOOPS
          {0, 5},                                     // INPUTX
@@ -422,10 +478,14 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                      // SOFTMAX
          false,                                      // FC
          false,                                      // no-norm
+         true,                                       // weight
+         false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
     {"layer4_0_downsample",
      {
-         1605632,                                           // INPUT_OFFSET
+         1605632,                                     // INPUT_OFFSET
          2778304,                                     // WEIGHT_OFFSET
          802816,                                      // OUTPUT_OFFSET
          false,                                       // TRANSPOSE
@@ -449,10 +509,14 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // SOFTMAX
          false,                                       // FC
          false,                                       // no-norm
+         true,                                        // weight
+         false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
     {"layer4_0_conv1",
      {
-         1605632,                                     // INPUT_OFFSET
+         1605632,                                    // INPUT_OFFSET
          2909376,                                    // WEIGHT_OFFSET
          401408,                                     // OUTPUT_OFFSET
          false,                                      // TRANSPOSE
@@ -476,6 +540,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                      // SOFTMAX
          false,                                      // FC
          false,                                      // no-norm
+         true,                                       // weight
+         false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
     {"layer4_0_conv2",
      {
@@ -503,6 +571,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                      // SOFTMAX
          false,                                      // FC
          false,                                      // no-norm
+         true,                                       // weight
+         false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
     {"layer4_1_conv1",
      {
@@ -530,6 +602,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                      // SOFTMAX
          false,                                      // FC
          false,                                      // no-norm
+         true,                                       // weight
+         false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
     {"layer4_1_conv2",
      {
@@ -557,6 +633,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                      // SOFTMAX
          false,                                      // FC
          false,                                      // no-norm
+         true,                                       // weight
+         false,                                      // ATTENTION_SCALING
+         false,                                      // STORE_IN_ACC
+         false,                                      // ACC_FROM_ACC
      }},
 
     // map to vector processor instead
@@ -586,6 +666,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          false,                                       // SOFTMAX
          true,                                        // FC
          false,                                       // no-norm
+         true,                                        // weight
+         false,                                       // ATTENTION_SCALING
+         false,                                       // STORE_IN_ACC
+         false,                                       // ACC_FROM_ACC
      }},
     {"softmax",
      {
@@ -613,6 +697,10 @@ std::map<std::string, SimplifiedParams> resnetParams{
          true,                                         // SOFTMAX
          false,                                        // FC
          false,                                        // no-norm
+         true,                                         // weight
+         false,                                        // ATTENTION_SCALING
+         false,                                        // STORE_IN_ACC
+         false,                                        // ACC_FROM_ACC
      }}};
 
 std::array<std::string, 22> resnet_order{"conv1",
