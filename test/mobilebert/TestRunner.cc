@@ -172,7 +172,7 @@ int run_test(const SimplifiedParams params, const Files files,
   load_datafile_outputs(params, datafile, dataFileOutput,
                         universalDataFileOutput, floatDataFileOutput);
 
-  // run_op({params}, sramMemory, rramMemory, memoryMap);
+  run_op({params}, sramMemory, rramMemory, memoryMap);
   run_custom_posit_gold_model(params, matrixA, matrixB, matrixC, biasMatrix,
                               residualMatrix);
   run_universal_posit_gold_model(params, universalMatrixA, universalMatrixB,
@@ -184,11 +184,11 @@ int run_test(const SimplifiedParams params, const Files files,
   std::string diffFile;
   int errors = 0;
 
-  // std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
-  // std::cout << "(reveals bugs in accelerator or memory placement)" <<
-  // std::endl; diffFile = outfilePrefix + "accel_vs_hlsgold.txt";
-  // compare_arrays(&sramMemory[params.OUTPUT_OFFSET], matrixC, X * Y * K,
-  //                diffFile);
+  std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
+  std::cout << "(reveals bugs in accelerator or memory placement)" << std::endl;
+  diffFile = outfilePrefix + "accel_vs_hlsgold.txt";
+  compare_arrays(&sramMemory[params.OUTPUT_OFFSET], matrixC, X * Y * K,
+                 diffFile);
 
   std::cout << "HLS Posit Gold Model vs. Pytorch" << std::endl;
   std::cout << "(reveals bugs in mapping operations to accelerator)"
@@ -638,7 +638,7 @@ extern "C" int sc_main(int argc, char* argv[]) {
       params.BIAS_OFFSET = memOffsets.BIAS_OFFSET;
       params.RESIDUAL_OFFSET = memOffsets.RESIDUAL_OFFSET;
 
-      MemoryMap memoryMap = {SRAM, params.WEIGHT ? RRAM : SRAM, SRAM, SRAM,
+      MemoryMap memoryMap = {SRAM, params.WEIGHT ? RRAM : SRAM, RRAM, SRAM,
                              SRAM};
 
       std::string layerName =
