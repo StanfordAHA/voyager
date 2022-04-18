@@ -564,6 +564,7 @@ void Harness::sendParams() {
       matrixParams.fyIndex = params.fyIndex;
       matrixParams.matMul = false;  // unused
       matrixParams.STRIDE = params.STRIDE;
+      matrixParams.HEAD_SIZE_LG2 = 0;
       matrixParams.REPLICATION = params.REPLICATION;
       matrixParams.MAXPOOL = params.MAXPOOL;
       matrixParams.BIAS = params.BIAS;
@@ -581,6 +582,7 @@ void Harness::sendParams() {
 
       serialParamsIn.Push(1);
       VectorParams vectorParams;
+      memset(&vectorParams, 0, sizeof(vectorParams));
 
       vectorParams.VECTOR_OFFSET = params.INPUT_OFFSET;
       vectorParams.addressGen0Enable = false;  // use matrix unit outputs
@@ -646,6 +648,7 @@ void Harness::sendParams() {
         }
       }
 
+      vectorParams.FULL_HEAD_SIZE = 0;
       vectorParams.VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
       vectorParams.SCALAR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
       vectorParams.scalarOutputCount = 0;
@@ -685,6 +688,7 @@ void Harness::sendParams() {
 
       // create instruction stream
       VectorInstructionConfig vectorInstructionConfig;
+      memset(&vectorInstructionConfig, 0, sizeof(vectorInstructionConfig));
 
       if (params.AVGPOOL) {
         VectorInstructions vInst0;
@@ -729,6 +733,7 @@ void Harness::sendParams() {
         vectorInstructionConfig.instLoopCount = K / DIMENSION;
       } else {
         VectorInstructions vInst0;
+        memset(&vInst0, 0, sizeof(vInst0));
         vInst0.instType = VectorInstructions::vector;
         vInst0.vInput = VectorInstructions::readFromSystolicArray;
         vInst0.vAccumulatePush = 0;
