@@ -219,8 +219,7 @@ std::map<std::string, SimplifiedParams> resnetParams{
 
     {"layer2_0_conv1",
      {
-         1605632,
-         //  802816,                                    // INPUT_OFFSET
+         1605632,                                    // INPUT_OFFSET
          165056,                                    // WEIGHT_OFFSET
          401408,                                    // OUTPUT_OFFSET
          false,                                     // TRANSPOSE
@@ -792,7 +791,7 @@ std::array<std::string, 22> resnet_order{"conv1",
                                          "fc",
                                          "softmax"};
 
-std::string resnetDataDir = "data/resnet/";
+std::string resnetDataDir = "/sim2/shared/MINOTAUR/nn_data/resnet/";
 
 std::map<std::string, Files> resnetFiles{
     {"conv1", {"conv1_input", "conv1_weight", "conv1_bias", "conv1_comp"}},
