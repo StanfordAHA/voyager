@@ -45,6 +45,8 @@ SC_MODULE(VectorOpUnit) {
       CCS_INIT_S1(reductionOpOutputSrc1);
 
   SC_CTOR(VectorOpUnit) {
+    // systolicArrayOutput.enable_local_rand_stall();
+
     SC_THREAD(vectorOpRun);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);

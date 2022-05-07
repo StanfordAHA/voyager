@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/preprocessor/repetition/repeat.hpp>
+#include <boost/preprocessor/stringize.hpp>
 
 #include "AccelTypes.h"
 #include "ArchitectureParams.h"
@@ -30,55 +31,129 @@ class Fifo {
   T regs[NUM_REGS];
 };
 
+/*
+ * Takes an input of Pack1D<DTYPE, SIZE> and skews it to produce
+ * n=SIZE outputs of DTYPE
+ */
 template <typename DTYPE, int SIZE>
-SC_MODULE(Skewer) {
+SC_MODULE(SerializedSkewer) {
+ private:
+  sc_fifo<DTYPE> fifo[SIZE];
+
  public:
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
   Connections::In<Pack1D<DTYPE, SIZE> > CCS_INIT_S1(din);
-  Connections::Out<Pack1D<DTYPE, SIZE> > CCS_INIT_S1(dout);
+  Connections::Out<DTYPE> dout[SIZE];
 
-#define INIT_FIFOS(z, i, unused) Fifo<DTYPE, i + 1> BOOST_PP_CAT(fifo_, i);
-  REPEAT(INIT_FIFOS)
-#undef INIT_FIFOS
-
-  SC_CTOR(Skewer) {
-    SC_THREAD(run);
+  SC_CTOR(SerializedSkewer) {
+    SC_THREAD(writeFifos);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
+
+#define SC_THREAD_EXP(x) BOOST_PP_CAT(x, i)
+#define SC_THREAD_2(x) SC_THREAD(x)
+
+#define DECL_THREADS(z, i, unused)                                          \
+  declare_thread_process(BOOST_PP_CAT(BOOST_PP_CAT(readFifos, i), _handle), \
+                         BOOST_PP_STRINGIZE(BOOST_PP_CAT(readFifos, i)),    \
+                                            SC_CURRENT_USER_MODULE,         \
+                                            BOOST_PP_CAT(readFifos, i));    \
+  sensitive << clk.pos();                                                   \
+  async_reset_signal_is(rstn, false);
+
+    REPEAT(DECL_THREADS)
+#undef DECL_THREADS
   }
 
-  void run() {
-    dout.Reset();
+  void writeFifos() {
     din.Reset();
 
     wait();
 
-#pragma hls_pipeline_init_interval 1
-#pragma hls_pipeline_stall_mode flush
     while (true) {
       Pack1D<DTYPE, SIZE> input = din.Pop();
 
-      Pack1D<DTYPE, SIZE> fifoInput;
-      fifoInput = input;
+#pragma hls_unroll yes
+      for (int i = 0; i < SIZE; i++) {
+        fifo[i].write(input[i]);
+      }
+    }
+  }
 
-      Pack1D<DTYPE, SIZE> fifoOutput;
-#define INPUT_FIFO_BODY(z, i, unused)                        \
-  DTYPE BOOST_PP_CAT(fifo_output_, i);                       \
-  DTYPE BOOST_PP_CAT(fifo_input_, i);                        \
-  BOOST_PP_CAT(fifo_input_, i) = fifoInput[i];               \
-  BOOST_PP_CAT(fifo_, i).run(BOOST_PP_CAT(fifo_input_, i),   \
-                             BOOST_PP_CAT(fifo_output_, i)); \
-  fifoOutput[i] = BOOST_PP_CAT(fifo_output_, i);
+#define DECL_FUNCS(z, i, unused)      \
+  void BOOST_PP_CAT(readFifos, i)() { \
+    dout[i].Reset();                  \
+    wait();                           \
+    while (true) {                    \
+      dout[i].Push(fifo[i].read());   \
+    }                                 \
+  }
 
-      REPEAT(INPUT_FIFO_BODY)
-#undef INPUT_FIFO_BODY
+  REPEAT(DECL_FUNCS)
+#undef DECL_FUNCS
+};
 
+/*
+ * Takes an input of n=SIZE outputs of DTYPE and skews it to produce
+ * an output Pack1D<DTYPE, SIZE>
+ */
+template <typename DTYPE, int SIZE>
+SC_MODULE(DeserializedSkewer) {
+ private:
+  sc_fifo<DTYPE> fifo[SIZE];
+
+ public:
+  sc_in<bool> CCS_INIT_S1(clk);
+  sc_in<bool> CCS_INIT_S1(rstn);
+
+  Connections::In<DTYPE> din[SIZE];
+  Connections::Out<Pack1D<DTYPE, SIZE> > CCS_INIT_S1(dout);
+
+  SC_CTOR(DeserializedSkewer) {
+    SC_THREAD(readFifos);
+    sensitive << clk.pos();
+    async_reset_signal_is(rstn, false);
+
+#define DECL_THREADS(z, i, unused)                                           \
+  declare_thread_process(BOOST_PP_CAT(BOOST_PP_CAT(writeFifos, i), _handle), \
+                         BOOST_PP_STRINGIZE(BOOST_PP_CAT(writeFifos, i)),    \
+                                            SC_CURRENT_USER_MODULE,          \
+                                            BOOST_PP_CAT(writeFifos, i));    \
+  sensitive << clk.pos();                                                    \
+  async_reset_signal_is(rstn, false);
+
+    REPEAT(DECL_THREADS)
+#undef DECL_THREADS
+  }
+
+  void readFifos() {
+    dout.Reset();
+
+    wait();
+
+    while (true) {
       Pack1D<DTYPE, SIZE> output;
-      output = fifoOutput;
+
+#pragma hls_unroll yes
+      for (int i = 0; i < SIZE; i++) {
+        output[i] = fifo[i].read();
+      }
 
       dout.Push(output);
     }
   }
+
+#define DECL_FUNCS(z, i, unused)       \
+  void BOOST_PP_CAT(writeFifos, i)() { \
+    din[i].Reset();                    \
+    wait();                            \
+    while (true) {                     \
+      fifo[i].write(din[i].Pop());     \
+    }                                  \
+  }
+
+  REPEAT(DECL_FUNCS)
+#undef DECL_FUNCS
 };
