@@ -4,6 +4,7 @@
 #include <mc_scverify.h>
 #include <systemc.h>
 
+#include <deque>
 #include <vector>
 
 #include "AccelTypes.h"
@@ -11,40 +12,81 @@
 #include "ArchitectureParams.h"
 #include "test/common/VerificationTypes.h"
 
+#ifdef SOC_COSIM
+#define CombinationalInterface LoggingCombinational
+#else
+#define CombinationalInterface Connections::Combinational
+#endif
+
+template <typename T>
+class LoggingCombinational : public Connections::Combinational<T> {
+ public:
+  typedef Wrapped<T> WT;
+  static const unsigned int lv_width = T::width;
+  typedef sc_lv<WT::width> lv_bits;
+
+  std::deque<lv_bits> *dataQueue;
+
+  LoggingCombinational()
+      : Connections::Combinational<T>(), dataQueue(new std::deque<lv_bits>) {}
+  explicit LoggingCombinational(const char *name)
+      : Connections::Combinational<T>(name),
+        dataQueue(new std::deque<lv_bits>) {}
+
+  void Push(const T &m) {
+    Marshaller<WT::width> marshaller;
+    WT wt(m);
+    wt.Marshall(marshaller);
+    lv_bits bits = marshaller.GetResult();
+
+    dataQueue->push_back(bits);
+    Connections::Combinational<T>::Push(m);
+  }
+
+  T Pop() {
+    T m = Connections::Combinational<T>::Pop();
+    Marshaller<WT::width> marshaller;
+    WT wt(m);
+    wt.Marshall(marshaller);
+    lv_bits bits = marshaller.GetResult();
+    dataQueue->push_back(bits);
+    return m;
+  }
+
+  std::deque<lv_bits> *getDataQueue() { return dataQueue; }
+};
+
 SC_MODULE(Harness) {
   sc_clock CCS_INIT_S1(clk);
   sc_signal<bool> CCS_INIT_S1(rstn);
 
-  Connections::Combinational<int> CCS_INIT_S1(serialParamsIn);
+  CombinationalInterface<int> CCS_INIT_S1(serialParamsIn);
 
-  Connections::Combinational<MemoryRequest> CCS_INIT_S1(inputAddressRequest);
-  Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  CombinationalInterface<MemoryRequest> CCS_INIT_S1(inputAddressRequest);
+  CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       inputDataResponse);
 
-  Connections::Combinational<MemoryRequest> CCS_INIT_S1(weightAddressRequest);
-  Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  CombinationalInterface<MemoryRequest> CCS_INIT_S1(weightAddressRequest);
+  CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       weightDataResponse);
 
-  Connections::Combinational<MemoryRequest> CCS_INIT_S1(
-      vectorFetch0AddressRequest);
-  Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  CombinationalInterface<MemoryRequest> CCS_INIT_S1(vectorFetch0AddressRequest);
+  CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       vectorFetch0DataResponse);
-  Connections::Combinational<MemoryRequest> CCS_INIT_S1(
-      vectorFetch1AddressRequest);
-  Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  CombinationalInterface<MemoryRequest> CCS_INIT_S1(vectorFetch1AddressRequest);
+  CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       vectorFetch1DataResponse);
-  Connections::Combinational<MemoryRequest> CCS_INIT_S1(
-      vectorFetch2AddressRequest);
-  Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  CombinationalInterface<MemoryRequest> CCS_INIT_S1(vectorFetch2AddressRequest);
+  CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       vectorFetch2DataResponse);
 
-  Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       vectorOutput);
-  Connections::Combinational<int> CCS_INIT_S1(vectorOutputAddress);
+  CombinationalInterface<int> CCS_INIT_S1(vectorOutputAddress);
 
-  Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       scalarUnitOutput);
-  Connections::Combinational<int> CCS_INIT_S1(scalarOutputAddress);
+  CombinationalInterface<int> CCS_INIT_S1(scalarOutputAddress);
 
   Connections::SyncChannel CCS_INIT_S1(start);
   Connections::SyncChannel CCS_INIT_S1(done);
@@ -66,21 +108,19 @@ SC_MODULE(Harness) {
 #endif
 
   void memAccessBurst(
-      Connections::Combinational<MemoryRequest> * addressRequest,
-      Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *
-          dataResponse,
+      CombinationalInterface<MemoryRequest> * addressRequest,
+      CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > * dataResponse,
       MemorySource memSource);
   void memAccessBurstVariable(
-      Connections::Combinational<MemoryRequest> * addressRequest,
-      Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *
+      CombinationalInterface<MemoryRequest> * addressRequest,
+      CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > *
           dataResponse);
   void memAccessPack(
-      Connections::Combinational<int> * addressRequest,
-      Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > *
-          dataResponse,
+      CombinationalInterface<int> * addressRequest,
+      CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > * dataResponse,
       MemorySource memSource);
-  void memAccess(Connections::Combinational<int> * addressRequest,
-                 Connections::Combinational<INPUT_DATATYPE> * dataResponse,
+  void memAccess(CombinationalInterface<int> * addressRequest,
+                 CombinationalInterface<INPUT_DATATYPE> * dataResponse,
                  MemorySource memSource);
 
   void memAccessInputs();
