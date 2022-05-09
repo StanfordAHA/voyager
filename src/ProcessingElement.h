@@ -7,93 +7,90 @@
 
 template <typename IDTYPE, typename ODTYPE>
 SC_MODULE(ProcessingElement) {
- public:
-  sc_in<bool> CCS_INIT_S1(clk);
-  sc_in<bool> CCS_INIT_S1(rstn);
-
-  sc_in<bool> CCS_INIT_S1(toggle);
-
-  sc_in<IDTYPE> CCS_INIT_S1(weight_in);
-  sc_out<IDTYPE> CCS_INIT_S1(weight_out);
-  sc_in<bool> CCS_INIT_S1(push_weights);
-
-  sc_in<ac_int<1, false> > CCS_INIT_S1(swap_weights_in);
-  sc_out<ac_int<1, false> > CCS_INIT_S1(swap_weights_out);
-
-  sc_in<IDTYPE> CCS_INIT_S1(input_in);
-  sc_in<ODTYPE> CCS_INIT_S1(psum_in);
-
-  sc_out<IDTYPE> CCS_INIT_S1(input_out);
-  sc_out<ODTYPE> CCS_INIT_S1(psum_out);
-
-  sc_out<bool> CCS_INIT_S1(valid_output);
+ private:
+  sc_signal<IDTYPE> updatedWeight;
 
   IDTYPE weight_reg;  // FIXME: use decoded Posit form so that we aren't
                       // decoding over and over again
   IDTYPE weight_fifo;
 
-  IDTYPE input_reg;
-  ODTYPE psum_reg;
+ public:
+  sc_in<bool> CCS_INIT_S1(clk);
+  sc_in<bool> CCS_INIT_S1(rstn);
 
-  IDTYPE old_input_reg;
-  ODTYPE old_psum_reg;
+  sc_in<IDTYPE> CCS_INIT_S1(weightIn);
+  sc_in<bool> CCS_INIT_S1(weightValid);
+
+  sc_out<IDTYPE> CCS_INIT_S1(weightOut);
+
+  Connections::In<ac_int<1, false> > CCS_INIT_S1(weightSwapIn);
+  Connections::Out<ac_int<1, false> > CCS_INIT_S1(weightSwapOut);
+
+  Connections::In<IDTYPE> CCS_INIT_S1(inputIn);
+  Connections::Out<IDTYPE> CCS_INIT_S1(inputOut);
+
+  Connections::In<ODTYPE> CCS_INIT_S1(psumIn);
+  Connections::Out<ODTYPE> CCS_INIT_S1(psumOut);
 
   SC_CTOR(ProcessingElement) {
+    SC_THREAD(weights);
+    sensitive << clk.pos();
+    async_reset_signal_is(rstn, false);
+
     SC_THREAD(run);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
   }
 
-  void run() {
-    bool oldToggle = false;
-    bool swap_weights_reg;
-    bool old_swap_weights_reg;
+  void weights() {
+    weightOut.write(IDTYPE());
 
-    input_out.write(IDTYPE());
-    psum_out.write(ODTYPE());
-    weight_out.write(IDTYPE());
-    swap_weights_out.write(false);
-    valid_output.write(false);
+    wait();
+
+    while (true) {
+      if (weightValid.read()) {
+        weight_fifo = weightIn.read();
+        updatedWeight = weight_fifo;
+      }
+      weightOut.write(weight_fifo);
+
+      wait();
+
+      // weightOut.Push(weight_fifo);
+      // CCS_LOG("pushed: " << weight_fifo);
+
+      // weight_fifo = weightIn.Pop();
+      // CCS_LOG("popped: " << weight_fifo);
+      // updatedWeight = weight_fifo;
+    }
+  }
+
+  void run() {
+    inputIn.Reset();
+    psumIn.Reset();
+    inputOut.Reset();
+    psumOut.Reset();
+    weightSwapIn.Reset();
+    weightSwapOut.Reset();
 
     wait();
 
 #pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
     while (true) {
-      if (push_weights.read()) {
-        weight_fifo = weight_in.read();
+      IDTYPE input = inputIn.Pop();
+      ODTYPE psum = psumIn.Pop();
+      ac_int<1, false> weightSwap = weightSwapIn.Pop();
+
+      if (weightSwap) {
+        weight_reg = updatedWeight;
       }
 
-      if (toggle != oldToggle) {
-        input_reg = input_in.read();
-        ODTYPE psum = psum_in.read();
+      ODTYPE output = pe_fma(input, weight_reg, psum);
 
-        swap_weights_reg = swap_weights_in.read();
-
-        if (swap_weights_reg) {
-          // CCS_LOG("swap");
-          weight_reg = weight_fifo;
-        }
-
-        psum_reg = pe_fma(input_reg, weight_reg, psum);
-
-        input_out.write(input_reg);
-        psum_out.write(psum_reg);
-        swap_weights_out.write(swap_weights_reg);
-        valid_output.write(true);
-      } else {
-        input_out.write(old_input_reg);
-        psum_out.write(old_psum_reg);
-        swap_weights_out.write(old_swap_weights_reg);
-        valid_output.write(false);
-      }
-
-      old_input_reg = input_reg;
-      old_psum_reg = psum_reg;
-      old_swap_weights_reg = swap_weights_reg;
-
-      weight_out.write(weight_fifo);
-      oldToggle = toggle;
-      wait();
+      inputOut.Push(input);
+      psumOut.Push(output);
+      weightSwapOut.Push(weightSwap);
     }
   }
 

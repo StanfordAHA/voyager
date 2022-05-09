@@ -5,6 +5,36 @@
 
 #include "AccelTypes.h"
 
+#ifdef SOC_COSIM
+extern bool syscDone;
+void register_interface(
+    std::deque<sc_lv<Wrapped<int>::width> > *serialParamsIn,
+    std::deque<sc_lv<Wrapped<MemoryRequest>::width> > *inputAddressRequest,
+    std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION> >::width> >
+        *inputAddressResponse,
+    std::deque<sc_lv<Wrapped<MemoryRequest>::width> > *weightAddressRequest,
+    std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION> >::width> >
+        *weightAddressResponse,
+    std::deque<sc_lv<Wrapped<MemoryRequest>::width> >
+        *vectorFetch0AddressRequest,
+    std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION> >::width> >
+        *vectorFetch0AddressResponse,
+    std::deque<sc_lv<Wrapped<MemoryRequest>::width> >
+        *vectorFetch1AddressRequest,
+    std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION> >::width> >
+        *vectorFetch1AddressResponse,
+    std::deque<sc_lv<Wrapped<MemoryRequest>::width> >
+        *vectorFetch2AddressRequest,
+    std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION> >::width> >
+        *vectorFetch2AddressResponse,
+    std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION> >::width> >
+        *vectorOutput,
+    std::deque<sc_lv<Wrapped<int>::width> > *vectorOutputAddress,
+    std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION> >::width> >
+        *scalarUnitOutput,
+    std::deque<sc_lv<Wrapped<int>::width> > *scalarOutputAddress);
+#endif
+
 Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
                  INPUT_DATATYPE *sram, INPUT_DATATYPE *rram,
                  MemoryMap memoryMap)
@@ -34,6 +64,21 @@ Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
   accelerator.scalarOutputAddress(scalarOutputAddress);
   accelerator.startSignal(start);
   accelerator.doneSignal(done);
+
+#ifdef SOC_COSIM
+  register_interface(
+      serialParamsIn.getDataQueue(), inputAddressRequest.getDataQueue(),
+      inputDataResponse.getDataQueue(), weightAddressRequest.getDataQueue(),
+      weightDataResponse.getDataQueue(),
+      vectorFetch0AddressRequest.getDataQueue(),
+      vectorFetch0DataResponse.getDataQueue(),
+      vectorFetch1AddressRequest.getDataQueue(),
+      vectorFetch1DataResponse.getDataQueue(),
+      vectorFetch2AddressRequest.getDataQueue(),
+      vectorFetch2DataResponse.getDataQueue(), vectorOutput.getDataQueue(),
+      vectorOutputAddress.getDataQueue(), scalarUnitOutput.getDataQueue(),
+      scalarOutputAddress.getDataQueue());
+#endif
 
   SC_CTHREAD(reset, clk);
 
@@ -86,9 +131,8 @@ void Harness::reset() {
 }
 
 void Harness::memAccessBurst(
-    Connections::Combinational<MemoryRequest> *addressRequest,
-    Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> >
-        *dataResponse,
+    CombinationalInterface<MemoryRequest> *addressRequest,
+    CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > *dataResponse,
     MemorySource memSource) {
   INPUT_DATATYPE *memory = memSource == SRAM ? sramMemory : rramMemory;
 
@@ -115,9 +159,8 @@ void Harness::memAccessBurst(
 /* Special variation of memAccessBurst for FC layers
  */
 void Harness::memAccessBurstVariable(
-    Connections::Combinational<MemoryRequest> *addressRequest,
-    Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> >
-        *dataResponse) {
+    CombinationalInterface<MemoryRequest> *addressRequest,
+    CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > *dataResponse) {
   addressRequest->ResetRead();
   dataResponse->ResetWrite();
 
@@ -143,9 +186,8 @@ void Harness::memAccessBurstVariable(
 }
 
 void Harness::memAccessPack(
-    Connections::Combinational<int> *addressRequest,
-    Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> >
-        *dataResponse,
+    CombinationalInterface<int> *addressRequest,
+    CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > *dataResponse,
     MemorySource memSource) {
   INPUT_DATATYPE *memory = memSource == SRAM ? sramMemory : rramMemory;
 
@@ -166,10 +208,9 @@ void Harness::memAccessPack(
   }
 }
 
-void Harness::memAccess(
-    Connections::Combinational<int> *addressRequest,
-    Connections::Combinational<INPUT_DATATYPE> *dataResponse,
-    MemorySource memSource) {
+void Harness::memAccess(CombinationalInterface<int> *addressRequest,
+                        CombinationalInterface<INPUT_DATATYPE> *dataResponse,
+                        MemorySource memSource) {
   INPUT_DATATYPE *memory = memSource == SRAM ? sramMemory : rramMemory;
 
   addressRequest->ResetRead();
@@ -208,7 +249,7 @@ void Harness::memAccessVector2() {
 
 template <typename T, unsigned int interfaceWidth>
 void sendSerializedParams(T params,
-                          Connections::Combinational<int> *serialParamsIn) {
+                          CombinationalInterface<int> *serialParamsIn) {
   ac_int<T::width, false> serializedParam;
   vector_to_type(TypeToBits<T>(params), false, &serializedParam);
 
@@ -788,8 +829,11 @@ void Harness::sendParams() {
       done.SyncPop();
       CCS_LOG("Accelerator Layer Finished.");
     }
-
+#ifdef SOC_COSIM
+    syscDone = true;
+#else
     sc_stop();
+#endif
   }
 }
 

@@ -34,7 +34,7 @@ VectorUnit: build/Catapult_VectorUnit/VectorUnit.v1/concat_rtl.v
 
 build/Catapult_Accelerator/Accelerator.v1/concat_rtl.v: InputController WeightController MatrixProcessor VectorUnit
 	catapult -shell -file scripts/Accelerator.tcl
-	sed '/module CGHpart/,/endmodule/d;/module TSDN/,/endmodule/d;/module TS1N/,/endmodule/d;/^`include/d' build/Catapult_Accelerator/Accelerator.v1/concat_rtl.v > build/Catapult_Accelerator/Accelerator.v1/concat_rtl_clean.v
+	sed '/module CGHpart/,/endmodule/d;/module TSDN/,/endmodule/d;/module TS1N/,/endmodule/d;/^`include/d;s/module Accelerator_rtl/module Accelerator/g' build/Catapult_Accelerator/Accelerator.v1/concat_rtl.v > release/concat_rtl.v
 
 build/Catapult_InputController/InputController.v1/concat_rtl.v:
 	catapult -shell -file scripts/InputController.tcl
@@ -81,6 +81,16 @@ sim_sysc:
 	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/DataLoader.cc
 	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/mobilebert/TestRunner.cc
 	vcs -full64 -sysc sc_main -kdb -debug_access+all -Mdir=$(build_folder) -o $(build_folder)/$(simv_name)
+	./$(build_folder)/$(simv_name) -ucli -i dump_fsdb.tcl
+
+sim_sysc_gui:
+	syscan -kdb -cflags "$(C11FLAGS) -g" -Mdir=$(build_folder) src/Accelerator.cc
+	syscan -kdb -cflags "$(C11FLAGS) -g" -Mdir=$(build_folder) test/common/Harness.cc
+	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/GoldModel.cc
+	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/Utils.cc
+	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/DataLoader.cc
+	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/TestRunner.cc
+	vcs -full64 -sysc sc_main -kdb -debug_access+all -Mdir=$(build_folder) -o $(build_folder)/$(simv_name)
 	./$(build_folder)/$(simv_name) -verdi
 
 ###########################################################
@@ -98,12 +108,12 @@ PositTest: build/PositTest
 rtl_sim_clean:
 	rm -rf build/Catapult_debug/Accelerator.v1/scverify/concat_sim_rtl_v_vcs
 
-rtl_sim: debug_rtl
-	cd build/Catapult_debug/Accelerator.v1 && make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs sim
+rtl_sim: rtl
+	cd build/Catapult_Accelerator/Accelerator.v1 && make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs sim
 
-rtl_sim_debug: debug_rtl
+rtl_sim_debug: rtl
 	rm -rf build/inter.fsdb*
-	cd build/Catapult_debug/Accelerator.v1 && make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs simgui
+	cd build/Catapult_Accelerator/Accelerator.v1 && make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs simgui
 
 gui:
 	catapult build/Catapult_debug

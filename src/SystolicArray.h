@@ -9,28 +9,24 @@
 
 template <typename IDTYPE, typename ODTYPE, int NROWS, int NCOLS>
 SC_MODULE(SystolicArray) {
+ private:
+  Connections::Combinational<IDTYPE> inputConnection[NROWS][NCOLS];
+  Connections::Combinational<ODTYPE> psumConnection[NROWS - 1][NCOLS];
+  sc_signal<IDTYPE> weightConnection[NROWS + 1][NCOLS];
+  sc_signal<bool> weightValid;
+  Connections::Combinational<ac_int<1, false> > weightSwap[NROWS * NCOLS - 1];
+  Connections::Combinational<ac_int<1, false> > weightSwapFinal;
+
  public:
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
-  Connections::In<Pack1D<IDTYPE, NROWS> > CCS_INIT_S1(inputs);
-  Connections::In<Pack1D<ODTYPE, NROWS> > CCS_INIT_S1(psums);
-  Connections::Out<Pack1D<ODTYPE, NROWS> > CCS_INIT_S1(outputs);
-  Connections::In<Pack1D<ac_int<1, false>, NROWS> > CCS_INIT_S1(swapWeights);
-
-  sc_in<Pack1D<IDTYPE, NCOLS> > CCS_INIT_S1(weights);
-  sc_in<bool> CCS_INIT_S1(weightsToggle);
-
-  sc_signal<IDTYPE> inputConnection[NROWS][NCOLS + 1];
-  sc_signal<ODTYPE> psumConnection[NROWS + 1][NCOLS];
-  sc_signal<IDTYPE> weightConnection[NROWS + 1][NCOLS];
-  sc_signal<ac_int<1, false> > weightSwap[NROWS][NCOLS + 1];
-  sc_signal<bool> weightPush;
-  sc_signal<bool> enable;
-  sc_signal<bool> peToggle;
-  sc_signal<bool> validOutput[NROWS][NCOLS];
-
-  sc_fifo<Pack1D<ODTYPE, NROWS> > outputFifo;
+  Connections::In<IDTYPE> inputs[NROWS];
+  Connections::In<ac_int<1, false> > swapWeights[NROWS];
+  Connections::In<Pack1D<IDTYPE, NCOLS> > CCS_INIT_S1(weights);
+  Connections::In<ODTYPE> psums[NCOLS];
+  Connections::Out<ODTYPE> outputs[NCOLS];
+  Connections::SyncOut CCS_INIT_S1(weightSwapDone);
 
   SC_CTOR(SystolicArray) {
     ProcessingElement<IDTYPE, ODTYPE> *pe[NROWS * NCOLS];
@@ -40,138 +36,142 @@ SC_MODULE(SystolicArray) {
             sc_gen_unique_name("pe_inst"));
         pe[i * NCOLS + j]->clk(clk);
         pe[i * NCOLS + j]->rstn(rstn);
-        pe[i * NCOLS + j]->input_in(inputConnection[i][j]);
-        pe[i * NCOLS + j]->weight_in(weightConnection[i][j]);
-        pe[i * NCOLS + j]->psum_in(psumConnection[i][j]);
-        pe[i * NCOLS + j]->swap_weights_in(weightSwap[i][j]);
-        pe[i * NCOLS + j]->swap_weights_out(weightSwap[i][j + 1]);
-        pe[i * NCOLS + j]->input_out(inputConnection[i][j + 1]);
-        pe[i * NCOLS + j]->weight_out(weightConnection[i + 1][j]);
-        pe[i * NCOLS + j]->psum_out(psumConnection[i + 1][j]);
-        pe[i * NCOLS + j]->valid_output(validOutput[i][j]);
-        pe[i * NCOLS + j]->toggle(peToggle);
-        pe[i * NCOLS + j]->push_weights(weightPush);
+        if (j == 0) {
+          pe[i * NCOLS + j]->inputIn(inputs[i]);
+        } else {
+          pe[i * NCOLS + j]->inputIn(inputConnection[i][j - 1]);
+        }
+        pe[i * NCOLS + j]->weightIn(weightConnection[i][j]);
+        pe[i * NCOLS + j]->weightValid(weightValid);
+        if (i == 0) {
+          pe[i * NCOLS + j]->psumIn(psums[j]);
+        } else {
+          pe[i * NCOLS + j]->psumIn(psumConnection[i - 1][j]);
+        }
+        if (j == 0) {
+          pe[i * NCOLS + j]->weightSwapIn(swapWeights[i]);
+        } else {
+          pe[i * NCOLS + j]->weightSwapIn(weightSwap[i * NCOLS + j - 1]);
+        }
+        if (i == NROWS - 1 && j == NCOLS - 1) {
+          pe[i * NCOLS + j]->weightSwapOut(weightSwapFinal);
+        } else {
+          pe[i * NCOLS + j]->weightSwapOut(weightSwap[i * NCOLS + j]);
+        }
+        pe[i * NCOLS + j]->inputOut(inputConnection[i][j]);
+        pe[i * NCOLS + j]->weightOut(weightConnection[i + 1][j]);
+        if (i == NROWS - 1) {
+          pe[i * NCOLS + j]->psumOut(outputs[j]);
+        } else {
+          pe[i * NCOLS + j]->psumOut(psumConnection[i][j]);
+        }
       }
     }
 
-    SC_THREAD(run);
+    SC_THREAD(sendWeights);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
-    SC_THREAD(collect_outputs);
+    SC_THREAD(tieoff);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
-    SC_THREAD(send_outputs);
-    sensitive << clk.pos();
-    async_reset_signal_is(rstn, false);
-
-    SC_THREAD(push_weights);
+    SC_THREAD(checkSwapDone);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
   }
 
-  void push_weights() {
-    for (int i = 0; i < NCOLS; i++) {
-      weightConnection[0][i].write(IDTYPE());
-    }
-    weightPush.write(false);
-    bool oldToggle = false;
+  // void sendWeightSwap() {
+  //   swapWeights.Reset();
+  //   for (int i = 0; i < NROWS; i++) {
+  //     weightSwap[i][0].ResetWrite();
+  //   }
+
+  //   wait();
+
+  //   while (true) {
+  //     swapWeights.SyncPop();
+
+  //     // push the weight swap to the next row every cycle
+  //     // cycle 0- row 0
+  //     // cycle 1- row 1
+  //     // cycle 2- row 2
+  //     // and so on...
+  //     for (int i = 0; i < NROWS; i++) {
+  //       weightSwap[i][0].SyncPush();
+  //     }
+  //   }
+  // }
+
+  void checkSwapDone() {
+    weightSwapFinal.ResetRead();
+    weightSwapDone.Reset();
+
     wait();
 
 #pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
     while (true) {
-      Pack1D<IDTYPE, NCOLS> arrayWeights = weights.read();
+      ac_int<1, false> swap = weightSwapFinal.Pop();
+      if (swap) {
+        weightSwapDone.SyncPush();
+      }
+    }
+  }
+
+  void tieoff() {
+    // Reset all the unused Connections
+    for (int i = 0; i < NROWS; i++) {
+      inputConnection[i][NCOLS - 1].ResetRead();
+    }
+
+    for (int i = 0; i < NROWS - 1; i++) {
+      weightSwap[i * NCOLS + NCOLS - 1].ResetRead();
+    }
+
+    wait();
+
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
+    while (true) {
+#pragma hls_unroll yes
+      for (int i = 0; i < NROWS; i++) {
+        IDTYPE unusedInput;
+        inputConnection[i][NCOLS - 1].PopNB(unusedInput);
+      }
+#pragma hls_unroll yes
+      for (int i = 0; i < NROWS - 1; i++) {
+        ac_int<1, false> unusedSwap;
+        weightSwap[i * NCOLS + NCOLS - 1].PopNB(unusedSwap);
+      }
+      wait();
+    }
+  }
+
+  void sendWeights() {
+    for (int j = 0; j < NCOLS; j++) {
+      weightConnection[0][j].write(IDTYPE());
+    }
+    weightValid.write(false);
+
+    weights.Reset();
+
+    wait();
+
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
+    while (true) {
+      Pack1D<IDTYPE, NCOLS> arrayWeights;
+      if (weights.PopNB(arrayWeights)) {
+        weightValid.write(true);
+      } else {
+        weightValid.write(false);
+      }
 #pragma hls_unroll yes
       for (int i = 0; i < NCOLS; i++) {
         weightConnection[0][i].write(arrayWeights[i]);
       }
 
-      weightPush.write(weightsToggle.read() != oldToggle);
-      oldToggle = weightsToggle.read();
-
-      wait();
-    }
-  }
-
-#pragma design modulario < in>
-  void run() {
-    bool toggle = false;
-    bool oldToggle = false;
-    enable.write(false);
-    peToggle.write(false);
-
-    inputs.Reset();
-    psums.Reset();
-    swapWeights.Reset();
-
-    for (int i = 0; i < NCOLS; i++) {
-      psumConnection[0][i].write(ODTYPE());
-    }
-
-    for (int i = 0; i < NROWS; i++) {
-      inputConnection[i][0].write(IDTYPE());
-      weightSwap[i][0].write(0);
-    }
-
-    wait();
-
-#pragma hls_pipeline_init_interval 1
-#pragma hls_pipeline_stall_mode flush
-    while (true) {
-      Pack1D<IDTYPE, NROWS> arrayInput = inputs.Pop();
-      Pack1D<ODTYPE, NCOLS> arrayPsum = psums.Pop();
-      Pack1D<ac_int<1, false>, NROWS> arraySwap = swapWeights.Pop();
-
-      toggle = !toggle;
-      peToggle.write(toggle);
-
-#pragma hls_unroll yes
-      for (int i = 0; i < NROWS; i++) {
-        inputConnection[i][0].write(arrayInput[i]);
-        weightSwap[i][0].write(arraySwap[i]);
-      }
-
-#pragma hls_unroll yes
-      for (int i = 0; i < NCOLS; i++) {
-        psumConnection[0][i].write(arrayPsum[i]);
-      }
-
-      oldToggle = toggle;
-      wait();
-    }
-  }
-
-#pragma design modulario < in>
-  void collect_outputs() {
-    wait();
-
-#pragma hls_pipeline_init_interval 1
-#pragma hls_pipeline_stall_mode flush
-    while (true) {
-      Pack1D<ODTYPE, NCOLS> finalOutputs;
-#pragma hls_unroll yes
-      for (int i = 0; i < NCOLS; i++) {
-        finalOutputs[i] = psumConnection[NCOLS][NCOLS - 1 - i];
-      }
-      if (validOutput[NROWS - 1][NCOLS - 1]) {
-        outputFifo.write(finalOutputs);
-      }
-
-      wait();
-    }
-  }
-
-#pragma design modulario < in>
-  void send_outputs() {
-    outputs.Reset();
-
-    wait();
-
-#pragma hls_pipeline_init_interval 1
-#pragma hls_pipeline_stall_mode flush
-    while (true) {
-      outputs.Push(outputFifo.read());
       wait();
     }
   }
