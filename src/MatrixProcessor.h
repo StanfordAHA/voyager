@@ -327,53 +327,56 @@ SC_MODULE(MatrixProcessor) {
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
       while (outputStep < totalOps) {
-        Pack1D<ODTYPE, NCOLS> outputs = psumOutSkewerDout.Pop();
-
-        outputStep++;
-        DLOG("systolic array output: " << outputs);
-        bool accumulationFinished =
-            (loop_counters_out[1][params.reductionLoopIndex[1]] ==
-             params.loops[1][params.reductionLoopIndex[1]] - 1) &&
-            (loop_counters_out[1][params.fxIndex] ==
-             params.loops[1][params.fxIndex] - 1) &&
-            (loop_counters_out[1][params.fyIndex] ==
-             params.loops[1][params.fyIndex] - 1);
-        if (accumulationFinished && !params.STORE_IN_ACC) {
-          outputsChannel.Push(outputs);
-          DLOG("matrix processor output: " << outputs);
-          // std::cout << "Output: " << outputs << std::endl;
-        } else {
-          int writeAddress = loop_counters_out[1][params.weightLoopIndex[1]] *
-                                 params.loops[1][params.inputXLoopIndex[1]] *
-                                 params.loops[1][params.inputYLoopIndex[1]] +
-                             loop_counters_out[1][params.inputYLoopIndex[1]] *
-                                 params.loops[1][params.inputXLoopIndex[1]] +
-                             loop_counters_out[1][params.inputXLoopIndex[1]];
+        Pack1D<ODTYPE, NCOLS> outputs;
+        if (psumOutSkewerDout.PopNB(outputs)) {
+          outputStep++;
+          DLOG("systolic array output: " << outputs);
+          bool accumulationFinished =
+              (loop_counters_out[1][params.reductionLoopIndex[1]] ==
+               params.loops[1][params.reductionLoopIndex[1]] - 1) &&
+              (loop_counters_out[1][params.fxIndex] ==
+               params.loops[1][params.fxIndex] - 1) &&
+              (loop_counters_out[1][params.fyIndex] ==
+               params.loops[1][params.fyIndex] - 1);
+          if (accumulationFinished && !params.STORE_IN_ACC) {
+            outputsChannel.Push(outputs);
+            DLOG("matrix processor output: " << outputs);
+            // std::cout << "Output: " << outputs << std::endl;
+          } else {
+            int writeAddress = loop_counters_out[1][params.weightLoopIndex[1]] *
+                                   params.loops[1][params.inputXLoopIndex[1]] *
+                                   params.loops[1][params.inputYLoopIndex[1]] +
+                               loop_counters_out[1][params.inputYLoopIndex[1]] *
+                                   params.loops[1][params.inputXLoopIndex[1]] +
+                               loop_counters_out[1][params.inputXLoopIndex[1]];
 
 #ifdef __SYNTHESIS__
-        WRITE_ACC_BUFFER:
+          WRITE_ACC_BUFFER2:
 #endif
-          accumulation_buffer[writeAddress] = outputs;
-          // DLOG("writeAddress: " << writeAddress << " val "
-          //                          << outputs);
-        }
+            accumulation_buffer[writeAddress] = outputs;
+            // DLOG("writeAddress: " << writeAddress << " val "
+            //                          << outputs);
+          }
 
-        loop_counters_out[1][5]++;
+          loop_counters_out[1][5]++;
 #pragma hls_unroll yes
-        for (int i = 1; i >= 0; i--) {
+          for (int i = 1; i >= 0; i--) {
 #pragma hls_unroll yes
-          for (int j = 5; j >= 0; j--) {
-            if (loop_counters_out[i][j] == params.loops[i][j]) {
-              loop_counters_out[i][j] = 0;
-              if (j > 0) {
-                loop_counters_out[i][j - 1]++;
-              } else {
-                if (i > 0) {
-                  loop_counters_out[i - 1][5]++;
+            for (int j = 5; j >= 0; j--) {
+              if (loop_counters_out[i][j] == params.loops[i][j]) {
+                loop_counters_out[i][j] = 0;
+                if (j > 0) {
+                  loop_counters_out[i][j - 1]++;
+                } else {
+                  if (i > 0) {
+                    loop_counters_out[i - 1][5]++;
+                  }
                 }
               }
             }
           }
+        } else {
+          wait();
         }
       }
     }
