@@ -80,7 +80,6 @@ SC_MODULE(VectorOpUnit) {
 #pragma hls_pipeline_stall_mode flush
     while (true) {
       VectorInstructions inst = vectorOpUnitInstructions.Pop();
-      DLOG("vector inst: ");
 
       Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op0;
       Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op1;
@@ -124,7 +123,6 @@ SC_MODULE(VectorOpUnit) {
         for (int i = 0; i < WIDTH; i++) {
           op0Src1[i] = tmp[i];
         }
-        DLOG("read from fetch: " << op0Src1);
       }
 
       // DLOG("vector unit input: " << op0Src0);
@@ -142,13 +140,17 @@ SC_MODULE(VectorOpUnit) {
       } else if (inst.vOp0 == VectorInstructions::vmult) {
         vmult<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op0Src0, op0Src1,
                                                           res0);
-        DLOG(op0Src0 << " * " << op0Src1);
+        DLOG(op0Src0 << std::endl
+                     << " * " << std::endl
+                     << op0Src1 << std::endl
+                     << " = " << std::endl
+                     << res0);
 
       } else {
         res0 = op0Src0;
       }
 
-      DLOG("res0: " << res0);
+      // DLOG("res0: " << res0);
       /*
        * Stage 1: exp
        */
@@ -158,7 +160,7 @@ SC_MODULE(VectorOpUnit) {
         res1 = res0;
       }
 
-      DLOG("res1: " << res1);
+      // DLOG("res1: " << res1);
 
       /*
        * Stage 2: reduction
@@ -169,7 +171,7 @@ SC_MODULE(VectorOpUnit) {
         res2 = res1;
       }
 
-      DLOG("res2: " << res2);
+      // DLOG("res2: " << res2);
 
       /*
        * Stage 3: add, div
@@ -177,7 +179,6 @@ SC_MODULE(VectorOpUnit) {
       Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op3Src0;
       if (inst.vOp3Src0 == VectorInstructions::readReduceInterface) {
         op3Src0 = reductionOpOutputSrc0.Pop();
-        DLOG("reading from reduce: " << op3Src0);
       } else {
         op3Src0 = res2;
       }
@@ -192,12 +193,17 @@ SC_MODULE(VectorOpUnit) {
         for (int i = 0; i < WIDTH; i++) {
           op3Src1[i] = tmp[i];
         }
-        DLOG("reading from vectorfetch2: " << op3Src1);
       }
 
       if (inst.vOp3 == VectorInstructions::vadd) {
         vadd<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op3Src0, op3Src1,
                                                          res3);
+
+        DLOG(op3Src0 << std::endl
+                     << " + " << std::endl
+                     << op3Src1 << std::endl
+                     << " = " << std::endl
+                     << res3);
       } else if (inst.vOp3 == VectorInstructions::vdiv) {
         // vdiv<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op3Src0, op3Src1,
         //                                                  res3);
@@ -205,7 +211,7 @@ SC_MODULE(VectorOpUnit) {
         res3 = op3Src0;
       }
 
-      DLOG("res3: " << res3);
+      // DLOG("res3: " << res3);
 
       /*
        * Stage 4: relu
@@ -216,7 +222,7 @@ SC_MODULE(VectorOpUnit) {
         res4 = res3;
       }
 
-      DLOG("res4: " << res4);
+      // DLOG("res4: " << res4);
 
       if (inst.vDest == VectorInstructions::vWriteOut) {
         // convert to Posit8 and write out
