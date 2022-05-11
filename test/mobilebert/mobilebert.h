@@ -22,15 +22,12 @@
 // #define RRAM_MEMORY_SIZE (12 * 1024 * 1024)  // RRAM size for TinyBERT
 #define RRAM_MEMORY_SIZE (20 * 1024 * 1024)  // RRAM size for MobileBERT
 
-std::string activationDataDir =
-    "/sim/jeffreyy/accelerator/data/mobilebert/activations/";
-std::string weightDataDir =
-    "/sim/jeffreyy/accelerator/data/mobilebert/weights/";
-std::string weightScaledDataDir =
-    "/sim/jeffreyy/accelerator/data/mobilebert/weights_scaled/";
-std::string errorDataDir = "/sim/jeffreyy/accelerator/data/mobilebert/errors/";
-std::string gradientDataDir =
-    "/sim/jeffreyy/accelerator/data/mobilebert/gradients/";
+std::string dataPath = "/sim2/shared/MINOTAUR/nn_data/mobilebert/";
+std::string activationDataDir = dataPath + "activations/";
+std::string weightDataDir = dataPath + "weights/";
+std::string weightScaledDataDir = dataPath + "weights_scaled/";
+std::string errorDataDir = dataPath + "errors/";
+std::string gradientDataDir = dataPath + "gradients/";
 
 std::string ACTIVATION = "ACTIVATION";
 std::string ACTIVATION_GRADIENT = "ACTIVATION_GRADIENT";
