@@ -13,7 +13,7 @@ project new -dir $project_folder
 project save
 
 options set Project/SolutionName $block
-options set Output/SubBlockNamePrefix $block
+#options set Output/SubBlockNamePrefix $block
 logfile move ./build/${block}.log
 
 options set Message/ErrorOverride ASSERT-1 -remove

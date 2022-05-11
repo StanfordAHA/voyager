@@ -31,7 +31,7 @@ SC_MODULE(MatrixProcessor) {
 
   SystolicArray<IDTYPE, ODTYPE, NROWS, NCOLS> CCS_INIT_S1(systolicArray);
 
-  MatrixParamsDeserializer CCS_INIT_S1(paramsDeserializer);
+  MatrixParamsDeserializer<1> CCS_INIT_S1(paramsDeserializer);
 
  public:
   sc_in<bool> CCS_INIT_S1(clk);

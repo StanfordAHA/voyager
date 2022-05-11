@@ -6,6 +6,10 @@
 #include "AccelTypes.h"
 #include "TypeToBits.h"
 
+// stupid trick to uniquify it
+// otherwise, this module ends up repeated for each subblock in the final top
+// RTL
+template <int id>
 SC_MODULE(MatrixParamsDeserializer) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);

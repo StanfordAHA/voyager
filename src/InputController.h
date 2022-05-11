@@ -30,7 +30,7 @@ SC_MODULE(InputController) {
   Connections::Combinational<MatrixParams> CCS_INIT_S1(readerParams);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(windowBufferParams);
 
-  MatrixParamsDeserializer CCS_INIT_S1(paramsDeserializer);
+  MatrixParamsDeserializer<0> CCS_INIT_S1(paramsDeserializer);
 
   SC_CTOR(InputController) {
     paramsDeserializer.clk(clk);
