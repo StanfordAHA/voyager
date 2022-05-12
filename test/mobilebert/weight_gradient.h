@@ -914,28 +914,28 @@ std::map<std::string, MemoryOffsets> trainingMemOffsets{
      }},
 };
 
-std::map<std::string, Files> trainingTestFiles{
+std::map<std::string, Files> weightGradTestFiles{
     {"classifier",
      {
          "mobilebert_classifier",
-         "classifier_weight",
-         "",
          "mobilebert_encoder_layer_23_output_bottleneck_LayerNorm",
+         "",
+         "classifier_weight",
      }},
-    {"output_bottleneck_dense",
+     {"output_bottleneck_dense",
      {
          "output_bottleneck_LayerNorm",
+         "output_bottleneck_residual",
+         "",
          "output_bottleneck_LayerNorm_weight",
-         "",
-         "output_bottleneck_dense",
      }},
-    {"output_LayerNorm",
-     {
-         "output_bottleneck_dense",
-         "output_bottleneck_dense_weight",
-         "",
-         "output_LayerNorm",
-     }},
+    // {"output_LayerNorm",
+    //  {
+    //      "output_bottleneck_dense",
+    //      "output_bottleneck_dense_weight",
+    //      "",
+    //      "output_LayerNorm",
+    //  }},
     {"output_dense",
      {
          "output_LayerNorm",
@@ -1250,6 +1250,10 @@ std::map<std::string, Files> trainingTestFiles{
 
     // Weight gradient files
     {"classifier_grad",
-     {"mobilebert_classifier",
-      "mobilebert_encoder_layer_23_output_bottleneck_LayerNorm", "",
-      "mobilebert_classifier_weight"}}};
+     {
+         "mobilebert_classifier",
+         "mobilebert_encoder_layer_23_output_bottleneck_LayerNorm",
+         "",
+         "mobilebert_classifier_weight",
+     }},
+};
