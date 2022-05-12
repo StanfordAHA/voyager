@@ -23,6 +23,7 @@
 #define RRAM_MEMORY_SIZE (20 * 1024 * 1024)  // RRAM size for MobileBERT
 
 std::string dataPath = "/sim2/shared/MINOTAUR/nn_data/mobilebert/";
+// std::string dataPath = "/sim/jeffreyy/accelerator/data/mobilebert/";
 std::string activationDataDir = dataPath + "activations/";
 std::string weightDataDir = dataPath + "weights/";
 std::string weightScaledDataDir = dataPath + "weights_scaled/";
@@ -124,8 +125,8 @@ int runMbUnitTest(const SimplifiedParams params, const Files files,
 
   bool runAccelerator =
       std::find(models.begin(), models.end(), "accelerator") != models.end();
-  bool runHlsposit =
-      std::find(models.begin(), models.end(), "hlsposit") != models.end();
+  bool runPosit =
+      std::find(models.begin(), models.end(), "customposit") != models.end();
   bool runUniversal =
       std::find(models.begin(), models.end(), "universal") != models.end();
   bool runFloat32 =
@@ -135,7 +136,7 @@ int runMbUnitTest(const SimplifiedParams params, const Files files,
     run_op({params}, sramMemory, rramMemory, memoryMap);
   }
 
-  if (runHlsposit) {
+  if (runPosit) {
     run_custom_posit_gold_model(params, matrixA, matrixB, matrixC, biasMatrix,
                                 residualMatrix);
   }
@@ -162,7 +163,7 @@ int runMbUnitTest(const SimplifiedParams params, const Files files,
                    diffFile);
   }
 
-  if (runHlsposit) {
+  if (runPosit) {
     std::cout << "HLS Posit Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals bugs in mapping operations to accelerator)"
               << std::endl;
@@ -179,7 +180,7 @@ int runMbUnitTest(const SimplifiedParams params, const Files files,
                              X * Y * K, diffFile);
   }
 
-  if (runAccelerator && runHlsposit) {
+  if (runAccelerator && runPosit) {
     std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
@@ -188,7 +189,7 @@ int runMbUnitTest(const SimplifiedParams params, const Files files,
                              X * Y * K, diffFile);
   }
 
-  if (runHlsposit && runUniversal) {
+  if (runPosit && runUniversal) {
     std::cout << "HLS Posit Gold Model vs. Universal Posit Gold Model"
               << std::endl;
     std::cout
@@ -438,14 +439,14 @@ int runMobilebert(
         }
       }
 
-      bool runHlsposit =
-          std::find(models.begin(), models.end(), "hlsposit") != models.end();
+      bool runPosit = std::find(models.begin(), models.end(), "customposit") !=
+                      models.end();
       bool runUniversal =
           std::find(models.begin(), models.end(), "universal") != models.end();
       bool runFloat32 =
           std::find(models.begin(), models.end(), "fp32") != models.end();
 
-      if (runHlsposit) {
+      if (runPosit) {
         run_custom_posit_gold_model(
             params, hls_sram_memory + params.INPUT_OFFSET,
             (params.WEIGHT ? hls_rram_memory : hls_sram_memory) +
@@ -521,7 +522,7 @@ int runMobilebert(
 
       std::string diffFile;
       int errors;
-      if (runHlsposit) {
+      if (runPosit) {
         std::cout << "HLS Posit Gold Model vs. Pytorch" << std::endl;
         std::cout << "(reveals bugs in mapping operations to accelerator)"
                   << std::endl;
@@ -539,7 +540,7 @@ int runMobilebert(
                                 diffFile);
       }
 
-      if (runHlsposit && runUniversal) {
+      if (runPosit && runUniversal) {
         std::cout << "HLS Posit Gold Model vs. Universal Posit Gold Model"
                   << std::endl;
         std::cout
@@ -639,16 +640,16 @@ int runMbTest(std::string task, std::string test,
       Files files = mobilebertFiles.at(op.first);
       MemoryOffsets memOffsets = mobilebertMemOffsets.at(op.first);
       std::string layerName =
-          test == "classifier" ? "" : "mobilebert_encoder_layer_23_";
+          test == "classifier" ? "" : "mobilebert_encoder_layer_0_";
 
-      params.INPUT_OFFSET = memOffsets.INPUT_OFFSET + 45056;
+      params.INPUT_OFFSET = memOffsets.INPUT_OFFSET + STACK_SIZE;
       params.WEIGHT_OFFSET = memOffsets.WEIGHT_OFFSET;
-      params.OUTPUT_OFFSET = memOffsets.OUTPUT_OFFSET + 45056;
+      params.OUTPUT_OFFSET = memOffsets.OUTPUT_OFFSET + STACK_SIZE;
       params.BIAS_OFFSET = memOffsets.BIAS_OFFSET;
-      params.RESIDUAL_OFFSET = memOffsets.RESIDUAL_OFFSET + 45056;
+      params.RESIDUAL_OFFSET = memOffsets.RESIDUAL_OFFSET + STACK_SIZE;
 
       if (!params.WEIGHT) {
-        params.WEIGHT_OFFSET += 45056;
+        params.WEIGHT_OFFSET += STACK_SIZE;
       }
 
       MemoryMap memoryMap = {SRAM, (params.WEIGHT ? RRAM : SRAM), RRAM, SRAM,
