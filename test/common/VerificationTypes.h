@@ -100,8 +100,8 @@ const int WEIGHT_INTERMEDIATE_SIZE = 128 * 512 + 1;
 const int BIAS_HIDDEN_SIZE = 128 + 1;
 const int BIAS_INTERMEDIATE_SIZE = 512 + 1;
 #else
-const int WEIGHT_HIDDEN_SIZE = 128 * 128; // 16384
-const int WEIGHT_INTERMEDIATE_SIZE = 128 * 512; // 65536
+const int WEIGHT_HIDDEN_SIZE = 128 * 128;        // 16384
+const int WEIGHT_INTERMEDIATE_SIZE = 128 * 512;  // 65536
 const int BIAS_HIDDEN_SIZE = 128;
 const int BIAS_INTERMEDIATE_SIZE = 512;
 #endif
@@ -109,3 +109,4 @@ const int BIAS_INTERMEDIATE_SIZE = 512;
 const int ENCODER_SIZE = 12 * WEIGHT_INTERMEDIATE_SIZE +
                          7 * BIAS_INTERMEDIATE_SIZE + 3 * WEIGHT_HIDDEN_SIZE +
                          24 * BIAS_HIDDEN_SIZE;
+const int STACK_SIZE = 90112;

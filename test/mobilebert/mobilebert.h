@@ -22,8 +22,8 @@
 // #define RRAM_MEMORY_SIZE (12 * 1024 * 1024)  // RRAM size for TinyBERT
 #define RRAM_MEMORY_SIZE (20 * 1024 * 1024)  // RRAM size for MobileBERT
 
-// std::string dataPath = "/sim2/shared/MINOTAUR/nn_data/mobilebert/";
-std::string dataPath = "/sim/jeffreyy/accelerator/data/mobilebert/";
+std::string dataPath = "/sim2/shared/MINOTAUR/nn_data/mobilebert/";
+// std::string dataPath = "/sim/jeffreyy/accelerator/data/mobilebert/";
 std::string activationDataDir = dataPath + "activations/";
 std::string weightDataDir = dataPath + "weights/";
 std::string weightScaledDataDir = dataPath + "weights_scaled/";
@@ -642,14 +642,14 @@ int runMbTest(std::string task, std::string test,
       std::string layerName =
           test == "classifier" ? "" : "mobilebert_encoder_layer_0_";
 
-      params.INPUT_OFFSET = memOffsets.INPUT_OFFSET + 45056;
+      params.INPUT_OFFSET = memOffsets.INPUT_OFFSET + STACK_SIZE;
       params.WEIGHT_OFFSET = memOffsets.WEIGHT_OFFSET;
-      params.OUTPUT_OFFSET = memOffsets.OUTPUT_OFFSET + 45056;
+      params.OUTPUT_OFFSET = memOffsets.OUTPUT_OFFSET + STACK_SIZE;
       params.BIAS_OFFSET = memOffsets.BIAS_OFFSET;
-      params.RESIDUAL_OFFSET = memOffsets.RESIDUAL_OFFSET + 45056;
+      params.RESIDUAL_OFFSET = memOffsets.RESIDUAL_OFFSET + STACK_SIZE;
 
       if (!params.WEIGHT) {
-        params.WEIGHT_OFFSET += 45056;
+        params.WEIGHT_OFFSET += STACK_SIZE;
       }
 
       MemoryMap memoryMap = {SRAM, (params.WEIGHT ? RRAM : SRAM), RRAM, SRAM,
