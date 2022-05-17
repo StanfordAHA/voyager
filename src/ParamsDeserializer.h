@@ -118,8 +118,6 @@ SC_MODULE(MatrixParamsRouter) {
   Connections::In<int> CCS_INIT_S1(serialParamsIn);
   Connections::Out<int> serialMatrixParams[3];
 
-  Connections::SyncOut CCS_INIT_S1(startSignal);
-
   SC_CTOR(MatrixParamsRouter) {
     SC_THREAD(run);
     sensitive << clk.pos();
@@ -127,8 +125,6 @@ SC_MODULE(MatrixParamsRouter) {
   }
 
   void run() {
-    startSignal.Reset();
-
     serialParamsIn.Reset();
     for (int i = 0; i < 3; i++) {
       serialMatrixParams[i].Reset();
@@ -137,15 +133,11 @@ SC_MODULE(MatrixParamsRouter) {
     wait();
     while (true) {
       // Matrix Params
-      for (int i = 0; i < (((MatrixParams::width + 32 - 1) / 32) * 32) / 32;
-           i++) {
-        int serialParam = serialParamsIn.Pop();
+      int serialParam = serialParamsIn.Pop();
 #pragma hls_unroll yes
-        for (int i = 0; i < 3; i++) {
-          serialMatrixParams[i].Push(serialParam);
-        }
+      for (int i = 0; i < 3; i++) {
+        serialMatrixParams[i].Push(serialParam);
       }
-      startSignal.SyncPush();
     }
   }
 };

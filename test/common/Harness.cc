@@ -33,7 +33,7 @@ void register_interface(
     std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION> >::width> >
         *scalarUnitOutput,
     std::deque<sc_lv<Wrapped<int>::width> > *scalarOutputAddress);
-void copy_output(void* sram, int size, int data_size);
+void copy_output(void *sram, int size, int data_size);
 #endif
 
 Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
@@ -49,7 +49,6 @@ Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
   accelerator.rstn(rstn);
   accelerator.serialMatrixParamsIn(serialMatrixParamsIn);
   accelerator.serialVectorParamsIn(serialVectorParamsIn);
-
   accelerator.inputAddressRequest(inputAddressRequest);
   accelerator.inputDataResponse(inputDataResponse);
   accelerator.weightAddressRequest(weightAddressRequest);
@@ -64,8 +63,11 @@ Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
   accelerator.vectorOutputAddress(vectorOutputAddress);
   accelerator.scalarUnitOutput(scalarUnitOutput);
   accelerator.scalarOutputAddress(scalarOutputAddress);
-  accelerator.startSignal(start);
-  accelerator.doneSignal(done);
+
+  accelerator.matrixUnitStartSignal(matrixUnitStartSignal);
+  accelerator.matrixUnitDoneSignal(matrixUnitDoneSignal);
+  accelerator.vectorUnitStartSignal(vectorUnitStartSignal);
+  accelerator.vectorUnitDoneSignal(vectorUnitDoneSignal);
 
 #ifdef SOC_COSIM
   register_interface(
@@ -113,14 +115,6 @@ Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
   async_reset_signal_is(rstn, false);
 
   SC_THREAD(sendParams);
-  sensitive << clk.posedge_event();
-  async_reset_signal_is(rstn, false);
-
-  SC_THREAD(waitForStart);
-  sensitive << clk.posedge_event();
-  async_reset_signal_is(rstn, false);
-
-  SC_THREAD(waitForDone);
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
 }
@@ -267,7 +261,11 @@ void sendSerializedParams(T params,
 }
 
 void Harness::sendParams() {
-  done.ResetRead();
+  matrixUnitStartSignal.ResetRead();
+  matrixUnitDoneSignal.ResetRead();
+  vectorUnitStartSignal.ResetRead();
+  vectorUnitDoneSignal.ResetRead();
+
   serialMatrixParamsIn.ResetWrite();
   serialVectorParamsIn.ResetWrite();
 
@@ -367,7 +365,9 @@ void Harness::sendParams() {
       sendSerializedParams<VectorInstructionConfig, 32>(vectorInstructionConfig,
                                                         &serialVectorParamsIn);
 
-      done.SyncPop();
+      vectorUnitStartSignal.SyncPop();
+      CCS_LOG("Accelerator Layer Started.");
+      vectorUnitDoneSignal.SyncPop();
       CCS_LOG("Accelerator Layer Finished.");
     } else if (params.FC) {
       VectorParams vectorParams;
@@ -483,7 +483,9 @@ void Harness::sendParams() {
       sendSerializedParams<VectorInstructionConfig, 32>(vectorInstructionConfig,
                                                         &serialVectorParamsIn);
 
-      done.SyncPop();
+      vectorUnitStartSignal.SyncPop();
+      CCS_LOG("Accelerator Layer Started.");
+      vectorUnitDoneSignal.SyncPop();
       CCS_LOG("Accelerator Layer Finished.");
     } else if (params.NO_NORM) {
       VectorParams vectorParams;
@@ -561,7 +563,9 @@ void Harness::sendParams() {
       sendSerializedParams<VectorInstructionConfig, 32>(vectorInstructionConfig,
                                                         &serialVectorParamsIn);
 
-      done.SyncPop();
+      vectorUnitStartSignal.SyncPop();
+      CCS_LOG("Accelerator Layer Started.");
+      vectorUnitDoneSignal.SyncPop();
       CCS_LOG("Accelerator Layer Finished.");
     } else {
       // matrix params
@@ -813,11 +817,16 @@ void Harness::sendParams() {
       sendSerializedParams<VectorInstructionConfig, 32>(vectorInstructionConfig,
                                                         &serialVectorParamsIn);
 
-      done.SyncPop();
+      matrixUnitStartSignal.SyncPop();
+      CCS_LOG("Accelerator Layer Started.");
+      vectorUnitStartSignal.SyncPop();
+      matrixUnitDoneSignal.SyncPop();
+      vectorUnitDoneSignal.SyncPop();
       CCS_LOG("Accelerator Layer Finished.");
     }
 #ifdef SOC_COSIM
-    copy_output(sramMemory, sizeof(INPUT_DATATYPE)*2*1024*1024, sizeof(INPUT_DATATYPE));
+    copy_output(sramMemory, sizeof(INPUT_DATATYPE) * 2 * 1024 * 1024,
+                sizeof(INPUT_DATATYPE));
     syscDone = true;
 #else
     sc_stop();
@@ -851,30 +860,6 @@ void Harness::storeScalarOutputs() {
     Pack1D<OUTPUT_DATATYPE, DIMENSION> data = scalarUnitOutput.Pop();
     int address = scalarOutputAddress.Pop();
   }
-}
-
-void Harness::waitForStart() {
-  start.ResetRead();
-
-  wait();
-
-  int i = 0;
-  for (SimplifiedParams params : params_list) {
-    start.SyncPop();
-    CCS_LOG("Accelerator Layer " + std::to_string(i) + " Started.");
-    i++;
-  }
-}
-void Harness::waitForDone() {
-  // done.ResetRead();
-  // wait();
-
-  // for (SimplifiedParams params : params_list) {
-
-  // }
-
-  // CCS_LOG("Accelerator Finished.");
-  // sc_stop();
 }
 
 void run_op(std::vector<SimplifiedParams> params_list,

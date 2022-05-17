@@ -89,8 +89,10 @@ SC_MODULE(Harness) {
       scalarUnitOutput);
   CombinationalInterface<int> CCS_INIT_S1(scalarOutputAddress);
 
-  Connections::SyncChannel CCS_INIT_S1(start);
-  Connections::SyncChannel CCS_INIT_S1(done);
+  Connections::SyncChannel CCS_INIT_S1(matrixUnitStartSignal);
+  Connections::SyncChannel CCS_INIT_S1(matrixUnitDoneSignal);
+  Connections::SyncChannel CCS_INIT_S1(vectorUnitStartSignal);
+  Connections::SyncChannel CCS_INIT_S1(vectorUnitDoneSignal);
 
   Harness(sc_module_name, std::vector<SimplifiedParams>, INPUT_DATATYPE *,
           INPUT_DATATYPE *, MemoryMap);
@@ -134,6 +136,4 @@ SC_MODULE(Harness) {
   void storeVectorOutputs();
   void storeScalarOutputs();
   void sendParams();
-  void waitForStart();
-  void waitForDone();
 };

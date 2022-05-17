@@ -24,6 +24,8 @@ SC_MODULE(Accelerator) {
       weightDataResponse);
   Connections::Combinational<Pack1D<ACCUM_DATATYPE, DIMENSION> > CCS_INIT_S1(
       outputsFromSystolicArray);
+  Connections::SyncOut CCS_INIT_S1(matrixUnitStartSignal);
+  Connections::SyncOut CCS_INIT_S1(matrixUnitDoneSignal);
 
 #ifdef SIM_VectorUnit
   // clang-format off
@@ -50,8 +52,8 @@ SC_MODULE(Accelerator) {
       scalarUnitOutput);
   Connections::Out<int> CCS_INIT_S1(scalarOutputAddress);
 
-  Connections::SyncOut startSignal;
-  Connections::SyncOut doneSignal;
+  Connections::SyncOut CCS_INIT_S1(vectorUnitStartSignal);
+  Connections::SyncOut CCS_INIT_S1(vectorUnitDoneSignal);
 
   SC_CTOR(Accelerator) {
     matrixUnit.clk(clk);
@@ -62,7 +64,9 @@ SC_MODULE(Accelerator) {
     matrixUnit.weightAddressRequest(weightAddressRequest);
     matrixUnit.weightDataResponse(weightDataResponse);
     matrixUnit.outputsFromSystolicArray(outputsFromSystolicArray);
-    matrixUnit.startSignal(startSignal);
+    matrixUnit.startSignal(matrixUnitStartSignal);
+    matrixUnit.doneSignal(matrixUnitDoneSignal);
+    
 
     vectorUnit.clk(clk);
     vectorUnit.rstn(rstn);
@@ -78,7 +82,8 @@ SC_MODULE(Accelerator) {
     vectorUnit.scalarUnitOutput(scalarUnitOutput);
     vectorUnit.vectorOutputAddress(vectorOutputAddress);
     vectorUnit.finalVectorOutput(vectorOutput);
-    vectorUnit.done(doneSignal);
+    vectorUnit.start(vectorUnitStartSignal);
+    vectorUnit.done(vectorUnitDoneSignal);
 
     SC_THREAD(run);
     sensitive << clk.pos();

@@ -16,9 +16,8 @@ SC_MODULE(MatrixUnit) {
   MatrixParamsRouter CCS_INIT_S1(paramsRouter);
   Connections::In<int> CCS_INIT_S1(serialMatrixParamsIn);
   Connections::Combinational<int> serialMatrixParams[3];
-  Connections::SyncOut startSignal;
 
-// clang-format off
+  // clang-format off
   #ifdef SIM_InputController  
   CCS_DESIGN((InputController<INPUT_DATATYPE, DIMENSION>)) CCS_INIT_S1(inputController);
   #else
@@ -75,6 +74,9 @@ SC_MODULE(MatrixUnit) {
   Connections::Out<Pack1D<ACCUM_DATATYPE, DIMENSION> > CCS_INIT_S1(
       outputsFromSystolicArray);
 
+  Connections::SyncOut CCS_INIT_S1(startSignal);
+  Connections::SyncOut CCS_INIT_S1(doneSignal);
+
   SC_CTOR(MatrixUnit) {
     paramsRouter.clk(clk);
     paramsRouter.rstn(rstn);
@@ -82,7 +84,6 @@ SC_MODULE(MatrixUnit) {
     for (int i = 0; i < 3; i++) {
       paramsRouter.serialMatrixParams[i](serialMatrixParams[i]);
     }
-    paramsRouter.startSignal(startSignal);
 
     inputController.clk(clk);
     inputController.rstn(rstn);
@@ -134,5 +135,7 @@ SC_MODULE(MatrixUnit) {
     matrixProcessor.weightsChannel(weightsToSystolicArray);
     matrixProcessor.outputsChannel(outputsFromSystolicArray);
     matrixProcessor.serialParamsIn(serialMatrixParams[2]);
+    matrixProcessor.startSignal(startSignal);
+    matrixProcessor.doneSignal(doneSignal);
   }
 };

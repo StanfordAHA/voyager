@@ -52,6 +52,9 @@ SC_MODULE(MatrixProcessor) {
   Connections::Combinational<Pack1D<IDTYPE, NCOLS> > CCS_INIT_S1(
       weightsToSystolicArray);
 
+  Connections::SyncOut CCS_INIT_S1(startSignal);
+  Connections::SyncOut CCS_INIT_S1(doneSignal);
+
   SC_CTOR(MatrixProcessor) {
     paramsDeserializer.clk(clk);
     paramsDeserializer.rstn(rstn);
@@ -147,6 +150,8 @@ SC_MODULE(MatrixProcessor) {
     // weightSwapToSystolicArray.ResetWrite();
     psumOutSkewerDout.ResetRead();
     weightSwapSkewerDin.ResetWrite();
+    startSignal.Reset();
+    doneSignal.Reset();
 
     bool toggle = false;
     bool weightFillToggle = false;
@@ -157,6 +162,8 @@ SC_MODULE(MatrixProcessor) {
 
     while (true) {
       MatrixParams params = paramsIn.Pop();
+            startSignal.SyncPush();
+
 
       int loop_counters[2][6];
       int loop_counters_out[2][6];
@@ -388,6 +395,9 @@ SC_MODULE(MatrixProcessor) {
           wait();
         }
       }
+
+            doneSignal.SyncPush();
+
     }
   }
 };
