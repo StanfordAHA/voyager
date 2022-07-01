@@ -651,7 +651,7 @@ std::map<std::string, Files> gradientTestFiles{
     {"attention_output_dense",
      {
          "attention_output_dense",
-         "attention_self_context_layer",
+         "attention_self_context_layer_permuted",
          "",
          "attention_output_dense_weight",
      }},
@@ -665,14 +665,14 @@ std::map<std::string, Files> gradientTestFiles{
      }},
     {"attention_self_query_layer_0",
      {
-         "attention_self_query",
+         "attention_self_query_layer",
          "bottleneck_attention_LayerNorm",
          "",
          "attention_self_query_weight",
      }},
     {"attention_self_key_layer_0",
      {
-         "attention_self_key",
+         "attention_self_key_layer",
          "bottleneck_attention_LayerNorm",
          "",
          "attention_self_key_weight",
