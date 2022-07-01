@@ -6,6 +6,7 @@
 #include "AccelTypes.h"
 #include "ProcessingElement.h"
 #include "Skewer.h"
+#include "Tieoff.h"
 
 template <typename IDTYPE, typename ODTYPE, int NROWS, int NCOLS>
 SC_MODULE(SystolicArray) {
@@ -72,36 +73,25 @@ SC_MODULE(SystolicArray) {
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
-    SC_THREAD(tieoff);
-    sensitive << clk.pos();
-    async_reset_signal_is(rstn, false);
-
     SC_THREAD(checkSwapDone);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
+
+    // Tie off unused Connections
+    Tieoff<IDTYPE> *inputConnectionTieoff[NROWS];
+    for (int i = 0; i < NROWS; i++) {
+      inputConnectionTieoff[i] =
+          new Tieoff<IDTYPE>(sc_gen_unique_name("tieoff"));
+      inputConnectionTieoff[i]->in(inputConnection[i][NCOLS - 1]);
+    }
+
+    Tieoff<ac_int<1, false> > *weightSwapTieoff[NROWS - 1];
+    for (int i = 0; i < NROWS - 1; i++) {
+      weightSwapTieoff[i] =
+          new Tieoff<ac_int<1, false> >(sc_gen_unique_name("tieoff"));
+      weightSwapTieoff[i]->in(weightSwap[i * NCOLS + NCOLS - 1]);
+    }
   }
-
-  // void sendWeightSwap() {
-  //   swapWeights.Reset();
-  //   for (int i = 0; i < NROWS; i++) {
-  //     weightSwap[i][0].ResetWrite();
-  //   }
-
-  //   wait();
-
-  //   while (true) {
-  //     swapWeights.SyncPop();
-
-  //     // push the weight swap to the next row every cycle
-  //     // cycle 0- row 0
-  //     // cycle 1- row 1
-  //     // cycle 2- row 2
-  //     // and so on...
-  //     for (int i = 0; i < NROWS; i++) {
-  //       weightSwap[i][0].SyncPush();
-  //     }
-  //   }
-  // }
 
   void checkSwapDone() {
     weightSwapFinal.ResetRead();

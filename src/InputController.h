@@ -30,7 +30,7 @@ SC_MODULE(InputController) {
   Connections::Combinational<MatrixParams> CCS_INIT_S1(readerParams);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(windowBufferParams);
 
-  MatrixParamsDeserializer CCS_INIT_S1(paramsDeserializer);
+  MatrixParamsDeserializer<0> CCS_INIT_S1(paramsDeserializer);
 
   SC_CTOR(InputController) {
     paramsDeserializer.clk(clk);
@@ -74,6 +74,8 @@ SC_MODULE(InputController) {
       }
       int FY = params.loops[1][params.fyIndex];
 
+      bool isDownsample = FX == 1 && FY == 1;
+
       int loop_counters[2][6];
       int loop_bounds[2][6];
 
@@ -102,10 +104,18 @@ SC_MODULE(InputController) {
             // 0)
 
             // reset loop bounds
-            loop_bounds[1][params.inputXLoopIndex[1]] =
-                params.loops[1][params.inputXLoopIndex[1]] * params.STRIDE;
-            loop_bounds[1][params.inputYLoopIndex[1]] =
-                params.loops[1][params.inputYLoopIndex[1]] * params.STRIDE;
+            if (isDownsample) {
+              // don't include STRIDE for downsample
+              loop_bounds[1][params.inputXLoopIndex[1]] =
+                  params.loops[1][params.inputXLoopIndex[1]];
+              loop_bounds[1][params.inputYLoopIndex[1]] =
+                  params.loops[1][params.inputYLoopIndex[1]];
+            } else {
+              loop_bounds[1][params.inputXLoopIndex[1]] =
+                  params.loops[1][params.inputXLoopIndex[1]] * params.STRIDE;
+              loop_bounds[1][params.inputYLoopIndex[1]] =
+                  params.loops[1][params.inputYLoopIndex[1]] * params.STRIDE;
+            }
 
             int x_min_offset = 0;
             int x_max_offset = 0;
@@ -188,6 +198,12 @@ SC_MODULE(InputController) {
 
                           int c = c1 * NROWS;
                           int C = C1 * NROWS;
+
+                          if (isDownsample) {
+                            // adjust address for stride
+                            x0 = x0 * params.STRIDE;
+                            y0 = y0 * params.STRIDE;
+                          }
 
                           int x = (x0 - x_min_offset) + x1 * X0;
                           int X = X0 * X1;
@@ -277,6 +293,9 @@ SC_MODULE(InputController) {
         FX = 7;
       }
       int FY = params.loops[1][params.fyIndex];
+
+      bool isDownsample = FX == 1 && FY == 1;
+
       int fx_bound = (FX - 1) / 2;
       int fy_bound = (FY - 1) / 2;
 
@@ -566,11 +585,17 @@ SC_MODULE(InputController) {
             for (loop_counters[0][2] = 0;
                  loop_counters[0][2] < loop_bounds[0][2];
                  loop_counters[0][2]++) {
+              int STRIDE = params.STRIDE;
+              if (isDownsample) {
+                // don't include STRIDE for downsample
+                STRIDE = 1;
+              }
+
               // reset loop bounds
               loop_bounds[1][params.inputXLoopIndex[1]] =
-                  params.loops[1][params.inputXLoopIndex[1]] * params.STRIDE;
+                  params.loops[1][params.inputXLoopIndex[1]] * STRIDE;
               loop_bounds[1][params.inputYLoopIndex[1]] =
-                  params.loops[1][params.inputYLoopIndex[1]] * params.STRIDE;
+                  params.loops[1][params.inputYLoopIndex[1]] * STRIDE;
 
               int x_min_offset = fx_bound;
               int y_min_offset = fy_bound;
@@ -608,10 +633,18 @@ SC_MODULE(InputController) {
                           int y0 = loop_counters[1][params.inputYLoopIndex[1]];
                           int y1 = loop_counters[0][params.inputYLoopIndex[0]];
 
-                          int full_x =
-                              (x0 - x_min_offset) + x1 * params.STRIDE * X0;
-                          int full_y =
-                              (y0 - y_min_offset) + y1 * params.STRIDE * Y0;
+                          int full_x, full_y;
+                          if (isDownsample) {
+                            full_x = (x0 * params.STRIDE - x_min_offset) +
+                                     x1 * params.STRIDE * X0;
+                            full_y = (y0 * params.STRIDE - y_min_offset) +
+                                     y1 * params.STRIDE * Y0;
+                          } else {
+                            full_x =
+                                (x0 - x_min_offset) + x1 * params.STRIDE * X0;
+                            full_y =
+                                (y0 - y_min_offset) + y1 * params.STRIDE * Y0;
+                          }
 
                           Pack1D<DTYPE, NROWS> data;
 
@@ -626,8 +659,8 @@ SC_MODULE(InputController) {
                             data = dataResponse.Pop();
                           }
 
-                          int address =
-                              (y0) * (params.STRIDE * X0 + FX - 1) + (x0);
+                          int address = (y0) * (STRIDE * X0 + FX - 1) + (x0);
+
                           int swapBank =
                               (loop_counters[1][1] == loop_bounds[1][1] - 1) &&
                               (loop_counters[1][2] == loop_bounds[1][2] - 1) &&
@@ -696,6 +729,7 @@ SC_MODULE(InputController) {
 
       int FX = params.loops[1][params.fxIndex];
       int FY = params.loops[1][params.fyIndex];
+      bool isDownsample = FX == 1 && FY == 1;
 
       bool bankSel = 0;
 
@@ -758,7 +792,11 @@ SC_MODULE(InputController) {
                           address =
                               y * (((params.STRIDE * X0) >> 2) + 2) + x0 + fx;
                         } else {
-                          address = y * (params.STRIDE * X0 + FX - 1) + x;
+                          if (isDownsample) {
+                            address = y0 * X0 + x0;
+                          } else {
+                            address = y * (params.STRIDE * X0 + FX - 1) + x;
+                          }
                         }
                         // int swapBank =
                         //     (loop_counters[1][1] == loop_bounds[1][1] -

@@ -13,7 +13,7 @@ project new -dir $project_folder
 project save
 
 options set Project/SolutionName $block
-options set Output/SubBlockNamePrefix $block
+#options set Output/SubBlockNamePrefix $block
 logfile move ./build/${block}.log
 
 options set Message/ErrorOverride ASSERT-1 -remove
@@ -65,6 +65,6 @@ solution options set ComponentLibs/SearchPath /sim/kprabhu7/minotaur-accelerator
 if {[info exists env(DEBUG)]} {
   solution library add ccs_sample_mem
 } else {
-  solution library add TS1N40LPB1024X128M4FWBA
+  solution library add TS1N40LPB1024X128M4FWBA_wrapped
   solution library add mem_1024x402
 }

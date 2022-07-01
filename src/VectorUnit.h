@@ -386,6 +386,7 @@ SC_MODULE(VectorUnit) {
   Connections::Combinational<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(
       vectorOpUnitOutput);
 
+  Connections::SyncOut CCS_INIT_S1(start);
   Connections::SyncOut CCS_INIT_S1(done);
 
   VectorFetchUnit<ODTYPE, WIDTH> CCS_INIT_S1(vectorFetch);
@@ -484,11 +485,14 @@ SC_MODULE(VectorUnit) {
     reduceOpInstructions.ResetWrite();
     accumulationOpInstructions.ResetWrite();
     vectorInstructionsIn.ResetRead();
+    start.Reset();
 
     wait();
 
     while (true) {
       VectorInstructionConfig instConfig = vectorInstructionsIn.Pop();
+
+      start.SyncPush();
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
