@@ -18,5 +18,3 @@
 #define ACCUMULATION_BUFFER_SIZE 1024
 
 // #define PIPE_INPUT 1
-// #define INPUT_SCALING
-// #define WEIGHT_SCALING
