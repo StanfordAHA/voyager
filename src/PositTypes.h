@@ -228,8 +228,8 @@ Posit<nbits, es> posit_exp(Posit<nbits, es> val) {
   //   return Posit<nbits, es>(0.0);
   // }
   if (val_fp.sign == true && val_fp.scale > 2) {
-    Posit<nibts, es> zero;
-    zero.bits.set_val<0>();
+    Posit<nbits, es> zero;
+    zero.bits.template set_val<AC_VAL_0>();
     return zero;
   }
 
