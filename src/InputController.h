@@ -167,82 +167,53 @@ SC_MODULE(InputController) {
                     for (loop_counters[1][4] = 0;
                          loop_counters[1][4] < loop_bounds[1][4];
                          loop_counters[1][4]++) {
-                      for (loop_counters[1][5] = 0;
-                           loop_counters[1][5] < loop_bounds[1][5];
-                           params.REPLICATION ? loop_counters[1][5] += 4
-                                              : loop_counters[1][5]++) {
-                        MemoryRequest memRequest;
-                        if (params.matMul) {
-                          int m0 = loop_counters[1][params.inputXLoopIndex[1]];
-                          int m1 = loop_counters[0][params.inputXLoopIndex[0]];
-                          int M0 = params.loops[1][params.inputXLoopIndex[1]];
-                          int N1 =
-                              params.loops[1][params.reductionLoopIndex[1]];
-                          int n1 =
-                              loop_counters[1][params.reductionLoopIndex[1]];
+                      for (loop_counters[1][5] = 0; loop_counters[1][5] < loop_bounds[1][5];
+                           params.REPLICATION ? loop_counters[1][5] += 4 : loop_counters[1][5]++) {
+                        int x0 = loop_counters[1][params.inputXLoopIndex[1]];
+                        int x1 = loop_counters[0][params.inputXLoopIndex[0]];
+                        int X0 = params.STRIDE * params.loops[1][params.inputXLoopIndex[1]];
+                        int X1 = params.loops[0][params.inputXLoopIndex[0]];
+                        int y0 = loop_counters[1][params.inputYLoopIndex[1]];
+                        int y1 = loop_counters[0][params.inputYLoopIndex[0]];
+                        int Y0 = params.STRIDE * params.loops[1][params.inputYLoopIndex[1]];
+                        int Y1 = params.loops[0][params.inputYLoopIndex[0]];
+                        int c1 = loop_counters[1][params.reductionLoopIndex[1]];
+                        int C1 = params.loops[1][params.reductionLoopIndex[1]];
 
-                          // change addressing
-                          int baseAddress =
-                              (m0 + m1 * M0) * (N1 * NROWS) + n1 * NROWS;
-                          int burstSize = NROWS;
-                          memRequest = {params.INPUT_OFFSET + baseAddress,
-                                        burstSize};
-                        } else {
-                          int x0 = loop_counters[1][params.inputXLoopIndex[1]];
-                          int x1 = loop_counters[0][params.inputXLoopIndex[0]];
-                          int X0 = params.STRIDE *
-                                   params.loops[1][params.inputXLoopIndex[1]];
-                          int X1 = params.loops[0][params.inputXLoopIndex[0]];
-                          int y0 = loop_counters[1][params.inputYLoopIndex[1]];
-                          int y1 = loop_counters[0][params.inputYLoopIndex[0]];
-                          int Y0 = params.STRIDE *
-                                   params.loops[1][params.inputYLoopIndex[1]];
-                          int Y1 = params.loops[0][params.inputYLoopIndex[0]];
-                          int c1 =
-                              loop_counters[1][params.reductionLoopIndex[1]];
-                          int C1 =
-                              params.loops[1][params.reductionLoopIndex[1]];
+                        int c = c1 * NROWS;
+                        int C = C1 * NROWS;
 
-                          int c = c1 * NROWS;
-                          int C = C1 * NROWS;
-
-                          if (isDownsample) {
-                            // adjust address for stride
-                            x0 = x0 * params.STRIDE;
-                            y0 = y0 * params.STRIDE;
-                          }
-
-                          int x = (x0 - x_min_offset) + x1 * X0;
-                          int X = X0 * X1;
-
-                          int y = (y0 - y_min_offset) + y1 * Y0;
-                          int Y = Y0 * Y1;
-
-                          int baseAddress = y * X * C + x * C + c;
-                          int burstSize = NROWS;
-
-                          if (params.REPLICATION) {
-                            baseAddress = y * (X / 4) * 16 + (x / 4) * 16 + c;
-                          }
-                          if (params.CONCAT_HEAD && params.TRANPOSE_INPUTS) {
-                            baseAddress =
-                                (c + (x % 16)) * 32 +
-                                (((x / 16) * DIMENSION) / 32 * C * 32) +
-                                (((x / 16) * DIMENSION) % 32);
-                          } else {
-                            if (params.CONCAT_HEAD) {
-                              baseAddress =
-                                  ((c / 32) * X * 32) + (x * 32) + (c % 32);
-                            }
-                            if (params.TRANPOSE_INPUTS) {
-                              baseAddress =
-                                  (c + (x % 16)) * X + (x / 16) * DIMENSION;
-                            }
-                          }
-
-                          memRequest = {params.INPUT_OFFSET + baseAddress,
-                                        burstSize};
+                        if (isDownsample) {
+                          // adjust address for stride
+                          x0 = x0 * params.STRIDE;
+                          y0 = y0 * params.STRIDE;
                         }
+
+                        int x = (x0 - x_min_offset) + x1 * X0;
+                        int X = X0 * X1;
+
+                        int y = (y0 - y_min_offset) + y1 * Y0;
+                        int Y = Y0 * Y1;
+
+                        int baseAddress = y * X * C + x * C + c;
+                        int burstSize = NROWS;
+
+                        if (params.REPLICATION) {
+                          baseAddress = y * (X / 4) * 16 + (x / 4) * 16 + c;
+                        }
+                        if (params.CONCAT_HEAD && params.TRANPOSE_INPUTS) {
+                          baseAddress = (c + (x % 16)) * 32 + (((x / 16) * DIMENSION) / 32 * C * 32) +
+                                        (((x / 16) * DIMENSION) % 32);
+                        } else {
+                          if (params.CONCAT_HEAD) {
+                            baseAddress = ((c / 32) * X * 32) + (x * 32) + (c % 32);
+                          }
+                          if (params.TRANPOSE_INPUTS) {
+                            baseAddress = (c + (x % 16)) * X + (x / 16) * DIMENSION;
+                          }
+                        }
+                        MemoryRequest memRequest;
+                        memRequest = {params.INPUT_OFFSET + baseAddress, burstSize};
 
                         addressRequest.Push(memRequest);
                         if (params.REPLICATION) {

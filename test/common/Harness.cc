@@ -940,7 +940,6 @@ void Harness::sendParams() {
         matrixParams.weightAddressGenReductionLoopIndex[0] = 0;
       }
 
-      matrixParams.matMul = false;  // unused
       matrixParams.STRIDE = params.STRIDE;
       matrixParams.HEAD_SIZE_LG2 = 0;
       matrixParams.REPLICATION = params.REPLICATION;

@@ -46,7 +46,6 @@ struct MatrixParams {
   bool VEC_REDUCE;
   bool CONST_SCALE;
   bool RELU;
-  bool matMul;
   bool REPLICATION;
   bool MAXPOOL;
   bool BIAS;
@@ -59,7 +58,7 @@ struct MatrixParams {
   bool TRANPOSE_INPUTS;
 
   static const unsigned int width =
-      13 * 32 + 12 * 32 + 10 * 32 + 19 * 1 + 18 * 32;
+      13 * 32 + 12 * 32 + 10 * 32 + 18 * 1 + 18 * 32;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
@@ -119,7 +118,6 @@ struct MatrixParams {
     m& VEC_REDUCE;
     m& CONST_SCALE;
     m& RELU;
-    m& matMul;
     m& REPLICATION;
     m& MAXPOOL;
     m& BIAS;
@@ -182,7 +180,6 @@ struct MatrixParams {
       os << "weightReuseIndex[" << i << "]: " << params.weightReuseIndex[i]
          << std::endl;
     }
-    os << "matMul: " << params.matMul << std::endl;
     os << "STRIDE: " << params.STRIDE << std::endl;
     os << "REPLICATION: " << params.REPLICATION << std::endl;
     os << "MAXPOOL: " << params.MAXPOOL << std::endl;
