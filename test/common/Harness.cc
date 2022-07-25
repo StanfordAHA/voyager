@@ -826,19 +826,7 @@ void Harness::sendParams() {
       MatrixParams matrixParams;
       matrixParams.INPUT_OFFSET = params.INPUT_OFFSET;
       matrixParams.WEIGHT_OFFSET = params.WEIGHT_OFFSET;
-      matrixParams.OUTPUT_OFFSET = params.OUTPUT_OFFSET;
-      matrixParams.SOFTMAX = params.SOFTMAX;
-      matrixParams.SCALE = 0;  // unused
       matrixParams.TRANSPOSE = params.TRANSPOSE;
-      matrixParams.VECTOR_OFFSET = 0;     // unused
-      matrixParams.VEC_OP = 0;            // unused
-      matrixParams.VEC_SUB = 0;           // unused
-      matrixParams.VEC_SQUARE = 0;        // unused
-      matrixParams.VEC_REDUCE = 0;        // unused
-      matrixParams.CONST_SCALE = 0;       // unused
-      matrixParams.VEC_SCALE_OFFSET = 0;  // unused
-      matrixParams.VEC_SUB_OFFSET = 0;    // unused
-      matrixParams.RELU = params.RELU;
       for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 6; j++) {
           matrixParams.loops[i][j] = params.loops[i][j];
@@ -943,12 +931,6 @@ void Harness::sendParams() {
       matrixParams.STRIDE = params.STRIDE;
       matrixParams.HEAD_SIZE_LG2 = 0;
       matrixParams.REPLICATION = params.REPLICATION;
-      matrixParams.MAXPOOL = params.MAXPOOL;
-      matrixParams.BIAS = params.BIAS;
-      matrixParams.BIAS_OFFSET = params.BIAS_OFFSET;
-      matrixParams.RESIDUAL = params.RESIDUAL;
-      matrixParams.RESIDUAL_OFFSET = params.RESIDUAL_OFFSET;
-      matrixParams.AVGPOOL = params.AVGPOOL;
       matrixParams.STORE_IN_ACC = params.STORE_IN_ACC;
       matrixParams.ACC_FROM_ACC = params.ACC_FROM_ACC;
       matrixParams.CONCAT_HEAD = params.CONCAT_HEAD;

@@ -5,11 +5,6 @@
 struct MatrixParams {
   int INPUT_OFFSET;
   int WEIGHT_OFFSET;
-  int OUTPUT_OFFSET;
-  int SCALE;
-  int VECTOR_OFFSET;
-  int VEC_SCALE_OFFSET;
-  int VEC_SUB_OFFSET;
 
   // systolic array loop
   int loops[2][6];
@@ -34,23 +29,11 @@ struct MatrixParams {
   int weightAddressGenInputYLoopIndex;
 
   int STRIDE;
-  int BIAS_OFFSET;
-  int RESIDUAL_OFFSET;
   int HEAD_SIZE_LG2;
 
-  bool SOFTMAX;
   bool TRANSPOSE;
-  bool VEC_OP;
-  bool VEC_SUB;
-  bool VEC_SQUARE;
-  bool VEC_REDUCE;
-  bool CONST_SCALE;
-  bool RELU;
   bool REPLICATION;
-  bool MAXPOOL;
-  bool BIAS;
-  bool RESIDUAL;
-  bool AVGPOOL;
+  
   bool STORE_IN_ACC;
   bool ACC_FROM_ACC;
   bool CONCAT_HEAD;
@@ -58,17 +41,12 @@ struct MatrixParams {
   bool TRANPOSE_INPUTS;
 
   static const unsigned int width =
-      13 * 32 + 12 * 32 + 10 * 32 + 18 * 1 + 18 * 32;
+      13 * 32 + 12 * 32 + 10 * 32 + 7 * 1 + 11 * 32;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
     m& INPUT_OFFSET;
     m& WEIGHT_OFFSET;
-    m& OUTPUT_OFFSET;
-    m& SCALE;
-    m& VECTOR_OFFSET;
-    m& VEC_SCALE_OFFSET;
-    m& VEC_SUB_OFFSET;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 6; j++) {
         m& loops[i][j];
@@ -107,22 +85,9 @@ struct MatrixParams {
     m& weightAddressGenInputXLoopIndex;
     m& weightAddressGenInputYLoopIndex;
     m& STRIDE;
-    m& BIAS_OFFSET;
-    m& RESIDUAL_OFFSET;
     m& HEAD_SIZE_LG2;
-    m& SOFTMAX;
     m& TRANSPOSE;
-    m& VEC_OP;
-    m& VEC_SUB;
-    m& VEC_SQUARE;
-    m& VEC_REDUCE;
-    m& CONST_SCALE;
-    m& RELU;
     m& REPLICATION;
-    m& MAXPOOL;
-    m& BIAS;
-    m& RESIDUAL;
-    m& AVGPOOL;
     m& STORE_IN_ACC;
     m& ACC_FROM_ACC;
     m& CONCAT_HEAD;
@@ -139,19 +104,7 @@ struct MatrixParams {
                                          const MatrixParams& params) {
     os << "INPUT_OFFSET: " << params.INPUT_OFFSET << std::endl;
     os << "WEIGHT_OFFSET: " << params.WEIGHT_OFFSET << std::endl;
-    os << "OUTPUT_OFFSET: " << params.OUTPUT_OFFSET << std::endl;
-    os << "SOFTMAX: " << params.SOFTMAX << std::endl;
-    os << "SCALE: " << params.SCALE << std::endl;
     os << "TRANSPOSE: " << params.TRANSPOSE << std::endl;
-    os << "VECTOR_OFFSET: " << params.VECTOR_OFFSET << std::endl;
-    os << "VEC_OP: " << params.VEC_OP << std::endl;
-    os << "VEC_SUB: " << params.VEC_SUB << std::endl;
-    os << "VEC_SQUARE: " << params.VEC_SQUARE << std::endl;
-    os << "VEC_REDUCE: " << params.VEC_REDUCE << std::endl;
-    os << "CONST_SCALE: " << params.CONST_SCALE << std::endl;
-    os << "VEC_SCALE_OFFSET: " << params.VEC_SCALE_OFFSET << std::endl;
-    os << "VEC_SUB_OFFSET: " << params.VEC_SUB_OFFSET << std::endl;
-    os << "RELU: " << params.RELU << std::endl;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 6; j++) {
         os << "loops[" << i << "][" << j << "]: " << params.loops[i][j]
@@ -182,12 +135,6 @@ struct MatrixParams {
     }
     os << "STRIDE: " << params.STRIDE << std::endl;
     os << "REPLICATION: " << params.REPLICATION << std::endl;
-    os << "MAXPOOL: " << params.MAXPOOL << std::endl;
-    os << "BIAS: " << params.BIAS << std::endl;
-    os << "BIAS_OFFSET: " << params.BIAS_OFFSET << std::endl;
-    os << "RESIDUAL: " << params.RESIDUAL << std::endl;
-    os << "RESIDUAL_OFFSET: " << params.RESIDUAL_OFFSET << std::endl;
-    os << "AVGPOOL: " << params.AVGPOOL << std::endl;
 
     return os;
   }
