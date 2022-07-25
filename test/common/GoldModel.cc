@@ -364,7 +364,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
     }
 
     const int numRows = inputScaling ? X + 1 : X;
-    ACC_T accumMatrix[numRows * K];
+    ACC_T accumMatrix[numRows * Y * K];
     memset(accumMatrix, 0, sizeof(accumMatrix));
 
     T permuteMatrixA[(STRIDE * X) * (STRIDE * Y) * C];
@@ -525,8 +525,10 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
           matrixC[x * K + k] = accumMatrix[x * K + k] / scalingFactor;
         }
       } else {
-        for (int x = 0; x < X; x++) {
-          matrixC[x * K + k] = accumMatrix[x * K + k];
+        for (int y = 0; y < Y; y++) {
+          for (int x = 0; x < X; x++) {
+            matrixC[y * X * K + x * K + k] = accumMatrix[y * X * K + x * K + k];
+          }
         }
       }
     }
