@@ -186,7 +186,7 @@ void loadActivation(std::string dataDir) {
 
 int runOperation(const SimplifiedParams params,
                  const std::string outputDataFile,
-                 const std::string outfilePrefix,
+                 const std::string outfilePrefix, const std::string testName,
                  const std::vector<std::string> groups) {
   validateMapping(params);
 
@@ -209,20 +209,20 @@ int runOperation(const SimplifiedParams params,
   int outputSize = params.NO_NORM_GRAD ? C : X * Y * K;
 
 #ifndef PIPE_INPUT
-  std::cout << "Performing " + outputDataFile + ":" << std::endl;
+  std::cout << "Performing " + testName + ":" << std::endl;
   std::cout << "(" << X << "x" << Y << "x" << C << ")"
             << " * "
             << "(" << FX << "x" << FY << "x" << C << "x" << K << ")"
             << std::endl;
 #endif
 
-  bool hlsposit =
-      std::find(groups.begin(), groups.end(), "hlsposit") != groups.end();
+  bool customposit =
+      std::find(groups.begin(), groups.end(), "customposit") != groups.end();
   bool universal =
       std::find(groups.begin(), groups.end(), "universal") != groups.end();
   bool fp32 = std::find(groups.begin(), groups.end(), "fp32") != groups.end();
 
-  if (hlsposit) {
+  if (customposit) {
     run_custom_posit_gold_model(
         params, hls_sram_memory + params.INPUT_OFFSET,
         (params.WEIGHT ? hls_rram_memory : hls_sram_memory) +
@@ -266,7 +266,7 @@ int runOperation(const SimplifiedParams params,
 
   std::string diffFile;
   int errors;
-  if (hlsposit) {
+  if (customposit) {
     std::cout << "HLS Posit Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals bugs in mapping operations to accelerator)"
               << std::endl;
@@ -283,7 +283,7 @@ int runOperation(const SimplifiedParams params,
                             uniDataFileOutput, outputSize, diffFile);
   }
 
-  if (hlsposit && universal) {
+  if (customposit && universal) {
     std::cout << "HLS Posit Gold Model vs. Universal Posit Gold Model"
               << std::endl;
     std::cout
@@ -349,7 +349,7 @@ int runInference(std::string datapath, std::vector<std::string> groups) {
 
       outfilePrefix = "test_outputs/" + test + "_activation_";
       datafile = activationDataDir + layerName + files.outputs_file;
-      errors += runOperation(params, datafile, outfilePrefix, groups);
+      errors += runOperation(params, datafile, outfilePrefix, test, groups);
 
       if (errors) return 1;
     }
@@ -359,6 +359,8 @@ int runInference(std::string datapath, std::vector<std::string> groups) {
     std::cout << (float)hls_sram_memory[params.OUTPUT_OFFSET + i] << "\t"
               << float_sram_memory[params.OUTPUT_OFFSET + i] << std::endl;
   }
+
+  // TODO: Compute cross entropy gradient
 
   return errors;
 }
@@ -370,23 +372,18 @@ int runBackprop(std::string datapath, std::vector<std::string> groups) {
 
   int errors = 0;
 
-  // TODO: Compute BinaryCrossEntropy loss and gradient
-
-  // For debug purpose
-  // loadActivation(activationDataDir);
-
   std::string operation = backpropOrder[0];
   SimplifiedParams params = paramsLookup(operation, "backprop");
   Files files = backpropTestFiles.at(operation);
   std::string datafile = errorDataDir + "mobilebert_classifier";
   bool useDataFile = true;
 
-  params.INPUT_OFFSET += ACTIVATION_OFFSET;
+  // params.INPUT_OFFSET += ACTIVATION_OFFSET;
 
-  load_inputs(params, datafile, useDataFile, acc_sram_memory,
-              hls_sram_memory + params.INPUT_OFFSET,
-              uni_sram_memory + params.INPUT_OFFSET,
-              float_sram_memory + params.INPUT_OFFSET);
+  // load_inputs(params, datafile, useDataFile, acc_sram_memory,
+  //             hls_sram_memory + params.INPUT_OFFSET,
+  //             uni_sram_memory + params.INPUT_OFFSET,
+  //             float_sram_memory + params.INPUT_OFFSET);
 
   // Perform back propagation
   for (int layer = 23; layer >= 0; layer--) {
@@ -425,7 +422,7 @@ int runBackprop(std::string datapath, std::vector<std::string> groups) {
 
       outfilePrefix = "test_outputs/" + test + "_error_";
       datafile = errorDataDir + layerName + files.outputs_file;
-      errors += runOperation(params, datafile, outfilePrefix, groups);
+      errors += runOperation(params, datafile, outfilePrefix, test, groups);
 
       if (errors) return 1;
 
@@ -447,7 +444,8 @@ int runBackprop(std::string datapath, std::vector<std::string> groups) {
 
         outfilePrefix = "test_outputs/" + test + "_gradient_";
         datafile = gradientDataDir + layerName + files.outputs_file;
-        errors += runOperation(params, datafile, outfilePrefix, groups);
+        errors += runOperation(params, datafile, outfilePrefix,
+                               test + "_gradient", groups);
 
         if (errors) return 1;
 

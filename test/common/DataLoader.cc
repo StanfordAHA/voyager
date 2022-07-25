@@ -14,6 +14,14 @@ void save_bias(ACCUM_DATATYPE* array, double val) {
   *array = ACCUM_DATATYPE(fval);
 }
 
+void save_bias_as_double_precision(INPUT_DATATYPE* array, double val) {
+  float fval = (float)val;
+  ACCUM_DATATYPE positVal = ACCUM_DATATYPE(fval);
+  for (int i = 0; i < 2; i++) {
+    array[i].bits = positVal.bits.slc<8>(i * 8);
+  }
+}
+
 #ifndef NO_UNIVERSAL
 void save_double(UniversalPosit* array, double val) {
   float fval = (float)val;
@@ -84,7 +92,7 @@ void load_inputs(const SimplifiedParams& params, const std::string& filename,
     FX = 7;
     C = 3;
   }
-  if (params.SOFTMAX || params.SOFTMAX_GRAD) {
+  if (params.SOFTMAX || params.SOFTMAX_GRAD || params.CROSS_ENTROPY_LOSS_GRAD) {
     C = 1;
   }
 
@@ -154,16 +162,16 @@ void load_weights(const SimplifiedParams& params, const std::string& filename,
     FX = 7;
     C = 3;
   }
-  if (params.NO_NORM) {
+  if (params.NO_NORM || params.CROSS_ENTROPY_LOSS_GRAD) {
     FX = 1;
     FY = 1;
     C = 1;
   }
+  if (params.NO_NORM_GRAD) {
+    C = X;
+  }
 
   int size = FY * FX * C * K;
-#ifdef WEIGHT_SCALING
-  size++;
-#endif
   double* tmpValues = read_file_as_double(filename, size, useDataFile);
   double* tmpValuePtr = tmpValues;
 
@@ -214,17 +222,13 @@ void load_bias(const SimplifiedParams& params, const std::string& filename,
   }
 
   int size = K;
-#ifdef WEIGHT_SCALING
-  size++;
-#endif
   double* tmpValues = read_file_as_double(filename, size, useDataFile);
   double* tmpValuePtr = tmpValues;
 
   for (int k = 0; k < size; k++) {
     double val = *(tmpValuePtr++);
-    save_bias(reinterpret_cast<ACCUM_DATATYPE*>(
-                  &acceleratorMemory[params.BIAS_OFFSET + k]),
-              val);
+    save_bias_as_double_precision(
+        &acceleratorMemory[params.BIAS_OFFSET + k * 2], val);
     save_bias(reinterpret_cast<ACCUM_DATATYPE*>(&goldMemory[k]), val);
     save_bias(reinterpret_cast<UniversalPositAccum*>(&universalGoldMemory[k]),
               val);
@@ -308,7 +312,7 @@ void load_datafile_outputs(const SimplifiedParams params,
   if (params.SOFTMAX || params.SOFTMAX_GRAD) {
     K = 1;
   }
-  if (params.NO_NORM_GRAD) {
+  if (params.NO_NORM_GRAD || params.CROSS_ENTROPY_LOSS_GRAD) {
     X = 1;
     Y = 1;
   }

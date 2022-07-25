@@ -388,28 +388,44 @@ extern "C" int sc_main(int argc, char* argv[]) {
     }
 
     if (!env_datapath) {
-      env_datapath = "/sim/jeffreyy/accelerator/data/mobilebert/datafile/";
+      env_datapath =
+          "/sim/jeffreyy/accelerator/data/mobilebert_train/datafile/";
     }
 
     std::string task(env_task);
     std::string datapath(env_datapath);
 
-    int error = 0;
+    int errors = 0;
     if (tests == "inference") {
-      error = allocateMemory();
+      errors = allocateMemory();
 
       std::string weightDataDir = datapath + "weights/";
       loadWeights(weightDataDir);
 
-      return runInference(datapath, compList);
+      errors += runInference(datapath, compList);
 
       deleteMemory();
+    } else if (tests == "training") {
+      errors = allocateMemory();
+
+      std::string weightDataDir = datapath + "weights/";
+      loadWeights(weightDataDir);
+
+      // For debug purpose
+      std::string activationDataDir = datapath + "activations1/";
+      loadActivation(activationDataDir);
+
+      // errors += runInference(datapath, compList);
+      errors += runBackprop(datapath, compList);
+
+      deleteMemory();
+    } else {
+      for (auto test : testList) {
+        errors += runMobileBertUnitTest(task, test, compList, datapath);
+      }
     }
 
-    for (auto test : testList) {
-      error += runMobileBertUnitTest(task, test, compList, datapath);
-    }
-    return error;
+    return errors;
   }
 
   // Get sequence to run

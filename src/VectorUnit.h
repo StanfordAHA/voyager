@@ -23,7 +23,7 @@ SC_MODULE(VectorOpUnit) {
   Connections::In<Pack1D<ACC_DTYPE, WIDTH> > CCS_INIT_S1(systolicArrayOutput);
   Connections::In<Pack1D<IDTYPE, WIDTH> > CCS_INIT_S1(vectorFetch0Output);
   Connections::In<Pack1D<IDTYPE, WIDTH> > CCS_INIT_S1(vectorFetch1Output);
-  Connections::In<Pack1D<IDTYPE, WIDTH> > CCS_INIT_S1(vectorFetch2Output);
+  Connections::In<Pack1D<ACC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch2Output);
 
   Connections::Out<Pack1D<IDTYPE, WIDTH> > CCS_INIT_S1(vectorOpUnitOutput);
   Connections::Out<Pack1D<IDTYPE, WIDTH> > CCS_INIT_S1(scalarOpUnitOutput);
@@ -112,16 +112,24 @@ SC_MODULE(VectorOpUnit) {
         op0Src0 = accumulationOpOutput.Pop();
       }
 
-      if (inst.vAccumulatePush) {
-        accumulationOpInput.Push(op0Src0);
-      }
-
       Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op0Src1;
       if (inst.vOp0Src1 == VectorInstructions::readInterface) {
         Pack1D<IDTYPE, WIDTH> tmp = vectorFetch1Output.Pop();
 #pragma hls_unroll yes
         for (int i = 0; i < WIDTH; i++) {
           op0Src1[i] = tmp[i];
+        }
+      } else if (inst.vOp0Src1 == VectorInstructions::op0immediate0 || inst.vOp0Src1 == VectorInstructions::op0immediate1 ){
+        IDTYPE immediate;
+        if(inst.vOp0Src1 == VectorInstructions::op0immediate0){
+          immediate.bits = inst.immediate0;
+        } else {
+          immediate.bits = inst.immediate1;
+        }
+
+        #pragma hls_unroll yes
+        for (int i = 0; i < WIDTH; i++) {
+          op0Src1[i] = immediate;
         }
       }
 
@@ -187,11 +195,23 @@ SC_MODULE(VectorOpUnit) {
       if (inst.vOp3Src1 == VectorInstructions::readReduceInterface) {
         op3Src1 = reductionOpOutputSrc1.Pop();
       } else if (inst.vOp3Src1 == VectorInstructions::readNormalInterface) {
-        Pack1D<IDTYPE, WIDTH> tmp = vectorFetch2Output.Pop();
+        Pack1D<ACC_DTYPE, WIDTH> tmp = vectorFetch2Output.Pop();
 
 #pragma hls_unroll yes
         for (int i = 0; i < WIDTH; i++) {
           op3Src1[i] = tmp[i];
+        }
+      } else if (inst.vOp3Src1 == VectorInstructions::op3immediate0 || inst.vOp3Src1 == VectorInstructions::op3immediate1 ){
+        IDTYPE immediate;
+        if(inst.vOp3Src1 == VectorInstructions::op3immediate0){
+          immediate.bits = inst.immediate0;
+        } else {
+          immediate.bits = inst.immediate1;
+        }
+
+        #pragma hls_unroll yes
+        for (int i = 0; i < WIDTH; i++) {
+          op3Src1[i] = immediate;
         }
       }
 
@@ -220,6 +240,10 @@ SC_MODULE(VectorOpUnit) {
         vrelu<typename ACC_DTYPE::DecomposedPosit, WIDTH>(res3, res4);
       } else {
         res4 = res3;
+      }
+
+      if (inst.vAccumulatePush) {
+        accumulationOpInput.Push(res4);
       }
 
       // DLOG("res4: " << res4);
@@ -375,7 +399,7 @@ SC_MODULE(VectorUnit) {
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch2AddressRequest);
   Connections::In<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(vectorFetch2DataResponse);
-  Connections::Combinational<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<ACC_DTYPE, WIDTH> > CCS_INIT_S1(
       vectorFetch2DataResponseReplicated);
 
   Connections::Out<int> CCS_INIT_S1(scalarOutputAddress);
@@ -389,7 +413,7 @@ SC_MODULE(VectorUnit) {
   Connections::SyncOut CCS_INIT_S1(start);
   Connections::SyncOut CCS_INIT_S1(done);
 
-  VectorFetchUnit<ODTYPE, WIDTH> CCS_INIT_S1(vectorFetch);
+  VectorFetchUnit<ODTYPE, ACC_DTYPE, WIDTH> CCS_INIT_S1(vectorFetch);
   Connections::Combinational<VectorParams> CCS_INIT_S1(vectorFetchParams);
 
   VectorOpUnit<ODTYPE, ACC_DTYPE, WIDTH> CCS_INIT_S1(vectorOpUnit);

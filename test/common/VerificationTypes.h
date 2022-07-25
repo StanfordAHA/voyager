@@ -76,6 +76,14 @@ struct SimplifiedParams {
   bool NO_NORM_GRAD;
   bool RELU_GRAD;
   bool WEIGHT_PERMUTE;
+
+  bool WEIGHT_ADDITION;
+  bool BIAS_GRAD;
+  bool GRADIENT_CLIPPING;
+
+  bool CROSS_ENTROPY_LOSS_GRAD;
+  bool MSE_LOSS_GRAD;
+  bool BCE_LOGITS_LOSS_GRAD;
 };
 
 struct MemoryOffsets {

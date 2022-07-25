@@ -11,8 +11,8 @@ std::vector<std::string> inferenceOrder{
     "bottleneck_input_LayerNorm",
     "bottleneck_attention_dense",
     "bottleneck_attention_LayerNorm",
-    "attention_self_query",
-    "attention_self_key",
+    "attention_self_query_layer",
+    "attention_self_key_layer",
     "attention_self_attention_scores_0",
     "attention_self_attention_scores_1",
     "attention_self_attention_scores_2",
@@ -21,7 +21,7 @@ std::vector<std::string> inferenceOrder{
     "attention_self_attention_probs_1",
     "attention_self_attention_probs_2",
     "attention_self_attention_probs_3",
-    "attention_self_value",
+    "attention_self_value_layer",
     "attention_self_context_layer_0",
     "attention_self_context_layer_1",
     "attention_self_context_layer_2",
@@ -50,9 +50,9 @@ std::map<std::string, std::string> inferenceParamsMapping{
     {"bottleneck_input_LayerNorm", "bottleneckLayerNorm"},
     {"bottleneck_attention_dense", "inputBottleneck"},
     {"bottleneck_attention_LayerNorm", "bottleneckLayerNorm"},
-    {"attention_self_query", "qkProjection"},
-    {"attention_self_key", "qkProjection"},
-    {"attention_self_value", "vProjection"},
+    {"attention_self_query_layer", "qkProjection"},
+    {"attention_self_key_layer", "qkProjection"},
+    {"attention_self_value_layer", "vProjection"},
     {"attention_self_attention_scores_0", "qkAttention"},
     {"attention_self_attention_scores_1", "qkAttention"},
     {"attention_self_attention_scores_2", "qkAttention"},
@@ -591,7 +591,7 @@ std::map<std::string, MemoryOffsets> inferenceMemOffsets{
          INTERMEDIATE_SIZE + 4 * HIDDEN_SIZE,
          2 * WEIGHT_INTERMEDIATE_SIZE + 5 * BIAS_HIDDEN_SIZE,
      }},
-    {"attention_self_query",
+    {"attention_self_query_layer",
      {
          INTERMEDIATE_SIZE + 4 * HIDDEN_SIZE,
          2 * WEIGHT_INTERMEDIATE_SIZE + 6 * BIAS_HIDDEN_SIZE,
@@ -599,7 +599,7 @@ std::map<std::string, MemoryOffsets> inferenceMemOffsets{
          2 * WEIGHT_INTERMEDIATE_SIZE + WEIGHT_HIDDEN_SIZE +
              6 * BIAS_HIDDEN_SIZE,
      }},
-    {"attention_self_key",
+    {"attention_self_key_layer",
      {
          INTERMEDIATE_SIZE + 4 * HIDDEN_SIZE,
          2 * WEIGHT_INTERMEDIATE_SIZE + WEIGHT_HIDDEN_SIZE +
@@ -656,7 +656,7 @@ std::map<std::string, MemoryOffsets> inferenceMemOffsets{
          0,
          INTERMEDIATE_SIZE + 14 * HIDDEN_SIZE,
      }},
-    {"attention_self_value",
+    {"attention_self_value_layer",
      {
          0,
          2 * WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
@@ -882,21 +882,21 @@ std::map<std::string, Files> inferenceTestFiles{
      }},
 
     // QKV Projection
-    {"attention_self_query",
+    {"attention_self_query_layer",
      {
          "bottleneck_attention_LayerNorm",
          "attention_self_query_weight",
          "attention_self_query_bias",
          "attention_self_query_layer",
      }},
-    {"attention_self_key",
+    {"attention_self_key_layer",
      {
          "bottleneck_attention_LayerNorm",
          "attention_self_key_weight",
          "attention_self_key_bias",
          "attention_self_key_layer",
      }},
-    {"attention_self_value",
+    {"attention_self_value_layer",
      {
          "hidden_states",
          "attention_self_value_weight",
@@ -1122,6 +1122,6 @@ std::map<std::string, Files> inferenceTestFiles{
          "mobilebert_encoder_layer_23_output_bottleneck_LayerNorm",
          "classifier_weight",
          "classifier_bias",
-         "mobilebert_classifier",
+         "mobilebert_logits",
      }},
 };

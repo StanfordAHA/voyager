@@ -1,3 +1,4 @@
+import datetime
 import multiprocessing as mp
 import os
 import struct
@@ -6,7 +7,7 @@ from subprocess import PIPE
 
 import argparse
 from datasets import load_dataset, load_metric
-import datetime
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -49,7 +50,7 @@ def run_test(model_name_or_path, datapath, batch, results_folder, test_id):
     env_vars = os.environ.copy()
     env_vars['GROUP'] = "mobilebert"
     env_vars['TESTS'] = "inference"
-    env_vars['SIMS'] = "fp32,hlsposit"
+    env_vars['SIMS'] = "fp32,customposit"
     env_vars['DATA_PATH'] = datapath
 
     stdout_file = open(f'{results_folder}/run.{test_id}.log', 'w')
