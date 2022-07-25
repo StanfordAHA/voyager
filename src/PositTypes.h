@@ -159,6 +159,7 @@ class Posit {
   template <int nbits2, int es2>
   Posit operator+(const Posit<nbits2, es2> &rhs);
   Posit operator*(const Posit &rhs);
+  Posit log_mult(const Posit &rhs);
   Posit operator/(const Posit &rhs);
   Posit &operator+=(const Posit &rhs);
   Posit &operator-=(const Posit &rhs);
@@ -215,32 +216,46 @@ Posit<nbits, es>::Posit(const float f) {
 #endif
 
 template <int nbits, int es>
-void posit_exp(Posit<nbits, es> &val) {
-  // std::cout << "original:\t" << bits.to_string(AC_BIN, false, true)
-  //           << std::endl;
-  val.negate();
-  // std::cout << "negative:\t" << bits.to_string(AC_BIN, false, true)
-  //           << std::endl;
+Posit<nbits, es> posit_exp(Posit<nbits, es> val) {
+  typename Posit<nbits, es>::DecomposedPosit val_fp =
+      static_cast<typename Posit<nbits, es>::DecomposedPosit>(val);
 
-  Posit<nbits, 0> es0Posit(val);
+  // FIXME: adjust as needed to fix accuracy issues
+  // this worked well:
+  // if ((float)val < -5.0) {
+  //   return Posit<nbits, es>(0.0);
+  // }
+  if (val_fp.sign == true && val_fp.scale > 2) {
+    Posit<nibts, es> zero;
+    zero.bits.set_val<0>();
+    return zero;
+  }
+
+  val.negate();
+
+  Posit<16, 0> es0Posit(val);
   es0Posit.sigmoid();
-  val = es0Posit;
+  // val = es0Posit;
   // std::cout << "sigmoid:\t" << bits.to_string(AC_BIN, false, true)
   //           << std::endl;
-  val.reciprocal();
+  es0Posit.reciprocal();
   // std::cout << "reciprocal:\t" << bits.to_string(AC_BIN, false, true)
   //           << std::endl;
 
-  typename Posit<nbits, es>::DecomposedPosit op1(val);
-  typename Posit<nbits, es>::DecomposedPosit op2;
-  op2.sign = 1;
-  op2.scale = 0;
-  op2.fraction = 0;
-  op2._zero = false;
-  typename Posit<nbits, es>::DecomposedPosit res =
-      static_cast<typename Posit<nbits, es>::DecomposedPosit>(op1 + op2);
+  Posit<16, 0> one;
+  one.bits = (1 << (16 - 1 - 1));
+
+  return static_cast<Posit<nbits, es>>(es0Posit - one);
+  // typename Posit<16, 0>::DecomposedPosit op1(val);
+  // typename Posit<16, 0>::DecomposedPosit op2;
+  // op2.sign = 1;
+  // op2.scale = 0;
+  // op2.fraction = 0;
+  // op2._zero = false;
+  // typename Posit<nbits, es>::DecomposedPosit res =
+  //     static_cast<typename Posit<nbits, es>::DecomposedPosit>(op1 + op2);
   // FIXME!! the following line does not work:
-  //  val = res;
+  // return res;
   //  std::cout << "final  :\t" << bits.to_string(AC_BIN, false, true)
   //            << std::endl;
 }
@@ -259,6 +274,14 @@ inline Posit<nbits, es> Posit<nbits, es>::operator*(
   PositFP<8, fbits> op1 = *this;
   PositFP<8, fbits> op2 = rhs;
   return op1 * op2;
+}
+
+template <int nbits, int es>
+inline Posit<nbits, es> Posit<nbits, es>::log_mult(
+    const Posit<nbits, es> &rhs) {
+  PositFP<8, fbits> op1 = *this;
+  PositFP<8, fbits> op2 = rhs;
+  return op1.log_mult(op2);
 }
 
 template <int nbits, int es>
@@ -397,6 +420,7 @@ class PositFP {
 
   PositFP<sbits, abits + 1> operator+(const PositFP &op) const;
   PositFP<sbits, mbits> operator*(const PositFP &op) const;
+  PositFP log_mult(const PositFP &op) const;
   PositFP &operator+=(const PositFP &rhs);
   bool operator<(const PositFP &rhs) const;
 
@@ -550,6 +574,50 @@ PositFP<sbits, PositFP<sbits, fbits>::mbits> PositFP<sbits, fbits>::operator*(
 }
 
 template <int sbits, int fbits>
+PositFP<sbits, fbits> PositFP<sbits, fbits>::log_mult(
+    const PositFP<sbits, fbits> &op) const {
+  PositFP<sbits, fbits> lhs = *this;
+  PositFP<sbits, fbits> rhs = op;
+  PositFP<sbits, fbits> result;
+
+  if (lhs.isZero() || rhs.isZero()) {
+    result.setZero();
+    return result;
+  }
+
+  result.sign = lhs.sign ^ rhs.sign;
+  result.scale = lhs.scale + rhs.scale;
+
+  std::cout << (float)lhs << std::endl;
+
+  std::cout << "Scale: " << lhs.scale << " + " << rhs.scale << std::endl;
+  std::cout << "Fraction: " << lhs.fraction << " + " << rhs.fraction
+            << std::endl;
+
+  ac_int<fbits + 1, false> fractionSum = lhs.fraction + rhs.fraction;
+  if (fractionSum[fbits]) {
+    result.scale++;
+    // fractionSum <<= 1;
+  }
+  result.fraction.set_slc(0, fractionSum.template slc<fbits>(0));
+
+  ac_int<mbits, false> exactFraction =
+      lhs.get_fixed_point() * rhs.get_fixed_point();
+  if (exactFraction[mbits - 1]) {
+    exactFraction <<= 1;
+  } else {
+    exactFraction <<= 2;
+  }
+
+  std::cout << "approx: " << result.fraction << std::endl;
+  std::cout << "exact: " << exactFraction << std::endl;
+
+  // copy_(fractionSum, result.fraction);
+
+  return result;
+}
+
+template <int sbits, int fbits>
 inline PositFP<sbits, fbits> &PositFP<sbits, fbits>::operator+=(
     const PositFP<sbits, fbits> &rhs) {
   *this = static_cast<PositFP<sbits, fbits>>(*this + rhs);
@@ -591,6 +659,7 @@ Posit<nbits2, es2> fma(const Posit<nbits, es> &a, const Posit<nbits, es> &b,
 
   PositFP<8, fbits> va(a), vb(b);
   PositFP<8, mbits> product;
+  // PositFP<8, fbits> product;
   PositFP<8, fbits2> vc(c);
   PositFP<8, abits + 1> sum;
 
@@ -598,6 +667,7 @@ Posit<nbits2, es2> fma(const Posit<nbits, es> &a, const Posit<nbits, es> &b,
     return Posit<nbits2, es2>(c);
   } else {
     product = va * vb;  // a * b also works here
+    // product = va.log_mult(vb);  // a * b also works here
     if (c.isZero()) {
       return Posit<nbits2, es2>(product);
     } else {
