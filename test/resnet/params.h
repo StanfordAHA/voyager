@@ -31,6 +31,23 @@ const SimplifiedParams conv1_params = {
     false,                                       // softmax
     false,                                       // FC
     false,                                       // no-norm
+    true,                                        // weight
+    false,                                       // ATTENTION_SCALING
+    false,                                       // STORE_IN_ACC
+    false,                                       // ACC_FROM_ACC
+    false,                                       // INPUT_TRANSPOSE
+    false,                                       // SPLIT_HEAD
+    false,                                       // CONCAT_HEAD
+    false,                                       // SOFTMAX_GRAD
+    false,                                       // NO_NORM_GRAD
+    false,                                       // RELU_GRAD
+    false,                                       // WEIGHT_PERMUTE
+    false,                                       // WEIGHT_ADDITION
+    false,                                       // BIAS_GRAD
+    false,                                       // GRADIENT_CLIPPING
+    false,                                       // CROSS_ENTROPY_LOSS_GRAD
+    false,                                       // MSE_LOSS_GRAD
+    false,                                       // BCE_LOGITS_LOSS_GRAD
 };
 
 const SimplifiedParams layer1_0_conv1_params = {
@@ -58,6 +75,23 @@ const SimplifiedParams layer1_0_conv1_params = {
     false,                                       // SOFTMAX
     false,                                       // FC
     false,                                       // no-norm
+    true,                                        // weight
+    false,                                       // ATTENTION_SCALING
+    false,                                       // STORE_IN_ACC
+    false,                                       // ACC_FROM_ACC
+    false,                                       // INPUT_TRANSPOSE
+    false,                                       // SPLIT_HEAD
+    false,                                       // CONCAT_HEAD
+    false,                                       // SOFTMAX_GRAD
+    false,                                       // NO_NORM_GRAD
+    false,                                       // RELU_GRAD
+    false,                                       // WEIGHT_PERMUTE
+    false,                                       // WEIGHT_ADDITION
+    false,                                       // BIAS_GRAD
+    false,                                       // GRADIENT_CLIPPING
+    false,                                       // CROSS_ENTROPY_LOSS_GRAD
+    false,                                       // MSE_LOSS_GRAD
+    false,                                       // BCE_LOGITS_LOSS_GRAD
 };
 
 const SimplifiedParams layer1_0_conv2_params = {
@@ -85,6 +119,23 @@ const SimplifiedParams layer1_0_conv2_params = {
     false,                                       // SOFTMAX
     false,                                       // FC
     false,                                       // no-norm
+    true,                                        // weight
+    false,                                       // ATTENTION_SCALING
+    false,                                       // STORE_IN_ACC
+    false,                                       // ACC_FROM_ACC
+    false,                                       // INPUT_TRANSPOSE
+    false,                                       // SPLIT_HEAD
+    false,                                       // CONCAT_HEAD
+    false,                                       // SOFTMAX_GRAD
+    false,                                       // NO_NORM_GRAD
+    false,                                       // RELU_GRAD
+    false,                                       // WEIGHT_PERMUTE
+    false,                                       // WEIGHT_ADDITION
+    false,                                       // BIAS_GRAD
+    false,                                       // GRADIENT_CLIPPING
+    false,                                       // CROSS_ENTROPY_LOSS_GRAD
+    false,                                       // MSE_LOSS_GRAD
+    false,                                       // BCE_LOGITS_LOSS_GRAD
 };
 
 const SimplifiedParams layer1_1_conv1_params = {
@@ -112,6 +163,23 @@ const SimplifiedParams layer1_1_conv1_params = {
     false,                                       // SOFTMAX
     false,                                       // FC
     false,                                       // no-norm
+    true,                                        // weight
+    false,                                       // ATTENTION_SCALING
+    false,                                       // STORE_IN_ACC
+    false,                                       // ACC_FROM_ACC
+    false,                                       // INPUT_TRANSPOSE
+    false,                                       // SPLIT_HEAD
+    false,                                       // CONCAT_HEAD
+    false,                                       // SOFTMAX_GRAD
+    false,                                       // NO_NORM_GRAD
+    false,                                       // RELU_GRAD
+    false,                                       // WEIGHT_PERMUTE
+    false,                                       // WEIGHT_ADDITION
+    false,                                       // BIAS_GRAD
+    false,                                       // GRADIENT_CLIPPING
+    false,                                       // CROSS_ENTROPY_LOSS_GRAD
+    false,                                       // MSE_LOSS_GRAD
+    false,                                       // BCE_LOGITS_LOSS_GRAD
 };
 
 const SimplifiedParams layer1_1_conv2_params = {
@@ -139,6 +207,23 @@ const SimplifiedParams layer1_1_conv2_params = {
     false,                                       // SOFTMAX
     false,                                       // FC
     false,                                       // no-norm
+    true,                                        // weight
+    false,                                       // ATTENTION_SCALING
+    false,                                       // STORE_IN_ACC
+    false,                                       // ACC_FROM_ACC
+    false,                                       // INPUT_TRANSPOSE
+    false,                                       // SPLIT_HEAD
+    false,                                       // CONCAT_HEAD
+    false,                                       // SOFTMAX_GRAD
+    false,                                       // NO_NORM_GRAD
+    false,                                       // RELU_GRAD
+    false,                                       // WEIGHT_PERMUTE
+    false,                                       // WEIGHT_ADDITION
+    false,                                       // BIAS_GRAD
+    false,                                       // GRADIENT_CLIPPING
+    false,                                       // CROSS_ENTROPY_LOSS_GRAD
+    false,                                       // MSE_LOSS_GRAD
+    false,                                       // BCE_LOGITS_LOSS_GRAD
 };
 
 const SimplifiedParams layer2_0_downsample_params = {
@@ -166,6 +251,23 @@ const SimplifiedParams layer2_0_downsample_params = {
     false,                                       // SOFTMAX
     false,                                       // FC
     false,                                       // no-norm
+    true,                                        // weight
+    false,                                       // ATTENTION_SCALING
+    false,                                       // STORE_IN_ACC
+    false,                                       // ACC_FROM_ACC
+    false,                                       // INPUT_TRANSPOSE
+    false,                                       // SPLIT_HEAD
+    false,                                       // CONCAT_HEAD
+    false,                                       // SOFTMAX_GRAD
+    false,                                       // NO_NORM_GRAD
+    false,                                       // RELU_GRAD
+    false,                                       // WEIGHT_PERMUTE
+    false,                                       // WEIGHT_ADDITION
+    false,                                       // BIAS_GRAD
+    false,                                       // GRADIENT_CLIPPING
+    false,                                       // CROSS_ENTROPY_LOSS_GRAD
+    false,                                       // MSE_LOSS_GRAD
+    false,                                       // BCE_LOGITS_LOSS_GRAD
 };
 
 const SimplifiedParams layer2_0_conv1_params = {
@@ -193,6 +295,23 @@ const SimplifiedParams layer2_0_conv1_params = {
     false,                                     // SOFTMAX
     false,                                     // FC
     false,                                     // no-norm
+    true,                                      // weight
+    false,                                     // ATTENTION_SCALING
+    false,                                     // STORE_IN_ACC
+    false,                                     // ACC_FROM_ACC
+    false,                                     // INPUT_TRANSPOSE
+    false,                                     // SPLIT_HEAD
+    false,                                     // CONCAT_HEAD
+    false,                                     // SOFTMAX_GRAD
+    false,                                     // NO_NORM_GRAD
+    false,                                     // RELU_GRAD
+    false,                                     // WEIGHT_PERMUTE
+    false,                                     // WEIGHT_ADDITION
+    false,                                     // BIAS_GRAD
+    false,                                     // GRADIENT_CLIPPING
+    false,                                     // CROSS_ENTROPY_LOSS_GRAD
+    false,                                     // MSE_LOSS_GRAD
+    false,                                     // BCE_LOGITS_LOSS_GRAD
 };
 
 const SimplifiedParams layer2_0_conv2_params = {
@@ -220,6 +339,23 @@ const SimplifiedParams layer2_0_conv2_params = {
     false,                                       // SOFTMAX
     false,                                       // FC
     false,                                       // no-norm
+    true,                                        // weight
+    false,                                       // ATTENTION_SCALING
+    false,                                       // STORE_IN_ACC
+    false,                                       // ACC_FROM_ACC
+    false,                                       // INPUT_TRANSPOSE
+    false,                                       // SPLIT_HEAD
+    false,                                       // CONCAT_HEAD
+    false,                                       // SOFTMAX_GRAD
+    false,                                       // NO_NORM_GRAD
+    false,                                       // RELU_GRAD
+    false,                                       // WEIGHT_PERMUTE
+    false,                                       // WEIGHT_ADDITION
+    false,                                       // BIAS_GRAD
+    false,                                       // GRADIENT_CLIPPING
+    false,                                       // CROSS_ENTROPY_LOSS_GRAD
+    false,                                       // MSE_LOSS_GRAD
+    false,                                       // BCE_LOGITS_LOSS_GRAD
 };
 const SimplifiedParams layer2_1_conv1_params = {
     1249280,                                     // INPUT_OFFSET
@@ -246,6 +382,23 @@ const SimplifiedParams layer2_1_conv1_params = {
     false,                                       // SOFTMAX
     false,                                       // FC
     false,                                       // no-norm
+    true,                                        // weight
+    false,                                       // ATTENTION_SCALING
+    false,                                       // STORE_IN_ACC
+    false,                                       // ACC_FROM_ACC
+    false,                                       // INPUT_TRANSPOSE
+    false,                                       // SPLIT_HEAD
+    false,                                       // CONCAT_HEAD
+    false,                                       // SOFTMAX_GRAD
+    false,                                       // NO_NORM_GRAD
+    false,                                       // RELU_GRAD
+    false,                                       // WEIGHT_PERMUTE
+    false,                                       // WEIGHT_ADDITION
+    false,                                       // BIAS_GRAD
+    false,                                       // GRADIENT_CLIPPING
+    false,                                       // CROSS_ENTROPY_LOSS_GRAD
+    false,                                       // MSE_LOSS_GRAD
+    false,                                       // BCE_LOGITS_LOSS_GRAD
 };
 const SimplifiedParams layer2_1_conv2_params = {
     45056,                                       // INPUT_OFFSET
@@ -272,6 +425,23 @@ const SimplifiedParams layer2_1_conv2_params = {
     false,                                       // SOFTMAX
     false,                                       // FC
     false,                                       // no-norm
+    true,                                        // weight
+    false,                                       // ATTENTION_SCALING
+    false,                                       // STORE_IN_ACC
+    false,                                       // ACC_FROM_ACC
+    false,                                       // INPUT_TRANSPOSE
+    false,                                       // SPLIT_HEAD
+    false,                                       // CONCAT_HEAD
+    false,                                       // SOFTMAX_GRAD
+    false,                                       // NO_NORM_GRAD
+    false,                                       // RELU_GRAD
+    false,                                       // WEIGHT_PERMUTE
+    false,                                       // WEIGHT_ADDITION
+    false,                                       // BIAS_GRAD
+    false,                                       // GRADIENT_CLIPPING
+    false,                                       // CROSS_ENTROPY_LOSS_GRAD
+    false,                                       // MSE_LOSS_GRAD
+    false,                                       // BCE_LOGITS_LOSS_GRAD
 };
 
 const SimplifiedParams layer3_0_downsample_params = {
@@ -299,6 +469,23 @@ const SimplifiedParams layer3_0_downsample_params = {
     false,                                     // SOFTMAX
     false,                                     // FC
     false,                                     // no-norm
+    true,                                      // weight
+    false,                                     // ATTENTION_SCALING
+    false,                                     // STORE_IN_ACC
+    false,                                     // ACC_FROM_ACC
+    false,                                     // INPUT_TRANSPOSE
+    false,                                     // SPLIT_HEAD
+    false,                                     // CONCAT_HEAD
+    false,                                     // SOFTMAX_GRAD
+    false,                                     // NO_NORM_GRAD
+    false,                                     // RELU_GRAD
+    false,                                     // WEIGHT_PERMUTE
+    false,                                     // WEIGHT_ADDITION
+    false,                                     // BIAS_GRAD
+    false,                                     // GRADIENT_CLIPPING
+    false,                                     // CROSS_ENTROPY_LOSS_GRAD
+    false,                                     // MSE_LOSS_GRAD
+    false,                                     // BCE_LOGITS_LOSS_GRAD
 };
 
 const SimplifiedParams layer3_0_conv1_params = {
@@ -326,6 +513,23 @@ const SimplifiedParams layer3_0_conv1_params = {
     false,                                     // SOFTMAX
     false,                                     // FC
     false,                                     // no-norm
+    true,                                      // weight
+    false,                                     // ATTENTION_SCALING
+    false,                                     // STORE_IN_ACC
+    false,                                     // ACC_FROM_ACC
+    false,                                     // INPUT_TRANSPOSE
+    false,                                     // SPLIT_HEAD
+    false,                                     // CONCAT_HEAD
+    false,                                     // SOFTMAX_GRAD
+    false,                                     // NO_NORM_GRAD
+    false,                                     // RELU_GRAD
+    false,                                     // WEIGHT_PERMUTE
+    false,                                     // WEIGHT_ADDITION
+    false,                                     // BIAS_GRAD
+    false,                                     // GRADIENT_CLIPPING
+    false,                                     // CROSS_ENTROPY_LOSS_GRAD
+    false,                                     // MSE_LOSS_GRAD
+    false,                                     // BCE_LOGITS_LOSS_GRAD
 };
 
 const SimplifiedParams layer3_0_conv2_params = {
@@ -353,6 +557,23 @@ const SimplifiedParams layer3_0_conv2_params = {
     false,                                      // SOFTMAX
     false,                                      // FC
     false,                                      // no-norm
+    true,                                       // weight
+    false,                                      // ATTENTION_SCALING
+    false,                                      // STORE_IN_ACC
+    false,                                      // ACC_FROM_ACC
+    false,                                      // INPUT_TRANSPOSE
+    false,                                      // SPLIT_HEAD
+    false,                                      // CONCAT_HEAD
+    false,                                      // SOFTMAX_GRAD
+    false,                                      // NO_NORM_GRAD
+    false,                                      // RELU_GRAD
+    false,                                      // WEIGHT_PERMUTE
+    false,                                      // WEIGHT_ADDITION
+    false,                                      // BIAS_GRAD
+    false,                                      // GRADIENT_CLIPPING
+    false,                                      // CROSS_ENTROPY_LOSS_GRAD
+    false,                                      // MSE_LOSS_GRAD
+    false,                                      // BCE_LOGITS_LOSS_GRAD
 };
 const SimplifiedParams layer3_1_conv1_params = {
     1249280,                                    // INPUT_OFFSET
@@ -379,6 +600,23 @@ const SimplifiedParams layer3_1_conv1_params = {
     false,                                      // SOFTMAX
     false,                                      // FC
     false,                                      // no-norm
+    true,                                       // weight
+    false,                                      // ATTENTION_SCALING
+    false,                                      // STORE_IN_ACC
+    false,                                      // ACC_FROM_ACC
+    false,                                      // INPUT_TRANSPOSE
+    false,                                      // SPLIT_HEAD
+    false,                                      // CONCAT_HEAD
+    false,                                      // SOFTMAX_GRAD
+    false,                                      // NO_NORM_GRAD
+    false,                                      // RELU_GRAD
+    false,                                      // WEIGHT_PERMUTE
+    false,                                      // WEIGHT_ADDITION
+    false,                                      // BIAS_GRAD
+    false,                                      // GRADIENT_CLIPPING
+    false,                                      // CROSS_ENTROPY_LOSS_GRAD
+    false,                                      // MSE_LOSS_GRAD
+    false,                                      // BCE_LOGITS_LOSS_GRAD
 };
 const SimplifiedParams layer3_1_conv2_params = {
     446464,                                     // INPUT_OFFSET
@@ -405,6 +643,23 @@ const SimplifiedParams layer3_1_conv2_params = {
     false,                                      // SOFTMAX
     false,                                      // FC
     false,                                      // no-norm
+    true,                                       // weight
+    false,                                      // ATTENTION_SCALING
+    false,                                      // STORE_IN_ACC
+    false,                                      // ACC_FROM_ACC
+    false,                                      // INPUT_TRANSPOSE
+    false,                                      // SPLIT_HEAD
+    false,                                      // CONCAT_HEAD
+    false,                                      // SOFTMAX_GRAD
+    false,                                      // NO_NORM_GRAD
+    false,                                      // RELU_GRAD
+    false,                                      // WEIGHT_PERMUTE
+    false,                                      // WEIGHT_ADDITION
+    false,                                      // BIAS_GRAD
+    false,                                      // GRADIENT_CLIPPING
+    false,                                      // CROSS_ENTROPY_LOSS_GRAD
+    false,                                      // MSE_LOSS_GRAD
+    false,                                      // BCE_LOGITS_LOSS_GRAD
 };
 const SimplifiedParams layer4_0_downsample_params = {
     1650688,                                     // INPUT_OFFSET
@@ -431,6 +686,23 @@ const SimplifiedParams layer4_0_downsample_params = {
     false,                                       // SOFTMAX
     false,                                       // FC
     false,                                       // no-norm
+    true,                                        // weight
+    false,                                       // ATTENTION_SCALING
+    false,                                       // STORE_IN_ACC
+    false,                                       // ACC_FROM_ACC
+    false,                                       // INPUT_TRANSPOSE
+    false,                                       // SPLIT_HEAD
+    false,                                       // CONCAT_HEAD
+    false,                                       // SOFTMAX_GRAD
+    false,                                       // NO_NORM_GRAD
+    false,                                       // RELU_GRAD
+    false,                                       // WEIGHT_PERMUTE
+    false,                                       // WEIGHT_ADDITION
+    false,                                       // BIAS_GRAD
+    false,                                       // GRADIENT_CLIPPING
+    false,                                       // CROSS_ENTROPY_LOSS_GRAD
+    false,                                       // MSE_LOSS_GRAD
+    false,                                       // BCE_LOGITS_LOSS_GRAD
 };
 const SimplifiedParams layer4_0_conv1_params = {
     1650688,                                    // INPUT_OFFSET
@@ -457,6 +729,23 @@ const SimplifiedParams layer4_0_conv1_params = {
     false,                                      // SOFTMAX
     false,                                      // FC
     false,                                      // no-norm
+    true,                                       // weight
+    false,                                      // ATTENTION_SCALING
+    false,                                      // STORE_IN_ACC
+    false,                                      // ACC_FROM_ACC
+    false,                                      // INPUT_TRANSPOSE
+    false,                                      // SPLIT_HEAD
+    false,                                      // CONCAT_HEAD
+    false,                                      // SOFTMAX_GRAD
+    false,                                      // NO_NORM_GRAD
+    false,                                      // RELU_GRAD
+    false,                                      // WEIGHT_PERMUTE
+    false,                                      // WEIGHT_ADDITION
+    false,                                      // BIAS_GRAD
+    false,                                      // GRADIENT_CLIPPING
+    false,                                      // CROSS_ENTROPY_LOSS_GRAD
+    false,                                      // MSE_LOSS_GRAD
+    false,                                      // BCE_LOGITS_LOSS_GRAD
 };
 const SimplifiedParams layer4_0_conv2_params = {
     446464,                                     // INPUT_OFFSET
@@ -483,6 +772,23 @@ const SimplifiedParams layer4_0_conv2_params = {
     false,                                      // SOFTMAX
     false,                                      // FC
     false,                                      // no-norm
+    true,                                       // weight
+    false,                                      // ATTENTION_SCALING
+    false,                                      // STORE_IN_ACC
+    false,                                      // ACC_FROM_ACC
+    false,                                      // INPUT_TRANSPOSE
+    false,                                      // SPLIT_HEAD
+    false,                                      // CONCAT_HEAD
+    false,                                      // SOFTMAX_GRAD
+    false,                                      // NO_NORM_GRAD
+    false,                                      // RELU_GRAD
+    false,                                      // WEIGHT_PERMUTE
+    false,                                      // WEIGHT_ADDITION
+    false,                                      // BIAS_GRAD
+    false,                                      // GRADIENT_CLIPPING
+    false,                                      // CROSS_ENTROPY_LOSS_GRAD
+    false,                                      // MSE_LOSS_GRAD
+    false,                                      // BCE_LOGITS_LOSS_GRAD
 };
 const SimplifiedParams layer4_1_conv1_params = {
     1249280,                                    // INPUT_OFFSET
@@ -509,6 +815,23 @@ const SimplifiedParams layer4_1_conv1_params = {
     false,                                      // SOFTMAX
     false,                                      // FC
     false,                                      // no-norm
+    true,                                       // weight
+    false,                                      // ATTENTION_SCALING
+    false,                                      // STORE_IN_ACC
+    false,                                      // ACC_FROM_ACC
+    false,                                      // INPUT_TRANSPOSE
+    false,                                      // SPLIT_HEAD
+    false,                                      // CONCAT_HEAD
+    false,                                      // SOFTMAX_GRAD
+    false,                                      // NO_NORM_GRAD
+    false,                                      // RELU_GRAD
+    false,                                      // WEIGHT_PERMUTE
+    false,                                      // WEIGHT_ADDITION
+    false,                                      // BIAS_GRAD
+    false,                                      // GRADIENT_CLIPPING
+    false,                                      // CROSS_ENTROPY_LOSS_GRAD
+    false,                                      // MSE_LOSS_GRAD
+    false,                                      // BCE_LOGITS_LOSS_GRAD
 };
 const SimplifiedParams layer4_1_conv2_params = {
     45056,                                      // INPUT_OFFSET
@@ -535,6 +858,23 @@ const SimplifiedParams layer4_1_conv2_params = {
     false,                                      // SOFTMAX
     false,                                      // FC
     false,                                      // no-norm
+    true,                                       // weight
+    false,                                      // ATTENTION_SCALING
+    false,                                      // STORE_IN_ACC
+    false,                                      // ACC_FROM_ACC
+    false,                                      // INPUT_TRANSPOSE
+    false,                                      // SPLIT_HEAD
+    false,                                      // CONCAT_HEAD
+    false,                                      // SOFTMAX_GRAD
+    false,                                      // NO_NORM_GRAD
+    false,                                      // RELU_GRAD
+    false,                                      // WEIGHT_PERMUTE
+    false,                                      // WEIGHT_ADDITION
+    false,                                      // BIAS_GRAD
+    false,                                      // GRADIENT_CLIPPING
+    false,                                      // CROSS_ENTROPY_LOSS_GRAD
+    false,                                      // MSE_LOSS_GRAD
+    false,                                      // BCE_LOGITS_LOSS_GRAD
 };
 
 // map to vector processor instead
@@ -563,6 +903,23 @@ const SimplifiedParams fc_params = {
     false,                                       // SOFTMAX
     true,                                        // FC
     false,                                       // no-norm
+    true,                                        // weight
+    false,                                       // ATTENTION_SCALING
+    false,                                       // STORE_IN_ACC
+    false,                                       // ACC_FROM_ACC
+    false,                                       // INPUT_TRANSPOSE
+    false,                                       // SPLIT_HEAD
+    false,                                       // CONCAT_HEAD
+    false,                                       // SOFTMAX_GRAD
+    false,                                       // NO_NORM_GRAD
+    false,                                       // RELU_GRAD
+    false,                                       // WEIGHT_PERMUTE
+    false,                                       // WEIGHT_ADDITION
+    false,                                       // BIAS_GRAD
+    false,                                       // GRADIENT_CLIPPING
+    false,                                       // CROSS_ENTROPY_LOSS_GRAD
+    false,                                       // MSE_LOSS_GRAD
+    false,                                       // BCE_LOGITS_LOSS_GRAD
 };
 const SimplifiedParams softmax_params = {
     1650688,                                      // INPUT_OFFSET
@@ -589,6 +946,23 @@ const SimplifiedParams softmax_params = {
     true,                                         // SOFTMAX
     false,                                        // FC
     false,                                        // no-norm
+    true,                                         // weight
+    false,                                        // ATTENTION_SCALING
+    false,                                        // STORE_IN_ACC
+    false,                                        // ACC_FROM_ACC
+    false,                                        // INPUT_TRANSPOSE
+    false,                                        // SPLIT_HEAD
+    false,                                        // CONCAT_HEAD
+    false,                                        // SOFTMAX_GRAD
+    false,                                        // NO_NORM_GRAD
+    false,                                        // RELU_GRAD
+    false,                                        // WEIGHT_PERMUTE
+    false,                                        // WEIGHT_ADDITION
+    false,                                        // BIAS_GRAD
+    false,                                        // GRADIENT_CLIPPING
+    false,                                        // CROSS_ENTROPY_LOSS_GRAD
+    false,                                        // MSE_LOSS_GRAD
+    false,                                        // BCE_LOGITS_LOSS_GRAD
 };
 
 std::map<std::string, SimplifiedParams> resnetParams{
