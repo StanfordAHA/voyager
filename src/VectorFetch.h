@@ -130,11 +130,15 @@ SC_MODULE(VectorFetchUnit) {
                       ACC_DTYPE negatedPlusOne = singleVal;
 
                       if (params.SOFTMAX_GRAD_NEGATE) {
-                        ACC_DTYPE one = static_cast<ACC_DTYPE>(1.0);
+                        typename ACC_DTYPE::DecomposedPosit one;
+                        one.sign = 0;
+                        one.fraction = 0;
+                        one.scale = 0;
+                        one._zero = false;
                         
 
                         singleVal.negate();
-                        negatedPlusOne = singleVal + one;
+                        negatedPlusOne = static_cast<typename ACC_DTYPE::DecomposedPosit>(singleVal) + one;
                       }
 
                       for (int broadcast = 0; broadcast < broadcastCount / WIDTH; broadcast++) {
@@ -172,7 +176,7 @@ SC_MODULE(VectorFetchUnit) {
 
                       for (int precision = 0; precision < 2; precision++) {
                         Pack1D<ODTYPE, WIDTH> bias =
-                            vectorFetch2DataResponse.Pop();
+                            vectorFetch0DataResponse.Pop();
 
 #pragma hls_unroll yes
                         for (int i = 0; i < WIDTH / 2; i++) {

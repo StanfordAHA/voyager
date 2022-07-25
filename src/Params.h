@@ -293,7 +293,6 @@ struct VectorInstructions {
   void Marshall(Marshaller<Size>& m) {
     m& instType;
     m& vInput;
-    m& vAccumulatePush;
     m& vOp0Src1;
     m& vOp0;
     m& vOp1;
@@ -302,6 +301,7 @@ struct VectorInstructions {
     m& vOp3Src1;
     m& vOp3;
     m& vOp4;
+    m& vAccumulatePush;
     m& vDest;
     m& rCount;
     m& rOp;
@@ -480,9 +480,27 @@ struct VectorInstructionConfig {
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
-    for (int j = 0; j < 8; j++) {
-      m& inst[j];
-    }
+    
+      for (int j = 0; j < 8; j++) {m& inst[j].instType;}
+      for (int j = 0; j < 8; j++) {m& inst[j].vInput;}
+      for (int j = 0; j < 8; j++) {m& inst[j].vOp0Src1;}
+      for (int j = 0; j < 8; j++) {m& inst[j].vOp0;}
+      for (int j = 0; j < 8; j++) {m& inst[j].vOp1;}
+      for (int j = 0; j < 8; j++) {m& inst[j].vOp2;}
+      for (int j = 0; j < 8; j++) {m& inst[j].vOp3Src0;}
+      for (int j = 0; j < 8; j++) {m& inst[j].vOp3Src1;}
+      for (int j = 0; j < 8; j++) {m& inst[j].vOp3;}
+      for (int j = 0; j < 8; j++) {m& inst[j].vOp4;}
+      for (int j = 0; j < 8; j++) {m& inst[j].vAccumulatePush;}
+      for (int j = 0; j < 8; j++) {m& inst[j].vDest;}
+      for (int j = 0; j < 8; j++) {m& inst[j].rCount;}
+      for (int j = 0; j < 8; j++) {m& inst[j].rOp;}
+      for (int j = 0; j < 8; j++) {m& inst[j].rInvSqrt;}
+      for (int j = 0; j < 8; j++) {m& inst[j].rDuplicate;}
+      for (int j = 0; j < 8; j++) {m& inst[j].rDest;}
+      for (int j = 0; j < 8; j++) {m& inst[j].immediate0;}
+      for (int j = 0; j < 8; j++) {m& inst[j].immediate1;}
+    
     for (int i = 0; i < 8; i++) {
       m& instCount[i];
     }

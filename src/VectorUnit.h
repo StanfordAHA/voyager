@@ -227,8 +227,8 @@ SC_MODULE(VectorOpUnit) {
                                                          res3);
 
       } else if (inst.vOp3 == VectorInstructions::vdiv) {
-        vdiv<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op3Src0, op3Src1,
-                                                         res3);
+        // vdiv<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op3Src0, op3Src1,
+        //                                                  res3);
       } else {
         res3 = op3Src0;
       }
