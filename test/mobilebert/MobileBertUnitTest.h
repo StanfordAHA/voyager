@@ -101,8 +101,10 @@ int runOperation(const SimplifiedParams params, const Files files,
   float* floatDataFileOutput = new float[outputSize];
 
   std::string datafile = inputDataDir + layerName + files.inputs_file;
-  load_inputs(params, datafile, true, sramMemory, matrixA, universalMatrixA,
-              floatMatrixA);
+  if (!files.inputs_file.empty()) {
+    load_inputs(params, datafile, true, sramMemory, matrixA, universalMatrixA,
+                floatMatrixA);
+  }
 
   if (!files.weights_file.empty()) {
     datafile = weightDataDir + layerName + files.weights_file;
@@ -287,8 +289,12 @@ int runMobileBertUnitTest(std::string task, std::string test,
   SimplifiedParams params = mobileBertParams.at(paramsName);
   Files files = mobileBertTestFiles.at(test);
   MemoryOffsets offsets = mobileBertMemOffsets.at(test);
-  std::string layerName =
-      test == "classifier" ? "" : "mobilebert_encoder_layer_0_";
+  std::string layerName = "mobilebert_encoder_layer_0_";
+
+  if (test.find("classifier") != std::string::npos ||
+      (task == "backprop" && test == "output_bottleneck_LayerNorm")) {
+    layerName = "";
+  }
 
   params.INPUT_OFFSET = offsets.INPUT_OFFSET + STACK_SIZE;
   params.WEIGHT_OFFSET = offsets.WEIGHT_OFFSET;
@@ -316,7 +322,9 @@ int runMobileBertUnitTest(std::string task, std::string test,
                           errorDataDir, errorDataDir, errorDataDir, layerName,
                           outfilePrefix, compList, false, false);
     } else if (test.find("attention_self_query_layer") != std::string::npos ||
-               test.find("attention_self_key_layer") != std::string::npos) {
+               test.find("attention_self_key_layer") != std::string::npos ||
+               test.find("attention_self_attention_probs") !=
+                   std::string::npos) {
       return runOperation(params, files, memoryMap, errorDataDir,
                           activationDataDir, errorDataDir, errorDataDir,
                           layerName, outfilePrefix, compList, false, false);
@@ -333,8 +341,13 @@ int runMobileBertUnitTest(std::string task, std::string test,
                         errorDataDir, errorDataDir, layerName, outfilePrefix,
                         compList, false, false);
   } else if (task == "gradient") {
-    return runOperation(params, files, memoryMap, errorDataDir,
-                        activationDataDir, gradientDataDir, gradientDataDir,
+    if (test.find("classifier_weight") != std::string::npos) {
+      return runOperation(params, files, memoryMap, errorDataDir,
+                          activationDataDir, gradientDataDir, gradientDataDir,
+                          layerName, outfilePrefix, compList, false, false);
+    }
+    return runOperation(params, files, memoryMap, activationDataDir,
+                        errorDataDir, gradientDataDir, gradientDataDir,
                         layerName, outfilePrefix, compList, false, false);
   }
 

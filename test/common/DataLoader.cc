@@ -92,7 +92,7 @@ void load_inputs(const SimplifiedParams& params, const std::string& filename,
     FX = 7;
     C = 3;
   }
-  if (params.SOFTMAX || params.SOFTMAX_GRAD) {
+  if (params.SOFTMAX || params.SOFTMAX_GRAD || params.CROSS_ENTROPY_LOSS_GRAD) {
     C = 1;
   }
 
@@ -105,15 +105,7 @@ void load_inputs(const SimplifiedParams& params, const std::string& filename,
 #endif
   double* tmpValuePtr = tmpValues;
 
-  if (params.CROSS_ENTROPY_LOSS_GRAD) {
-    for (int i = 0; i < X; i++) {
-      double val = *(tmpValuePtr++);
-      save_double(&acceleratorMemory[params.INPUT_OFFSET + i], val);
-      save_double(&goldMemory[i], val);
-      save_double(&universalGoldMemory[i], val);
-      save_double(&floatGoldMemory[i], val);
-    }
-  } else if (params.REPLICATION) {
+  if (params.REPLICATION) {
     for (int y = 0; y < STRIDE * Y; y++) {
       for (int x_o = 0; x_o < (STRIDE * X) / 4; x_o++) {
         for (int x_i = 0; x_i < 4; x_i++) {  // 4 packed together
@@ -170,28 +162,18 @@ void load_weights(const SimplifiedParams& params, const std::string& filename,
     FX = 7;
     C = 3;
   }
-  if (params.NO_NORM) {
+  if (params.NO_NORM || params.CROSS_ENTROPY_LOSS_GRAD) {
     FX = 1;
     FY = 1;
     C = 1;
   }
+  if (params.NO_NORM_GRAD) {
+    C = X;
+  }
 
   int size = FY * FX * C * K;
-#ifdef WEIGHT_SCALING
-  size++;
-#endif
   double* tmpValues = read_file_as_double(filename, size, useDataFile);
   double* tmpValuePtr = tmpValues;
-
-  if (params.CROSS_ENTROPY_LOSS_GRAD) {
-    for (int i = 0; i < X; i++) {
-      double val = *(tmpValuePtr++);
-      save_double(&acceleratorMemory[params.INPUT_OFFSET + i], val);
-      save_double(&goldMemory[i], val);
-      save_double(&universalGoldMemory[i], val);
-      save_double(&floatGoldMemory[i], val);
-    }
-  }
 
   for (int fy = 0; fy < FY; fy++) {
     for (int fx = 0; fx < FX; fx++) {
@@ -240,9 +222,6 @@ void load_bias(const SimplifiedParams& params, const std::string& filename,
   }
 
   int size = K;
-#ifdef WEIGHT_SCALING
-  size++;
-#endif
   double* tmpValues = read_file_as_double(filename, size, useDataFile);
   double* tmpValuePtr = tmpValues;
 
@@ -333,7 +312,7 @@ void load_datafile_outputs(const SimplifiedParams params,
   if (params.SOFTMAX || params.SOFTMAX_GRAD) {
     K = 1;
   }
-  if (params.NO_NORM_GRAD) {
+  if (params.NO_NORM_GRAD || params.CROSS_ENTROPY_LOSS_GRAD) {
     X = 1;
     Y = 1;
   }
