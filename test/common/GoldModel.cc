@@ -37,11 +37,11 @@ inline void gold_relu(float &a) {
   }
 }
 
-inline void gold_exp(INPUT_DATATYPE &a) { posit_exp(a); }
+inline void gold_exp(ACCUM_DATATYPE &a) { a = posit_exp(a); }
 inline void gold_exp(float &a) { a = exp(a); }
 
 #ifndef NO_UNIVERSAL
-inline void gold_exp(UniversalPosit &a) {
+inline void gold_exp(UniversalPositAccum &a) {
   // TODO
 }
 #endif
@@ -91,13 +91,21 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
       }
 
       for (int y = 0; y < Y; y++) {
-        accumMatrix[x * Y + y] =
-            exp(static_cast<float>(accumMatrix[x * Y + y] - max));
+        ACC_T adjustedVal = accumMatrix[x * Y + y] - max;
+        gold_exp(adjustedVal);
+        accumMatrix[x * Y + y] = adjustedVal;
+
+        // accumMatrix[x * Y + y] =
+        //     exp(static_cast<float>(accumMatrix[x * Y + y] - max));
         sum += accumMatrix[x * Y + y];
       }
 
+      ACC_T divisor = sum;
+      gold_reciprocal(divisor);
       for (int y = 0; y < Y; y++) {
-        accumMatrix[x * Y + y] /= sum;
+        // ACC_T divisor = sum.reciprocal();
+        accumMatrix[x * Y + y] *= divisor;
+        // accumMatrix[x * Y + y] /= sum;
         if (inputScaling) {
           accumMatrix[X * Y + y] += accumMatrix[x * Y + y];
         }
@@ -390,7 +398,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
     }
 
     const int numRows = inputScaling ? X + 1 : X;
-    ACC_T accumMatrix[numRows * K];
+    ACC_T accumMatrix[numRows * Y * K];
     memset(accumMatrix, 0, sizeof(accumMatrix));
 
     T permuteMatrixA[(STRIDE * X) * (STRIDE * Y) * C];
@@ -552,8 +560,10 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
           matrixC[x * K + k] = accumMatrix[x * K + k] / scalingFactor;
         }
       } else {
-        for (int x = 0; x < X; x++) {
-          matrixC[x * K + k] = accumMatrix[x * K + k];
+        for (int y = 0; y < Y; y++) {
+          for (int x = 0; x < X; x++) {
+            matrixC[y * X * K + x * K + k] = accumMatrix[y * X * K + x * K + k];
+          }
         }
       }
     }

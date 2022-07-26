@@ -10,11 +10,15 @@ SC_MODULE(VectorFetchUnit) {
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch1AddressRequest);
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch2AddressRequest);
 
+  Connections::In<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(vectorFetch0DataResponse);
+  Connections::Out<Pack1D<ACC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch0DataResponseBroadcasted);
+
   Connections::In<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(vectorFetch2DataResponse);
   Connections::Out<Pack1D<ACC_DTYPE, WIDTH> > CCS_INIT_S1(
       vectorFetch2DataResponseReplicated);
 
   Connections::Combinational<VectorParams> CCS_INIT_S1(addressGen0Params);
+  Connections::Combinational<VectorParams> CCS_INIT_S1(vector0BroadcastParams);
   Connections::Combinational<VectorParams> CCS_INIT_S1(addressGen1Params);
   Connections::Combinational<VectorParams> CCS_INIT_S1(addressGen2Params);
   Connections::Combinational<VectorParams> CCS_INIT_S1(replicateBiasParams);
@@ -25,6 +29,10 @@ SC_MODULE(VectorFetchUnit) {
     async_reset_signal_is(rstn, false);
 
     SC_THREAD(fetch_vector);
+    sensitive << clk.pos();
+    async_reset_signal_is(rstn, false);
+
+    SC_THREAD(vector0_broadcast);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
@@ -61,11 +69,140 @@ SC_MODULE(VectorFetchUnit) {
                   int k = k0 * params.addressGen0Loop[1][2] * WIDTH + k1 * WIDTH;
                   int K = params.addressGen0Loop[0][2] * params.addressGen0Loop[1][2] * WIDTH;
 
-                  int address = j * K + k;
+                  if (params.DP_VEC0) {
+                    K = K * 2;
+                    for (int precision = 0; precision < 2; precision++) {
+                      int address = j * K + k + precision;
+                      // DLOG("addressgen0 " << j << " " << k << " " <<
+                      // address);
+                      MemoryRequest memRequest = {
+                          params.VECTOR_OFFSET + address, WIDTH};
+                      vectorFetch0AddressRequest.Push(memRequest);
+                    }
 
-                  // DLOG("addressgen0 " << j << " " << k << " " << address);
-                  MemoryRequest memRequest = {params.VECTOR_OFFSET + address, WIDTH};
-                  vectorFetch0AddressRequest.Push(memRequest);
+                  } else {
+                    int address = j * K + k;
+
+                    // DLOG("addressgen0 " << j << " " << k << " " << address);
+                    MemoryRequest memRequest = {params.VECTOR_OFFSET + address,
+                                                WIDTH};
+                    vectorFetch0AddressRequest.Push(memRequest);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void vector0_broadcast() {
+    vectorFetch0DataResponse.Reset();
+    vectorFetch0DataResponseBroadcasted.Reset();
+    vector0BroadcastParams.ResetRead();
+
+    wait();
+
+    while (true) {
+      VectorParams params = vector0BroadcastParams.Pop();
+
+      if (params.addressGen0Broadcast) {
+        int broadcastCount = params.addressGen0BroadcastCount;
+
+#pragma hls_pipeline_init_interval 1
+        for (int i0 = 0; i0 < params.addressGen0Loop[0][0]; i0++) {
+          for (int j0 = 0; j0 < params.addressGen0Loop[0][1]; j0++) {
+            for (int k0 = 0; k0 < params.addressGen0Loop[0][2]; k0++) {
+              for (int i1 = 0; i1 < params.addressGen0Loop[1][0]; i1++) {
+                for (int j1 = 0; j1 < params.addressGen0Loop[1][1]; j1++) {
+                  for (int k1 = 0; k1 < params.addressGen0Loop[1][2]; k1++) {
+                    int K = params.addressGen0Loop[0][2] * params.addressGen0Loop[1][2] * WIDTH;
+
+                    Pack1D<ODTYPE, WIDTH> data = vectorFetch0DataResponse.Pop();
+                    for (int dim = 0; dim < WIDTH; dim++) {
+                      int K_unpacked = K + dim;
+
+                      // negate
+                      ACC_DTYPE singleVal = data[dim];
+
+                      ACC_DTYPE negated = singleVal;
+                      ACC_DTYPE negatedPlusOne = singleVal;
+
+                      if (params.SOFTMAX_GRAD_NEGATE) {
+                        typename ACC_DTYPE::DecomposedPosit one;
+                        one.sign = 0;
+                        one.fraction = 0;
+                        one.scale = 0;
+                        one._zero = false;
+                        
+
+                        singleVal.negate();
+                        negatedPlusOne = static_cast<typename ACC_DTYPE::DecomposedPosit>(singleVal) + one;
+                      }
+
+                      for (int broadcast = 0; broadcast < broadcastCount / WIDTH; broadcast++) {
+                        Pack1D<ACC_DTYPE, WIDTH> broadcastVec;
+
+#pragma hls_unroll yes
+                        for (int broadcastDim = 0; broadcastDim < WIDTH; broadcastDim++) {
+                          if (broadcast * WIDTH + broadcastDim == K_unpacked) {
+                            broadcastVec[broadcastDim] = negatedPlusOne;
+                          } else {
+                            broadcastVec[broadcastDim] = negated;
+                          }
+                        }
+
+                        vectorFetch0DataResponseBroadcasted.Push(broadcastVec);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else {  // passthrough
+#pragma hls_pipeline_init_interval 1
+        for (int i0 = 0; i0 < params.addressGen0Loop[0][0]; i0++) {
+          for (int j0 = 0; j0 < params.addressGen0Loop[0][1]; j0++) {
+            for (int k0 = 0; k0 < params.addressGen0Loop[0][2]; k0++) {
+              for (int i1 = 0; i1 < params.addressGen0Loop[1][0]; i1++) {
+                for (int j1 = 0; j1 < params.addressGen0Loop[1][1]; j1++) {
+                  for (int k1 = 0; k1 < params.addressGen0Loop[1][2]; k1++) {
+                    if (params.DP_VEC0) {
+                      // convert 2 8b bias into 1 16b bias
+                      Pack1D<ACC_DTYPE, WIDTH> fullPrecisionVec;
+
+                      for (int precision = 0; precision < 2; precision++) {
+                        Pack1D<ODTYPE, WIDTH> bias =
+                            vectorFetch0DataResponse.Pop();
+
+#pragma hls_unroll yes
+                        for (int i = 0; i < WIDTH / 2; i++) {
+                          ac_int<16, false> temp;
+#pragma hls_unroll yes
+                          for (int byte = 0; byte < 2; byte++) {
+                            temp.set_slc(byte * 8, bias[i * 2 + byte].bits);
+                          }
+                          fullPrecisionVec[precision * (WIDTH / 2) + i].setbits(
+                              temp);
+                        }
+                      }
+                    } else {
+                      // cast up to 16b
+                      Pack1D<ODTYPE, WIDTH> originalVec =
+                          vectorFetch0DataResponse.Pop();
+                      Pack1D<ACC_DTYPE, WIDTH> castedVec;
+#pragma hls_unroll yes
+                      for (int dim = 0; dim < WIDTH; dim++) {
+                        castedVec[dim] =
+                            static_cast<ACC_DTYPE>(originalVec[dim]);
+                      }
+
+                      vectorFetch0DataResponseBroadcasted.Push(castedVec);
+                    }
+                  }
                 }
               }
             }
@@ -350,6 +487,7 @@ SC_MODULE(VectorFetchUnit) {
     addressGen1Params.ResetWrite();
     addressGen2Params.ResetWrite();
     replicateBiasParams.ResetWrite();
+    vector0BroadcastParams.ResetWrite();
 
     wait();
 
@@ -358,6 +496,7 @@ SC_MODULE(VectorFetchUnit) {
 
       if (params.addressGen0Enable) {
         addressGen0Params.Push(params);
+        vector0BroadcastParams.Push(params);
       }
 
       if (params.addressGen1Mode != 0) {  // residual

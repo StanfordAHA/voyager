@@ -10,7 +10,6 @@
 
 #include "Params.h"
 #include "PositTypes.h"
-#include "VInst.h"
 
 #ifdef DEBUG_LOG
 #define DLOG(x) CCS_LOG(x)

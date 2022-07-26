@@ -55,7 +55,8 @@ if {$block == "Accelerator"} {
 go compile
 
 solution options set ComponentLibs/SearchPath {/home/shared/catapult/memories /home/shared/catapult/stdcells} -append
-solution library add tcbn40ulpbwp40_c170815tt1p1v25c_dc -- -rtlsyntool DesignCompiler -vendor TSMC -technology 40nm
+#solution library add tcbn40ulpbwp40_c170815tt1p1v25c_dc -- -rtlsyntool DesignCompiler -vendor TSMC -technology 40nm
+solution library add tcbn40ulpbwp40_c170815tt0p9v25c_dc -- -rtlsyntool DesignCompiler -vendor TSMC -technology 40nm
 
 # Add build folder
 solution options set ComponentLibs/SearchPath {./build/} -append

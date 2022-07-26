@@ -2,9 +2,11 @@
 
 #define NO_SYSC
 
+// clang-format off
+#include "src/PositTypes.h"
+// clang-format on
 #include "VerificationTypes.h"
 #include "src/ArchitectureParams.h"
-#include "src/PositTypes.h"
 #include "test/common/UniversalPosit.h"
 
 int compare_arrays(INPUT_DATATYPE *matrixA, INPUT_DATATYPE *matrixB,
