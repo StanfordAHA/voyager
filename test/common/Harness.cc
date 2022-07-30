@@ -1006,6 +1006,8 @@ void Harness::sendParams() {
       }
 
       vectorParams.FULL_HEAD_SIZE = 0;
+      vectorParams.SPLIT_HEAD = params.SPLIT_HEAD;
+      vectorParams.DP_OUTPUT = false;
       vectorParams.VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
       vectorParams.SCALAR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
       vectorParams.scalarOutputCount = 0;
@@ -1038,8 +1040,6 @@ void Harness::sendParams() {
           outputLoopIndex++;
         }
       }
-
-      vectorParams.SPLIT_HEAD = params.SPLIT_HEAD;
 
       sendSerializedParams<VectorParams, 32>(vectorParams,
                                              &serialVectorParamsIn);
@@ -1117,7 +1117,7 @@ void Harness::sendParams() {
         }
 
         vInst0.vOp1 = VectorInstructions::nop;
-        vInst0.vOp1 = VectorInstructions::nop;
+        vInst0.vOp2 = VectorInstructions::nop;
         vInst0.vOp3Src0 = VectorInstructions::nop;  // use existing
 
         if (params.BIAS) {
