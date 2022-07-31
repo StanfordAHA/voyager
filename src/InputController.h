@@ -73,7 +73,7 @@ SC_MODULE(InputController) {
     wait();
 
     while (true) {
-      MatrixParams params = fetcherParams.Pop();
+      const MatrixParams params = fetcherParams.Pop();
 
       int FX = params.loops[1][params.fxIndex];
       if (params.REPLICATION) {
@@ -167,15 +167,19 @@ SC_MODULE(InputController) {
                     for (loop_counters[1][4] = 0;
                          loop_counters[1][4] < loop_bounds[1][4];
                          loop_counters[1][4]++) {
-                      for (loop_counters[1][5] = 0; loop_counters[1][5] < loop_bounds[1][5];
-                           params.REPLICATION ? loop_counters[1][5] += 4 : loop_counters[1][5]++) {
+                      for (loop_counters[1][5] = 0;
+                           loop_counters[1][5] < loop_bounds[1][5];
+                           params.REPLICATION ? loop_counters[1][5] += 4
+                                              : loop_counters[1][5]++) {
                         int x0 = loop_counters[1][params.inputXLoopIndex[1]];
                         int x1 = loop_counters[0][params.inputXLoopIndex[0]];
-                        int X0 = params.STRIDE * params.loops[1][params.inputXLoopIndex[1]];
+                        int X0 = params.STRIDE *
+                                 params.loops[1][params.inputXLoopIndex[1]];
                         int X1 = params.loops[0][params.inputXLoopIndex[0]];
                         int y0 = loop_counters[1][params.inputYLoopIndex[1]];
                         int y1 = loop_counters[0][params.inputYLoopIndex[0]];
-                        int Y0 = params.STRIDE * params.loops[1][params.inputYLoopIndex[1]];
+                        int Y0 = params.STRIDE *
+                                 params.loops[1][params.inputYLoopIndex[1]];
                         int Y1 = params.loops[0][params.inputYLoopIndex[0]];
                         int c1 = loop_counters[1][params.reductionLoopIndex[1]];
                         int C1 = params.loops[1][params.reductionLoopIndex[1]];
@@ -202,18 +206,22 @@ SC_MODULE(InputController) {
                           baseAddress = y * (X / 4) * 16 + (x / 4) * 16 + c;
                         }
                         if (params.CONCAT_HEAD && params.TRANPOSE_INPUTS) {
-                          baseAddress = (c + (x % 16)) * 32 + (((x / 16) * DIMENSION) / 32 * C * 32) +
+                          baseAddress = (c + (x % 16)) * 32 +
+                                        (((x / 16) * DIMENSION) / 32 * C * 32) +
                                         (((x / 16) * DIMENSION) % 32);
                         } else {
                           if (params.CONCAT_HEAD) {
-                            baseAddress = ((c / 32) * X * 32) + (x * 32) + (c % 32);
+                            baseAddress =
+                                ((c / 32) * X * 32) + (x * 32) + (c % 32);
                           }
                           if (params.TRANPOSE_INPUTS) {
-                            baseAddress = (c + (x % 16)) * X + (x / 16) * DIMENSION;
+                            baseAddress =
+                                (c + (x % 16)) * X + (x / 16) * DIMENSION;
                           }
                         }
                         MemoryRequest memRequest;
-                        memRequest = {params.INPUT_OFFSET + baseAddress, burstSize};
+                        memRequest = {params.INPUT_OFFSET + baseAddress,
+                                      burstSize};
 
                         addressRequest.Push(memRequest);
                         if (params.REPLICATION) {
@@ -273,7 +281,7 @@ SC_MODULE(InputController) {
     wait();
 
     while (true) {
-      MatrixParams params = writerParams.Pop();
+      const MatrixParams params = writerParams.Pop();
 
       bool bankSel = 0;
 
@@ -565,8 +573,6 @@ SC_MODULE(InputController) {
           }
         }
       } else {
-#pragma hls_pipeline_init_interval 1
-#pragma hls_pipeline_stall_mode flush
         for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
              loop_counters[0][0]++) {
           for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
@@ -591,7 +597,9 @@ SC_MODULE(InputController) {
               loop_bounds[1][params.inputXLoopIndex[1]] += FX - 1;
               loop_bounds[1][params.inputYLoopIndex[1]] += FY - 1;
 
-              // inner memory
+// inner memory
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
               for (loop_counters[1][0] = 0;
                    loop_counters[1][0] < loop_bounds[1][0];
                    loop_counters[1][0]++) {
@@ -714,7 +722,7 @@ SC_MODULE(InputController) {
     wait();
 
     while (true) {
-      MatrixParams params = readerParams.Pop();
+      const MatrixParams params = readerParams.Pop();
 
       int FX = params.loops[1][params.fxIndex];
       int FY = params.loops[1][params.fyIndex];
@@ -852,7 +860,7 @@ SC_MODULE(InputController) {
     wait();
 
     while (true) {
-      MatrixParams params = windowBufferParams.Pop();
+      const MatrixParams params = windowBufferParams.Pop();
       int loop_counters[2][6];
       int loop_bounds[2][6];
 
@@ -952,7 +960,15 @@ SC_MODULE(InputController) {
     wait();
 
     while (true) {
-      MatrixParams params = transposerParams.Pop();
+      const MatrixParams params = transposerParams.Pop();
+
+      int FX = params.loops[1][params.fxIndex];
+      if (params.REPLICATION) {
+        FX = 7;
+      }
+      int FY = params.loops[1][params.fyIndex];
+
+      bool isDownsample = FX == 1 && FY == 1;
 
       int loop_counters[2][6];
       int loop_bounds[2][6];
@@ -1031,15 +1047,122 @@ SC_MODULE(InputController) {
           }
         }
       } else {  // passthrough
-        int total_values =
-            loop_bounds[0][0] * loop_bounds[0][1] * loop_bounds[0][2] *
-            loop_bounds[1][0] * loop_bounds[1][1] * loop_bounds[1][2] *
-            loop_bounds[1][3] * loop_bounds[1][4] * loop_bounds[1][5];
+        for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
+             loop_counters[0][0]++) {
+          for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
+               loop_counters[0][1]++) {
+            for (loop_counters[0][2] = 0;
+                 loop_counters[0][2] < loop_bounds[0][2];
+                 loop_counters[0][2]++) {
+              // fetching border pixels is a little tricky
+              // for the outer tiles, we don't fetch borders (they are known to
+              // be 0)
 
+              // reset loop bounds
+              if (isDownsample) {
+                // don't include STRIDE for downsample
+                loop_bounds[1][params.inputXLoopIndex[1]] =
+                    params.loops[1][params.inputXLoopIndex[1]];
+                loop_bounds[1][params.inputYLoopIndex[1]] =
+                    params.loops[1][params.inputYLoopIndex[1]];
+              } else {
+                loop_bounds[1][params.inputXLoopIndex[1]] =
+                    params.loops[1][params.inputXLoopIndex[1]] * params.STRIDE;
+                loop_bounds[1][params.inputYLoopIndex[1]] =
+                    params.loops[1][params.inputYLoopIndex[1]] * params.STRIDE;
+              }
+
+              int x_min_offset = 0;
+              int x_max_offset = 0;
+              int y_min_offset = 0;
+              int y_max_offset = 0;
+
+              if (loop_counters[0][params.inputXLoopIndex[0]] != 0) {
+                x_min_offset = (FX - 1) / 2;
+                loop_bounds[1][params.inputXLoopIndex[1]] += (FX - 1) / 2;
+              }
+
+              if (loop_counters[0][params.inputXLoopIndex[0]] !=
+                  loop_bounds[0][params.inputXLoopIndex[0]] - 1) {
+                x_max_offset = (FX - 1) / 2;
+                loop_bounds[1][params.inputXLoopIndex[1]] += (FX - 1) / 2;
+              }
+
+              if (loop_counters[0][params.inputYLoopIndex[0]] != 0) {
+                y_min_offset = (FY - 1) / 2;
+                loop_bounds[1][params.inputYLoopIndex[1]] += (FY - 1) / 2;
+              }
+
+              if (loop_counters[0][params.inputYLoopIndex[0]] !=
+                  loop_bounds[0][params.inputYLoopIndex[0]] - 1) {
+                y_max_offset = (FY - 1) / 2;
+                loop_bounds[1][params.inputYLoopIndex[1]] += (FY - 1) / 2;
+              }
+
+// inner memory
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
-        for (int i = 0; i < total_values; i++) {
-          transposeOut.Push(dataResponse.Pop());
+              for (loop_counters[1][0] = 0;
+                   loop_counters[1][0] < loop_bounds[1][0];
+                   loop_counters[1][0]++) {
+                for (loop_counters[1][1] = 0;
+                     loop_counters[1][1] < loop_bounds[1][1];
+                     loop_counters[1][1]++) {
+                  for (loop_counters[1][2] = 0;
+                       loop_counters[1][2] < loop_bounds[1][2];
+                       loop_counters[1][2]++) {
+                    for (loop_counters[1][3] = 0;
+                         loop_counters[1][3] < loop_bounds[1][3];
+                         loop_counters[1][3]++) {
+                      for (loop_counters[1][4] = 0;
+                           loop_counters[1][4] < loop_bounds[1][4];
+                           loop_counters[1][4]++) {
+                        for (loop_counters[1][5] = 0;
+                             loop_counters[1][5] < loop_bounds[1][5];
+                             params.REPLICATION ? loop_counters[1][5] += 4
+                                                : loop_counters[1][5]++) {
+                          transposeOut.Push(dataResponse.Pop());
+                          if (params.REPLICATION) {
+                            if (loop_counters[1][5] >= loop_bounds[1][5] - 4) {
+                              break;
+                            }
+                          } else {
+                            if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
+                              break;
+                            }
+                          }
+                        }
+                        if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
+                          break;
+                        }
+                      }
+                      if (loop_counters[1][3] >= loop_bounds[1][3] - 1) {
+                        break;
+                      }
+                    }
+                    if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {
+                      break;
+                    }
+                  }
+                  if (loop_counters[1][1] >= loop_bounds[1][1] - 1) {
+                    break;
+                  }
+                }
+                if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
+                  break;
+                }
+              }
+              if (loop_counters[0][2] >= loop_bounds[0][2] - 1) {
+                break;
+              }
+            }
+            if (loop_counters[0][1] >= loop_bounds[0][1] - 1) {
+              break;
+            }
+          }
+          if (loop_counters[0][0] >= loop_bounds[0][0] - 1) {
+            break;
+          }
         }
       }
     }
@@ -1056,7 +1179,7 @@ SC_MODULE(InputController) {
     wait();
 
     while (true) {
-      MatrixParams params = paramsIn.Pop();
+      const MatrixParams params = paramsIn.Pop();
 
       fetcherParams.Push(params);
       writerParams.Push(params);
