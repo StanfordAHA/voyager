@@ -291,8 +291,8 @@ void Harness::sendParams() {
       vectorParams.VECTOR_OFFSET = params.INPUT_OFFSET;
       vectorParams.addressGen0Enable = true;
       vectorParams.addressGen0Broadcast = false;
-      for(int i = 0; i < 3; i++){
-      vectorParams.addressGen0Loop[0][i] = 1;
+      for (int i = 0; i < 3; i++) {
+        vectorParams.addressGen0Loop[0][i] = 1;
       }
       vectorParams.addressGen0Loop[1][0] = 1;
       vectorParams.addressGen0Loop[1][1] = Y;
@@ -301,8 +301,8 @@ void Harness::sendParams() {
       // address gen 1 (weights)
       vectorParams.ADDRESS_GEN1_OFFSET = params.WEIGHT_OFFSET;
       vectorParams.addressGen1Mode = 2;  // 2d tensor
-      for(int i = 0; i < 3; i++){
-      vectorParams.addressGen1Loops[0][i] = 1;
+      for (int i = 0; i < 3; i++) {
+        vectorParams.addressGen1Loops[0][i] = 1;
       }
       vectorParams.addressGen1Loops[1][0] = Y;
       vectorParams.addressGen1Loops[1][1] = 1;
@@ -430,7 +430,8 @@ void Harness::sendParams() {
       vectorParams.outputYLoopIndex[1] = 1;
       vectorParams.outputXLoopIndex[1] = 0;
 
-      sendSerializedParams<VectorParams, 32>(vectorParams, &serialVectorParamsIn);
+      sendSerializedParams<VectorParams, 32>(vectorParams,
+                                             &serialVectorParamsIn);
 
       // create instruction stream
       VectorInstructionConfig vectorInstructionConfig;
@@ -485,7 +486,8 @@ void Harness::sendParams() {
       vectorInstructionConfig.instLen = 3;
       vectorInstructionConfig.instLoopCount = X * Y / DIMENSION;
 
-      sendSerializedParams<VectorInstructionConfig, 32>(vectorInstructionConfig, &serialVectorParamsIn);
+      sendSerializedParams<VectorInstructionConfig, 32>(vectorInstructionConfig,
+                                                        &serialVectorParamsIn);
 
       vectorUnitStartSignal.SyncPop();
       CCS_LOG("Accelerator Layer Started.");
@@ -495,8 +497,8 @@ void Harness::sendParams() {
       VectorParams vectorParams;
       vectorParams.VECTOR_OFFSET = params.INPUT_OFFSET;
       vectorParams.addressGen0Enable = true;
-      for(int i = 0; i < 3; i++){
-      vectorParams.addressGen0Loop[0][i] = 1;
+      for (int i = 0; i < 3; i++) {
+        vectorParams.addressGen0Loop[0][i] = 1;
       }
       vectorParams.addressGen0Loop[1][0] = K;
       vectorParams.addressGen0Loop[1][1] = 1;
@@ -506,8 +508,8 @@ void Harness::sendParams() {
       // address gen 1 (weights)
       vectorParams.ADDRESS_GEN1_OFFSET = params.WEIGHT_OFFSET;
       vectorParams.addressGen1Mode = 2;  // 2d tensor
-      for(int i = 0; i < 3; i++){
-      vectorParams.addressGen1Loops[0][i] = 1;
+      for (int i = 0; i < 3; i++) {
+        vectorParams.addressGen1Loops[0][i] = 1;
       }
       vectorParams.addressGen1Loops[0][0] = 1;
       vectorParams.addressGen1Loops[0][1] = K;
@@ -621,8 +623,8 @@ void Harness::sendParams() {
       vectorParams.VECTOR_OFFSET = params.INPUT_OFFSET;
       vectorParams.addressGen0Enable = true;
       vectorParams.addressGen0Broadcast = false;
-      for(int i = 0; i < 3; i++){
-      vectorParams.addressGen0Loop[0][i] = 1;
+      for (int i = 0; i < 3; i++) {
+        vectorParams.addressGen0Loop[0][i] = 1;
       }
       vectorParams.addressGen0Loop[1][0] = 1;
       vectorParams.addressGen0Loop[1][1] = X;
@@ -631,8 +633,8 @@ void Harness::sendParams() {
       // address gen 1 (weights)
       vectorParams.ADDRESS_GEN1_OFFSET = params.WEIGHT_OFFSET;
       vectorParams.addressGen1Mode = 2;  // 2d tensor
-      for(int i = 0; i < 3; i++){
-      vectorParams.addressGen1Loops[0][i] = 1;
+      for (int i = 0; i < 3; i++) {
+        vectorParams.addressGen1Loops[0][i] = 1;
       }
       vectorParams.addressGen1Loops[1][0] = X;
       vectorParams.addressGen1Loops[1][1] = 1;
@@ -657,7 +659,7 @@ void Harness::sendParams() {
       vectorParams.scalarOutputCount = 0;
       vectorParams.MAXPOOL = params.MAXPOOL;
       vectorParams.AVGPOOL = params.AVGPOOL;
-      vectorParams.SPLIT_HEAD = params.SPLIT_HEAD;
+      vectorParams.SPLIT_OUTPUT = params.SPLIT_OUTPUT;
 
       // output
       for (int i = 0; i < 3; i++) {
@@ -718,7 +720,7 @@ void Harness::sendParams() {
 
       vectorParams.addressGen0Loop[0][0] = 1;
       vectorParams.addressGen0Loop[0][1] = 1;
-      vectorParams.addressGen0Loop[0][2] = C / DIMENSION;
+      vectorParams.addressGen0Loop[0][2] = K / DIMENSION;
       vectorParams.addressGen0Loop[1][0] = 1;
       vectorParams.addressGen0Loop[1][1] = X;
       vectorParams.addressGen0Loop[1][2] = 1;
@@ -728,36 +730,33 @@ void Harness::sendParams() {
       vectorParams.addressGen1Mode = 2;  // 2d tensor
       vectorParams.addressGen1Loops[0][0] = 1;
       vectorParams.addressGen1Loops[0][1] = 1;
-      vectorParams.addressGen1Loops[0][2] = C / DIMENSION;
+      vectorParams.addressGen1Loops[0][2] = K / DIMENSION;
       vectorParams.addressGen1Loops[1][0] = 1;
       vectorParams.addressGen1Loops[1][1] = X;
       vectorParams.addressGen1Loops[1][2] = 1;
 
       vectorParams.ADDRESS_GEN2_OFFSET = params.BIAS_OFFSET;
       vectorParams.addressGen2Mode = 0;  // no bias
-      vectorParams.addressGen2Loops[0][0] = X;
-      vectorParams.addressGen2Loops[0][1] = 1;
-      vectorParams.addressGen2Loops[0][2] = C / DIMENSION;
 
       vectorParams.VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
       vectorParams.SCALAR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
 
       vectorParams.scalarOutputCount = 0;
-      vectorParams.MAXPOOL = params.MAXPOOL;
-      vectorParams.AVGPOOL = params.AVGPOOL;
-      vectorParams.SPLIT_HEAD = params.SPLIT_HEAD;
+      vectorParams.MAXPOOL = false;
+      vectorParams.AVGPOOL = false;
+      vectorParams.SPLIT_OUTPUT = false;
 
       // output
       for (int i = 0; i < 3; i++) {
-        vectorParams.outputLoops[0][i] = params.loops[0][i];
+        vectorParams.outputLoops[0][i] = 1;
       }
       vectorParams.outputXLoopIndex[0] = params.inputXLoopIndex[0];
       vectorParams.outputYLoopIndex[0] = params.inputYLoopIndex[0];
       vectorParams.outputWeightLoopIndex[0] = params.weightLoopIndex[0];
 
       vectorParams.outputLoops[1][0] = 1;
-      vectorParams.outputLoops[1][1] = X;
-      vectorParams.outputLoops[1][2] = C / DIMENSION;
+      vectorParams.outputLoops[1][1] = 1;
+      vectorParams.outputLoops[1][2] = K / DIMENSION;
       vectorParams.outputWeightLoopIndex[1] = 2;
       vectorParams.outputYLoopIndex[1] = 0;
       vectorParams.outputXLoopIndex[1] = 1;
@@ -768,7 +767,7 @@ void Harness::sendParams() {
       // create instruction stream
       VectorInstructionConfig vectorInstructionConfig;
 
-      // inst 0- accumulate 
+      // inst 0- accumulate
       VectorInstructions vInst0;
       vInst0.instType = VectorInstructions::accumulation;
       vInst0.rCount = X;
@@ -793,9 +792,9 @@ void Harness::sendParams() {
 
       // C/DIMENSION to do the complete reduction
       // DIMENSION to fill up the entire vector
-      vectorInstructionConfig.instCount[0] = X;
+      vectorInstructionConfig.instCount[1] = X;
 
-      // inst 2- pull from accumulator 
+      // inst 2- pull from accumulator
       VectorInstructions vInst2;
       vInst2.instType = VectorInstructions::vector;
       vInst2.vInput = VectorInstructions::readFromAccumulation;
@@ -810,9 +809,10 @@ void Harness::sendParams() {
       vInst2.vAccumulatePush = 0;
       vInst2.vDest = VectorInstructions::vWriteOut;
       vectorInstructionConfig.inst[2] = vInst2;
+      vectorInstructionConfig.instCount[2] = 1;
 
       vectorInstructionConfig.instLen = 3;
-      vectorInstructionConfig.instLoopCount = C/DIMENSION;
+      vectorInstructionConfig.instLoopCount = C / DIMENSION;
 
       sendSerializedParams<VectorInstructionConfig, 32>(vectorInstructionConfig,
                                                         &serialVectorParamsIn);
@@ -826,7 +826,7 @@ void Harness::sendParams() {
       MatrixParams matrixParams;
       matrixParams.INPUT_OFFSET = params.INPUT_OFFSET;
       matrixParams.WEIGHT_OFFSET = params.WEIGHT_OFFSET;
-      matrixParams.TRANSPOSE = params.TRANSPOSE;
+      matrixParams.WEIGHT_TRANSPOSE = params.WEIGHT_TRANSPOSE;
       for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 6; j++) {
           matrixParams.loops[i][j] = params.loops[i][j];
@@ -850,7 +850,7 @@ void Harness::sendParams() {
           params.weightLoopIndex[0];
 
       // set inner loop values
-      if (params.TRANSPOSE) {
+      if (params.WEIGHT_TRANSPOSE) {
         // for tranpose, we need to enforce that the innermost loop is the
         // unrolled reduction loop
         // we can just use the following loop nest:
@@ -933,8 +933,8 @@ void Harness::sendParams() {
       matrixParams.REPLICATION = params.REPLICATION;
       matrixParams.STORE_IN_ACC = params.STORE_IN_ACC;
       matrixParams.ACC_FROM_ACC = params.ACC_FROM_ACC;
-      matrixParams.CONCAT_HEAD = params.CONCAT_HEAD;
-      matrixParams.CONCAT_HEAD_WEIGHTS = params.WEIGHT_PERMUTE;
+      matrixParams.CONCAT_INPUT = params.CONCAT_INPUT;
+      matrixParams.CONCAT_HEAD_WEIGHTS = params.CONCAT_WEIGHT;
       matrixParams.TRANPOSE_INPUTS = params.INPUT_TRANSPOSE;
 
       sendSerializedParams<MatrixParams, 32>(matrixParams,
@@ -1008,6 +1008,8 @@ void Harness::sendParams() {
       }
 
       vectorParams.FULL_HEAD_SIZE = 0;
+      vectorParams.SPLIT_OUTPUT = params.SPLIT_OUTPUT;
+      vectorParams.DP_OUTPUT = false;
       vectorParams.VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
       vectorParams.SCALAR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
       vectorParams.scalarOutputCount = 0;
@@ -1041,7 +1043,7 @@ void Harness::sendParams() {
         }
       }
 
-      vectorParams.SPLIT_HEAD = params.SPLIT_HEAD;
+      vectorParams.SPLIT_OUTPUT = params.SPLIT_OUTPUT;
 
       sendSerializedParams<VectorParams, 32>(vectorParams,
                                              &serialVectorParamsIn);
@@ -1051,12 +1053,14 @@ void Harness::sendParams() {
       memset(&vectorInstructionConfig, 0, sizeof(vectorInstructionConfig));
 
       if (params.AVGPOOL) {
+        // accumulate over X*Y
         VectorInstructions vInst0;
         vInst0.instType = VectorInstructions::accumulation;
         vInst0.rCount = X * Y;
         vectorInstructionConfig.instCount[0] = 1;
         vectorInstructionConfig.inst[0] = vInst0;
-
+        
+        // send to accumulator
         VectorInstructions vInst1;
         vInst1.instType = VectorInstructions::vector;
         vInst1.vInput = VectorInstructions::readFromSystolicArray;
@@ -1073,6 +1077,7 @@ void Harness::sendParams() {
         vectorInstructionConfig.inst[1] = vInst1;
         vectorInstructionConfig.instCount[1] = X * Y;
 
+        // pull from accumulator and divide by X*Y
         VectorInstructions vInst2;
         vInst2.instType = VectorInstructions::vector;
         vInst2.vInput = VectorInstructions::readFromAccumulation;
@@ -1082,16 +1087,19 @@ void Harness::sendParams() {
         vInst2.vOp1 = VectorInstructions::nop;
         vInst2.vOp1 = VectorInstructions::nop;
         vInst2.vOp3Src0 = VectorInstructions::nop;  // use existing
-        vInst2.vOp3Src1 = VectorInstructions::nop;
-        vInst2.vOp3 = VectorInstructions::nop;
+        vInst2.vOp3Src1 = VectorInstructions::op3immediate0;
+        vInst2.vOp3 = VectorInstructions::vmult;
         vInst2.vOp4 = VectorInstructions::nop;
         vInst2.vDest = VectorInstructions::vWriteOut;
+        float fpscale = (1.0/(X*Y));
+        Posit<8,1> scale = static_cast<Posit<8,1> >(fpscale);
+        vInst2.immediate0 = scale.bits;
         vectorInstructionConfig.inst[2] = vInst2;
         vectorInstructionConfig.instCount[2] = 1;
 
         vectorInstructionConfig.instLen = 3;
         vectorInstructionConfig.instLoopCount = K / DIMENSION;
-      }  else {
+      } else {
         VectorInstructions vInst0;
         memset(&vInst0, 0, sizeof(vInst0));
         vInst0.instType = VectorInstructions::vector;
@@ -1101,10 +1109,10 @@ void Harness::sendParams() {
         if (params.RESIDUAL) {
           vInst0.vOp0Src1 = VectorInstructions::readInterface;
           vInst0.vOp0 = VectorInstructions::vadd;
-        } else if(params.ATTENTION_SCALING) {          
+        } else if (params.ATTENTION_SCALING) {
           vInst0.vOp0Src1 = VectorInstructions::op0immediate0;
-          float fpscale = (1.0/sqrt(32));
-          Posit<8,1> scale = static_cast<Posit<8,1> >(fpscale);
+          float fpscale = (1.0 / sqrt(32));
+          Posit<8, 1> scale = static_cast<Posit<8, 1> >(fpscale);
           vInst0.immediate0 = scale.bits;
           vInst0.vOp0 = VectorInstructions::vmult;
         } else {
@@ -1113,7 +1121,7 @@ void Harness::sendParams() {
         }
 
         vInst0.vOp1 = VectorInstructions::nop;
-        vInst0.vOp1 = VectorInstructions::nop;
+        vInst0.vOp2 = VectorInstructions::nop;
         vInst0.vOp3Src0 = VectorInstructions::nop;  // use existing
 
         if (params.BIAS) {

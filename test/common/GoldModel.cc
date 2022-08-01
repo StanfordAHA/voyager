@@ -253,11 +253,28 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
       }
     }
 
+    if (params.GRAD_CLIPPING) {
+      ACC_T acc = 0;
+      for (int i = 0; i < K; i++) {
+        acc = gold_fma(accumMatrix[i], accumMatrix[i], acc);
+      }
+
+      // TODO: implement posit square root
+      acc = std::sqrt(static_cast<float>(acc));
+
+      if (acc > 1) {
+        for (int i = 0; i < K; i++) {
+          accumMatrix[i] =
+              static_cast<float>(accumMatrix[i]) / static_cast<float>(acc);
+        }
+      }
+    }
+
     for (int i = 0; i < K; i++) {
       matrixC[i] = accumMatrix[i];
     }
     // Cross Entropy Loss
-  } else if (params.CROSS_ENTROPY_LOSS_GRAD) {
+  } else if (params.CROSS_ENTROPY_GRAD) {
     // matrix A: logits
     // matrix B: one-hot encoded targets
     int X = params.loops[0][params.inputXLoopIndex[0]] *
@@ -292,7 +309,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
       accumMatrix[i] -= matrixB[i];
       matrixC[i] = accumMatrix[i];
     }
-  } else if (params.MSE_LOSS_GRAD) {
+  } else if (params.MSE_GRAD) {
     int X = params.loops[0][params.inputXLoopIndex[0]] *
             params.loops[1][params.inputXLoopIndex[1]];
 
@@ -300,7 +317,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
     for (int i = 0; i < X; i++) {
       matrixC[i] = static_cast<ACC_T>(matrixA[i] - matrixB[i]) * divisor;
     }
-  } else if (params.BCE_LOGITS_LOSS_GRAD) {
+  } else if (params.BCE_WITH_LOGITS_GRAD) {
     int X = params.loops[0][params.inputXLoopIndex[0]] *
             params.loops[1][params.inputXLoopIndex[1]];
 
@@ -320,7 +337,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
     memcpy(permuteMatrixB, matrixB, sizeof(permuteMatrixB));
 
     // TODO: Add input/weight tranpose/permute to all operations
-    if (params.WEIGHT_PERMUTE) {
+    if (params.CONCAT_WEIGHT) {
       for (int i = 0; i < C; i++) {
         for (int j = 0; j < 4; j++) {
           for (int k = 0; k < K / 4; k++) {
@@ -340,6 +357,23 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
         }
 
         accumMatrix[i] += acc;
+      }
+    }
+
+    if (params.GRAD_CLIPPING) {
+      ACC_T acc = 0;
+      for (int i = 0; i < K; i++) {
+        acc = gold_fma(accumMatrix[i], accumMatrix[i], acc);
+      }
+
+      // TODO: implement posit square root
+      acc = std::sqrt(static_cast<float>(acc));
+
+      if (acc > 1) {
+        for (int i = 0; i < K; i++) {
+          accumMatrix[i] =
+              static_cast<float>(accumMatrix[i]) / static_cast<float>(acc);
+        }
       }
     }
 
@@ -373,7 +407,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
     memcpy(permuteMatrixA, matrixA, sizeof(permuteMatrixA));
     memcpy(permuteMatrixB, matrixB, sizeof(permuteMatrixB));
 
-    if (params.CONCAT_HEAD) {
+    if (params.CONCAT_INPUT) {
       T tmpMatrixA[numRows * C];
       for (int i = 0; i < numRows; i++) {
         for (int j = 0; j < 4; j++) {
@@ -396,7 +430,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
       memcpy(permuteMatrixA, tmpMatrixA, sizeof(tmpMatrixA));
     }
 
-    if (params.WEIGHT_PERMUTE) {
+    if (params.CONCAT_WEIGHT) {
       T tmpMatrixB[C * K];
       for (int i = 0; i < C; i++) {
         for (int j = 0; j < 4; j++) {
@@ -409,7 +443,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
       memcpy(permuteMatrixB, tmpMatrixB, sizeof(tmpMatrixB));
     }
 
-    if (params.TRANSPOSE) {
+    if (params.WEIGHT_TRANSPOSE) {
       T tmpMatrixB[C * K];
       for (int c = 0; c < C; c++) {
         for (int k = 0; k < K; k++) {
@@ -441,7 +475,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
                                                   ? matrixA[X * K + x]
                                                   : matrixA[X * K + k]);
                     if (!params.WEIGHT) {
-                      acc *= static_cast<ACC_T>(params.TRANSPOSE
+                      acc *= static_cast<ACC_T>(params.WEIGHT_TRANSPOSE
                                                     ? matrixB[C * K + c]
                                                     : matrixB[C * K + k]);
                     }
@@ -493,7 +527,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
       }
     }
 
-    if (params.GRADIENT_CLIPPING) {
+    if (params.GRAD_CLIPPING) {
       ACC_T acc = 0;
       for (int i = 0; i < X; i++) {
         for (int j = 0; j < K; j++) {
@@ -503,6 +537,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
 
       // TODO: implement posit square root
       acc = std::sqrt(static_cast<float>(acc));
+      std::cerr << (float) acc << std::endl;
 
       if (acc > 1) {
         for (int i = 0; i < X; i++) {
@@ -533,7 +568,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
       }
     }
 
-    if (params.SPLIT_HEAD) {
+    if (params.SPLIT_OUTPUT) {
       T tmpMatrixC[numRows * K];
       for (int i = 0; i < 4; i++) {
         for (int j = 0; j < numRows; j++) {

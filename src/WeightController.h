@@ -137,7 +137,7 @@ SC_MODULE(WeightController) {
 
                       int baseAddress =
                           (fy * FX * C * K) + (fx * C * K) + (c * K) + k;
-                      if (params.TRANSPOSE) {
+                      if (params.WEIGHT_TRANSPOSE) {
                         baseAddress = (k + c0) * C + c1 * DIMENSION;
                       } else if (params.CONCAT_HEAD_WEIGHTS) {
                         baseAddress = ((k / 32) * C * 32) + (c * 32) + (k % 32);
@@ -531,7 +531,7 @@ SC_MODULE(WeightController) {
       //   loop_bounds[1][params.fxIndex] = 7;
       // }
 
-      if (params.TRANSPOSE) {
+      if (params.WEIGHT_TRANSPOSE) {
         INPUT_DATATYPE transposeBuffer[NROWS][NCOLS];
 
 #pragma hls_pipeline_init_interval 1

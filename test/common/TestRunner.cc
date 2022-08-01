@@ -322,8 +322,8 @@ int run_sequence(const std::string& group,
           fp_comp, X * Y * K, diff_file);
     } else if ((comparisons[i] == "customposit" &&
                 comparisons[i + 1] == "fp32") ||
-               (comparisons[i + 1] == "fp32" &&
-                comparisons[i] == "customposit")) {
+               (comparisons[i] == "fp32" &&
+                comparisons[i+1] == "customposit")) {
       error_count += compare_arrays(
           hls_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
           float_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
@@ -412,7 +412,7 @@ extern "C" int sc_main(int argc, char* argv[]) {
       loadWeights(weightDataDir);
 
       // For debug purpose
-      std::string activationDataDir = datapath + "activations1/";
+      std::string activationDataDir = datapath + "activations/";
       loadActivation(activationDataDir);
 
       // errors += runInference(datapath, compList);

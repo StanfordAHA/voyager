@@ -31,12 +31,12 @@ struct MatrixParams {
   int STRIDE;
   int HEAD_SIZE_LG2;
 
-  bool TRANSPOSE;
+  bool WEIGHT_TRANSPOSE;
   bool REPLICATION;
-  
+
   bool STORE_IN_ACC;
   bool ACC_FROM_ACC;
-  bool CONCAT_HEAD;
+  bool CONCAT_INPUT;
   bool CONCAT_HEAD_WEIGHTS;
   bool TRANPOSE_INPUTS;
 
@@ -86,11 +86,11 @@ struct MatrixParams {
     m& weightAddressGenInputYLoopIndex;
     m& STRIDE;
     m& HEAD_SIZE_LG2;
-    m& TRANSPOSE;
+    m& WEIGHT_TRANSPOSE;
     m& REPLICATION;
     m& STORE_IN_ACC;
     m& ACC_FROM_ACC;
-    m& CONCAT_HEAD;
+    m& CONCAT_INPUT;
     m& CONCAT_HEAD_WEIGHTS;
     m& TRANPOSE_INPUTS;
   }
@@ -104,7 +104,7 @@ struct MatrixParams {
                                          const MatrixParams& params) {
     os << "INPUT_OFFSET: " << params.INPUT_OFFSET << std::endl;
     os << "WEIGHT_OFFSET: " << params.WEIGHT_OFFSET << std::endl;
-    os << "TRANSPOSE: " << params.TRANSPOSE << std::endl;
+    os << "WEIGHT_TRANSPOSE: " << params.WEIGHT_TRANSPOSE << std::endl;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 6; j++) {
         os << "loops[" << i << "][" << j << "]: " << params.loops[i][j]
@@ -321,7 +321,7 @@ struct VectorParams {
   int outputYLoopIndex[2];
   int outputWeightLoopIndex[2];
   int FULL_HEAD_SIZE;
-  bool SPLIT_HEAD;
+  bool SPLIT_OUTPUT;
 
   bool DP_OUTPUT;
 
@@ -334,15 +334,17 @@ struct VectorParams {
   bool MAXPOOL;
   bool AVGPOOL;
 
-  static const unsigned int width = 13 * 32 + 1 + 1 + 2 + 2 + 1 + 1 + 37 * 32 + 2 + 1 + 1;
+  static const unsigned int width =
+      13 * 32 + 1 + 1 + 2 + 2 + 1 + 1 + 37 * 32 + 2 + 1 + 1;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
     m& VECTOR_OFFSET;
-    for(int i = 0; i < 2; i++){
-    for (int j = 0; j < 3; j++) {
-      m& addressGen0Loop[i][j];
-    }}
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 3; j++) {
+        m& addressGen0Loop[i][j];
+      }
+    }
     m& DP_VEC0;
     m& ADDRESS_GEN1_OFFSET;
     for (int i = 0; i < 2; i++) {
@@ -393,7 +395,7 @@ struct VectorParams {
       m& outputWeightLoopIndex[i];
     }
     m& FULL_HEAD_SIZE;
-    m& SPLIT_HEAD;
+    m& SPLIT_OUTPUT;
     m& DP_OUTPUT;
     m& addressGen0Enable;
     m& addressGen0Broadcast;
@@ -428,27 +430,64 @@ struct VectorInstructionConfig {
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
-    
-      for (int j = 0; j < 8; j++) {m& inst[j].instType;}
-      for (int j = 0; j < 8; j++) {m& inst[j].vInput;}
-      for (int j = 0; j < 8; j++) {m& inst[j].vOp0Src1;}
-      for (int j = 0; j < 8; j++) {m& inst[j].vOp0;}
-      for (int j = 0; j < 8; j++) {m& inst[j].vOp1;}
-      for (int j = 0; j < 8; j++) {m& inst[j].vOp2;}
-      for (int j = 0; j < 8; j++) {m& inst[j].vOp3Src0;}
-      for (int j = 0; j < 8; j++) {m& inst[j].vOp3Src1;}
-      for (int j = 0; j < 8; j++) {m& inst[j].vOp3;}
-      for (int j = 0; j < 8; j++) {m& inst[j].vOp4;}
-      for (int j = 0; j < 8; j++) {m& inst[j].vAccumulatePush;}
-      for (int j = 0; j < 8; j++) {m& inst[j].vDest;}
-      for (int j = 0; j < 8; j++) {m& inst[j].rCount;}
-      for (int j = 0; j < 8; j++) {m& inst[j].rOp;}
-      for (int j = 0; j < 8; j++) {m& inst[j].rInvSqrt;}
-      for (int j = 0; j < 8; j++) {m& inst[j].rDuplicate;}
-      for (int j = 0; j < 8; j++) {m& inst[j].rDest;}
-      for (int j = 0; j < 8; j++) {m& inst[j].immediate0;}
-      for (int j = 0; j < 8; j++) {m& inst[j].immediate1;}
-    
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].instType;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vInput;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vOp0Src1;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vOp0;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vOp1;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vOp2;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vOp3Src0;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vOp3Src1;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vOp3;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vOp4;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vAccumulatePush;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vDest;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].rCount;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].rOp;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].rInvSqrt;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].rDuplicate;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].rDest;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].immediate0;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].immediate1;
+    }
+
     for (int i = 0; i < 8; i++) {
       m& instCount[i];
     }

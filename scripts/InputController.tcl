@@ -12,7 +12,6 @@ go libraries
 directive set -CLOCKS $clocks
 
 go assembly
-
-directive set /$input_controller_stripped/$input_controller_stripped:transposer/transposer/while:if:transposeBuffer.bits:rsc -MAP_TO_MODULE {[Register]}
+directive set /$input_controller_stripped/$input_controller_stripped:transposer/transposer/while:if#1:transposeBuffer.bits:rsc -MAP_TO_MODULE {[Register]}
 
 go extract
