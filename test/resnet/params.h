@@ -7,962 +7,554 @@
 #include "test/common/VerificationTypes.h"
 
 const SimplifiedParams conv1_params = {
-    45056,                                       // INPUT_OFFSET
-    0,                                           // WEIGHT_OFFSET
-    847872,                                      // OUTPUT_OFFSET
-    false,                                       // WEIGHT_TRANSPOSE
-    {{7, 7, 2, 1, 1, 1}, {1, 2, 7, 2, 16, 16}},  // LOOPS
-    {0, 5},                                      // INPUTX
-    {1, 4},                                      // INPUTY
-    {3, 0},                                      // REDUCTION
-    {2, 1},                                      // WEIGHT
-    3,                                           // fxIndex
-    2,                                           // fyIndex
-    {4, 5},                                      // weightReuseIndex
-    2,                                           // stride
-    true,                                        // replication
-    true,                                        // RELU
-    true,                                        // bias
-    9408,                                        // BIAS_OFFSET
-    false,                                       // residual
-    45056,                                       // RESIDUAL_OFFSET
-    true,                                        // maxpool
-    false,                                       // avgpool
-    false,                                       // softmax
-    false,                                       // FC
-    false,                                       // no-norm
-    true,                                        // weight
-    false,                                       // ATTENTION_SCALING
-    false,                                       // STORE_IN_ACC
-    false,                                       // ACC_FROM_ACC
-    false,                                       // INPUT_TRANSPOSE
-    false,                                       // SPLIT_OUTPUT
-    false,                                       // CONCAT_INPUT
-    false,                                       // SOFTMAX_GRAD
-    false,                                       // NO_NORM_GRAD
-    false,                                       // RELU_GRAD
-    false,                                       // CONCAT_WEIGHT
-    false,                                       // WEIGHT_ADDITION
-    false,                                       // BIAS_GRAD
-    false,                                       // GRADIENT_CLIPPING
-    false,                                       // CROSS_ENTROPY_LOSS_GRAD
-    false,                                       // MSE_LOSS_GRAD
-    false,                                       // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 45056,
+    .WEIGHT_OFFSET = 0,
+    .OUTPUT_OFFSET = 847872,
+    .loops = {{7, 7, 2, 1, 1, 1}, {1, 2, 7, 2, 16, 16}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 2,
+    .REPLICATION = true,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 9408,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = true,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
 
 const SimplifiedParams layer1_0_conv1_params = {
-    847872,                                      // INPUT_OFFSET
-    9472,                                        // WEIGHT_OFFSET
-    45056,                                       // OUTPUT_OFFSET
-    false,                                       // WEIGHT_TRANSPOSE
-    {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
-    {0, 5},                                      // INPUTX
-    {1, 4},                                      // INPUTY
-    {3, 0},                                      // REDUCTION
-    {2, 1},                                      // WEIGHT
-    3,                                           // fxIndex
-    2,                                           // fyIndex
-    {4, 5},                                      // weightReuseIndex
-    1,                                           // stride
-    false,                                       // replication
-    true,                                        // RELU
-    true,                                        // bias
-    46336,                                       // BIAS_OFFSET
-    false,                                       // residual
-    45056,                                       // RESIDUAL_OFFSET
-    false,                                       // maxpool
-    false,                                       // avgpool
-    false,                                       // SOFTMAX
-    false,                                       // FC
-    false,                                       // no-norm
-    true,                                        // weight
-    false,                                       // ATTENTION_SCALING
-    false,                                       // STORE_IN_ACC
-    false,                                       // ACC_FROM_ACC
-    false,                                       // INPUT_TRANSPOSE
-    false,                                       // SPLIT_OUTPUT
-    false,                                       // CONCAT_INPUT
-    false,                                       // SOFTMAX_GRAD
-    false,                                       // NO_NORM_GRAD
-    false,                                       // RELU_GRAD
-    false,                                       // CONCAT_WEIGHT
-    false,                                       // WEIGHT_ADDITION
-    false,                                       // BIAS_GRAD
-    false,                                       // GRADIENT_CLIPPING
-    false,                                       // CROSS_ENTROPY_LOSS_GRAD
-    false,                                       // MSE_LOSS_GRAD
-    false,                                       // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 847872,
+    .WEIGHT_OFFSET = 9472,
+    .OUTPUT_OFFSET = 45056,
+    .loops = {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 46336,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
 
 const SimplifiedParams layer1_0_conv2_params = {
-    45056,                                       // INPUT_OFFSET
-    46400,                                       // WEIGHT_OFFSET
-    1249280,                                     // OUTPUT_OFFSET
-    false,                                       // WEIGHT_TRANSPOSE
-    {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
-    {0, 5},                                      // INPUTX
-    {1, 4},                                      // INPUTY
-    {3, 0},                                      // REDUCTION
-    {2, 1},                                      // WEIGHT
-    3,                                           // fxIndex
-    2,                                           // fyIndex
-    {4, 5},                                      // weightReuseIndex
-    1,                                           // stride
-    false,                                       // replication
-    true,                                        // RELU
-    true,                                        // bias
-    83264,                                       // BIAS_OFFSET
-    true,                                        // residual
-    847872,                                      // RESIDUAL_OFFSET
-    false,                                       // maxpool
-    false,                                       // avgpool
-    false,                                       // SOFTMAX
-    false,                                       // FC
-    false,                                       // no-norm
-    true,                                        // weight
-    false,                                       // ATTENTION_SCALING
-    false,                                       // STORE_IN_ACC
-    false,                                       // ACC_FROM_ACC
-    false,                                       // INPUT_TRANSPOSE
-    false,                                       // SPLIT_OUTPUT
-    false,                                       // CONCAT_INPUT
-    false,                                       // SOFTMAX_GRAD
-    false,                                       // NO_NORM_GRAD
-    false,                                       // RELU_GRAD
-    false,                                       // CONCAT_WEIGHT
-    false,                                       // WEIGHT_ADDITION
-    false,                                       // BIAS_GRAD
-    false,                                       // GRADIENT_CLIPPING
-    false,                                       // CROSS_ENTROPY_LOSS_GRAD
-    false,                                       // MSE_LOSS_GRAD
-    false,                                       // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 45056,
+    .WEIGHT_OFFSET = 46400,
+    .OUTPUT_OFFSET = 1249280,
+    .loops = {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 83264,
+    .RESIDUAL = true,
+    .RESIDUAL_OFFSET = 847872,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
 
 const SimplifiedParams layer1_1_conv1_params = {
-    1249280,                                     // INPUT_OFFSET
-    83328,                                       // WEIGHT_OFFSET
-    446464,                                      // OUTPUT_OFFSET
-    false,                                       // WEIGHT_TRANSPOSE
-    {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
-    {0, 5},                                      // INPUTX
-    {1, 4},                                      // INPUTY
-    {3, 0},                                      // REDUCTION
-    {2, 1},                                      // WEIGHT
-    3,                                           // fxIndex
-    2,                                           // fyIndex
-    {4, 5},                                      // weightReuseIndex
-    1,                                           // stride
-    false,                                       // replication
-    true,                                        // RELU
-    true,                                        // bias
-    120192,                                      // BIAS_OFFSET
-    false,                                       // residual
-    45056,                                       // RESIDUAL_OFFSET
-    false,                                       // maxpool
-    false,                                       // avgpool
-    false,                                       // SOFTMAX
-    false,                                       // FC
-    false,                                       // no-norm
-    true,                                        // weight
-    false,                                       // ATTENTION_SCALING
-    false,                                       // STORE_IN_ACC
-    false,                                       // ACC_FROM_ACC
-    false,                                       // INPUT_TRANSPOSE
-    false,                                       // SPLIT_OUTPUT
-    false,                                       // CONCAT_INPUT
-    false,                                       // SOFTMAX_GRAD
-    false,                                       // NO_NORM_GRAD
-    false,                                       // RELU_GRAD
-    false,                                       // CONCAT_WEIGHT
-    false,                                       // WEIGHT_ADDITION
-    false,                                       // BIAS_GRAD
-    false,                                       // GRADIENT_CLIPPING
-    false,                                       // CROSS_ENTROPY_LOSS_GRAD
-    false,                                       // MSE_LOSS_GRAD
-    false,                                       // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 1249280,
+    .WEIGHT_OFFSET = 83328,
+    .OUTPUT_OFFSET = 446464,
+    .loops = {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 120192,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
 
 const SimplifiedParams layer1_1_conv2_params = {
-    446464,                                      // INPUT_OFFSET
-    120256,                                      // WEIGHT_OFFSET
-    1650688,                                     // OUTPUT_OFFSET
-    false,                                       // WEIGHT_TRANSPOSE
-    {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},  // LOOPS
-    {0, 5},                                      // INPUTX
-    {1, 4},                                      // INPUTY
-    {3, 0},                                      // REDUCTION
-    {2, 1},                                      // WEIGHT
-    3,                                           // fxIndex
-    2,                                           // fyIndex
-    {4, 5},                                      // weightReuseIndex
-    1,                                           // stride
-    false,                                       // replication
-    true,                                        // RELU
-    true,                                        // bias
-    157120,                                      // BIAS_OFFSET
-    true,                                        // residual
-    1249280,                                     // RESIDUAL_OFFSET
-    false,                                       // maxpool
-    false,                                       // avgpool
-    false,                                       // SOFTMAX
-    false,                                       // FC
-    false,                                       // no-norm
-    true,                                        // weight
-    false,                                       // ATTENTION_SCALING
-    false,                                       // STORE_IN_ACC
-    false,                                       // ACC_FROM_ACC
-    false,                                       // INPUT_TRANSPOSE
-    false,                                       // SPLIT_OUTPUT
-    false,                                       // CONCAT_INPUT
-    false,                                       // SOFTMAX_GRAD
-    false,                                       // NO_NORM_GRAD
-    false,                                       // RELU_GRAD
-    false,                                       // CONCAT_WEIGHT
-    false,                                       // WEIGHT_ADDITION
-    false,                                       // BIAS_GRAD
-    false,                                       // GRADIENT_CLIPPING
-    false,                                       // CROSS_ENTROPY_LOSS_GRAD
-    false,                                       // MSE_LOSS_GRAD
-    false,                                       // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 446464,
+    .WEIGHT_OFFSET = 120256,
+    .OUTPUT_OFFSET = 1650688,
+    .loops = {{2, 2, 4, 1, 1, 1}, {4, 1, 3, 3, 28, 28}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 157120,
+    .RESIDUAL = true,
+    .RESIDUAL_OFFSET = 1249280,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
 
 const SimplifiedParams layer2_0_downsample_params = {
-    1650688,                                     // INPUT_OFFSET
-    157184,                                      // WEIGHT_OFFSET
-    847872,                                      // OUTPUT_OFFSET
-    false,                                       // WEIGHT_TRANSPOSE
-    {{2, 2, 4, 1, 1, 1}, {4, 2, 1, 1, 14, 14}},  // LOOPS
-    {0, 5},                                      // INPUTX
-    {1, 4},                                      // INPUTY
-    {3, 0},                                      // REDUCTION
-    {2, 1},                                      // WEIGHT
-    3,                                           // fxIndex
-    2,                                           // fyIndex
-    {4, 5},                                      // weightReuseIndex
-    2,                                           // stride
-    false,                                       // replication
-    false,                                       // RELU
-    true,                                        // bias
-    165376,                                      // BIAS_OFFSET
-    false,                                       // residual
-    45056,                                       // RESIDUAL_OFFSET
-    false,                                       // maxpool
-    false,                                       // avgpool
-    false,                                       // SOFTMAX
-    false,                                       // FC
-    false,                                       // no-norm
-    true,                                        // weight
-    false,                                       // ATTENTION_SCALING
-    false,                                       // STORE_IN_ACC
-    false,                                       // ACC_FROM_ACC
-    false,                                       // INPUT_TRANSPOSE
-    false,                                       // SPLIT_OUTPUT
-    false,                                       // CONCAT_INPUT
-    false,                                       // SOFTMAX_GRAD
-    false,                                       // NO_NORM_GRAD
-    false,                                       // RELU_GRAD
-    false,                                       // CONCAT_WEIGHT
-    false,                                       // WEIGHT_ADDITION
-    false,                                       // BIAS_GRAD
-    false,                                       // GRADIENT_CLIPPING
-    false,                                       // CROSS_ENTROPY_LOSS_GRAD
-    false,                                       // MSE_LOSS_GRAD
-    false,                                       // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 1650688,
+    .WEIGHT_OFFSET = 157184,
+    .OUTPUT_OFFSET = 847872,
+    .loops = {{2, 2, 4, 1, 1, 1}, {4, 2, 1, 1, 14, 14}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 2,
+    .REPLICATION = false,
+    .RELU = false,
+    .BIAS = true,
+    .BIAS_OFFSET = 165376,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
 
 const SimplifiedParams layer2_0_conv1_params = {
-    1650688,                                   // INPUT_OFFSET
-    165504,                                    // WEIGHT_OFFSET
-    446464,                                    // OUTPUT_OFFSET
-    false,                                     // WEIGHT_TRANSPOSE
-    {{4, 4, 4, 1, 1, 1}, {4, 2, 3, 3, 7, 7}},  // LOOPS
-    {0, 5},                                    // INPUTX
-    {1, 4},                                    // INPUTY
-    {3, 0},                                    // REDUCTION
-    {2, 1},                                    // WEIGHT
-    3,                                         // fxIndex
-    2,                                         // fyIndex
-    {4, 5},                                    // weightReuseIndex
-    2,                                         // stride
-    false,                                     // replication
-    true,                                      // RELU
-    true,                                      // bias
-    239232,                                    // BIAS_OFFSET
-    false,                                     // residual
-    45056,                                     // RESIDUAL_OFFSET
-    false,                                     // maxpool
-    false,                                     // avgpool
-    false,                                     // SOFTMAX
-    false,                                     // FC
-    false,                                     // no-norm
-    true,                                      // weight
-    false,                                     // ATTENTION_SCALING
-    false,                                     // STORE_IN_ACC
-    false,                                     // ACC_FROM_ACC
-    false,                                     // INPUT_TRANSPOSE
-    false,                                     // SPLIT_OUTPUT
-    false,                                     // CONCAT_INPUT
-    false,                                     // SOFTMAX_GRAD
-    false,                                     // NO_NORM_GRAD
-    false,                                     // RELU_GRAD
-    false,                                     // CONCAT_WEIGHT
-    false,                                     // WEIGHT_ADDITION
-    false,                                     // BIAS_GRAD
-    false,                                     // GRADIENT_CLIPPING
-    false,                                     // CROSS_ENTROPY_LOSS_GRAD
-    false,                                     // MSE_LOSS_GRAD
-    false,                                     // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 1650688,
+    .WEIGHT_OFFSET = 165504,
+    .OUTPUT_OFFSET = 446464,
+    .loops = {{4, 4, 4, 1, 1, 1}, {4, 2, 3, 3, 7, 7}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 2,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 239232,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
 
 const SimplifiedParams layer2_0_conv2_params = {
-    446464,                                      // INPUT_OFFSET
-    239360,                                      // WEIGHT_OFFSET
-    1249280,                                     // OUTPUT_OFFSET
-    false,                                       // WEIGHT_TRANSPOSE
-    {{1, 1, 8, 1, 1, 1}, {8, 1, 3, 3, 28, 28}},  // LOOPS
-    {0, 5},                                      // INPUTX
-    {1, 4},                                      // INPUTY
-    {3, 0},                                      // REDUCTION
-    {2, 1},                                      // WEIGHT
-    3,                                           // fxIndex
-    2,                                           // fyIndex
-    {4, 5},                                      // weightReuseIndex
-    1,                                           // stride
-    false,                                       // replication
-    true,                                        // RELU
-    true,                                        // bias
-    386816,                                      // BIAS_OFFSET
-    true,                                        // residual
-    847872,                                      // RESIDUAL_OFFSET
-    false,                                       // maxpool
-    false,                                       // avgpool
-    false,                                       // SOFTMAX
-    false,                                       // FC
-    false,                                       // no-norm
-    true,                                        // weight
-    false,                                       // ATTENTION_SCALING
-    false,                                       // STORE_IN_ACC
-    false,                                       // ACC_FROM_ACC
-    false,                                       // INPUT_TRANSPOSE
-    false,                                       // SPLIT_OUTPUT
-    false,                                       // CONCAT_INPUT
-    false,                                       // SOFTMAX_GRAD
-    false,                                       // NO_NORM_GRAD
-    false,                                       // RELU_GRAD
-    false,                                       // CONCAT_WEIGHT
-    false,                                       // WEIGHT_ADDITION
-    false,                                       // BIAS_GRAD
-    false,                                       // GRADIENT_CLIPPING
-    false,                                       // CROSS_ENTROPY_LOSS_GRAD
-    false,                                       // MSE_LOSS_GRAD
-    false,                                       // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 446464,
+    .WEIGHT_OFFSET = 239360,
+    .OUTPUT_OFFSET = 1249280,
+    .loops = {{1, 1, 8, 1, 1, 1}, {8, 1, 3, 3, 28, 28}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 386816,
+    .RESIDUAL = true,
+    .RESIDUAL_OFFSET = 847872,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
+
 const SimplifiedParams layer2_1_conv1_params = {
-    1249280,                                     // INPUT_OFFSET
-    386944,                                      // WEIGHT_OFFSET
-    45056,                                       // OUTPUT_OFFSET
-    false,                                       // WEIGHT_TRANSPOSE
-    {{1, 1, 8, 1, 1, 1}, {8, 1, 3, 3, 28, 28}},  // LOOPS
-    {0, 5},                                      // INPUTX
-    {1, 4},                                      // INPUTY
-    {3, 0},                                      // REDUCTION
-    {2, 1},                                      // WEIGHT
-    3,                                           // fxIndex
-    2,                                           // fyIndex
-    {4, 5},                                      // weightReuseIndex
-    1,                                           // stride
-    false,                                       // replication
-    true,                                        // RELU
-    true,                                        // bias
-    534400,                                      // BIAS_OFFSET
-    false,                                       // residual
-    45056,                                       // RESIDUAL_OFFSET
-    false,                                       // maxpool
-    false,                                       // avgpool
-    false,                                       // SOFTMAX
-    false,                                       // FC
-    false,                                       // no-norm
-    true,                                        // weight
-    false,                                       // ATTENTION_SCALING
-    false,                                       // STORE_IN_ACC
-    false,                                       // ACC_FROM_ACC
-    false,                                       // INPUT_TRANSPOSE
-    false,                                       // SPLIT_OUTPUT
-    false,                                       // CONCAT_INPUT
-    false,                                       // SOFTMAX_GRAD
-    false,                                       // NO_NORM_GRAD
-    false,                                       // RELU_GRAD
-    false,                                       // CONCAT_WEIGHT
-    false,                                       // WEIGHT_ADDITION
-    false,                                       // BIAS_GRAD
-    false,                                       // GRADIENT_CLIPPING
-    false,                                       // CROSS_ENTROPY_LOSS_GRAD
-    false,                                       // MSE_LOSS_GRAD
-    false,                                       // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 1249280,
+    .WEIGHT_OFFSET = 386944,
+    .OUTPUT_OFFSET = 45056,
+    .loops = {{1, 1, 8, 1, 1, 1}, {8, 1, 3, 3, 28, 28}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 534400,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
+
 const SimplifiedParams layer2_1_conv2_params = {
-    45056,                                       // INPUT_OFFSET
-    534528,                                      // WEIGHT_OFFSET
-    1650688,                                     // OUTPUT_OFFSET
-    false,                                       // WEIGHT_TRANSPOSE
-    {{1, 1, 8, 1, 1, 1}, {8, 1, 3, 3, 28, 28}},  // LOOPS
-    {0, 5},                                      // INPUTX
-    {1, 4},                                      // INPUTY
-    {3, 0},                                      // REDUCTION
-    {2, 1},                                      // WEIGHT
-    3,                                           // fxIndex
-    2,                                           // fyIndex
-    {4, 5},                                      // weightReuseIndex
-    1,                                           // stride
-    false,                                       // replication
-    true,                                        // RELU
-    true,                                        // bias
-    681984,                                      // BIAS_OFFSET
-    true,                                        // residual
-    1249280,                                     // RESIDUAL_OFFSET
-    false,                                       // maxpool
-    false,                                       // avgpool
-    false,                                       // SOFTMAX
-    false,                                       // FC
-    false,                                       // no-norm
-    true,                                        // weight
-    false,                                       // ATTENTION_SCALING
-    false,                                       // STORE_IN_ACC
-    false,                                       // ACC_FROM_ACC
-    false,                                       // INPUT_TRANSPOSE
-    false,                                       // SPLIT_OUTPUT
-    false,                                       // CONCAT_INPUT
-    false,                                       // SOFTMAX_GRAD
-    false,                                       // NO_NORM_GRAD
-    false,                                       // RELU_GRAD
-    false,                                       // CONCAT_WEIGHT
-    false,                                       // WEIGHT_ADDITION
-    false,                                       // BIAS_GRAD
-    false,                                       // GRADIENT_CLIPPING
-    false,                                       // CROSS_ENTROPY_LOSS_GRAD
-    false,                                       // MSE_LOSS_GRAD
-    false,                                       // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 45056,
+    .WEIGHT_OFFSET = 534528,
+    .OUTPUT_OFFSET = 1650688,
+    .loops = {{1, 1, 8, 1, 1, 1}, {8, 1, 3, 3, 28, 28}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 681984,
+    .RESIDUAL = true,
+    .RESIDUAL_OFFSET = 1249280,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
 
 const SimplifiedParams layer3_0_downsample_params = {
-    1650688,                                   // INPUT_OFFSET
-    682112,                                    // WEIGHT_OFFSET
-    847872,                                    // OUTPUT_OFFSET
-    false,                                     // WEIGHT_TRANSPOSE
-    {{2, 2, 2, 1, 1, 1}, {8, 8, 1, 1, 7, 7}},  // LOOPS
-    {0, 5},                                    // INPUTX
-    {1, 4},                                    // INPUTY
-    {3, 0},                                    // REDUCTION
-    {2, 1},                                    // WEIGHT
-    3,                                         // fxIndex
-    2,                                         // fyIndex
-    {4, 5},                                    // weightReuseIndex
-    2,                                         // stride
-    false,                                     // replication
-    false,                                     // RELU
-    true,                                      // bias
-    714880,                                    // BIAS_OFFSET
-    false,                                     // residual
-    45056,                                     // RESIDUAL_OFFSET
-    false,                                     // maxpool
-    false,                                     // avgpool
-    false,                                     // SOFTMAX
-    false,                                     // FC
-    false,                                     // no-norm
-    true,                                      // weight
-    false,                                     // ATTENTION_SCALING
-    false,                                     // STORE_IN_ACC
-    false,                                     // ACC_FROM_ACC
-    false,                                     // INPUT_TRANSPOSE
-    false,                                     // SPLIT_OUTPUT
-    false,                                     // CONCAT_INPUT
-    false,                                     // SOFTMAX_GRAD
-    false,                                     // NO_NORM_GRAD
-    false,                                     // RELU_GRAD
-    false,                                     // CONCAT_WEIGHT
-    false,                                     // WEIGHT_ADDITION
-    false,                                     // BIAS_GRAD
-    false,                                     // GRADIENT_CLIPPING
-    false,                                     // CROSS_ENTROPY_LOSS_GRAD
-    false,                                     // MSE_LOSS_GRAD
-    false,                                     // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 1650688,
+    .WEIGHT_OFFSET = 682112,
+    .OUTPUT_OFFSET = 847872,
+    .loops = {{2, 2, 2, 1, 1, 1}, {8, 8, 1, 1, 7, 7}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 2,
+    .REPLICATION = false,
+    .RELU = false,
+    .BIAS = true,
+    .BIAS_OFFSET = 714880,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
 
 const SimplifiedParams layer3_0_conv1_params = {
-    1650688,                                   // INPUT_OFFSET
-    715136,                                    // WEIGHT_OFFSET
-    45056,                                     // OUTPUT_OFFSET
-    false,                                     // WEIGHT_TRANSPOSE
-    {{2, 2, 4, 1, 1, 1}, {8, 4, 3, 3, 7, 7}},  // LOOPS
-    {0, 5},                                    // INPUTX
-    {1, 4},                                    // INPUTY
-    {3, 0},                                    // REDUCTION
-    {2, 1},                                    // WEIGHT
-    3,                                         // fxIndex
-    2,                                         // fyIndex
-    {4, 5},                                    // weightReuseIndex
-    2,                                         // stride
-    false,                                     // replication
-    true,                                      // RELU
-    true,                                      // bias
-    1010048,                                   // BIAS_OFFSET
-    false,                                     // residual
-    45056,                                     // RESIDUAL_OFFSET
-    false,                                     // maxpool
-    false,                                     // avgpool
-    false,                                     // SOFTMAX
-    false,                                     // FC
-    false,                                     // no-norm
-    true,                                      // weight
-    false,                                     // ATTENTION_SCALING
-    false,                                     // STORE_IN_ACC
-    false,                                     // ACC_FROM_ACC
-    false,                                     // INPUT_TRANSPOSE
-    false,                                     // SPLIT_OUTPUT
-    false,                                     // CONCAT_INPUT
-    false,                                     // SOFTMAX_GRAD
-    false,                                     // NO_NORM_GRAD
-    false,                                     // RELU_GRAD
-    false,                                     // CONCAT_WEIGHT
-    false,                                     // WEIGHT_ADDITION
-    false,                                     // BIAS_GRAD
-    false,                                     // GRADIENT_CLIPPING
-    false,                                     // CROSS_ENTROPY_LOSS_GRAD
-    false,                                     // MSE_LOSS_GRAD
-    false,                                     // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 1650688,
+    .WEIGHT_OFFSET = 715136,
+    .OUTPUT_OFFSET = 45056,
+    .loops = {{2, 2, 4, 1, 1, 1}, {8, 4, 3, 3, 7, 7}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 2,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 1010048,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
 
 const SimplifiedParams layer3_0_conv2_params = {
-    45056,                                      // INPUT_OFFSET
-    1010304,                                    // WEIGHT_OFFSET
-    1249280,                                    // OUTPUT_OFFSET
-    false,                                      // WEIGHT_TRANSPOSE
-    {{2, 2, 4, 1, 1, 1}, {16, 4, 3, 3, 7, 7}},  // LOOPS
-    {0, 5},                                     // INPUTX
-    {1, 4},                                     // INPUTY
-    {3, 0},                                     // REDUCTION
-    {2, 1},                                     // WEIGHT
-    3,                                          // fxIndex
-    2,                                          // fyIndex
-    {4, 5},                                     // weightReuseIndex
-    1,                                          // stride
-    false,                                      // replication
-    true,                                       // RELU
-    true,                                       // bias
-    1600128,                                    // BIAS_OFFSET
-    true,                                       // residual
-    847872,                                     // RESIDUAL_OFFSET
-    false,                                      // maxpool
-    false,                                      // avgpool
-    false,                                      // SOFTMAX
-    false,                                      // FC
-    false,                                      // no-norm
-    true,                                       // weight
-    false,                                      // ATTENTION_SCALING
-    false,                                      // STORE_IN_ACC
-    false,                                      // ACC_FROM_ACC
-    false,                                      // INPUT_TRANSPOSE
-    false,                                      // SPLIT_OUTPUT
-    false,                                      // CONCAT_INPUT
-    false,                                      // SOFTMAX_GRAD
-    false,                                      // NO_NORM_GRAD
-    false,                                      // RELU_GRAD
-    false,                                      // CONCAT_WEIGHT
-    false,                                      // WEIGHT_ADDITION
-    false,                                      // BIAS_GRAD
-    false,                                      // GRADIENT_CLIPPING
-    false,                                      // CROSS_ENTROPY_LOSS_GRAD
-    false,                                      // MSE_LOSS_GRAD
-    false,                                      // BCE_LOGITS_LOSS_GRAD
-};
-const SimplifiedParams layer3_1_conv1_params = {
-    1249280,                                    // INPUT_OFFSET
-    4194304,                                    // WEIGHT_OFFSET
-    446464,                                     // OUTPUT_OFFSET
-    false,                                      // WEIGHT_TRANSPOSE
-    {{2, 2, 4, 1, 1, 1}, {16, 4, 3, 3, 7, 7}},  // LOOPS
-    {0, 5},                                     // INPUTX
-    {1, 4},                                     // INPUTY
-    {3, 0},                                     // REDUCTION
-    {2, 1},                                     // WEIGHT
-    3,                                          // fxIndex
-    2,                                          // fyIndex
-    {4, 5},                                     // weightReuseIndex
-    1,                                          // stride
-    false,                                      // replication
-    true,                                       // RELU
-    true,                                       // bias
-    4784128,                                    // BIAS_OFFSET
-    false,                                      // residual
-    45056,                                      // RESIDUAL_OFFSET
-    false,                                      // maxpool
-    false,                                      // avgpool
-    false,                                      // SOFTMAX
-    false,                                      // FC
-    false,                                      // no-norm
-    true,                                       // weight
-    false,                                      // ATTENTION_SCALING
-    false,                                      // STORE_IN_ACC
-    false,                                      // ACC_FROM_ACC
-    false,                                      // INPUT_TRANSPOSE
-    false,                                      // SPLIT_OUTPUT
-    false,                                      // CONCAT_INPUT
-    false,                                      // SOFTMAX_GRAD
-    false,                                      // NO_NORM_GRAD
-    false,                                      // RELU_GRAD
-    false,                                      // CONCAT_WEIGHT
-    false,                                      // WEIGHT_ADDITION
-    false,                                      // BIAS_GRAD
-    false,                                      // GRADIENT_CLIPPING
-    false,                                      // CROSS_ENTROPY_LOSS_GRAD
-    false,                                      // MSE_LOSS_GRAD
-    false,                                      // BCE_LOGITS_LOSS_GRAD
-};
-const SimplifiedParams layer3_1_conv2_params = {
-    446464,                                     // INPUT_OFFSET
-    4784384,                                    // WEIGHT_OFFSET
-    1650688,                                    // OUTPUT_OFFSET
-    false,                                      // WEIGHT_TRANSPOSE
-    {{2, 2, 4, 1, 1, 1}, {16, 4, 3, 3, 7, 7}},  // LOOPS
-    {0, 5},                                     // INPUTX
-    {1, 4},                                     // INPUTY
-    {3, 0},                                     // REDUCTION
-    {2, 1},                                     // WEIGHT
-    3,                                          // fxIndex
-    2,                                          // fyIndex
-    {4, 5},                                     // weightReuseIndex
-    1,                                          // stride
-    false,                                      // replication
-    true,                                       // RELU
-    true,                                       // bias
-    5374208,                                    // BIAS_OFFSET
-    true,                                       // residual
-    1249280,                                    // RESIDUAL_OFFSET
-    false,                                      // maxpool
-    false,                                      // avgpool
-    false,                                      // SOFTMAX
-    false,                                      // FC
-    false,                                      // no-norm
-    true,                                       // weight
-    false,                                      // ATTENTION_SCALING
-    false,                                      // STORE_IN_ACC
-    false,                                      // ACC_FROM_ACC
-    false,                                      // INPUT_TRANSPOSE
-    false,                                      // SPLIT_OUTPUT
-    false,                                      // CONCAT_INPUT
-    false,                                      // SOFTMAX_GRAD
-    false,                                      // NO_NORM_GRAD
-    false,                                      // RELU_GRAD
-    false,                                      // CONCAT_WEIGHT
-    false,                                      // WEIGHT_ADDITION
-    false,                                      // BIAS_GRAD
-    false,                                      // GRADIENT_CLIPPING
-    false,                                      // CROSS_ENTROPY_LOSS_GRAD
-    false,                                      // MSE_LOSS_GRAD
-    false,                                      // BCE_LOGITS_LOSS_GRAD
-};
-const SimplifiedParams layer4_0_downsample_params = {
-    1650688,                                     // INPUT_OFFSET
-    1600384,                                     // WEIGHT_OFFSET
-    847872,                                      // OUTPUT_OFFSET
-    false,                                       // WEIGHT_TRANSPOSE
-    {{1, 1, 2, 1, 1, 1}, {16, 16, 1, 1, 7, 7}},  // LOOPS
-    {0, 5},                                      // INPUTX
-    {1, 4},                                      // INPUTY
-    {3, 0},                                      // REDUCTION
-    {2, 1},                                      // WEIGHT
-    3,                                           // fxIndex
-    2,                                           // fyIndex
-    {4, 5},                                      // weightReuseIndex
-    2,                                           // stride
-    false,                                       // replication
-    false,                                       // RELU
-    true,                                        // bias
-    1731456,                                     // BIAS_OFFSET
-    false,                                       // residual
-    45056,                                       // RESIDUAL_OFFSET
-    false,                                       // maxpool
-    false,                                       // avgpool
-    false,                                       // SOFTMAX
-    false,                                       // FC
-    false,                                       // no-norm
-    true,                                        // weight
-    false,                                       // ATTENTION_SCALING
-    false,                                       // STORE_IN_ACC
-    false,                                       // ACC_FROM_ACC
-    false,                                       // INPUT_TRANSPOSE
-    false,                                       // SPLIT_OUTPUT
-    false,                                       // CONCAT_INPUT
-    false,                                       // SOFTMAX_GRAD
-    false,                                       // NO_NORM_GRAD
-    false,                                       // RELU_GRAD
-    false,                                       // CONCAT_WEIGHT
-    false,                                       // WEIGHT_ADDITION
-    false,                                       // BIAS_GRAD
-    false,                                       // GRADIENT_CLIPPING
-    false,                                       // CROSS_ENTROPY_LOSS_GRAD
-    false,                                       // MSE_LOSS_GRAD
-    false,                                       // BCE_LOGITS_LOSS_GRAD
-};
-const SimplifiedParams layer4_0_conv1_params = {
-    1650688,                                    // INPUT_OFFSET
-    8388608,                                    // WEIGHT_OFFSET
-    446464,                                     // OUTPUT_OFFSET
-    false,                                      // WEIGHT_TRANSPOSE
-    {{1, 1, 8, 1, 1, 1}, {16, 4, 3, 3, 7, 7}},  // LOOPS
-    {0, 5},                                     // INPUTX
-    {1, 4},                                     // INPUTY
-    {3, 0},                                     // REDUCTION
-    {2, 1},                                     // WEIGHT
-    3,                                          // fxIndex
-    2,                                          // fyIndex
-    {4, 5},                                     // weightReuseIndex
-    2,                                          // stride
-    false,                                      // replication
-    true,                                       // RELU
-    true,                                       // bias
-    9568256,                                    // BIAS_OFFSET
-    false,                                      // residual
-    45056,                                      // RESIDUAL_OFFSET
-    false,                                      // maxpool
-    false,                                      // avgpool
-    false,                                      // SOFTMAX
-    false,                                      // FC
-    false,                                      // no-norm
-    true,                                       // weight
-    false,                                      // ATTENTION_SCALING
-    false,                                      // STORE_IN_ACC
-    false,                                      // ACC_FROM_ACC
-    false,                                      // INPUT_TRANSPOSE
-    false,                                      // SPLIT_OUTPUT
-    false,                                      // CONCAT_INPUT
-    false,                                      // SOFTMAX_GRAD
-    false,                                      // NO_NORM_GRAD
-    false,                                      // RELU_GRAD
-    false,                                      // CONCAT_WEIGHT
-    false,                                      // WEIGHT_ADDITION
-    false,                                      // BIAS_GRAD
-    false,                                      // GRADIENT_CLIPPING
-    false,                                      // CROSS_ENTROPY_LOSS_GRAD
-    false,                                      // MSE_LOSS_GRAD
-    false,                                      // BCE_LOGITS_LOSS_GRAD
-};
-const SimplifiedParams layer4_0_conv2_params = {
-    446464,                                     // INPUT_OFFSET
-    1731968,                                    // WEIGHT_OFFSET
-    1249280,                                    // OUTPUT_OFFSET
-    false,                                      // WEIGHT_TRANSPOSE
-    {{1, 1, 8, 1, 1, 1}, {32, 4, 3, 3, 7, 7}},  // LOOPS
-    {0, 5},                                     // INPUTX
-    {1, 4},                                     // INPUTY
-    {3, 0},                                     // REDUCTION
-    {2, 1},                                     // WEIGHT
-    3,                                          // fxIndex
-    2,                                          // fyIndex
-    {4, 5},                                     // weightReuseIndex
-    1,                                          // stride
-    false,                                      // replication
-    true,                                       // RELU
-    true,                                       // bias
-    4091264,                                    // BIAS_OFFSET
-    true,                                       // residual
-    847872,                                     // RESIDUAL_OFFSET
-    false,                                      // maxpool
-    false,                                      // avgpool
-    false,                                      // SOFTMAX
-    false,                                      // FC
-    false,                                      // no-norm
-    true,                                       // weight
-    false,                                      // ATTENTION_SCALING
-    false,                                      // STORE_IN_ACC
-    false,                                      // ACC_FROM_ACC
-    false,                                      // INPUT_TRANSPOSE
-    false,                                      // SPLIT_OUTPUT
-    false,                                      // CONCAT_INPUT
-    false,                                      // SOFTMAX_GRAD
-    false,                                      // NO_NORM_GRAD
-    false,                                      // RELU_GRAD
-    false,                                      // CONCAT_WEIGHT
-    false,                                      // WEIGHT_ADDITION
-    false,                                      // BIAS_GRAD
-    false,                                      // GRADIENT_CLIPPING
-    false,                                      // CROSS_ENTROPY_LOSS_GRAD
-    false,                                      // MSE_LOSS_GRAD
-    false,                                      // BCE_LOGITS_LOSS_GRAD
-};
-const SimplifiedParams layer4_1_conv1_params = {
-    1249280,                                    // INPUT_OFFSET
-    5374464,                                    // WEIGHT_OFFSET
-    45056,                                      // OUTPUT_OFFSET
-    false,                                      // WEIGHT_TRANSPOSE
-    {{1, 1, 8, 1, 1, 1}, {32, 4, 3, 3, 7, 7}},  // LOOPS
-    {0, 5},                                     // INPUTX
-    {1, 4},                                     // INPUTY
-    {3, 0},                                     // REDUCTION
-    {2, 1},                                     // WEIGHT
-    3,                                          // fxIndex
-    2,                                          // fyIndex
-    {4, 5},                                     // weightReuseIndex
-    1,                                          // stride
-    false,                                      // replication
-    true,                                       // RELU
-    true,                                       // bias
-    7733760,                                    // BIAS_OFFSET
-    false,                                      // residual
-    45056,                                      // RESIDUAL_OFFSET
-    false,                                      // maxpool
-    false,                                      // avgpool
-    false,                                      // SOFTMAX
-    false,                                      // FC
-    false,                                      // no-norm
-    true,                                       // weight
-    false,                                      // ATTENTION_SCALING
-    false,                                      // STORE_IN_ACC
-    false,                                      // ACC_FROM_ACC
-    false,                                      // INPUT_TRANSPOSE
-    false,                                      // SPLIT_OUTPUT
-    false,                                      // CONCAT_INPUT
-    false,                                      // SOFTMAX_GRAD
-    false,                                      // NO_NORM_GRAD
-    false,                                      // RELU_GRAD
-    false,                                      // CONCAT_WEIGHT
-    false,                                      // WEIGHT_ADDITION
-    false,                                      // BIAS_GRAD
-    false,                                      // GRADIENT_CLIPPING
-    false,                                      // CROSS_ENTROPY_LOSS_GRAD
-    false,                                      // MSE_LOSS_GRAD
-    false,                                      // BCE_LOGITS_LOSS_GRAD
-};
-const SimplifiedParams layer4_1_conv2_params = {
-    45056,                                      // INPUT_OFFSET
-    9437184,                                    // WEIGHT_OFFSET
-    446464,                                     // OUTPUT_OFFSET
-    false,                                      // WEIGHT_TRANSPOSE
-    {{1, 1, 8, 1, 1, 1}, {32, 4, 3, 3, 7, 7}},  // LOOPS
-    {0, 5},                                     // INPUTX
-    {1, 4},                                     // INPUTY
-    {3, 0},                                     // REDUCTION
-    {2, 1},                                     // WEIGHT
-    3,                                          // fxIndex
-    2,                                          // fyIndex
-    {4, 5},                                     // weightReuseIndex
-    1,                                          // stride
-    false,                                      // replication
-    true,                                       // RELU
-    true,                                       // bias
-    11796480,                                   // BIAS_OFFSET
-    true,                                       // residual
-    1249280,                                    // RESIDUAL_OFFSET
-    false,                                      // maxpool
-    true,                                       // avgpool
-    false,                                      // SOFTMAX
-    false,                                      // FC
-    false,                                      // no-norm
-    true,                                       // weight
-    false,                                      // ATTENTION_SCALING
-    false,                                      // STORE_IN_ACC
-    false,                                      // ACC_FROM_ACC
-    false,                                      // INPUT_TRANSPOSE
-    false,                                      // SPLIT_OUTPUT
-    false,                                      // CONCAT_INPUT
-    false,                                      // SOFTMAX_GRAD
-    false,                                      // NO_NORM_GRAD
-    false,                                      // RELU_GRAD
-    false,                                      // CONCAT_WEIGHT
-    false,                                      // WEIGHT_ADDITION
-    false,                                      // BIAS_GRAD
-    false,                                      // GRADIENT_CLIPPING
-    false,                                      // CROSS_ENTROPY_LOSS_GRAD
-    false,                                      // MSE_LOSS_GRAD
-    false,                                      // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 45056,
+    .WEIGHT_OFFSET = 1010304,
+    .OUTPUT_OFFSET = 1249280,
+    .loops = {{2, 2, 4, 1, 1, 1}, {16, 4, 3, 3, 7, 7}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 1600128,
+    .RESIDUAL = true,
+    .RESIDUAL_OFFSET = 847872,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
 
-// map to vector processor instead
-const SimplifiedParams fc_params = {
-    446464,                                      // INPUT_OFFSET
-    7734272,                                     // WEIGHT_OFFSET
-    1650688,                                     // OUTPUT_OFFSET
-    false,                                       // WEIGHT_TRANSPOSE
-    {{1, 1, 1, 1, 1, 1}, {32, 63, 1, 1, 1, 1}},  // LOOPS
-    {0, 5},                                      // INPUTX
-    {1, 4},                                      // INPUTY
-    {3, 0},                                      // REDUCTION
-    {2, 1},                                      // WEIGHT
-    3,                                           // fxIndex
-    2,                                           // fyIndex
-    {4, 5},                                      // weightReuseIndex
-    1,                                           // stride
-    false,                                       // replication
-    false,                                       // RELU
-    true,                                        // bias
-    8246272,                                     // BIAS_OFFSET
-    false,                                       // residual
-    45056,                                       // RESIDUAL_OFFSET
-    false,                                       // maxpool
-    false,                                       // avgpool
-    false,                                       // SOFTMAX
-    true,                                        // FC
-    false,                                       // no-norm
-    true,                                        // weight
-    false,                                       // ATTENTION_SCALING
-    false,                                       // STORE_IN_ACC
-    false,                                       // ACC_FROM_ACC
-    false,                                       // INPUT_TRANSPOSE
-    false,                                       // SPLIT_OUTPUT
-    false,                                       // CONCAT_INPUT
-    false,                                       // SOFTMAX_GRAD
-    false,                                       // NO_NORM_GRAD
-    false,                                       // RELU_GRAD
-    false,                                       // CONCAT_WEIGHT
-    false,                                       // WEIGHT_ADDITION
-    false,                                       // BIAS_GRAD
-    false,                                       // GRADIENT_CLIPPING
-    false,                                       // CROSS_ENTROPY_LOSS_GRAD
-    false,                                       // MSE_LOSS_GRAD
-    false,                                       // BCE_LOGITS_LOSS_GRAD
+const SimplifiedParams layer3_1_conv1_params = {
+    .INPUT_OFFSET = 1249280,
+    .WEIGHT_OFFSET = 4194304,
+    .OUTPUT_OFFSET = 446464,
+    .loops = {{2, 2, 4, 1, 1, 1}, {16, 4, 3, 3, 7, 7}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 4784128,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
 };
+
+const SimplifiedParams layer3_1_conv2_params = {
+    .INPUT_OFFSET = 446464,
+    .WEIGHT_OFFSET = 4784384,
+    .OUTPUT_OFFSET = 1650688,
+    .loops = {{2, 2, 4, 1, 1, 1}, {16, 4, 3, 3, 7, 7}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 5374208,
+    .RESIDUAL = true,
+    .RESIDUAL_OFFSET = 1249280,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
+};
+
+const SimplifiedParams layer4_0_downsample_params = {
+    .INPUT_OFFSET = 1650688,
+    .WEIGHT_OFFSET = 1600384,
+    .OUTPUT_OFFSET = 847872,
+    .loops = {{1, 1, 2, 1, 1, 1}, {16, 16, 1, 1, 7, 7}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 2,
+    .REPLICATION = false,
+    .RELU = false,
+    .BIAS = true,
+    .BIAS_OFFSET = 1731456,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
+};
+
+const SimplifiedParams layer4_0_conv1_params = {
+    .INPUT_OFFSET = 1650688,
+    .WEIGHT_OFFSET = 8388608,
+    .OUTPUT_OFFSET = 446464,
+    .loops = {{1, 1, 8, 1, 1, 1}, {16, 4, 3, 3, 7, 7}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 2,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 9568256,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
+};
+
+const SimplifiedParams layer4_0_conv2_params = {
+    .INPUT_OFFSET = 446464,
+    .WEIGHT_OFFSET = 1731968,
+    .OUTPUT_OFFSET = 1249280,
+    .loops = {{1, 1, 8, 1, 1, 1}, {32, 4, 3, 3, 7, 7}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 4091264,
+    .RESIDUAL = true,
+    .RESIDUAL_OFFSET = 847872,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
+};
+
+const SimplifiedParams layer4_1_conv1_params = {
+    .INPUT_OFFSET = 1249280,
+    .WEIGHT_OFFSET = 5374464,
+    .OUTPUT_OFFSET = 45056,
+    .loops = {{1, 1, 8, 1, 1, 1}, {32, 4, 3, 3, 7, 7}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 7733760,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
+};
+
+const SimplifiedParams layer4_1_conv2_params = {
+    .INPUT_OFFSET = 45056,
+    .WEIGHT_OFFSET = 9437184,
+    .OUTPUT_OFFSET = 446464,
+    .loops = {{1, 1, 8, 1, 1, 1}, {32, 4, 3, 3, 7, 7}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = true,
+    .BIAS = true,
+    .BIAS_OFFSET = 11796480,
+    .RESIDUAL = true,
+    .RESIDUAL_OFFSET = 1249280,
+    .MAXPOOL = false,
+    .AVGPOOL = true,
+    .WEIGHT = true,
+    .SOFTMAX = false,
+};
+
+const SimplifiedParams fc_params = {
+    .INPUT_OFFSET = 446464,
+    .WEIGHT_OFFSET = 7734272,
+    .OUTPUT_OFFSET = 1650688,
+    .loops = {{1, 1, 1, 1, 1, 1}, {32, 63, 1, 1, 1, 1}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = false,
+    .BIAS = true,
+    .BIAS_OFFSET = 8246272,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = false,
+    .FC = true,
+};
+
 const SimplifiedParams softmax_params = {
-    1650688,                                      // INPUT_OFFSET
-    0,                                            // WEIGHT_OFFSET
-    1651688,                                      // OUTPUT_OFFSET
-    false,                                        // WEIGHT_TRANSPOSE
-    {{1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 1, 1008}},  // LOOPS
-    {0, 5},                                       // INPUTX
-    {1, 4},                                       // INPUTY
-    {3, 0},                                       // REDUCTION
-    {2, 1},                                       // WEIGHT
-    3,                                            // fxIndex
-    2,                                            // fyIndex
-    {4, 5},                                       // weightReuseIndex
-    1,                                            // stride
-    false,                                        // replication
-    false,                                        // RELU
-    false,                                        // bias
-    0,                                            // BIAS_OFFSET
-    false,                                        // residual
-    45056,                                        // RESIDUAL_OFFSET
-    false,                                        // maxpool
-    false,                                        // avgpool
-    true,                                         // SOFTMAX
-    false,                                        // FC
-    false,                                        // no-norm
-    true,                                         // weight
-    false,                                        // ATTENTION_SCALING
-    false,                                        // STORE_IN_ACC
-    false,                                        // ACC_FROM_ACC
-    false,                                        // INPUT_TRANSPOSE
-    false,                                        // SPLIT_OUTPUT
-    false,                                        // CONCAT_INPUT
-    false,                                        // SOFTMAX_GRAD
-    false,                                        // NO_NORM_GRAD
-    false,                                        // RELU_GRAD
-    false,                                        // CONCAT_WEIGHT
-    false,                                        // WEIGHT_ADDITION
-    false,                                        // BIAS_GRAD
-    false,                                        // GRADIENT_CLIPPING
-    false,                                        // CROSS_ENTROPY_LOSS_GRAD
-    false,                                        // MSE_LOSS_GRAD
-    false,                                        // BCE_LOGITS_LOSS_GRAD
+    .INPUT_OFFSET = 1650688,
+    .WEIGHT_OFFSET = 0,
+    .OUTPUT_OFFSET = 1651688,
+    .loops = {{1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 1, 1008}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = false,
+    .BIAS = false,
+    .BIAS_OFFSET = 0,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 45056,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = true,
+    .SOFTMAX = true,
 };
 
 std::map<std::string, SimplifiedParams> resnetParams{
