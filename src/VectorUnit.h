@@ -272,8 +272,6 @@ SC_MODULE(VectorOpUnit) {
 
     wait();
 
-#pragma hls_pipeline_init_interval 1
-#pragma hls_pipeline_stall_mode flush
     while (true) {
       VectorInstructions inst = accumulationOpUnitInstructions.Pop();
 
@@ -284,6 +282,8 @@ SC_MODULE(VectorOpUnit) {
         accum[i].setZero();
       }
 
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
       for (int count = 0; count < inst.rCount; count++) {
         DLOG("accumulation " << count << " / " << inst.rCount);
         Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op =
