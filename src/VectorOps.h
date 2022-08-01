@@ -1,7 +1,6 @@
 #pragma once
 
 #pragma hls_design ccore
-#pragma ccore_type combinational
 template <typename ACC_DTYPE, int WIDTH>
 void vadd(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
           Pack1D<ACC_DTYPE, WIDTH>& res) {
@@ -12,7 +11,6 @@ void vadd(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
 }
 
 #pragma hls_design ccore
-#pragma ccore_type combinational
 template <typename ACC_DTYPE, int WIDTH>
 void vmult(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
            Pack1D<ACC_DTYPE, WIDTH>& res) {
@@ -23,7 +21,6 @@ void vmult(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
 }
 
 #pragma hls_design ccore
-#pragma ccore_type combinational
 template <typename ACC_DTYPE, int WIDTH>
 void vrelu(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH> mask, bool useMask, Pack1D<ACC_DTYPE, WIDTH>& res) {
   Pack1D<ACC_DTYPE, WIDTH> tmp;
