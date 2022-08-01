@@ -57,10 +57,11 @@ std::map<std::string, std::string> gradientParamsMapping{
 };
 
 std::map<std::string, SimplifiedParams> gradientParams{
+    // FIXME: This operation has problem
     // (16 x 1) x (1 x 512)
     {"classifier_weight",
      {
-         .loops = {{1, 1, 1, 1, 1, 1}, {1, 32, 1, 1, 1, 1}},
+         .loops = {{1, 1, 1, 1, 1, 1}, {1, 32, 1, 1, 1, 16}},
          .inputXLoopIndex = {0, 5},
          .inputYLoopIndex = {1, 4},
          .reductionLoopIndex = {3, 0},
