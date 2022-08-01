@@ -363,9 +363,9 @@ SC_MODULE(WeightController) {
             for (loop_counters[1][0] = 0;
                  loop_counters[1][0] < loop_bounds[1][0];
                  loop_counters[1][0]++) {
-              readControl[bankSel].Push(static_cast<ac_int<32,false> >(loop_bounds[1][1] * loop_bounds[1][2] *
-                                        loop_bounds[1][3] * loop_bounds[1][4] *
-                                        loop_bounds[1][5] * NROWS));
+              readControl[bankSel].Push( static_cast<ac_int<16,false> >(loop_bounds[1][1] * loop_bounds[1][2]) *
+                                        static_cast<ac_int<16,false> >(loop_bounds[1][3] * loop_bounds[1][4] )*
+                                        static_cast<ac_int<16,false> >(loop_bounds[1][5] * NROWS)  );
               for (loop_counters[1][1] = 0;
                    loop_counters[1][1] < loop_bounds[1][1];
                    loop_counters[1][1]++) {
@@ -399,7 +399,7 @@ SC_MODULE(WeightController) {
                             replicationBound = 3;
                           }
                           // zero_padding
-                          for (int i = 0; i < numPadding; i++) {
+                          for (ac_int<8,false> i = 0; i < numPadding; i++) {
                             // readControl[bankSel].Push(1);
                             readAddress[bankSel].Push(-1);
 
@@ -409,9 +409,9 @@ SC_MODULE(WeightController) {
                           }
                         }
 
-                        for (int fx_repl = replicationBound - 1; fx_repl >= 0;
+                        for (ac_int<4,false> fx_repl = replicationBound - 1; fx_repl >= 0;
                              fx_repl--) {
-                          for (int c = startingC; c >= 0;
+                          for (ac_int<8,false> c = startingC; c >= 0;
                                c--) {  // reverse order
                             ac_int<8,false> k2 =
                                 loop_counters[0][params.weightLoopIndex[0]];
@@ -438,8 +438,8 @@ SC_MODULE(WeightController) {
 
                             ac_int<16,false> k = k2 * K1 * DIMENSION + k1 * DIMENSION;
                             ac_int<16,false> K = K2 * K1 * DIMENSION;
-                            int address = (fy * FX * C * K1) + (fx * C * K1) +
-                                          (c * K1) + k1;
+                            int address = static_cast<ac_int<16,false> > ((fy * FX * C * K1) ) + static_cast<ac_int<16,false> > ((fx * C * K1) ) +
+                                          static_cast<ac_int<16,false> >(c * K1) + k1;
 
                             int swapBank = (loop_counters[1][1] ==
                                             loop_bounds[1][1] - 1) &&
