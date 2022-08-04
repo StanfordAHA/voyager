@@ -129,7 +129,7 @@ rtl_sim_debug: rtl
 gui:
 	catapult build/Catapult_debug
 
-build/TestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/DataLoader.o
+build/TestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/DataLoader.o build/MapOperation.o
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
 build/MbTestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/DataLoader.o
@@ -146,6 +146,9 @@ build/Accelerator.o: src/Accelerator.cc $(wildcard src/*.h)
 
 build/Harness.o: test/common/Harness.cc test/common/Harness.h $(wildcard src/*.h) 
 	$(CC) $(C11FLAGS) -c -o $@ $<
+
+build/MapOperation.o: test/toolchain/MapOperation.cc test/toolchain/MapOperation.h
+	$(CC) $(C11FLAGS) -DNO_SYSC -c -o $@ $<
 
 build/GoldModel.o: test/common/GoldModel.cc test/common/GoldModel.h src/ArchitectureParams.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
