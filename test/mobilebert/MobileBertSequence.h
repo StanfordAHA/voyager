@@ -404,21 +404,29 @@ int runOperation(const SimplifiedParams params,
 }
 
 int runForward(std::string datapath, std::vector<std::string> groups) {
-  std::string activationDataDir = datapath + "activations/";
+  std::string inputDataDir = datapath + "activations/";
   std::string outfilePrefix;
 
-  // Load input of the first layer
+  // Load embedding inputs
   std::string operation = inferenceOrder[0];
   SimplifiedParams params = paramsLookup(operation, "inference");
   Files files = inferenceTestFiles.at(operation);
   std::string layerName = "mobilebert_encoder_layer_0_";
-  std::string datafile = activationDataDir + layerName + files.inputs_file;
+  std::string datafile = inputDataDir + layerName + files.inputs_file;
   bool useDataFile = true;
 
   load_inputs(params, datafile, useDataFile, acc_sram_memory,
-              hls_sram_memory + params.INPUT_OFFSET,
-              uni_sram_memory + params.INPUT_OFFSET,
-              float_sram_memory + params.INPUT_OFFSET);
+              hls_sram_memory + params.INPUT_OFFSET + 128,
+              uni_sram_memory + params.INPUT_OFFSET + 128,
+              float_sram_memory + params.INPUT_OFFSET + 128);
+
+  // Load attention mask
+  params = paramsLookup("attention_self_attention_probs_0", "inference");
+  datafile = inputDataDir + "mobilebert_attention_mask";
+  load_weights(params, datafile, useDataFile, acc_sram_memory,
+               hls_sram_memory + params.WEIGHT_OFFSET,
+               uni_sram_memory + params.WEIGHT_OFFSET,
+               float_sram_memory + params.WEIGHT_OFFSET);
 
   for (int layer = 0; layer < 24; layer++) {
     for (const auto& op : inferenceOrder) {
@@ -426,15 +434,22 @@ int runForward(std::string datapath, std::vector<std::string> groups) {
       params = paramsLookup(op, "inference");
       files = inferenceTestFiles.at(op);
 
-      params.INPUT_OFFSET += layer * ENCODER_ACTIVATION_SIZE;
-      params.WEIGHT_OFFSET += params.WEIGHT ? layer * ENCODER_WEIGHT_SIZE
-                                            : layer * ENCODER_ACTIVATION_SIZE;
-      params.OUTPUT_OFFSET += layer * ENCODER_ACTIVATION_SIZE;
-      params.BIAS_OFFSET += layer * ENCODER_WEIGHT_SIZE;
-      params.RESIDUAL_OFFSET += layer * ENCODER_ACTIVATION_SIZE;
+      const int actOffset = ACTIVATION_OFFSET + layer * ENCODER_ACTIVATION_SIZE;
+      const int weightOffset = layer * ENCODER_WEIGHT_SIZE;
+
+      params.INPUT_OFFSET += actOffset;
+      params.WEIGHT_OFFSET += params.WEIGHT ? weightOffset : actOffset;
+      params.OUTPUT_OFFSET += actOffset;
+      params.BIAS_OFFSET += weightOffset;
+      params.RESIDUAL_OFFSET += actOffset;
+
       params.WEIGHT_GRADIENT_OFFSET = GRADIENT_OFFSET + params.WEIGHT_OFFSET;
       params.BIAS_GRADIENT_OFFSET = GRADIENT_OFFSET + params.BIAS_OFFSET;
       params.WEIGHT_SPLITTING = false;
+
+      if (params.ATTENTION_MASK) {
+        params.WEIGHT_OFFSET = 0;
+      }
 
       if (op == "classifier") {
         if (layer != 23) continue;
@@ -442,7 +457,7 @@ int runForward(std::string datapath, std::vector<std::string> groups) {
       }
 
       outfilePrefix = "test_outputs/" + op + "_activation_";
-      datafile = activationDataDir + layerName + files.outputs_file;
+      datafile = inputDataDir + layerName + files.outputs_file;
       int errors =
           runOperation(params, datafile, outfilePrefix, layerName + op, groups);
 
@@ -455,7 +470,7 @@ int runForward(std::string datapath, std::vector<std::string> groups) {
   }
 
   for (int i = 0; i < 2; i++) {
-    std::cout << (float)hls_sram_memory[params.OUTPUT_OFFSET + i] << "\t"
+    std::cout << hls_sram_memory[params.OUTPUT_OFFSET + i] << "\t"
               << float_sram_memory[params.OUTPUT_OFFSET + i] << std::endl;
   }
 
@@ -463,16 +478,16 @@ int runForward(std::string datapath, std::vector<std::string> groups) {
 }
 
 int runBackward(std::string datapath, std::vector<std::string> groups) {
-  std::string activationDataDir = datapath + "activations/";
+  std::string inputDataDir = datapath + "activations/";
   std::string errorDataDir = datapath + "errors/";
-  std::string gradientDataDir = datapath + "clipped_gradients/";
+  std::string gradDataDir = datapath + "gradients/";
   std::string outfilePrefix;
 
   std::string operation = "classifier";
   SimplifiedParams params = paramsLookup(operation, "backprop");
   Files files = backpropTestFiles.at(operation);
   std::string layerName;
-  std::string datafile = activationDataDir + files.inputs_file;
+  std::string datafile = inputDataDir + files.inputs_file;
   bool useDataFile = true;
 
   params.INPUT_OFFSET += ERROR_OFFSET;
@@ -483,52 +498,51 @@ int runBackward(std::string datapath, std::vector<std::string> groups) {
               float_sram_memory + params.INPUT_OFFSET);
 
   for (int layer = 23; layer >= 0; layer--) {
-    for (const auto& op : backpropOrder) {
-      params = paramsLookup(op, "backprop");
-      files = backpropTestFiles.at(op);
-      MemoryOffsets offsets = backpropMemOffsets.at(op);
+    for (const auto& backOp : backpropOrder) {
+      params = paramsLookup(backOp, "backprop");
+      files = backpropTestFiles.at(backOp);
+      MemoryOffsets offsets = backpropMemOffsets.at(backOp);
       layerName = "mobilebert_encoder_layer_" + std::to_string(layer) + "_";
 
+      const int actOffset = ACTIVATION_OFFSET + layer * ENCODER_ACTIVATION_SIZE;
+      const int weightOffset = layer * ENCODER_WEIGHT_SIZE;
+      const int gradOffset = GRADIENT_OFFSET + layer * ENCODER_WEIGHT_SIZE;
+
       params.INPUT_OFFSET += ERROR_OFFSET;
-      params.WEIGHT_OFFSET += layer * ENCODER_WEIGHT_SIZE;
+      params.WEIGHT_OFFSET += weightOffset;
       params.OUTPUT_OFFSET += ERROR_OFFSET;
       params.RESIDUAL_OFFSET += ERROR_OFFSET;
 
       if (!params.WEIGHT) {
-        params.WEIGHT_OFFSET = ACTIVATION_OFFSET + offsets.WEIGHT_OFFSET +
-                               layer * ENCODER_ACTIVATION_SIZE;
+        params.WEIGHT_OFFSET = actOffset + offsets.WEIGHT_OFFSET;
       }
 
-      if (op.find("attention_self_value_layer") != std::string::npos) {
-        params.INPUT_OFFSET = ACTIVATION_OFFSET + offsets.INPUT_OFFSET +
-                              layer * ENCODER_ACTIVATION_SIZE;
+      if (backOp.find("attention_self_value_layer") != std::string::npos) {
+        params.INPUT_OFFSET = actOffset + offsets.INPUT_OFFSET;
         params.WEIGHT_OFFSET = ERROR_OFFSET + offsets.WEIGHT_OFFSET;
       }
 
       if (params.RELU_GRAD || params.SOFTMAX_GRAD) {
-        params.RESIDUAL_OFFSET = ACTIVATION_OFFSET + offsets.RESIDUAL_OFFSET +
-                                 layer * ENCODER_ACTIVATION_SIZE;
+        params.RESIDUAL_OFFSET = actOffset + offsets.RESIDUAL_OFFSET;
       }
 
-      if (op == "classifier") {
-        params.OUTPUT_OFFSET =
-            GRADIENT_OFFSET + 23 * ENCODER_WEIGHT_SIZE + offsets.OUTPUT_OFFSET;
+      if (backOp == "classifier") {
+        params.OUTPUT_OFFSET = gradOffset + offsets.OUTPUT_OFFSET;
       }
 
-      if (op == "output_bottleneck_LayerNorm") {
-        params.INPUT_OFFSET =
-            GRADIENT_OFFSET + 23 * ENCODER_WEIGHT_SIZE + offsets.INPUT_OFFSET;
+      if (backOp == "output_bottleneck_LayerNorm") {
+        params.INPUT_OFFSET = gradOffset + offsets.INPUT_OFFSET;
       }
 
-      if (op == "output_bottleneck_LayerNorm" || op == "classifier") {
+      if (backOp == "output_bottleneck_LayerNorm" || backOp == "classifier") {
         if (layer != 23) continue;
         layerName = "";
       }
 
-      outfilePrefix = "test_outputs/" + op + "_error_";
+      outfilePrefix = "test_outputs/" + backOp + "_error_";
       datafile = errorDataDir + layerName + files.outputs_file;
-      int errors =
-          runOperation(params, datafile, outfilePrefix, layerName + op, groups);
+      int errors = runOperation(params, datafile, outfilePrefix,
+                                layerName + backOp, groups);
 
 #ifdef VERBOSE
       if (errors) {
@@ -536,23 +550,23 @@ int runBackward(std::string datapath, std::vector<std::string> groups) {
       }
 #endif
 
-      operation = op;
-      if (op == "attention_self_query_layer_0") {
+      operation = backOp;
+      if (backOp == "attention_self_query_layer_0") {
         operation = "attention_self_query";
-      } else if (op == "attention_self_key_layer_0") {
+      } else if (backOp == "attention_self_key_layer_0") {
         operation = "attention_self_key";
-      } else if (op == "attention_self_value_layer_0") {
+      } else if (backOp == "attention_self_value_layer_0") {
         operation = "attention_self_value";
-      } else if (op == "bottleneck_attention_LayerNorm_1") {
+      } else if (backOp == "bottleneck_attention_LayerNorm_1") {
         operation = "bottleneck_attention_LayerNorm";
-      } else if (op == "hidden_states_2" && layer > 0) {
+      } else if (backOp == "hidden_states_2" && layer > 0) {
         operation = "output_bottleneck_LayerNorm";
       }
 
       std::vector<std::string> gradOperations = {operation + "_weight",
                                                  operation + "_bias"};
 
-      if (op == "attention_output_dense") {
+      if (backOp == "attention_output_dense") {
         gradOperations.push_back("bottleneck_input_LayerNorm_weight");
         gradOperations.push_back("bottleneck_input_LayerNorm_bias");
       }
@@ -565,34 +579,30 @@ int runBackward(std::string datapath, std::vector<std::string> groups) {
           files = gradientTestFiles.at(gradOp);
           MemoryOffsets gradOffsets = gradientMemOffsets.at(gradOp);
 
-          params.INPUT_OFFSET +=
-              ACTIVATION_OFFSET + layer * ENCODER_ACTIVATION_SIZE;
-          params.WEIGHT_OFFSET += ERROR_OFFSET + offsets.OUTPUT_OFFSET;
-          params.OUTPUT_OFFSET += GRADIENT_OFFSET + layer * ENCODER_WEIGHT_SIZE;
+          params.INPUT_OFFSET += actOffset;
+          params.WEIGHT_OFFSET = ERROR_OFFSET + offsets.OUTPUT_OFFSET;
+          params.OUTPUT_OFFSET += gradOffset;
           params.RESIDUAL_OFFSET = params.OUTPUT_OFFSET;
           params.RESIDUAL = true;
 
-          if (op == "classifier") {
-            params.INPUT_OFFSET = GRADIENT_OFFSET + offsets.OUTPUT_OFFSET +
-                                  23 * ENCODER_WEIGHT_SIZE;
-            params.WEIGHT_OFFSET = ACTIVATION_OFFSET +
-                                   gradOffsets.WEIGHT_OFFSET +
-                                   layer * ENCODER_ACTIVATION_SIZE;
+          if (backOp == "classifier") {
+            params.INPUT_OFFSET = gradOffset + offsets.OUTPUT_OFFSET;
+            params.WEIGHT_OFFSET = actOffset + gradOffsets.WEIGHT_OFFSET;
             layerName = "";
           }
 
           if (operation == "output_bottleneck_LayerNorm" &&
-              op == "hidden_states_2") {
-            params.INPUT_OFFSET = ACTIVATION_OFFSET + gradOffsets.INPUT_OFFSET +
-                                  (layer - 1) * ENCODER_ACTIVATION_SIZE;
-            params.OUTPUT_OFFSET = GRADIENT_OFFSET + gradOffsets.OUTPUT_OFFSET +
-                                   (layer - 1) * ENCODER_WEIGHT_SIZE;
+              backOp == "hidden_states_2") {
+            params.INPUT_OFFSET =
+                actOffset - ENCODER_ACTIVATION_SIZE + gradOffsets.INPUT_OFFSET;
+            params.OUTPUT_OFFSET =
+                gradOffset - ENCODER_WEIGHT_SIZE + gradOffsets.OUTPUT_OFFSET;
             layerName =
                 "mobilebert_encoder_layer_" + std::to_string(layer - 1) + "_";
           }
 
           outfilePrefix = "test_outputs/" + gradOp + "_";
-          datafile = gradientDataDir + layerName + files.outputs_file;
+          datafile = gradDataDir + layerName + files.outputs_file;
           errors = runOperation(params, datafile, outfilePrefix,
                                 layerName + gradOp, groups);
 

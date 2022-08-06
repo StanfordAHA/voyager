@@ -61,7 +61,10 @@ int runOperation(const SimplifiedParams params, const Files files,
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
 
-  if (params.SOFTMAX || params.SOFTMAX_GRAD) {
+  if (params.SOFTMAX && params.ATTENTION_MASK) {
+    C = X;
+    K = 1;
+  } else if (params.SOFTMAX || params.SOFTMAX_GRAD) {
     K = 1;
     C = 1;
   }
@@ -115,7 +118,9 @@ int runOperation(const SimplifiedParams params, const Files files,
   }
 
   if (!files.weights_file.empty()) {
-    datafile = weightDataDir + layerName + files.weights_file;
+    datafile = params.ATTENTION_MASK
+                   ? inputDataDir + files.weights_file
+                   : weightDataDir + layerName + files.weights_file;
     load_weights(params, datafile, true,
                  params.WEIGHT ? rramMemory : sramMemory, matrixB,
                  universalMatrixB, floatMatrixB);
@@ -334,7 +339,6 @@ int runMobileBertUnitTest(std::string task, std::string test,
   std::cout << "operation name: " << paramsName << std::endl;
 
   if (task == "inference") {
-    activationDataDir = datapath + "activations2/";
     return runOperation(params, files, memoryMap, activationDataDir,
                         params.WEIGHT ? weightDataDir : activationDataDir,
                         activationDataDir, activationDataDir, gradientDataDir,

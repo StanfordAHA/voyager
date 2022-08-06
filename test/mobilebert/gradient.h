@@ -57,7 +57,6 @@ std::map<std::string, std::string> gradientParamsMapping{
 };
 
 std::map<std::string, SimplifiedParams> gradientParams{
-    // FIXME: This operation has problem
     // (16 x 1) x (1 x 512)
     {"classifier_weight",
      {
