@@ -579,6 +579,81 @@ void map_operation(const SimplifiedParams &params, MatrixParams &matrixParams,
     //     vectorUnitDoneSignal.SyncPop();
     //     CCS_LOG("Accelerator
     //     Layer Finished.");
+  } else if(params.OUTER_PRODUCT){
+    matrixParamsValid = false;
+    vectorParamsValid = true;
+
+    vectorParams.VECTOR_OFFSET = params.INPUT_OFFSET;
+    vectorParams.addressGen0Enable = true;
+    for (int i = 0; i < 3; i++) {
+      vectorParams.addressGen0Loop[0][i] = 1;
+    }
+    vectorParams.addressGen0Loop[1][0] = 1;
+    vectorParams.addressGen0Loop[1][1] = 1;
+    vectorParams.addressGen0Loop[1][2] = X/DIMENSION;
+    vectorParams.addressGen0Broadcast = true;
+    vectorParams.addressGen0BroadcastCount = K/DIMENSION;
+    vectorParams.SOFTMAX_GRAD_NEGATE = false;
+
+    vectorParams.ADDRESS_GEN1_OFFSET = params.WEIGHT_OFFSET;
+    vectorParams.addressGen1Mode = 2;  // 2d tensor
+    vectorParams.addressGen1Loops[0][0] = 1;
+    vectorParams.addressGen1Loops[0][1] = 1;
+    vectorParams.addressGen1Loops[0][2] = 1;
+    vectorParams.addressGen1Loops[1][0] = X; 
+    vectorParams.addressGen1Loops[1][1] = 1;
+    vectorParams.addressGen1Loops[1][2] = K/DIMENSION;
+
+    vectorParams.ADDRESS_GEN2_OFFSET = params.INPUT_OFFSET;
+    vectorParams.addressGen2Mode = 0;  // 2d tensor
+
+    vectorParams.VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
+    vectorParams.SCALAR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
+
+    vectorParams.scalarOutputCount = 0;
+    vectorParams.MAXPOOL = params.MAXPOOL;
+    vectorParams.AVGPOOL = params.AVGPOOL;
+
+    // output
+    for (int i = 0; i < 3; i++) {
+      vectorParams.outputLoops[0][i] = 1;
+    }
+    vectorParams.outputXLoopIndex[0] = params.inputXLoopIndex[0];
+    vectorParams.outputYLoopIndex[0] = params.inputYLoopIndex[0];
+    vectorParams.outputWeightLoopIndex[0] = params.weightLoopIndex[0];
+
+    vectorParams.outputLoops[1][0] = 1;
+    vectorParams.outputLoops[1][1] = X;
+    vectorParams.outputLoops[1][2] = K;
+    vectorParams.outputWeightLoopIndex[1] = 2;
+    vectorParams.outputXLoopIndex[1] = 1;
+    vectorParams.outputYLoopIndex[1] = 0;
+
+    // sendSerializedParams<VectorParams, 32>(vectorParams,
+    // &serialVectorParamsIn);
+
+    // create instruction stream
+    //    VectorInstructionConfig vectorInstructionConfig;
+
+    // inst0- start reduction engine
+    VectorInstructions vInst0;
+    vInst1.instType = VectorInstructions::vector;
+    vInst1.vInput = VectorInstructions::readFromVectorFetch;
+    vInst1.vAccumulatePush = VectorInstructions::nop;
+    vInst1.vOp0Src1 = VectorInstructions::readInterface;
+    vInst1.vOp0 = VectorInstructions::vmult;
+    vInst1.vOp1 = VectorInstructions::nop;
+    vInst1.vOp2 = VectorInstructions::nop;
+    vInst1.vOp3Src0 = VectorInstructions::nop;
+    vInst1.vOp3Src1 = VectorInstructions::nop;
+    vInst1.vOp3 = VectorInstructions::nop;
+    vInst1.vOp4 = VectorInstructions::nop;
+    vInst1.vDest = VectorInstructions::vWriteOut;
+    vectorInstructionConfig.inst[0] = vInst0;
+    vectorInstructionConfig.instCount[0] = X*K/DIMENSION;
+
+    vectorInstructionConfig.instLen = 1;
+    vectorInstructionConfig.instLoopCount = 1;
   } else {
     matrixParamsValid = true;
     vectorParamsValid = true;
