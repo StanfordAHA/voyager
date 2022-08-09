@@ -7,6 +7,7 @@
 #include "ProcessingElement.h"
 #include "Skewer.h"
 #include "Tieoff.h"
+#include "mc_scverify.h"
 
 template <typename IDTYPE, typename WDTYPE, typename ODTYPE, int NROWS,
           int NCOLS>
@@ -31,11 +32,26 @@ SC_MODULE(SystolicArray) {
   Connections::SyncOut CCS_INIT_S1(weightSwapDone);
 
   SC_CTOR(SystolicArray) {
-    ProcessingElement<IDTYPE, WDTYPE, ODTYPE> *pe[NROWS * NCOLS];
+#ifdef SIM_ProcessingElement
+    // clang-format off
+    CCS_DESIGN((ProcessingElement<IDTYPE, WDTYPE, ODTYPE>))
+    // clang-format on
+#else
+    ProcessingElement<IDTYPE, WDTYPE, ODTYPE>
+#endif
+    *pe[NROWS * NCOLS];
+
     for (int i = 0; i < NROWS; i++) {
       for (int j = 0; j < NCOLS; j++) {
-        pe[i * NCOLS + j] = new ProcessingElement<IDTYPE, WDTYPE, ODTYPE>(
-            sc_gen_unique_name("pe_inst"));
+        pe[i * NCOLS + j] = new
+#ifdef SIM_ProcessingElement
+            // clang-format off
+            CCS_DESIGN((ProcessingElement<IDTYPE, WDTYPE, ODTYPE>))
+        // clang-format on
+#else
+            ProcessingElement<IDTYPE, WDTYPE, ODTYPE>
+#endif
+                (sc_gen_unique_name("pe_inst"));
         pe[i * NCOLS + j]->clk(clk);
         pe[i * NCOLS + j]->rstn(rstn);
         if (j == 0) {

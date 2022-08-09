@@ -30,7 +30,7 @@ SC_MODULE(MatrixProcessor) {
   Connections::Combinational<Pack1D<ODTYPE, NROWS> > CCS_INIT_S1(
       psumOutSkewerDout);
 
-  SystolicArray<P8D, IDTYPE, P16D, NROWS, NCOLS> CCS_INIT_S1(systolicArray);
+  SystolicArray<P8D, P8D, P16D, NROWS, NCOLS> CCS_INIT_S1(systolicArray);
 
   MatrixParamsDeserializer<1> CCS_INIT_S1(paramsDeserializer);
 
@@ -50,7 +50,7 @@ SC_MODULE(MatrixProcessor) {
       weightSwapToSystolicArray[NROWS];
   Connections::Combinational<P16D> psumsToSystolicArray[NCOLS];
   Connections::Combinational<P16D> outputsFromSystolicArray[NCOLS];
-  Connections::Combinational<Pack1D<IDTYPE, NCOLS> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<P8D, NCOLS> > CCS_INIT_S1(
       weightsToSystolicArray);
 
   Connections::SyncOut CCS_INIT_S1(startSignal);
@@ -128,9 +128,14 @@ SC_MODULE(MatrixProcessor) {
 #pragma hls_pipeline_init_interval 1
       for (int weight_count = 0; weight_count < NROWS; weight_count++) {
         Pack1D<IDTYPE, NCOLS> arrayWeights = weightsChannel.Pop();
+        Pack1D<P8D, NCOLS> decodedArrayWeights;
+#pragma hls_unroll yes
+        for (int i = 0; i < NCOLS; i++) {
+          decodedArrayWeights[i] = static_cast<P8D>(arrayWeights[i]);
+        }
         // std::cout << "Weights: " << arrayWeights << std::endl;
 
-        weightsToSystolicArray.Push(arrayWeights);
+        weightsToSystolicArray.Push(decodedArrayWeights);
       }
 
       weightLoadDone.SyncPush();
