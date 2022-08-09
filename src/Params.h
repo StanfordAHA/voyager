@@ -42,10 +42,14 @@ struct MatrixParams {
   bool CONCAT_HEAD_WEIGHTS;
   bool TRANPOSE_INPUTS;
 
-  static const unsigned int width =
-      13 * 32 + 12 * 32 + 10 * 32 + 7 * 1 + 11 * 32;
+  int GRAD_OFFSET;
+  bool COMBINE_GRADS;
+  ac_int<8, false> learningRate;
 
-  #ifndef NO_SYSC
+  static const unsigned int width =
+      13 * 32 + 12 * 32 + 10 * 32 + 7 * 1 + 11 * 32 + 32 + 1 + 8;
+
+#ifndef NO_SYSC
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
     m& INPUT_OFFSET;
@@ -96,13 +100,16 @@ struct MatrixParams {
     m& CONCAT_INPUT;
     m& CONCAT_HEAD_WEIGHTS;
     m& TRANPOSE_INPUTS;
+    m& GRAD_OFFSET;
+    m& COMBINE_GRADS;
+    m& learningRate;
   }
 
   inline friend void sc_trace(sc_trace_file* tf, const MatrixParams& params,
                               const std::string& name) {
     // TODO
   }
-  #endif
+#endif
 
   inline friend std::ostream& operator<<(ostream& os,
                                          const MatrixParams& params) {
@@ -227,7 +234,7 @@ struct VectorInstructions {
   static const unsigned int width = 52;
   VectorInstructions() {}
 
-  #ifndef NO_SYSC
+#ifndef NO_SYSC
   VectorInstructions(const int a) {
     ac_int<width, false> val = a;
     sc_lv<width> valLV;
@@ -271,7 +278,7 @@ struct VectorInstructions {
                               const std::string& name) {
     // TODO
   }
-  #endif
+#endif
 
   inline friend std::ostream& operator<<(ostream& os,
                                          const VectorInstructions& params) {
@@ -344,7 +351,7 @@ struct VectorParams {
   static const unsigned int width =
       13 * 32 + 1 + 1 + 2 + 2 + 1 + 1 + 37 * 32 + 2 + 1 + 1;
 
-  #ifndef NO_SYSC
+#ifndef NO_SYSC
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
     m& VECTOR_OFFSET;
@@ -419,7 +426,7 @@ struct VectorParams {
                               const std::string& name) {
     // TODO
   }
-  #endif
+#endif
 
   inline friend std::ostream& operator<<(ostream& os,
                                          const VectorParams& params) {
@@ -437,7 +444,7 @@ struct VectorInstructionConfig {
   static const unsigned int width =
       VectorInstructions::width * 8 + 32 * 8 + 32 + 32;
 
-  #ifndef NO_SYSC
+#ifndef NO_SYSC
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
     for (int j = 0; j < 8; j++) {
@@ -510,7 +517,7 @@ struct VectorInstructionConfig {
                               const std::string& name) {
     // TODO
   }
-  #endif
+#endif
 
   inline friend std::ostream& operator<<(
       ostream& os, const VectorInstructionConfig& params) {

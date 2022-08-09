@@ -70,6 +70,9 @@ SC_MODULE(Harness) {
   CombinationalInterface<MemoryRequest> CCS_INIT_S1(weightAddressRequest);
   CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       weightDataResponse);
+  CombinationalInterface<MemoryRequest> CCS_INIT_S1(gradAddressRequest);
+  CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+      gradDataResponse);
 
   CombinationalInterface<MemoryRequest> CCS_INIT_S1(vectorFetch0AddressRequest);
   CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
@@ -131,6 +134,7 @@ SC_MODULE(Harness) {
   void memAccessVector0();
   void memAccessVector1();
   void memAccessVector2();
+  void memAccessGrad();
 
   void reset();
   void storeVectorOutputs();

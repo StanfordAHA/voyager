@@ -39,7 +39,7 @@ SC_MODULE(MatrixProcessor) {
   sc_in<bool> CCS_INIT_S1(rstn);
 
   Connections::In<Pack1D<IDTYPE, NROWS> > CCS_INIT_S1(inputsChannel);
-  Connections::In<Pack1D<IDTYPE, NROWS> > CCS_INIT_S1(weightsChannel);
+  Connections::In<Pack1D<P8D, NROWS> > CCS_INIT_S1(weightsChannel);
   Connections::Out<Pack1D<ODTYPE, NROWS> > CCS_INIT_S1(outputsChannel);
 
   Connections::In<int> CCS_INIT_S1(serialParamsIn);
@@ -127,15 +127,10 @@ SC_MODULE(MatrixProcessor) {
     while (true) {
 #pragma hls_pipeline_init_interval 1
       for (int weight_count = 0; weight_count < NROWS; weight_count++) {
-        Pack1D<IDTYPE, NCOLS> arrayWeights = weightsChannel.Pop();
-        Pack1D<P8D, NCOLS> decodedArrayWeights;
-#pragma hls_unroll yes
-        for (int i = 0; i < NCOLS; i++) {
-          decodedArrayWeights[i] = static_cast<P8D>(arrayWeights[i]);
-        }
+        Pack1D<P8D, NCOLS> arrayWeights = weightsChannel.Pop();
         // std::cout << "Weights: " << arrayWeights << std::endl;
 
-        weightsToSystolicArray.Push(decodedArrayWeights);
+        weightsToSystolicArray.Push(arrayWeights);
       }
 
       weightLoadDone.SyncPush();

@@ -54,6 +54,8 @@ Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
   accelerator.inputDataResponse(inputDataResponse);
   accelerator.weightAddressRequest(weightAddressRequest);
   accelerator.weightDataResponse(weightDataResponse);
+  accelerator.gradAddressRequest(gradAddressRequest);
+  accelerator.gradDataResponse(gradDataResponse);
   accelerator.vectorFetch0AddressRequest(vectorFetch0AddressRequest);
   accelerator.vectorFetch0DataResponse(vectorFetch0DataResponse);
   accelerator.vectorFetch1AddressRequest(vectorFetch1AddressRequest);
@@ -104,6 +106,10 @@ Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
   async_reset_signal_is(rstn, false);
 
   SC_THREAD(memAccessVector2);
+  sensitive << clk.posedge_event();
+  async_reset_signal_is(rstn, false);
+
+  SC_THREAD(memAccessGrad);
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
 
@@ -229,6 +235,10 @@ void Harness::memAccessWeights() {
   memAccessBurst(&weightAddressRequest, &weightDataResponse, memoryMap.weights);
 }
 
+void Harness::memAccessGrad() {
+  memAccessBurst(&gradAddressRequest, &gradDataResponse, memoryMap.inputs);
+}
+
 void Harness::memAccessVector0() {
   memAccessBurst(&vectorFetch0AddressRequest, &vectorFetch0DataResponse,
                  memoryMap.inputs);
@@ -281,7 +291,7 @@ void Harness::sendParams() {
     bool matrixParamsValid, vectorParamsValid;
 
     map_operation(params, matrixParams, matrixParamsValid, vectorParams,
-                 vectorInstructionConfig, vectorParamsValid);
+                  vectorInstructionConfig, vectorParamsValid);
 
     if (matrixParamsValid) {
       sendSerializedParams<MatrixParams, 32>(matrixParams,
@@ -293,7 +303,7 @@ void Harness::sendParams() {
                                              &serialVectorParamsIn);
       sendSerializedParams<VectorInstructionConfig, 32>(vectorInstructionConfig,
                                                         &serialVectorParamsIn);
-                                                        vectorUnitStartSignal.SyncPop();
+      vectorUnitStartSignal.SyncPop();
     }
     CCS_LOG("Accelerator Layer Started.");
 

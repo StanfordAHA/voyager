@@ -17,7 +17,7 @@ SC_MODULE(MatrixUnit) {
   Connections::In<int> CCS_INIT_S1(serialMatrixParamsIn);
   Connections::Combinational<int> serialMatrixParams[3];
 
-// clang-format off
+  // clang-format off
   #ifdef SIM_InputController  
   CCS_DESIGN((InputController<INPUT_DATATYPE, DIMENSION>)) CCS_INIT_S1(inputController);
   #else
@@ -52,11 +52,16 @@ SC_MODULE(MatrixUnit) {
   Connections::Out<MemoryRequest> CCS_INIT_S1(weightAddressRequest);
   Connections::In<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       weightDataResponse);
+  Connections::Out<MemoryRequest> CCS_INIT_S1(gradAddressRequest);
+  Connections::In<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+      gradDataResponse);
   Connections::Combinational<BufferWriteRequest<INPUT_DATATYPE, DIMENSION> >
       weightBufferWriteReq[2];
   Connections::Combinational<int> weightBufferWriteControl[2];
   Connections::Combinational<int> weightBufferReadAddress[2];
   Connections::Combinational<int> weightBufferReadControl[2];
+  Connections::Combinational<Pack1D<P8, DIMENSION> > CCS_INIT_S1(
+      weightsFromBuffer);
 
 #ifdef SIM_MatrixProcessor
   // clang-format off
@@ -69,7 +74,7 @@ SC_MODULE(MatrixUnit) {
 #endif
   Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       inputsToSystolicArray);
-  Connections::Combinational<Pack1D<WEIGHT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<P8D, DIMENSION> > CCS_INIT_S1(
       weightsToSystolicArray);
   Connections::Out<Pack1D<ACCUM_DATATYPE, DIMENSION> > CCS_INIT_S1(
       outputsFromSystolicArray);
@@ -113,6 +118,10 @@ SC_MODULE(MatrixUnit) {
     weightController.addressRequest(weightAddressRequest);
     weightController.dataResponse(weightDataResponse);
     weightController.serialParamsIn(serialMatrixParams[1]);
+    weightController.gradAddressRequest(gradAddressRequest);
+    weightController.gradDataResponse(gradDataResponse);
+    weightController.weightsFromBuffer(weightsFromBuffer);
+    weightController.weightsToSystolicArray(weightsToSystolicArray);
 
     weightBuffer.clk(clk);
     weightBuffer.rstn(rstn);
@@ -127,7 +136,7 @@ SC_MODULE(MatrixUnit) {
       weightBuffer.readAddress[i](weightBufferReadAddress[i]);
       weightBuffer.readControl[i](weightBufferReadControl[i]);
     }
-    weightBuffer.output(weightsToSystolicArray);
+    weightBuffer.output(weightsFromBuffer);
 
     matrixProcessor.clk(clk);
     matrixProcessor.rstn(rstn);

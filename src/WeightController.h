@@ -23,13 +23,24 @@ SC_MODULE(WeightController) {
   Connections::Out<int> readAddress[2];
   Connections::Out<int> readControl[2];
 
+  Connections::Out<MemoryRequest> CCS_INIT_S1(gradAddressRequest);
+  Connections::In<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(gradDataResponse);
+
+  Connections::In<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(weightsFromBuffer);
+  Connections::Out<Pack1D<typename DTYPE::DecomposedPosit, NROWS> > CCS_INIT_S1(
+      weightsToSystolicArray);
+
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(fetcherParams);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(writerParams);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(readerParams);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(transposerParams);
+  Connections::Combinational<MatrixParams> CCS_INIT_S1(gradFetcherParams);
+  Connections::Combinational<MatrixParams> CCS_INIT_S1(transposeGradParams);
+  Connections::Combinational<MatrixParams> CCS_INIT_S1(combineGradParams);
 
   Connections::Combinational<Pack1D<DTYPE, NCOLS> > transposeOut;
+  Connections::Combinational<Pack1D<DTYPE, NCOLS> > gradTransposeOut;
 
   MatrixParamsDeserializer<2> CCS_INIT_S1(paramsDeserializer);
 
@@ -56,6 +67,18 @@ SC_MODULE(WeightController) {
     async_reset_signal_is(rstn, false);
 
     SC_THREAD(transposer);
+    sensitive << clk.pos();
+    async_reset_signal_is(rstn, false);
+
+    SC_THREAD(gradFetcher);
+    sensitive << clk.pos();
+    async_reset_signal_is(rstn, false);
+
+    SC_THREAD(transposeGrads);
+    sensitive << clk.pos();
+    async_reset_signal_is(rstn, false);
+
+    SC_THREAD(combineGrads);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
   }
@@ -649,12 +672,356 @@ SC_MODULE(WeightController) {
     }
   }
 
+  void gradFetcher() {
+    gradFetcherParams.ResetRead();
+    gradAddressRequest.Reset();
+
+    wait();
+
+    while (true) {
+      const MatrixParams params = gradFetcherParams.Pop();
+
+      ac_int<8, false> loop_counters[2][6];
+      ac_int<8, false> loop_bounds[2][6];
+
+#pragma hls_unroll yes
+      for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 6; j++) {
+          loop_bounds[i][j] = params.loops[i][j];
+        }
+      }
+
+      // set irrelevant loop bounds to 1
+      loop_bounds[1][params.weightReuseIndex[0]] = 1;
+      loop_bounds[1][params.weightReuseIndex[1]] = 1;
+
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
+      for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
+           loop_counters[0][0]++) {
+        for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
+             loop_counters[0][1]++) {
+          for (loop_counters[0][2] = 0; loop_counters[0][2] < loop_bounds[0][2];
+               loop_counters[0][2]++) {
+            for (loop_counters[1][0] = 0;
+                 loop_counters[1][0] < loop_bounds[1][0];
+                 loop_counters[1][0]++) {
+              for (loop_counters[1][1] = 0;
+                   loop_counters[1][1] < loop_bounds[1][1];
+                   loop_counters[1][1]++) {
+                for (loop_counters[1][2] = 0;
+                     loop_counters[1][2] < loop_bounds[1][2];
+                     loop_counters[1][2]++) {
+                  for (loop_counters[1][3] = 0;
+                       loop_counters[1][3] < loop_bounds[1][3];
+                       loop_counters[1][3]++) {
+                    for (loop_counters[1][4] = 0;
+                         loop_counters[1][4] < loop_bounds[1][4];
+                         loop_counters[1][4]++) {
+                      for (loop_counters[1][5] = 0;
+                           loop_counters[1][5] < loop_bounds[1][5];
+                           loop_counters[1][5]++) {
+                        for (ac_int<8, false> c0 = NROWS - 1; c0 >= 0;
+                             c0--) {  // reverse order
+
+                          ac_int<8, false> k2 = loop_counters
+                              [0][params.weightAddressGenWeightLoopIndex[0]];
+                          ac_int<8, false> K2 = loop_bounds
+                              [0][params.weightAddressGenWeightLoopIndex[0]];
+                          ac_int<8, false> k1 = loop_counters
+                              [1][params.weightAddressGenWeightLoopIndex[1]];
+                          ac_int<8, false> K1 = loop_bounds
+                              [1][params.weightAddressGenWeightLoopIndex[1]];
+                          ac_int<8, false> C1 = loop_bounds
+                              [1][params.weightAddressGenReductionLoopIndex[0]];
+                          ac_int<8, false> c1 = loop_counters
+                              [1][params.weightAddressGenReductionLoopIndex[0]];
+                          ac_int<8, false> fx =
+                              loop_counters[1][params.weightAddressGenFxIndex];
+                          ac_int<8, false> FX =
+                              loop_bounds[1][params.weightAddressGenFxIndex];
+                          ac_int<8, false> fy =
+                              loop_counters[1][params.weightAddressGenFyIndex];
+                          ac_int<8, false> FY =
+                              loop_bounds[1][params.weightAddressGenFyIndex];
+
+                          ac_int<8, false> C0 = NROWS;
+
+                          ac_int<16, false> c = c1 * C0 + c0;
+                          ac_int<16, false> C = C1 * C0;
+                          ac_int<16, false> k =
+                              k2 * K1 * DIMENSION + k1 * DIMENSION;
+                          ac_int<16, false> K = K2 * K1 * DIMENSION;
+
+                          int baseAddress =
+                              (fy * FX * C * K) + (fx * C * K) + (c * K) + k;
+                          if (params.WEIGHT_TRANSPOSE) {
+                            baseAddress = (k + c0) * C + c1 * DIMENSION;
+                          } else if (params.CONCAT_HEAD_WEIGHTS) {
+                            baseAddress =
+                                static_cast<ac_int<32, false> >(
+                                    ((k / 32) * C * 32)) +
+                                static_cast<ac_int<16, false> >((c * 32)) +
+                                static_cast<ac_int<32, false> >((k % 32));
+                          }
+                          int burstSize = NCOLS;
+
+                          MemoryRequest memRequest = {
+                              params.GRAD_OFFSET + baseAddress, burstSize};
+                          addressRequest.Push(memRequest);
+
+                          if (c == 0) {
+                            break;
+                          }
+                        }
+
+                        if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
+                          break;
+                        }
+                      }
+                      if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
+                        break;
+                      }
+                    }
+                    if (loop_counters[1][3] >= loop_bounds[1][3] - 1) {
+                      break;
+                    }
+                  }
+                  if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {
+                    break;
+                  }
+                }
+                if (loop_counters[1][1] >= loop_bounds[1][1] - 1) {
+                  break;
+                }
+              }
+              if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
+                break;
+              }
+            }
+            if (loop_counters[0][2] >= loop_bounds[0][2] - 1) {
+              break;
+            }
+          }
+          if (loop_counters[0][1] >= loop_bounds[0][1] - 1) {
+            break;
+          }
+        }
+        if (loop_counters[0][0] >= loop_bounds[0][0] - 1) {
+          break;
+        }
+      }
+    }
+  }
+
+  void transposeGrads() {
+    transposeGradParams.ResetRead();
+    gradTransposeOut.ResetWrite();
+    gradDataResponse.Reset();
+
+    wait();
+
+    while (true) {
+      const MatrixParams params = transposeGradParams.Pop();
+
+      ac_int<8, false> loop_counters[2][6];
+      ac_int<8, false> loop_bounds[2][6];
+
+#pragma hls_unroll yes
+      for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 6; j++) {
+          loop_bounds[i][j] = params.loops[i][j];
+        }
+      }
+
+      // set irrelevant loop bounds to 1
+      loop_bounds[1][params.weightReuseIndex[0]] = 1;
+      loop_bounds[1][params.weightReuseIndex[1]] = 1;
+
+      if (params.WEIGHT_TRANSPOSE) {
+        INPUT_DATATYPE transposeBuffer[NROWS][NCOLS];
+
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
+        for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
+             loop_counters[0][0]++) {
+          for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
+               loop_counters[0][1]++) {
+            for (loop_counters[0][2] = 0;
+                 loop_counters[0][2] < loop_bounds[0][2];
+                 loop_counters[0][2]++) {
+              // inner memory
+              for (loop_counters[1][0] = 0;
+                   loop_counters[1][0] < loop_bounds[1][0];
+                   loop_counters[1][0]++) {
+                for (loop_counters[1][1] = 0;
+                     loop_counters[1][1] < loop_bounds[1][1];
+                     loop_counters[1][1]++) {
+                  for (loop_counters[1][2] = 0;
+                       loop_counters[1][2] < loop_bounds[1][2];
+                       loop_counters[1][2]++) {
+                    for (loop_counters[1][3] = 0;
+                         loop_counters[1][3] < loop_bounds[1][3];
+                         loop_counters[1][3]++) {
+                      for (loop_counters[1][4] = 0;
+                           loop_counters[1][4] < loop_bounds[1][4];
+                           loop_counters[1][4]++) {
+                        // innermost loop must be X0, and must be a multiple of
+                        // NROWS
+                        for (loop_counters[1][5] = 0;
+                             loop_counters[1][5] < loop_bounds[1][5];
+                             loop_counters[1][5]++) {
+                          // Fill up transposeBuffer
+                          for (int c0 = NROWS - 1; c0 >= 0; c0--) {
+                            Pack1D<DTYPE, NCOLS> originalValue =
+                                gradDataResponse.Pop();
+#pragma hls_unroll yes
+                            for (int dim = 0; dim < NCOLS; dim++) {
+                              transposeBuffer[dim][c0] = originalValue[dim];
+                            }
+                          }
+
+                          // Write out from tranposeBuffer
+                          for (int c0 = NROWS - 1; c0 >= 0; c0--) {
+                            Pack1D<DTYPE, NCOLS> transposedValue;
+
+#pragma hls_unroll yes
+                            for (int dim = 0; dim < NCOLS; dim++) {
+                              transposedValue[dim] = transposeBuffer[c0][dim];
+                            }
+                            gradTransposeOut.Push(transposedValue);
+                          }
+
+                          if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
+                            break;
+                          }
+                        }
+                        if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
+                          break;
+                        }
+                      }
+                      if (loop_counters[1][3] >= loop_bounds[1][3] - 1) {
+                        break;
+                      }
+                    }
+                    if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {
+                      break;
+                    }
+                  }
+                  if (loop_counters[1][1] >= loop_bounds[1][1] - 1) {
+                    break;
+                  }
+                }
+                if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
+                  break;
+                }
+              }
+              if (loop_counters[0][2] >= loop_bounds[0][2] - 1) {
+                break;
+              }
+            }
+            if (loop_counters[0][1] >= loop_bounds[0][1] - 1) {
+              break;
+            }
+          }
+          if (loop_counters[0][0] >= loop_bounds[0][0] - 1) {
+            break;
+          }
+        }
+      } else {  // passthrough
+        ac_int<32, false> total_count =
+            loop_bounds[0][0] * loop_bounds[0][1] * loop_bounds[0][2] *
+            loop_bounds[1][0] * loop_bounds[1][1] * loop_bounds[1][2] *
+            loop_bounds[1][3] * loop_bounds[1][4] * loop_bounds[1][5] * NROWS;
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
+        for (int i = 0; i < total_count; i++) {
+          gradTransposeOut.Push(gradDataResponse.Pop());
+        }
+      }
+    }
+  }
+
+  void combineGrads() {
+    combineGradParams.ResetRead();
+    weightsFromBuffer.Reset();
+    weightsToSystolicArray.Reset();
+    gradTransposeOut.ResetRead();
+
+    wait();
+
+    while (true) {
+      const MatrixParams params = combineGradParams.Pop();
+
+      ac_int<8, false> loop_counters[2][6];
+      ac_int<8, false> loop_bounds[2][6];
+
+#pragma hls_unroll yes
+      for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 6; j++) {
+          loop_bounds[i][j] = params.loops[i][j];
+        }
+      }
+
+      // set irrelevant loop bounds to 1
+      loop_bounds[1][params.weightReuseIndex[0]] = 1;
+      loop_bounds[1][params.weightReuseIndex[1]] = 1;
+
+      DTYPE learningRatePosit;
+      learningRatePosit.setbits(params.learningRate);
+      typename DTYPE::DecomposedPosit learningRate =
+          static_cast<typename DTYPE::DecomposedPosit>(learningRatePosit);
+
+      ac_int<32, false> total_count =
+          loop_bounds[0][0] * loop_bounds[0][1] * loop_bounds[0][2] *
+          loop_bounds[1][0] * loop_bounds[1][1] * loop_bounds[1][2] *
+          loop_bounds[1][3] * loop_bounds[1][4] * loop_bounds[1][5] * NROWS;
+
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
+      for (int i = 0; i < total_count; i++) {
+        Pack1D<DTYPE, NROWS> weights = weightsFromBuffer.Pop();
+        Pack1D<typename DTYPE::DecomposedPosit, NROWS> weightsDecomposed;
+
+#pragma hls_unroll yes
+        for (int i = 0; i < NROWS; i++) {
+          weightsDecomposed[i] =
+              static_cast<typename DTYPE::DecomposedPosit>(weights[i]);
+        }
+
+        if (params.COMBINE_GRADS) {
+          Pack1D<DTYPE, NROWS> gradients = gradTransposeOut.Pop();
+          Pack1D<typename DTYPE::DecomposedPosit, NROWS> gradientsDecomposed;
+
+#pragma hls_unroll yes
+          for (int i = 0; i < NROWS; i++) {
+            gradientsDecomposed[i] =
+                static_cast<typename DTYPE::DecomposedPosit>(
+                    learningRate *
+                    static_cast<typename DTYPE::DecomposedPosit>(gradients[i]));
+          }
+
+#pragma hls_unroll yes
+          for (int i = 0; i < NROWS; i++) {
+            weightsDecomposed[i] = static_cast<typename DTYPE::DecomposedPosit>(
+                weightsDecomposed[i] + gradientsDecomposed[i]);
+          }
+        }
+
+        weightsToSystolicArray.Push(weightsDecomposed);
+      }
+    }
+  }
+
   void read_params() {
     paramsIn.ResetRead();
     fetcherParams.ResetWrite();
     writerParams.ResetWrite();
     readerParams.ResetWrite();
     transposerParams.ResetWrite();
+    combineGradParams.ResetWrite();
+    gradFetcherParams.ResetWrite();
+    transposeGradParams.ResetWrite();
 
     wait();
 
@@ -665,6 +1032,12 @@ SC_MODULE(WeightController) {
       writerParams.Push(params);
       readerParams.Push(params);
       transposerParams.Push(params);
+      combineGradParams.Push(params);
+
+      if (params.COMBINE_GRADS) {
+        gradFetcherParams.Push(params);
+        transposeGradParams.Push(params);
+      }
     }
   }
 };
