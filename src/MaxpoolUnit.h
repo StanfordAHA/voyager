@@ -114,7 +114,7 @@ SC_MODULE(MaxpoolUnit) {
                                   .bits.template slc<8>(byte * 8));
                         }
                       }
-                        tensorOut.Push(dpHalfVec);
+                      tensorOut.Push(dpHalfVec);
                     }
 
                     if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {

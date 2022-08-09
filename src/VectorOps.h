@@ -22,7 +22,8 @@ void vmult(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
 
 #pragma hls_design ccore
 template <typename ACC_DTYPE, int WIDTH>
-void vrelu(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH> mask, bool useMask, Pack1D<ACC_DTYPE, WIDTH>& res) {
+void vrelu(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH> mask,
+           bool useMask, Pack1D<ACC_DTYPE, WIDTH>& res) {
   Pack1D<ACC_DTYPE, WIDTH> tmp;
 
 #pragma hls_unroll yes

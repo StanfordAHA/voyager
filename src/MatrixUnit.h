@@ -17,7 +17,7 @@ SC_MODULE(MatrixUnit) {
   Connections::In<int> CCS_INIT_S1(serialMatrixParamsIn);
   Connections::Combinational<int> serialMatrixParams[3];
 
-  // clang-format off
+// clang-format off
   #ifdef SIM_InputController  
   CCS_DESIGN((InputController<INPUT_DATATYPE, DIMENSION>)) CCS_INIT_S1(inputController);
   #else
