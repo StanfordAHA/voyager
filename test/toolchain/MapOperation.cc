@@ -581,7 +581,7 @@ void map_operation(const SimplifiedParams &params, MatrixParams &matrixParams,
     //     vectorUnitDoneSignal.SyncPop();
     //     CCS_LOG("Accelerator
     //     Layer Finished.");
-  } else if (params.OUTER_PRODUCT) {
+  } else if (params.FC_GRAD) {
     matrixParamsValid = false;
     vectorParamsValid = true;
 
