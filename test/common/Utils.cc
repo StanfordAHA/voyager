@@ -17,7 +17,7 @@ inline float readInput(UniversalPosit *matrix, int index, bool accType) {
   int encoding1 = matrix[2 * index].encoding();
   int encoding2 = matrix[2 * index + 1].encoding();
   UniversalPositAccum p16;
-  p16.setbits((encoding1 << 8) + encoding2);
+  p16.setbits((encoding2 << 8) + encoding1);
   return static_cast<float>(p16);
 }
 #endif
@@ -30,7 +30,7 @@ inline float readInput(INPUT_DATATYPE *matrix, int index, bool accType) {
   int encoding1 = matrix[2 * index].bits;
   int encoding2 = matrix[2 * index + 1].bits;
   ACCUM_DATATYPE p16;
-  p16.setbits((encoding1 << 8) + encoding2);
+  p16.setbits((encoding2 << 8) + encoding1);
   return static_cast<float>(p16);
 }
 
@@ -166,6 +166,12 @@ int compare_arrays(INPUT_DATATYPE *matrixA, float *matrixB, size_t size,
 int compare_arrays(INPUT_DATATYPE *matrixA, UniversalPosit *matrixB,
                    size_t size, std::string filename, bool accType) {
   return compare_arrays_internal<INPUT_DATATYPE, UniversalPosit>(
+      matrixA, matrixB, size, filename, accType);
+}
+
+int compare_arrays(UniversalPosit *matrixA, UniversalPosit *matrixB,
+                   size_t size, std::string filename, bool accType) {
+  return compare_arrays_internal<UniversalPosit, UniversalPosit>(
       matrixA, matrixB, size, filename, accType);
 }
 

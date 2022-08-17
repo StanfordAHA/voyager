@@ -200,9 +200,12 @@ int runOperation(const SimplifiedParams params, const Files files,
   if (universal) {
     std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in representing float as Posit)" << std::endl;
-    diffFile = outfilePrefix + "universalgold_vs_pytorch.txt";
-    compare_arrays(universalMatrixC, floatDataFileOutput, outputSize, diffFile,
-                   params.ACC_T_OUTPUT);
+    diffFile = outfilePrefix + "universal_vs_pytorch.txt";
+    compare_arrays(universalMatrixC, universalDataFileOutput, outputSize,
+                   diffFile, params.ACC_T_OUTPUT);
+    // compare_arrays(universalMatrixC, floatDataFileOutput, outputSize,
+    // diffFile,
+    //                params.ACC_T_OUTPUT);
   }
 
   if (customposit) {
@@ -210,9 +213,9 @@ int runOperation(const SimplifiedParams params, const Files files,
     std::cout << "(reveals bugs in mapping operations to accelerator)"
               << std::endl;
     diffFile = outfilePrefix + "hlsgold_vs_pytorch.txt";
-    compare_arrays(matrixC, floatDataFileOutput, outputSize, diffFile,
+    compare_arrays(matrixC, dataFileOutput, outputSize, diffFile,
                    params.ACC_T_OUTPUT);
-    // compare_arrays(matrixC, dataFileOutput, outputSize, diffFile,
+    // compare_arrays(matrixC, floatDataFileOutput, outputSize, diffFile,
     //                params.ACC_T_OUTPUT);
   }
 
@@ -221,9 +224,8 @@ int runOperation(const SimplifiedParams params, const Files files,
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
     diffFile = outfilePrefix + "accel_vs_pytorch.txt";
-    errors +=
-        compare_arrays(&sramMemory[params.OUTPUT_OFFSET], floatDataFileOutput,
-                       outputSize, diffFile, params.ACC_T_OUTPUT);
+    compare_arrays(&sramMemory[params.OUTPUT_OFFSET], dataFileOutput,
+                   outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (accelerator && customposit) {
@@ -231,8 +233,8 @@ int runOperation(const SimplifiedParams params, const Files files,
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
     diffFile = outfilePrefix + "accel_vs_hlsgold.txt";
-    errors += compare_arrays(&sramMemory[params.OUTPUT_OFFSET], matrixC,
-                             outputSize, diffFile, params.ACC_T_OUTPUT);
+    compare_arrays(&sramMemory[params.OUTPUT_OFFSET], matrixC, outputSize,
+                   diffFile, params.ACC_T_OUTPUT);
   }
 
   if (customposit && universal) {
@@ -241,9 +243,9 @@ int runOperation(const SimplifiedParams params, const Files files,
     std::cout
         << "(reveals bugs in implementation of custom HLS Posit operators)"
         << std::endl;
-    diffFile = outfilePrefix + "hlsgold_vs_universalgold.txt";
-    errors += compare_arrays(matrixC, universalMatrixC, outputSize, diffFile,
-                             params.ACC_T_OUTPUT);
+    diffFile = outfilePrefix + "hlsgold_vs_universal.txt";
+    compare_arrays(matrixC, universalMatrixC, outputSize, diffFile,
+                   params.ACC_T_OUTPUT);
   }
 
   if (fp32) {
@@ -334,22 +336,22 @@ int runMobileBertUnitTest(std::string task, std::string test,
   SimplifiedParams params = mobileBertParams.at(paramsName);
   Files files = mobileBertTestFiles.at(test);
   MemoryOffsets offsets = mobileBertMemOffsets.at(test);
-  std::string layerName = "mobilebert_encoder_layer_23_";
+  std::string layerName = "mobilebert_encoder_layer_0_";
 
   if (test.find("classifier") != std::string::npos ||
       (task == "backward" && test == "output_bottleneck_LayerNorm")) {
     layerName = "";
   }
 
-  params.INPUT_OFFSET = offsets.INPUT_OFFSET + STACK_SIZE;
+  params.INPUT_OFFSET = offsets.INPUT_OFFSET + ACTIVATION_OFFSET;
   params.WEIGHT_OFFSET = offsets.WEIGHT_OFFSET;
-  params.OUTPUT_OFFSET = offsets.OUTPUT_OFFSET + STACK_SIZE;
+  params.OUTPUT_OFFSET = offsets.OUTPUT_OFFSET + ACTIVATION_OFFSET;
   params.BIAS_OFFSET = offsets.BIAS_OFFSET;
-  params.RESIDUAL_OFFSET = offsets.RESIDUAL_OFFSET + STACK_SIZE;
+  params.RESIDUAL_OFFSET = offsets.RESIDUAL_OFFSET + ACTIVATION_OFFSET;
   params.WEIGHT_SPLITTING = false;
 
   if (!params.WEIGHT) {
-    params.WEIGHT_OFFSET += STACK_SIZE;
+    params.WEIGHT_OFFSET += ACTIVATION_OFFSET;
   }
 
   MemoryMap memoryMap = {SRAM, (params.WEIGHT ? RRAM : SRAM), RRAM, SRAM, SRAM};

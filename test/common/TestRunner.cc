@@ -313,9 +313,9 @@ int run_sequence(const std::string& group,
                 comparisons[i + 1] == "file") ||
                (comparisons[i + 1] == "universal" &&
                 comparisons[i] == "file")) {
-      // error_count += compare_arrays(
-      //     uni_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
-      //     uni_comp, X * Y * K, diff_file, accType);
+      error_count += compare_arrays(
+          uni_gold_sram_memory + (*param_map)[last_test].OUTPUT_OFFSET,
+          uni_comp, X * Y * K, diff_file, accType);
     } else if ((comparisons[i] == "fp32" && comparisons[i + 1] == "file") ||
                (comparisons[i + 1] == "fp32" && comparisons[i] == "file")) {
       error_count += compare_arrays(

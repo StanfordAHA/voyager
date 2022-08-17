@@ -21,7 +21,7 @@
 #endif
 
 #define VERBOSE
-#define DUMP_PARAMS
+// #define DUMP_PARAMS
 // #define ACC_T_ERROR 1
 
 // Data memory
@@ -350,18 +350,16 @@ int runOperation(const SimplifiedParams params,
     std::cout << "(reveals bugs in mapping operations to accelerator)"
               << std::endl;
     diffFile = outfilePrefix + "hlsgold_vs_pytorch.txt";
-    errors =
-        compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET, dataFileOutput,
-                       outputSize, diffFile, params.ACC_T_OUTPUT);
+    compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET, dataFileOutput,
+                   outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (universal) {
     std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in representing float as Posit)" << std::endl;
     diffFile = outfilePrefix + "universalgold_vs_pytorch.txt";
-    errors =
-        compare_arrays(uni_sram_memory + params.OUTPUT_OFFSET, dataFileOutput,
-                       outputSize, diffFile, params.ACC_T_OUTPUT);
+    compare_arrays(uni_sram_memory + params.OUTPUT_OFFSET, dataFileOutput,
+                   outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (customposit && universal) {
@@ -371,9 +369,9 @@ int runOperation(const SimplifiedParams params,
         << "(reveals bugs in implementation of custom HLS Posit operators)"
         << std::endl;
     diffFile = outfilePrefix + "hlsgold_vs_universalgold.txt";
-    errors = compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET,
-                            uni_sram_memory + params.OUTPUT_OFFSET, outputSize,
-                            diffFile, params.ACC_T_OUTPUT);
+    compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET,
+                   uni_sram_memory + params.OUTPUT_OFFSET, outputSize, diffFile,
+                   params.ACC_T_OUTPUT);
   }
 
   if (fp32) {
@@ -457,7 +455,7 @@ int runForward(std::string datapath, std::vector<std::string> groups) {
 
 #ifdef DUMP_PARAMS
       if (layer == 0 || op == "classifier") {
-        myfile << formatOperation(params, op);
+        myfile << formatOperation(params, op) << std::endl;
       }
 #endif
 

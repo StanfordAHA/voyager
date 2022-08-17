@@ -10,8 +10,8 @@ void save_float(INPUT_DATATYPE* array, int index, float val, bool accType) {
   } else {
     ACCUM_DATATYPE p16 = val;
     int bits = p16.bits;
-    array[2 * index].setbits((bits >> 8) & 0xFF);
-    array[2 * index + 1].setbits(bits & 0xFF);
+    array[2 * index].setbits(bits & 0xFF);
+    array[2 * index + 1].setbits((bits >> 8) & 0xFF);
   }
 }
 
@@ -22,8 +22,8 @@ void save_float(UniversalPosit* array, int index, float val, bool accType) {
   } else {
     UniversalPositAccum p16 = val;
     int bits = p16.encoding();
-    array[2 * index].setbits((bits >> 8) & 0xFF);
-    array[2 * index + 1].setbits(bits & 0xFF);
+    array[2 * index].setbits(bits & 0xFF);
+    array[2 * index + 1].setbits((bits >> 8) & 0xFF);
   }
 }
 #endif
@@ -112,7 +112,7 @@ void load_inputs(const SimplifiedParams& params, const std::string& filename,
             double val = *(tmpValuePtr++);
 
             int address = y * ((STRIDE * X) / 4) * 16 + x_o * 16 + x_i * 3 + c;
-            save_float(acceleratorMemory, params.INPUT_OFFSET + address, val,
+            save_float(&acceleratorMemory[params.INPUT_OFFSET], address, val,
                        params.ACC_T_INPUT);
 
             address = y * (STRIDE * X) * C + x * C + c;
@@ -126,7 +126,7 @@ void load_inputs(const SimplifiedParams& params, const std::string& filename,
   } else {
     for (int i = 0; i < size; i++) {
       double val = *(tmpValuePtr++);
-      save_float(acceleratorMemory, params.INPUT_OFFSET + i, val,
+      save_float(&acceleratorMemory[params.INPUT_OFFSET], i, val,
                  params.ACC_T_INPUT);
       save_float(goldMemory, i, val, params.ACC_T_INPUT);
       save_float(universalGoldMemory, i, val, params.ACC_T_INPUT);
@@ -183,7 +183,7 @@ void load_weights(const SimplifiedParams& params, const std::string& filename,
 
   for (int i = 0; i < size; i++) {
     double val = *(tmpValuePtr++);
-    save_float(acceleratorMemory, params.WEIGHT_OFFSET + i, val,
+    save_float(&acceleratorMemory[params.WEIGHT_OFFSET], i, val,
                params.ACC_T_WEIGHT);
     save_float(goldMemory, i, val, params.ACC_T_WEIGHT);
     save_float(universalGoldMemory, i, val, params.ACC_T_WEIGHT);
@@ -218,7 +218,7 @@ void load_bias(const SimplifiedParams& params, const std::string& filename,
 
   for (int i = 0; i < size; i++) {
     double val = *(tmpValuePtr++);
-    save_float(acceleratorMemory, params.BIAS_OFFSET + i, val, true);
+    save_float(&acceleratorMemory[params.BIAS_OFFSET], i, val, true);
     save_float(goldMemory, i, val, true);
     save_float(universalGoldMemory, i, val, true);
     save_float(floatGoldMemory, i, val, true);
@@ -256,7 +256,7 @@ void load_residual(const SimplifiedParams& params, const std::string& filename,
 
   for (int i = 0; i < size; i++) {
     double val = *(tmpValuePtr++);
-    save_float(acceleratorMemory, params.RESIDUAL_OFFSET + i, val,
+    save_float(&acceleratorMemory[params.RESIDUAL_OFFSET], i, val,
                params.ACC_T_OUTPUT);
     save_float(goldMemory, i, val, params.ACC_T_OUTPUT);
     save_float(universalGoldMemory, i, val, params.ACC_T_OUTPUT);

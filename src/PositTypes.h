@@ -298,11 +298,6 @@ inline Posit<nbits, es> Posit<nbits, es>::operator/(
 #ifdef __SYNTHESIS__
   return *this;
 #else
-  // TODO: make synthesisable
-  // PositFP<8, fbits> op1 = *this;
-  // PositFP<8, fbits> op2 = 1.0 / static_cast<float>(rhs);
-  // std::cerr << (float)op1 << "\t" << (float)op2 << "\t";
-  // return op1 * op2;
   float op1 = static_cast<float>(*this);
   float op2 = static_cast<float>(rhs);
   float result = op1 / op2;

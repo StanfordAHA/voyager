@@ -16,10 +16,11 @@ inline UniversalPositAccum gold_fma(UniversalPosit a, UniversalPosit b,
 
 inline ACCUM_DATATYPE gold_fma(ACCUM_DATATYPE a, ACCUM_DATATYPE b,
                                ACCUM_DATATYPE c) {
-  INPUT_DATATYPE::DecomposedPosit f1 = a;
-  INPUT_DATATYPE::DecomposedPosit f2 = b;
-  ACCUM_DATATYPE::DecomposedPosit f3 = c;
-  return decomposed_fma<8, 1, 16, 1>(f1, f2, f3);
+  INPUT_DATATYPE::DecomposedPosit v1 = a;
+  INPUT_DATATYPE::DecomposedPosit v2 = b;
+  ACCUM_DATATYPE::DecomposedPosit v3 = c;
+  return decomposed_fma<8, 1, 16, 1>(v1, v2, v3);
+  // return fma(a, b, c);
 }
 
 inline float gold_fma(float a, float b, float c) { return a * b + c; }
@@ -63,7 +64,7 @@ inline UniversalPositAccum readInput(UniversalPosit *matrix, int index,
   int encoding1 = matrix[2 * index].encoding();
   int encoding2 = matrix[2 * index + 1].encoding();
   UniversalPositAccum p16;
-  p16.setbits((encoding1 << 8) + encoding2);
+  p16.setbits((encoding2 << 8) + encoding1);
   return p16;
 }
 
@@ -75,7 +76,7 @@ inline UniversalPositAccum readInput2(UniversalPosit *matrix, int index,
   } else {
     int encoding1 = matrix[2 * index].encoding();
     int encoding2 = matrix[2 * index + 1].encoding();
-    p16.setbits((encoding1 << 8) + encoding2);
+    p16.setbits((encoding2 << 8) + encoding1);
   }
   sw::universal::value<12> val = p16.to_value();
   val.setExponent(val.scale() + expBias);
@@ -93,7 +94,7 @@ inline ACCUM_DATATYPE readInput(INPUT_DATATYPE *matrix, int index,
   int encoding1 = matrix[2 * index].bits;
   int encoding2 = matrix[2 * index + 1].bits;
   ACCUM_DATATYPE p16;
-  p16.setbits((encoding1 << 8) + encoding2);
+  p16.setbits((encoding2 << 8) + encoding1);
   return p16;
 }
 
@@ -105,7 +106,7 @@ inline ACCUM_DATATYPE readInput2(INPUT_DATATYPE *matrix, int index,
   } else {
     int encoding1 = matrix[2 * index].bits;
     int encoding2 = matrix[2 * index + 1].bits;
-    p16.setbits((encoding1 << 8) + encoding2);
+    p16.setbits((encoding2 << 8) + encoding1);
   }
   ACCUM_DATATYPE::DecomposedPosit val = p16;
   val.scale += expBias;
@@ -127,8 +128,8 @@ inline void saveOutput(UniversalPosit *matrix, int index,
     matrix[index] = static_cast<UniversalPosit>(value);
   } else {
     int bits = value.encoding();
-    matrix[2 * index].setbits((bits >> 8) & 0xFF);
-    matrix[2 * index + 1].setbits(bits & 0xFF);
+    matrix[2 * index].setbits(bits & 0xFF);
+    matrix[2 * index + 1].setbits((bits >> 8) & 0xFF);
   }
 }
 #endif
@@ -139,8 +140,8 @@ inline void saveOutput(INPUT_DATATYPE *matrix, int index, ACCUM_DATATYPE value,
     matrix[index] = static_cast<INPUT_DATATYPE>(value);
   } else {
     int bits = value.bits;
-    matrix[2 * index].setbits((bits >> 8) & 0xFF);
-    matrix[2 * index + 1].setbits(bits & 0xFF);
+    matrix[2 * index].setbits(bits & 0xFF);
+    matrix[2 * index + 1].setbits((bits >> 8) & 0xFF);
   }
 }
 
@@ -448,16 +449,16 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
     ACC_T accumResidualMatrix[X * Y * K];
     ACC_T outputMatrix[X * Y * K];
 
-    for (int i = 0; i < X * C; i++) {
+    for (int i = 0; i < (STRIDE * X) * (STRIDE * Y) * C; i++) {
       accumMatrixA[i] = readInput(matrixA, i, params.ACC_T_INPUT);
     }
 
-    for (int i = 0; i < C * K; i++) {
+    for (int i = 0; i < FX * FY * C * K; i++) {
       accumMatrixB[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
     }
 
     if (params.RESIDUAL || params.RELU_GRAD) {
-      for (int i = 0; i < X * K; i++) {
+      for (int i = 0; i < X * Y * K; i++) {
         accumResidualMatrix[i] =
             readInput(residualMatrix, i, params.ACC_T_OUTPUT);
       }
@@ -578,7 +579,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
     }
 
     if (params.RESIDUAL) {
-      for (int i = 0; i < X * K; i++) {
+      for (int i = 0; i < X * Y * K; i++) {
         outputMatrix[i] += accumResidualMatrix[i];
       }
     }
