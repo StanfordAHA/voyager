@@ -97,6 +97,36 @@ void vdiv(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
 }
 
 #pragma hls_design ccore
+template <typename ACC_DTYPE, int WIDTH>
+void vmultdiv(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
+              Pack1D<ACC_DTYPE, WIDTH>& res, bool div) {
+  Pack1D<ACC_DTYPE, WIDTH> op1_factor;
+  if (div) {
+    // convert to Posit16
+    Pack1D<Posit<16, 1>, WIDTH> tmp;
+#pragma hls_unroll yes
+    for (int i = 0; i < WIDTH; i++) {
+      tmp[i] = op1[i];
+    }
+
+#pragma hls_unroll yes
+    for (int i = 0; i < WIDTH; i++) {
+      tmp[i].reciprocal();
+    }
+
+// convert back to decoded format
+#pragma hls_unroll yes
+    for (int i = 0; i < WIDTH; i++) {
+      op1_factor[i] = tmp[i];
+    }
+  } else {
+    op1_factor = op1;
+  }
+
+  vmult<ACC_DTYPE, WIDTH>(op0, op1_factor, res);
+}
+
+#pragma hls_design ccore
 template <typename ACC_DTYPE>
 ACC_DTYPE treeadd16(Pack1D<ACC_DTYPE, 16>& op) {
   Pack1D<ACC_DTYPE, 8> lvl0;

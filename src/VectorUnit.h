@@ -268,14 +268,10 @@ SC_MODULE(VectorOpUnit) {
         //              << op3Src1 << std::endl
         //              << " = " << std::endl
         //              << res3);
-      } else if (inst.vOp3 == VectorInstructions::vmult) {
-        // FIXME: combine this with div
-        vmult<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op3Src0, op3Src1,
-                                                          res3);
-
-      } else if (inst.vOp3 == VectorInstructions::vdiv) {
-        vdiv<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op3Src0, op3Src1,
-                                                         res3);
+      } else if (inst.vOp3 == VectorInstructions::vmult ||
+                 inst.vOp3 == VectorInstructions::vdiv) {
+        vmultdiv<typename ACC_DTYPE::DecomposedPosit, WIDTH>(
+            op3Src0, op3Src1, res3, inst.vOp3 == VectorInstructions::vdiv);
       } else {
         res3 = op3Src0;
       }
