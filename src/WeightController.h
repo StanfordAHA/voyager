@@ -768,7 +768,7 @@ SC_MODULE(WeightController) {
 
                           MemoryRequest memRequest = {
                               params.GRAD_OFFSET + baseAddress, burstSize};
-                          addressRequest.Push(memRequest);
+                          gradAddressRequest.Push(memRequest);
 
                           if (c == 0) {
                             break;
