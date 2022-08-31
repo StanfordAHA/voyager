@@ -185,6 +185,21 @@ std::map<std::string, SimplifiedParams> inferenceParams{
          .ATTENTION_MASK = true,
      }},
 
+     // (128 x 128)
+    {"softmax_no_mask",
+     {
+         .loops = {{1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 128, 128}},
+         .inputXLoopIndex = {0, 5},
+         .inputYLoopIndex = {1, 4},
+         .reductionLoopIndex = {3, 0},
+         .weightLoopIndex = {2, 1},
+         .fxIndex = 3,
+         .fyIndex = 2,
+         .weightReuseIndex = {4, 5},
+         .STRIDE = 1,
+         .SOFTMAX = true,
+     }},
+
     // (128 x 128) x (128 x 32)
     {"context",
      {
@@ -312,21 +327,6 @@ std::map<std::string, SimplifiedParams> inferenceParams{
          .FC = true,
          .WEIGHT_SPLITTING = true,
          .learningRate = -2e-2,
-     }},
-
-    // (128 x 128)
-    {"softmax_no_mask",
-     {
-         .loops = {{1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 128, 128}},
-         .inputXLoopIndex = {0, 5},
-         .inputYLoopIndex = {1, 4},
-         .reductionLoopIndex = {3, 0},
-         .weightLoopIndex = {2, 1},
-         .fxIndex = 3,
-         .fyIndex = 2,
-         .weightReuseIndex = {4, 5},
-         .STRIDE = 1,
-         .SOFTMAX = true,
      }},
 };
 
@@ -782,7 +782,7 @@ std::map<std::string, Files> inferenceTestFiles{
          "output_dense_weight",
          "output_dense_bias",
          "output_residual",
-         "ffn_2_output_LayerNorm",
+         "ffn_0_output_LayerNorm",
      }},
     {"output_LayerNorm",
      {

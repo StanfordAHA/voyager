@@ -406,7 +406,7 @@ extern "C" int sc_main(int argc, char* argv[]) {
 
       loadWeights(weightDataDir);
 
-      errors += runForward(datapath, compList);
+      runForward(datapath, compList);
 
       deleteMemory();
     } else if (tests == "backward") {
@@ -415,8 +415,8 @@ extern "C" int sc_main(int argc, char* argv[]) {
       loadWeights(weightDataDir);
       loadActivation(activationDataDir);
 
-      errors += runBackward(datapath, compList);
-      errors += verifyGradients(gradientDataDir, "test_outputs/verif_");
+      runBackward(datapath, compList);
+      verifyGradients(gradientDataDir, "test_outputs/verif_");
 
       deleteMemory();
     } else if (tests == "e2e") {
@@ -424,9 +424,9 @@ extern "C" int sc_main(int argc, char* argv[]) {
 
       loadWeights(weightDataDir);
 
-      errors += runForward(datapath, compList);
-      errors += runBackward(datapath, compList);
-      errors += verifyGradients(gradientDataDir, "test_outputs/verif_");
+      runForward(datapath, compList);
+      runBackward(datapath, compList);
+      verifyGradients(gradientDataDir, "test_outputs/verif_");
 
       deleteMemory();
     } else {

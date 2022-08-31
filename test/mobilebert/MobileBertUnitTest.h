@@ -30,7 +30,7 @@
 
 void validateMapping(SimplifiedParams params);
 void run_op(std::vector<SimplifiedParams> params_list,
-            INPUT_DATATYPE* sramMemory, INPUT_DATATYPE* rramMemory,
+            INPUT_DATATYPE* acc_sram_memory, INPUT_DATATYPE* acc_rram_memory,
             MemoryMap memoryMap);
 
 int runOperation(const SimplifiedParams params, const Files files,
@@ -42,13 +42,6 @@ int runOperation(const SimplifiedParams params, const Files files,
                  const std::string outfilePrefix,
                  const std::vector<std::string> groups) {
   validateMapping(params);
-
-  INPUT_DATATYPE* sramMemory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
-  INPUT_DATATYPE* rramMemory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
-
-  if (sramMemory == nullptr || rramMemory == nullptr) {
-    throw std::runtime_error("Failed to allocate accelerator memory");
-  }
 
   int X = params.loops[0][params.inputXLoopIndex[0]] *
           params.loops[1][params.inputXLoopIndex[1]];
@@ -69,100 +62,100 @@ int runOperation(const SimplifiedParams params, const Files files,
     C = 1;
   }
 
-  std::cout << "Performing the following operation:" << std::endl;
-  std::cout << "(" << X << "x" << Y << "x" << C << ")"
-            << " * "
-            << "(" << FX << "x" << FY << "x" << C << "x" << K << ")"
-            << std::endl;
-
-  int inputSize = (STRIDE * X) * (STRIDE * Y) * C;
-  int weightSize = FX * FY * C * K;
-  int biasSize = 2 * K;
   int outputSize = X * Y * K;
-
   if (params.NO_NORM_GRAD) {
     outputSize = K;
   } else if (params.CROSS_ENTROPY_GRAD) {
     outputSize = X;
   }
 
-  if (params.ACC_T_INPUT) {
-    inputSize = 2 * inputSize;
-  }
-  if (params.ACC_T_WEIGHT) {
-    weightSize = 2 * weightSize;
-  }
+  std::cout << "Performing the following operation:" << std::endl;
+  std::cout << "(" << X << "x" << Y << "x" << C << ")"
+            << " * "
+            << "(" << FX << "x" << FY << "x" << C << "x" << K << ")"
+            << std::endl;
 
-  INPUT_DATATYPE* matrixA = new INPUT_DATATYPE[inputSize];
-  INPUT_DATATYPE* matrixB = new INPUT_DATATYPE[weightSize];
-  INPUT_DATATYPE* biasMatrix = new INPUT_DATATYPE[biasSize];
-  INPUT_DATATYPE* residualMatrix = new INPUT_DATATYPE[2 * outputSize];
-  INPUT_DATATYPE* weightGradMatrix = new INPUT_DATATYPE[weightSize];
-  INPUT_DATATYPE* biasGradMatrix = new INPUT_DATATYPE[biasSize];
-  OUTPUT_DATATYPE* matrixC = new OUTPUT_DATATYPE[2 * outputSize];
-  OUTPUT_DATATYPE* dataFileOutput = new OUTPUT_DATATYPE[2 * outputSize];
-
-  UniversalPosit* universalMatrixA = new UniversalPosit[inputSize];
-  UniversalPosit* universalMatrixB = new UniversalPosit[weightSize];
-  UniversalPosit* universalBiasMatrix = new UniversalPosit[biasSize];
-  UniversalPosit* universalResidualMatrix = new UniversalPosit[2 * outputSize];
-  UniversalPosit* universalWeightGradMatrix = new UniversalPosit[weightSize];
-  UniversalPosit* universalBiasGradMatrix = new UniversalPosit[biasSize];
-  UniversalPosit* universalMatrixC = new UniversalPosit[2 * outputSize];
-  UniversalPosit* universalDataFileOutput = new UniversalPosit[2 * outputSize];
-
-  float* floatMatrixA = new float[inputSize];
-  float* floatMatrixB = new float[weightSize];
-  float* floatBiasMatrix = new float[biasSize];
-  float* floatResidualMatrix = new float[2 * outputSize];
-  float* floatWeightGradMatrix = new float[weightSize];
-  float* floatBiasGradMatrix = new float[biasSize];
-  float* floatMatrixC = new float[2 * outputSize];
-  float* floatDataFileOutput = new float[2 * outputSize];
+  INPUT_DATATYPE* acc_sram_memory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* acc_rram_memory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* hls_sram_memory = new INPUT_DATATYPE[SRAM_MEMORY_SIZE];
+  INPUT_DATATYPE* hls_rram_memory = new INPUT_DATATYPE[RRAM_MEMORY_SIZE];
+  UniversalPosit* uni_sram_memory = new UniversalPosit[SRAM_MEMORY_SIZE];
+  UniversalPosit* uni_rram_memory = new UniversalPosit[RRAM_MEMORY_SIZE];
+  float* float_sram_memory = new float[SRAM_MEMORY_SIZE];
+  float* float_rram_memory = new float[RRAM_MEMORY_SIZE];
 
   std::string datafile;
   if (!files.inputs_file.empty()) {
     datafile = inputDataDir + layerName + files.inputs_file;
-    load_inputs(params, datafile, true, sramMemory, matrixA, universalMatrixA,
-                floatMatrixA);
+    std::cerr << "Loading inputs: " << datafile << std::endl;
+    load_inputs(params, datafile, true, acc_sram_memory,
+                hls_sram_memory + params.INPUT_OFFSET,
+                uni_sram_memory + params.INPUT_OFFSET,
+                float_sram_memory + params.INPUT_OFFSET);
   }
 
-  if (!files.weights_file.empty()) {
-    datafile = params.ATTENTION_MASK
-                   ? inputDataDir + files.weights_file
-                   : weightDataDir + layerName + files.weights_file;
-    load_weights(params, datafile, true,
-                 params.WEIGHT ? rramMemory : sramMemory, matrixB,
-                 universalMatrixB, floatMatrixB);
+  if (params.WEIGHT) {
+    datafile = weightDataDir + layerName + files.weights_file;
+    std::cerr << "Loading weights: " << datafile << std::endl;
+    load_weights(params, datafile, true, acc_rram_memory,
+                 hls_rram_memory + params.WEIGHT_OFFSET,
+                 uni_rram_memory + params.WEIGHT_OFFSET,
+                 float_rram_memory + params.WEIGHT_OFFSET);
+  } else if (!files.weights_file.empty()) {
+    datafile = weightDataDir + (params.ATTENTION_MASK
+                                    ? files.weights_file
+                                    : layerName + files.weights_file);
+    std::cerr << "Loading weights: " << datafile << std::endl;
+    load_weights(params, datafile, true, acc_sram_memory,
+                 hls_sram_memory + params.WEIGHT_OFFSET,
+                 uni_sram_memory + params.WEIGHT_OFFSET,
+                 float_sram_memory + params.WEIGHT_OFFSET);
   }
 
   if (params.BIAS) {
     datafile = weightDataDir + layerName + files.bias_file;
-    load_bias(params, datafile, true, rramMemory, biasMatrix,
-              universalBiasMatrix, floatBiasMatrix);
+    std::cerr << "Loading bias: " << datafile << std::endl;
+    load_bias(params, datafile, true, acc_rram_memory,
+              hls_rram_memory + params.BIAS_OFFSET,
+              uni_rram_memory + params.BIAS_OFFSET,
+              float_rram_memory + params.BIAS_OFFSET);
   }
 
   if (params.RESIDUAL || params.RELU_GRAD || params.SOFTMAX_GRAD) {
     datafile = residualDataDir + layerName + files.residual_file;
-    load_residual(params, datafile, true, sramMemory, residualMatrix,
-                  universalResidualMatrix, floatResidualMatrix);
+    std::cerr << "Loading residual: " << datafile << std::endl;
+    load_residual(params, datafile, true, acc_sram_memory,
+                  hls_sram_memory + params.RESIDUAL_OFFSET,
+                  uni_sram_memory + params.RESIDUAL_OFFSET,
+                  float_sram_memory + params.RESIDUAL_OFFSET);
   }
 
   if (params.WEIGHT_SPLITTING && params.WEIGHT) {
     datafile = gradDataDir + layerName + files.weights_file;
-    load_weights(params, datafile, true, sramMemory, weightGradMatrix,
-                 universalWeightGradMatrix, floatWeightGradMatrix);
+    std::cerr << "Loading bias gradients: " << datafile << std::endl;
+    load_weights(params, datafile, true, acc_sram_memory,
+                 hls_sram_memory + params.WEIGHT_GRADIENT_OFFSET,
+                 uni_sram_memory + params.WEIGHT_GRADIENT_OFFSET,
+                 float_sram_memory + params.WEIGHT_GRADIENT_OFFSET);
   }
 
   if (params.WEIGHT_SPLITTING && params.BIAS) {
     datafile = gradDataDir + layerName + files.bias_file;
-    load_bias(params, datafile, true, sramMemory, biasGradMatrix,
-              universalBiasGradMatrix, floatBiasGradMatrix);
+    std::cerr << "Loading weight gradients: " << datafile << std::endl;
+    load_bias(params, datafile, true, acc_sram_memory,
+              hls_sram_memory + params.BIAS_GRADIENT_OFFSET,
+              uni_sram_memory + params.BIAS_GRADIENT_OFFSET,
+              float_sram_memory + params.BIAS_GRADIENT_OFFSET);
   }
 
+  INPUT_DATATYPE hlsDataFileOutput[2 * outputSize];
+  UniversalPosit uniDataFileOutput[2 * outputSize];
+  float dataFileOutput[outputSize];
+
   datafile = outputDataDir + layerName + files.outputs_file;
-  load_datafile_outputs(params, datafile, dataFileOutput,
-                        universalDataFileOutput, floatDataFileOutput);
+  std::cerr << "Loading outputs: " << datafile << std::endl;
+  load_datafile_outputs(params, datafile, hlsDataFileOutput, uniDataFileOutput,
+                        dataFileOutput);
 
   bool accelerator =
       std::find(groups.begin(), groups.end(), "accelerator") != groups.end();
@@ -173,26 +166,42 @@ int runOperation(const SimplifiedParams params, const Files files,
   bool fp32 = std::find(groups.begin(), groups.end(), "fp32") != groups.end();
 
   if (accelerator) {
-    run_op({params}, sramMemory, rramMemory, memoryMap);
+    run_op({params}, acc_sram_memory, acc_rram_memory, memoryMap);
   }
 
   if (customposit) {
-    run_custom_posit_gold_model(params, matrixA, matrixB, matrixC, biasMatrix,
-                                residualMatrix, weightGradMatrix,
-                                biasGradMatrix);
+    run_custom_posit_gold_model(
+        params, hls_sram_memory + params.INPUT_OFFSET,
+        (params.WEIGHT ? hls_rram_memory : hls_sram_memory) +
+            params.WEIGHT_OFFSET,
+        hls_sram_memory + params.OUTPUT_OFFSET,
+        hls_rram_memory + params.BIAS_OFFSET,
+        hls_sram_memory + params.RESIDUAL_OFFSET,
+        hls_sram_memory + params.WEIGHT_GRADIENT_OFFSET,
+        hls_sram_memory + params.BIAS_GRADIENT_OFFSET);
   }
 
   if (universal) {
     run_universal_posit_gold_model(
-        params, universalMatrixA, universalMatrixB, universalMatrixC,
-        universalBiasMatrix, universalResidualMatrix, universalWeightGradMatrix,
-        universalBiasGradMatrix);
+        params, uni_sram_memory + params.INPUT_OFFSET,
+        (params.WEIGHT ? uni_rram_memory : uni_sram_memory) +
+            params.WEIGHT_OFFSET,
+        uni_sram_memory + params.OUTPUT_OFFSET,
+        uni_rram_memory + params.BIAS_OFFSET,
+        uni_sram_memory + params.RESIDUAL_OFFSET,
+        uni_sram_memory + params.WEIGHT_GRADIENT_OFFSET,
+        uni_sram_memory + params.BIAS_GRADIENT_OFFSET);
   }
 
   if (fp32) {
-    run_fp_gold_model(params, floatMatrixA, floatMatrixB, floatMatrixC,
-                      floatBiasMatrix, floatResidualMatrix,
-                      floatWeightGradMatrix, floatBiasGradMatrix);
+    run_fp_gold_model(params, float_sram_memory + params.INPUT_OFFSET,
+                      (params.WEIGHT ? float_rram_memory : float_sram_memory) +
+                          params.WEIGHT_OFFSET,
+                      float_sram_memory + params.OUTPUT_OFFSET,
+                      float_rram_memory + params.BIAS_OFFSET,
+                      float_sram_memory + params.RESIDUAL_OFFSET,
+                      float_sram_memory + params.WEIGHT_GRADIENT_OFFSET,
+                      float_sram_memory + params.BIAS_GRADIENT_OFFSET);
   }
 
   std::string diffFile;
@@ -201,11 +210,8 @@ int runOperation(const SimplifiedParams params, const Files files,
     std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in representing float as Posit)" << std::endl;
     diffFile = outfilePrefix + "universal_vs_pytorch.txt";
-    compare_arrays(universalMatrixC, universalDataFileOutput, outputSize,
-                   diffFile, params.ACC_T_OUTPUT);
-    // compare_arrays(universalMatrixC, floatDataFileOutput, outputSize,
-    // diffFile,
-    //                params.ACC_T_OUTPUT);
+    compare_arrays(uni_sram_memory + params.OUTPUT_OFFSET, uniDataFileOutput,
+                   outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (customposit) {
@@ -213,10 +219,8 @@ int runOperation(const SimplifiedParams params, const Files files,
     std::cout << "(reveals bugs in mapping operations to accelerator)"
               << std::endl;
     diffFile = outfilePrefix + "hlsgold_vs_pytorch.txt";
-    compare_arrays(matrixC, dataFileOutput, outputSize, diffFile,
-                   params.ACC_T_OUTPUT);
-    // compare_arrays(matrixC, floatDataFileOutput, outputSize, diffFile,
-    //                params.ACC_T_OUTPUT);
+    compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET, hlsDataFileOutput,
+                   outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (accelerator) {
@@ -224,7 +228,7 @@ int runOperation(const SimplifiedParams params, const Files files,
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
     diffFile = outfilePrefix + "accel_vs_pytorch.txt";
-    compare_arrays(&sramMemory[params.OUTPUT_OFFSET], dataFileOutput,
+    compare_arrays(acc_sram_memory + params.OUTPUT_OFFSET, hlsDataFileOutput,
                    outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
@@ -233,8 +237,9 @@ int runOperation(const SimplifiedParams params, const Files files,
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
     diffFile = outfilePrefix + "accel_vs_hlsgold.txt";
-    compare_arrays(&sramMemory[params.OUTPUT_OFFSET], matrixC, outputSize,
-                   diffFile, params.ACC_T_OUTPUT);
+    compare_arrays(acc_sram_memory + params.OUTPUT_OFFSET,
+                   hls_sram_memory + params.OUTPUT_OFFSET, outputSize, diffFile,
+                   params.ACC_T_OUTPUT);
   }
 
   if (customposit && universal) {
@@ -244,7 +249,8 @@ int runOperation(const SimplifiedParams params, const Files files,
         << "(reveals bugs in implementation of custom HLS Posit operators)"
         << std::endl;
     diffFile = outfilePrefix + "hlsgold_vs_universal.txt";
-    compare_arrays(matrixC, universalMatrixC, outputSize, diffFile,
+    compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET,
+                   uni_sram_memory + params.OUTPUT_OFFSET, outputSize, diffFile,
                    params.ACC_T_OUTPUT);
   }
 
@@ -252,39 +258,19 @@ int runOperation(const SimplifiedParams params, const Files files,
     std::cout << "FP32 Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
     diffFile = outfilePrefix + "fpgold_vs_pytorch.txt";
-    errors += compare_arrays(floatMatrixC, floatDataFileOutput, outputSize,
-                             diffFile, params.ACC_T_OUTPUT);
+    errors +=
+        compare_arrays(float_sram_memory + params.OUTPUT_OFFSET, dataFileOutput,
+                       outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
-  delete[] sramMemory;
-  delete[] rramMemory;
-
-  delete[] floatMatrixA;
-  delete[] floatMatrixB;
-  delete[] floatMatrixC;
-  delete[] floatBiasMatrix;
-  delete[] floatResidualMatrix;
-  delete[] floatDataFileOutput;
-  delete[] floatWeightGradMatrix;
-  delete[] floatBiasGradMatrix;
-
-  delete[] universalMatrixA;
-  delete[] universalMatrixB;
-  delete[] universalBiasMatrix;
-  delete[] universalResidualMatrix;
-  delete[] universalMatrixC;
-  delete[] universalDataFileOutput;
-  delete[] universalWeightGradMatrix;
-  delete[] universalBiasGradMatrix;
-
-  delete[] matrixA;
-  delete[] matrixB;
-  delete[] biasMatrix;
-  delete[] residualMatrix;
-  delete[] matrixC;
-  delete[] dataFileOutput;
-  delete[] weightGradMatrix;
-  delete[] biasGradMatrix;
+  delete acc_sram_memory;
+  delete acc_rram_memory;
+  delete hls_sram_memory;
+  delete hls_rram_memory;
+  delete uni_sram_memory;
+  delete uni_rram_memory;
+  delete float_sram_memory;
+  delete float_rram_memory;
 
   if (errors == 0) {
     std::cout << "Test passed!" << std::endl;
@@ -298,106 +284,100 @@ int runOperation(const SimplifiedParams params, const Files files,
 int runMobileBertUnitTest(std::string task, std::string test,
                           std::vector<std::string> compList,
                           std::string datapath) {
-  std::string activationDataDir = datapath + "activations/";
-  std::string weightDataDir = datapath + "weights/";
-  std::string errorDataDir = datapath + "errors/";
-  std::string gradientDataDir = datapath + "gradients/";
+  SimplifiedParams params;
+  Files files;
+  MemoryOffsets offsets;
+
+  std::string paramName;
+  std::string layerName = "mobilebert_encoder_layer_0_";
   std::string outfilePrefix = "test_outputs/" + test + ".";
 
-  std::map<std::string, std::string> paramsMapping;
-  std::map<std::string, SimplifiedParams> mobileBertParams;
-  std::map<std::string, MemoryOffsets> mobileBertMemOffsets;
-  std::map<std::string, Files> mobileBertTestFiles;
-
-  if (task == "forward") {
-    paramsMapping = inferenceParamsMapping;
-    mobileBertParams = inferenceParams;
-    mobileBertMemOffsets = inferenceMemOffsets;
-    mobileBertTestFiles = inferenceTestFiles;
-  } else if (task == "backward") {
-    paramsMapping = backpropParamsMapping;
-    mobileBertParams = backpropParams;
-    mobileBertMemOffsets = backpropMemOffsets;
-    mobileBertTestFiles = backpropTestFiles;
-  } else if (task == "gradient") {
-    paramsMapping = gradientParamsMapping;
-    mobileBertParams = gradientParams;
-    mobileBertMemOffsets = gradientMemOffsets;
-    mobileBertTestFiles = gradientTestFiles;
-  } else {
-    throw std::invalid_argument("ERROR: Task unfound!");
-  }
-
-  if (paramsMapping.find(test) == paramsMapping.end()) {
-    throw std::invalid_argument("ERROR: Operation unfound!");
-  }
-
-  std::string paramsName = paramsMapping.at(test);
-  SimplifiedParams params = mobileBertParams.at(paramsName);
-  Files files = mobileBertTestFiles.at(test);
-  MemoryOffsets offsets = mobileBertMemOffsets.at(test);
-  std::string layerName = "mobilebert_encoder_layer_0_";
+  std::string inputDataDir;
+  std::string weightDataDir;
+  std::string outputDataDir;
+  std::string residualDataDir;
+  std::string gradientDataDir;
 
   if (test.find("classifier") != std::string::npos ||
       (task == "backward" && test == "output_bottleneck_LayerNorm")) {
     layerName = "";
   }
 
-  params.INPUT_OFFSET = offsets.INPUT_OFFSET + ACTIVATION_OFFSET;
-  params.WEIGHT_OFFSET = offsets.WEIGHT_OFFSET;
-  params.OUTPUT_OFFSET = offsets.OUTPUT_OFFSET + ACTIVATION_OFFSET;
-  params.BIAS_OFFSET = offsets.BIAS_OFFSET;
-  params.RESIDUAL_OFFSET = offsets.RESIDUAL_OFFSET + ACTIVATION_OFFSET;
-  params.WEIGHT_SPLITTING = false;
+  if (task == "forward") {
+    paramName = inferenceParamsMapping.at(test);
+    params = inferenceParams.at(paramName);
+    files = inferenceTestFiles.at(test);
+    offsets = inferenceMemOffsets.at(test);
 
-  if (!params.WEIGHT) {
-    params.WEIGHT_OFFSET += ACTIVATION_OFFSET;
+    inputDataDir = datapath + "activations/";
+    weightDataDir = datapath + "weights/";
+    outputDataDir = datapath + "activations/";
+    residualDataDir = datapath + "activations/";
+    gradientDataDir = datapath + "gradients/";
+
+    if (!params.WEIGHT || params.ATTENTION_MASK) {
+      weightDataDir = datapath + "activations/";
+    }
+
+    params.WEIGHT_SPLITTING = false;
+  } else if (task == "backward") {
+    paramName = backpropParamsMapping.at(test);
+    params = backpropParams.at(paramName);
+    files = backpropTestFiles.at(test);
+    offsets = backpropMemOffsets.at(test);
+
+    inputDataDir = datapath + "errors/";
+    weightDataDir = datapath + "weights/";
+    outputDataDir = datapath + "errors/";
+    residualDataDir = datapath + "errors/";
+
+    if (test.find("attention_self_query_layer") != std::string::npos ||
+        test.find("attention_self_key_layer") != std::string::npos ||
+        test.find("attention_self_attention_probs") != std::string::npos) {
+      weightDataDir = datapath + "activations/";
+    } else if (test.find("attention_self_value_layer") != std::string::npos) {
+      inputDataDir = datapath + "activations/";
+      weightDataDir = datapath + "errors/";
+    } else if (params.SOFTMAX_GRAD || params.RELU_GRAD) {
+      residualDataDir = datapath + "activations/";
+    } else if (params.CROSS_ENTROPY_GRAD) {
+      inputDataDir = datapath + "activations/";
+      weightDataDir = datapath + "activations/";
+    }
+  } else if (task == "gradient") {
+    paramName = gradientParamsMapping.at(test);
+    params = gradientParams.at(paramName);
+    files = gradientTestFiles.at(test);
+    offsets = gradientMemOffsets.at(test);
+
+    inputDataDir = datapath + "activations/";
+    weightDataDir = datapath + "errors/";
+    outputDataDir = datapath + "gradients/";
+    residualDataDir = datapath + "gradients/";
+
+    if (test.find("classifier_weight") != std::string::npos) {
+      inputDataDir = datapath + "errors/";
+      weightDataDir = datapath + "activations/";
+    }
+
+    // FIXME: turn off for accelerator
+    params.ACC_T_OUTPUT = false;
+    params.GRAD_CLIPPING = false;
   }
+
+  // Fake memory offsets used for unit tests
+  params.INPUT_OFFSET = STACK_SIZE;
+  params.WEIGHT_OFFSET = STACK_SIZE + INTERMEDIATE_SIZE;
+  params.OUTPUT_OFFSET = STACK_SIZE + 2 * INTERMEDIATE_SIZE;
+  params.BIAS_OFFSET = STACK_SIZE + 3 * INTERMEDIATE_SIZE;
+  params.RESIDUAL_OFFSET = STACK_SIZE + 4 * INTERMEDIATE_SIZE;
 
   MemoryMap memoryMap = {SRAM, (params.WEIGHT ? RRAM : SRAM), RRAM, SRAM, SRAM};
 
-  std::cout << "test name: " << test << std::endl;
-  std::cout << "operation name: " << paramsName << std::endl;
+  std::cout << "Test name: " << test << std::endl;
+  std::cout << "Operation name: " << paramName << std::endl;
 
-  if (task == "forward") {
-    return runOperation(params, files, memoryMap, activationDataDir,
-                        params.WEIGHT ? weightDataDir : activationDataDir,
-                        activationDataDir, activationDataDir, gradientDataDir,
-                        layerName, outfilePrefix, compList);
-  } else if (task == "backward") {
-    if (test.find("attention_self_value_layer") != std::string::npos) {
-      return runOperation(params, files, memoryMap, activationDataDir,
-                          errorDataDir, errorDataDir, errorDataDir,
-                          gradientDataDir, layerName, outfilePrefix, compList);
-    } else if (test.find("attention_self_query_layer") != std::string::npos ||
-               test.find("attention_self_key_layer") != std::string::npos ||
-               test.find("attention_self_attention_probs") !=
-                   std::string::npos) {
-      return runOperation(params, files, memoryMap, errorDataDir,
-                          activationDataDir, errorDataDir, errorDataDir,
-                          gradientDataDir, layerName, outfilePrefix, compList);
-    } else if (params.SOFTMAX_GRAD || params.RELU_GRAD) {
-      return runOperation(params, files, memoryMap, errorDataDir, weightDataDir,
-                          errorDataDir, activationDataDir, gradientDataDir,
-                          layerName, outfilePrefix, compList);
-    } else if (params.CROSS_ENTROPY_GRAD) {
-      return runOperation(params, files, memoryMap, activationDataDir,
-                          activationDataDir, errorDataDir, activationDataDir,
-                          gradientDataDir, layerName, outfilePrefix, compList);
-    }
-    return runOperation(params, files, memoryMap, errorDataDir, weightDataDir,
-                        errorDataDir, errorDataDir, gradientDataDir, layerName,
-                        outfilePrefix, compList);
-  } else if (task == "gradient") {
-    if (test.find("classifier_weight") != std::string::npos) {
-      return runOperation(params, files, memoryMap, errorDataDir,
-                          activationDataDir, gradientDataDir, gradientDataDir,
-                          gradientDataDir, layerName, outfilePrefix, compList);
-    }
-    return runOperation(params, files, memoryMap, activationDataDir,
-                        errorDataDir, gradientDataDir, gradientDataDir,
-                        gradientDataDir, layerName, outfilePrefix, compList);
-  }
-
-  return 1;
+  return runOperation(params, files, memoryMap, inputDataDir, weightDataDir,
+                      outputDataDir, residualDataDir, gradientDataDir,
+                      layerName, outfilePrefix, compList);
 }

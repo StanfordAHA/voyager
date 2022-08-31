@@ -82,7 +82,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
     // (128 x 128) x (128 x 512)
     {"outputBottleneck",
      {
-         .loops = {{8, 1, 8, 1, 1, 1}, {8, 4, 1, 1, 1, 16}},
+         .loops = {{8, 1, 1, 1, 1, 1}, {8, 32, 1, 1, 1, 16}},
          .inputXLoopIndex = {0, 5},
          .inputYLoopIndex = {1, 4},
          .reductionLoopIndex = {3, 0},

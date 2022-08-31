@@ -121,10 +121,10 @@ void deleteMemory() {
 void loadWeights(std::string weightDataDir) {
   for (int layer = 0; layer < 24; layer++) {
     for (const auto& operation : inferenceOrder) {
-      std::string layerName =
-          "mobilebert_encoder_layer_" + std::to_string(layer) + "_";
       SimplifiedParams params = paramsLookup(operation, "inference");
       Files files = inferenceTestFiles.at(operation);
+      std::string layerName =
+          "mobilebert_encoder_layer_" + std::to_string(layer) + "_";
       std::string datafile;
 
       params.WEIGHT_OFFSET += layer * ENCODER_WEIGHT_SIZE;
@@ -191,7 +191,7 @@ void loadActivation(std::string dataDir) {
   }
 }
 
-int verifyGradients(std::string dataDir, std::string outfilePrefix) {
+void verifyGradients(std::string dataDir, std::string outfilePrefix) {
   std::string datafile;
   std::string diffFile;
   int errors;
@@ -253,7 +253,6 @@ int verifyGradients(std::string dataDir, std::string outfilePrefix) {
       }
     }
   }
-  return 0;
 }
 
 int runOperation(const SimplifiedParams params,
@@ -391,7 +390,7 @@ int runOperation(const SimplifiedParams params,
   return errors;
 }
 
-int runForward(std::string datapath, std::vector<std::string> groups) {
+void runForward(std::string datapath, std::vector<std::string> groups) {
   std::string inputDataDir = datapath + "activations/";
   std::string outfilePrefix;
 
@@ -451,15 +450,20 @@ int runForward(std::string datapath, std::vector<std::string> groups) {
         layerName = "";
       }
 
-#ifdef DUMP_PARAMS
-      if (layer == 0 || op == "classifier") {
-        myfile << formatOperation2(params, op) << std::endl;
-      }
-#endif
-
       outfilePrefix = "test_outputs/" + op + "_activation_";
       datafile = inputDataDir + layerName + files.outputs_file;
       runOperation(params, datafile, outfilePrefix, layerName + op, groups);
+
+#ifdef DUMP_PARAMS
+      if (layer == 0 || op == "classifier") {
+        params.INPUT_OFFSET = ACTIVATION_OFFSET;
+        params.OUTPUT_OFFSET = ACTIVATION_OFFSET + INTERMEDIATE_SIZE;
+        params.RESIDUAL_OFFSET = ACTIVATION_OFFSET + 2 * INTERMEDIATE_SIZE;
+        params.WEIGHT_OFFSET = ACTIVATION_OFFSET + 3 * INTERMEDIATE_SIZE;
+        params.BIAS_OFFSET = ACTIVATION_OFFSET + 4 * INTERMEDIATE_SIZE;
+        myfile << formatOperation2(params, op) << std::endl;
+      }
+#endif
     }
   }
 
@@ -471,11 +475,9 @@ int runForward(std::string datapath, std::vector<std::string> groups) {
     std::cout << hls_sram_memory[params.OUTPUT_OFFSET + i] << "\t"
               << float_sram_memory[params.OUTPUT_OFFSET + i] << std::endl;
   }
-
-  return 0;
 }
 
-int runBackward(std::string datapath, std::vector<std::string> groups) {
+void runBackward(std::string datapath, std::vector<std::string> groups) {
 #ifdef DUMP_PARAMS
   std::ofstream errFile, gradFile;
   errFile.open("test/mobilebert/mobilebert_backprop_params.h");
@@ -551,22 +553,22 @@ int runBackward(std::string datapath, std::vector<std::string> groups) {
         layerName = "";
       }
 
+      outfilePrefix = "test_outputs/" + backOp + "_error_";
+      datafile = errorDataDir + layerName + files.outputs_file;
+      runOperation(params, datafile, outfilePrefix, layerName + backOp, groups);
+
 #ifdef DUMP_PARAMS
       if (layer == 23) {
         SimplifiedParams dummyParams = params;
         dummyParams.INPUT_OFFSET = STACK_SIZE;
         dummyParams.WEIGHT_OFFSET = STACK_SIZE + INTERMEDIATE_SIZE;
         dummyParams.OUTPUT_OFFSET = STACK_SIZE + 2 * INTERMEDIATE_SIZE;
+        dummyParams.BIAS_OFFSET = 0;
         dummyParams.RESIDUAL_OFFSET = STACK_SIZE + 3 * INTERMEDIATE_SIZE;
         errFile << formatOperation2(dummyParams, backOp + "_backward")
                 << std::endl;
       }
 #endif
-
-      outfilePrefix = "test_outputs/" + backOp + "_error_";
-      datafile = errorDataDir + layerName + files.outputs_file;
-      int errors = runOperation(params, datafile, outfilePrefix,
-                                layerName + backOp, groups);
 
       operation = backOp;
       if (backOp == "bottlenecked_hidden_states" && layer > 0) {
@@ -618,29 +620,31 @@ int runBackward(std::string datapath, std::vector<std::string> groups) {
                 "mobilebert_encoder_layer_" + std::to_string(layer - 1) + "_";
           }
 
+          outfilePrefix = "test_outputs/" + gradOp + "_";
+          datafile = gradDataDir + layerName + files.outputs_file;
+          runOperation(params, datafile, outfilePrefix, layerName + gradOp,
+                       groups);
+
 #ifdef DUMP_PARAMS
           if (layer == 23) {
             SimplifiedParams dummyParams = params;
             dummyParams.INPUT_OFFSET = STACK_SIZE;
             dummyParams.WEIGHT_OFFSET = STACK_SIZE + INTERMEDIATE_SIZE;
             dummyParams.OUTPUT_OFFSET = STACK_SIZE + 2 * INTERMEDIATE_SIZE;
+            dummyParams.BIAS_OFFSET = 0;
+            dummyParams.RESIDUAL_OFFSET = 0;
             dummyParams.RESIDUAL = false;
             gradFile << formatOperation2(dummyParams, gradOp + "_grad")
                      << std::endl;
           }
 #endif
-
-          outfilePrefix = "test_outputs/" + gradOp + "_";
-          datafile = gradDataDir + layerName + files.outputs_file;
-          errors = runOperation(params, datafile, outfilePrefix,
-                                layerName + gradOp, groups);
         }
       }
     }
   }
+
 #ifdef DUMP_PARAMS
   errFile.close();
   gradFile.close();
 #endif
-  return 0;
 }
