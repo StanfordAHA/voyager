@@ -541,6 +541,10 @@ PositFP<sbits, fbits>::operator+(const PositFP<sbits, fbits> &op) const {
 template <int sbits, int fbits>
 PositFP<sbits, PositFP<sbits, fbits>::abits + 1>
 PositFP<sbits, fbits>::operator-(const PositFP<sbits, fbits> &op) const {
+  if (op.isZero()) {
+    return static_cast<PositFP<sbits, abits + 1>>(*this);
+  }
+
   PositFP<sbits, fbits> op_neg;
   op_neg.sign = !op.sign;
   op_neg.scale = op.scale;

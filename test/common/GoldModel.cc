@@ -395,8 +395,8 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
     ACC_T gradients[X];
 
     for (int i = 0; i < X; i++) {
-      labels[i] = readInput(matrixA, i, params.ACC_T_INPUT);
-      logits[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
+      logits[i] = readInput(matrixA, i, params.ACC_T_INPUT);
+      labels[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
     }
 
     ACC_T max = 0;
@@ -428,6 +428,16 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
     INT_T divisor = 1 / X;
     for (int i = 0; i < X; i++) {
       matrixC[i] = static_cast<INT_T>(matrixA[i] - matrixB[i]) * divisor;
+    }
+  } else if (params.GRAD_CLIPPING_UNIT_TEST) {
+    ACC_T outputMatrix[X * C];
+    for (int i = 0; i < X * C; i++) {
+      outputMatrix[i] = readInput(matrixA, i, params.ACC_T_INPUT);
+    }
+    clip_grad_norm_(outputMatrix, X * C);
+
+    for (int i = 0; i < X * C; i++) {
+      saveOutput(matrixC, i, outputMatrix[i], params.ACC_T_OUTPUT);
     }
   } else {
     INT_T inputMatrixA[(STRIDE * X) * (STRIDE * Y) * C];

@@ -401,15 +401,13 @@ std::map<std::string, SimplifiedParams> backpropParams{
 std::map<std::string, MemoryOffsets> backpropMemOffsets{
     {"classifier",
      {
-         0,
          5 * INTERMEDIATE_SIZE + 22 * HIDDEN_SIZE,
-         8 * WEIGHT_INTERMEDIATE_SIZE + 21 * BIAS_INTERMEDIATE_SIZE +
-             3 * WEIGHT_HIDDEN_SIZE + 18 * BIAS_HIDDEN_SIZE,
+         0,
+         0,
      }},
     {"output_bottleneck_LayerNorm",
      {
-         8 * WEIGHT_INTERMEDIATE_SIZE + 21 * BIAS_INTERMEDIATE_SIZE +
-             3 * WEIGHT_HIDDEN_SIZE + 18 * BIAS_HIDDEN_SIZE,
+         0,
          8 * WEIGHT_INTERMEDIATE_SIZE + 5 * BIAS_INTERMEDIATE_SIZE +
              3 * WEIGHT_HIDDEN_SIZE + 18 * BIAS_HIDDEN_SIZE,
          INTERMEDIATE_SIZE,
@@ -680,8 +678,8 @@ std::map<std::string, MemoryOffsets> backpropMemOffsets{
 std::map<std::string, Files> backpropTestFiles{
     {"classifier",
      {
-         "mobilebert_labels",
          "mobilebert_logits",
+         "mobilebert_labels",
          "",
          "mobilebert_logits",
      }},

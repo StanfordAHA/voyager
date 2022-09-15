@@ -11,7 +11,7 @@
 #include "test/mobilebert/utils.h"
 
 #define VERBOSE
-#define ACCELERATOR
+// #define ACCELERATOR
 // #define DUMP_PARAMS
 // #define ACC_T_ERROR 1
 
@@ -229,10 +229,9 @@ void verifyGradients(std::string dataDir, std::string outfilePrefix) {
         std::cout << "Checking " << datafile << std::endl;
         load_weights(params, datafile, true, acc_sram_memory, hlsMatrixB,
                      uniMatrixB, floatMatrixB);
-        diffFile =
-            outfilePrefix + files.weights_file + "_fpgold_vs_pytorch.txt";
         errors = compare_arrays(float_sram_memory + params.WEIGHT_OFFSET,
-                                floatMatrixB, weightSize, diffFile, false);
+                                floatMatrixB, weightSize,
+                                outfilePrefix + files.weights_file, false);
 
         if (errors) {
           std::cerr << "ERROR: " << errors << " mismatches found" << std::endl;
@@ -249,9 +248,9 @@ void verifyGradients(std::string dataDir, std::string outfilePrefix) {
         std::cout << "Checking " << datafile << std::endl;
         load_bias(params, datafile, true, acc_sram_memory, hlsBiasMatrix,
                   uniBiasMatrix, floatBiasMatrix);
-        diffFile = outfilePrefix + files.bias_file + "_fpgold_vs_pytorch.txt";
         errors = compare_arrays(float_sram_memory + params.BIAS_OFFSET,
-                                floatBiasMatrix, K, diffFile, true);
+                                floatBiasMatrix, K,
+                                outfilePrefix + files.bias_file, true);
 
         if (errors) {
           std::cerr << "ERROR: " << errors << " mismatches found" << std::endl;
@@ -565,16 +564,14 @@ void runBackward(std::string datapath, std::vector<std::string> groups) {
   Files files = backpropTestFiles.at(operation);
   MemoryOffsets offsets;
   std::string layerName;
-  std::string datafile = inputDataDir + files.inputs_file;
+  std::string datafile = inputDataDir + files.weights_file;
   bool useDataFile = true;
 
-  // FIXME: load logits at activation section
-  params.INPUT_OFFSET += ERROR_OFFSET;
-
-  load_inputs(params, datafile, useDataFile, acc_sram_memory,
-              hls_sram_memory + params.INPUT_OFFSET,
-              uni_sram_memory + params.INPUT_OFFSET,
-              float_sram_memory + params.INPUT_OFFSET);
+  params.WEIGHT_OFFSET += ERROR_OFFSET;
+  load_weights(params, datafile, useDataFile, acc_sram_memory,
+               hls_sram_memory + params.WEIGHT_OFFSET,
+               uni_sram_memory + params.WEIGHT_OFFSET,
+               float_sram_memory + params.WEIGHT_OFFSET);
 
   for (int layer = 23; layer >= 0; layer--) {
     for (const auto& backOp : backpropOrder) {
@@ -603,27 +600,17 @@ void runBackward(std::string datapath, std::vector<std::string> groups) {
         params.WEIGHT_OFFSET = inputOffset + offsets.WEIGHT_OFFSET;
       }
 
-      if (backOp.find("attention_self_value_layer") != std::string::npos) {
-        params.INPUT_OFFSET = inputOffset + offsets.INPUT_OFFSET;
-        params.WEIGHT_OFFSET = ERROR_OFFSET + offsets.WEIGHT_OFFSET;
-#ifdef ACC_T_ERROR
-        params.WEIGHT_OFFSET += offsets.WEIGHT_OFFSET;
-#endif
-      }
-
       if (params.RELU_GRAD || params.SOFTMAX_GRAD) {
         params.RESIDUAL_OFFSET = inputOffset + offsets.RESIDUAL_OFFSET;
       }
 
-      if (backOp == "classifier") {
-        params.OUTPUT_OFFSET = gradOffset + offsets.OUTPUT_OFFSET;
+      if (backOp.find("attention_self_value_layer") != std::string::npos ||
+          params.CROSS_ENTROPY_GRAD) {
+        params.INPUT_OFFSET = inputOffset + offsets.INPUT_OFFSET;
+        params.WEIGHT_OFFSET = ERROR_OFFSET + offsets.WEIGHT_OFFSET;
       }
 
-      if (backOp == "output_bottleneck_LayerNorm") {
-        params.INPUT_OFFSET = gradOffset + offsets.INPUT_OFFSET;
-      }
-
-      if (backOp == "output_bottleneck_LayerNorm" || backOp == "classifier") {
+      if (backOp == "classifier" || backOp == "output_bottleneck_LayerNorm") {
         if (layer != 23) continue;
         layerName = "";
       }
@@ -681,16 +668,14 @@ void runBackward(std::string datapath, std::vector<std::string> groups) {
           params.RESIDUAL = true;
 
           if (backOp == "classifier") {
-            params.INPUT_OFFSET = gradOffset + offsets.OUTPUT_OFFSET;
+            params.INPUT_OFFSET = ERROR_OFFSET + offsets.OUTPUT_OFFSET;
             params.WEIGHT_OFFSET = inputOffset + gradOffsets.WEIGHT_OFFSET;
             layerName = "";
           }
 
           if (backOp == "bottlenecked_hidden_states") {
-            params.INPUT_OFFSET = inputOffset - ENCODER_ACTIVATION_SIZE +
-                                  gradOffsets.INPUT_OFFSET;
-            params.OUTPUT_OFFSET =
-                gradOffset - ENCODER_WEIGHT_SIZE + gradOffsets.OUTPUT_OFFSET;
+            params.INPUT_OFFSET -= ENCODER_ACTIVATION_SIZE;
+            params.OUTPUT_OFFSET -= ENCODER_WEIGHT_SIZE;
             layerName =
                 "mobilebert_encoder_layer_" + std::to_string(layer - 1) + "_";
           }

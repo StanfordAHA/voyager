@@ -308,18 +308,16 @@ int runMobileBertUnitTest(std::string task, std::string test,
     outputDataDir = datapath + "errors/";
     residualDataDir = datapath + "errors/";
 
-    if (test.find("attention_self_query_layer") != std::string::npos ||
-        test.find("attention_self_key_layer") != std::string::npos ||
-        test.find("attention_self_attention_probs") != std::string::npos) {
-      weightDataDir = datapath + "activations/";
-    } else if (test.find("attention_self_value_layer") != std::string::npos) {
+    if (test.find("attention_self_value_layer") != std::string::npos) {
       inputDataDir = datapath + "activations/";
       weightDataDir = datapath + "errors/";
-    } else if (params.SOFTMAX_GRAD || params.RELU_GRAD) {
-      residualDataDir = datapath + "activations/";
     } else if (params.CROSS_ENTROPY_GRAD) {
       inputDataDir = datapath + "activations/";
       weightDataDir = datapath + "activations/";
+    } else if (!params.WEIGHT) {
+      weightDataDir = datapath + "activations/";
+    } else if (params.SOFTMAX_GRAD || params.RELU_GRAD) {
+      residualDataDir = datapath + "activations/";
     }
   } else if (task == "gradient") {
     paramName = gradientParamsMapping.at(test);
@@ -332,7 +330,7 @@ int runMobileBertUnitTest(std::string task, std::string test,
     outputDataDir = datapath + "gradients/";
     residualDataDir = datapath + "gradients/";
 
-    if (test.find("classifier_weight") != std::string::npos) {
+    if (test.find("classifier") != std::string::npos) {
       inputDataDir = datapath + "errors/";
       weightDataDir = datapath + "activations/";
     }
@@ -346,9 +344,6 @@ int runMobileBertUnitTest(std::string task, std::string test,
       (task == "backward" && test == "output_bottleneck_LayerNorm")) {
     layerName = "";
   }
-
-  files.weight_grad_file = gradientDataDir + layerName + files.weights_file;
-  files.bias_grad_file = gradientDataDir + layerName + files.bias_file;
 
   if (!files.inputs_file.empty()) {
     files.inputs_file = inputDataDir + layerName + files.inputs_file;
