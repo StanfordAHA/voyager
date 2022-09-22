@@ -718,7 +718,7 @@ class MobileBertModel(MobileBertPreTrainedModel):
         sequence_output = encoder_outputs
         pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
 
-        return (sequence_output, pooled_output) + encoder_outputs[1:]
+        return (sequence_output, pooled_output)
 
         if not return_dict:
             return (sequence_output, pooled_output) + encoder_outputs[1:]

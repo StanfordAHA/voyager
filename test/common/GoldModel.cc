@@ -239,7 +239,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
 
         if (params.WEIGHT_SPLITTING) {
           ACC_T grad = weightGradMatrix[k * C + c];
-          b += static_cast<ACC_T>(learningRate * b);
+          b += static_cast<ACC_T>(learningRate * grad);
         }
 
         acc += static_cast<ACC_T>(a * b);
@@ -600,7 +600,6 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
                   int k = (k1 * K0 + k0) * DIMENSION + oc0;
                   int outputAddress = y * X * K + x * K + k;
 
-                  // FIXME: residual addition must be after bias
                   if (params.RESIDUAL) {
                     outputMatrix[outputAddress] +=
                         inputResidualMatrix[outputAddress];
@@ -638,16 +637,6 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
       }
     }
 
-    if (params.GRAD_CLIPPING) {
-      clip_grad_norm_(outputMatrix, Y * X * K);
-    }
-
-    // if (params.RESIDUAL) {
-    //   for (int i = 0; i < Y * X * K; i++) {
-    //     outputMatrix[i] += inputResidualMatrix[i];
-    //   }
-    // }
-
     if (params.SPLIT_OUTPUT) {
       ACC_T copyMatrixC[X * K];
       memcpy(copyMatrixC, outputMatrix, sizeof(copyMatrixC));
@@ -659,6 +648,10 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
           }
         }
       }
+    }
+
+    if (params.GRAD_CLIPPING) {
+      clip_grad_norm_(outputMatrix, Y * X * K);
     }
 
     for (int i = 0; i < X * Y * K; i++) {

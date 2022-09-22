@@ -7,6 +7,7 @@ import torch
 import torch.fx
 from typing import Any, Callable, Dict, Optional, Tuple
 from torch.fx.node import Node
+from torch.profiler import profile, record_function, ProfilerActivity
 import numpy as np
 from datasets import load_dataset, load_metric
 from torch.utils.data import DataLoader
@@ -55,7 +56,11 @@ class ModulePathTracer(torch.fx.Tracer):
         old_qualname = self.current_module_qualified_name
         try:
             self.current_module_qualified_name = self.path_of_module(m)
+            print(old_qualname)
+            print(self.current_module_qualified_name)
             return super().call_module(m, forward, args, kwargs)
+        except:
+            print("ERROR: ", old_qualname)
         finally:
             self.current_module_qualified_name = old_qualname
 
@@ -130,8 +135,10 @@ def main():
 
     batch = {k: torch.unsqueeze(v, 0).to(device) for k, v in eval_dataset[0].items()}
 
-    # with torch.autograd.profiler.profile(record_shapes=True, with_modules=True) as prof:
+    # with profile(record_shapes=True, with_modules=True) as prof:
     #     outputs = model(**batch)
+
+    # prof.export_chrome_trace("trace.json")
 
     # print(prof.key_averages(group_by_input_shape=True).table(sort_by="self_cpu_time_total"))
 
@@ -139,13 +146,21 @@ def main():
     # from transformers.utils.fx import symbolic_trace
     # gm : torch.fx.GraphModule = symbolic_trace(model)
 
-    tracer = ModulePathTracer()
-    traced_model = tracer.trace(model)
+    example_inputs = (
+        batch['input_ids'],
+        batch['attention_mask'],
+        batch['token_type_ids']
+    )
+    traced_model = torch.jit.trace(model, example_inputs)
+    print(traced_model)
+
+    # tracer = ModulePathTracer()
+    # traced_model = tracer.trace(model)
 
     # Print (node, module qualified name) for every node in the Graph
-    for node in traced_model.nodes:
-        module_qualname = tracer.node_to_originating_module.get(node)
-        print('Node', node, 'is from module', module_qualname)
+    # for node in traced_model.nodes:
+    #     module_qualname = tracer.node_to_originating_module.get(node)
+    #     print('Node', node, 'is from module', module_qualname)
 
 if __name__ == "__main__":
     main()

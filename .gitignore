@@ -11,3 +11,5 @@ novas*
 *.fsdb*
 ucli.key
 verdiLog/
+__pycache__
+generated

@@ -322,36 +322,20 @@ std::map<std::string, MemoryOffsets> inferenceMemOffsets{
          INTERMEDIATE_SIZE + 3 * HIDDEN_SIZE,
          WEIGHT_INTERMEDIATE_SIZE + 2 * BIAS_HIDDEN_SIZE,
      }},
-    {"bottleneck_attention_dense",
-     {
-         0,
-         WEIGHT_INTERMEDIATE_SIZE + 3 * BIAS_HIDDEN_SIZE,
-         INTERMEDIATE_SIZE + HIDDEN_SIZE,
-         2 * WEIGHT_INTERMEDIATE_SIZE + 3 * BIAS_HIDDEN_SIZE,
-     }},
-    {"bottleneck_attention_LayerNorm",
-     {
-         INTERMEDIATE_SIZE + HIDDEN_SIZE,
-         2 * WEIGHT_INTERMEDIATE_SIZE + 4 * BIAS_HIDDEN_SIZE,
-         INTERMEDIATE_SIZE + 4 * HIDDEN_SIZE,
-         2 * WEIGHT_INTERMEDIATE_SIZE + 5 * BIAS_HIDDEN_SIZE,
-     }},
     {"attention_self_query_layer",
      {
          INTERMEDIATE_SIZE + 4 * HIDDEN_SIZE,
-         2 * WEIGHT_INTERMEDIATE_SIZE + 6 * BIAS_HIDDEN_SIZE,
+         WEIGHT_INTERMEDIATE_SIZE + 3 * BIAS_HIDDEN_SIZE,
          INTERMEDIATE_SIZE + 5 * HIDDEN_SIZE,
-         2 * WEIGHT_INTERMEDIATE_SIZE + WEIGHT_HIDDEN_SIZE +
-             6 * BIAS_HIDDEN_SIZE,
+         WEIGHT_INTERMEDIATE_SIZE + WEIGHT_HIDDEN_SIZE + 3 * BIAS_HIDDEN_SIZE,
      }},
     {"attention_self_key_layer",
      {
          INTERMEDIATE_SIZE + 4 * HIDDEN_SIZE,
-         2 * WEIGHT_INTERMEDIATE_SIZE + WEIGHT_HIDDEN_SIZE +
-             7 * BIAS_HIDDEN_SIZE,
+         WEIGHT_INTERMEDIATE_SIZE + WEIGHT_HIDDEN_SIZE + 4 * BIAS_HIDDEN_SIZE,
          INTERMEDIATE_SIZE + 6 * HIDDEN_SIZE,
-         2 * WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
-             7 * BIAS_HIDDEN_SIZE,
+         WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
+             4 * BIAS_HIDDEN_SIZE,
      }},
     {"attention_self_attention_scores_0",
      {
@@ -404,11 +388,11 @@ std::map<std::string, MemoryOffsets> inferenceMemOffsets{
     {"attention_self_value_layer",
      {
          0,
-         2 * WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
-             8 * BIAS_HIDDEN_SIZE,
+         WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
+             5 * BIAS_HIDDEN_SIZE,
          INTERMEDIATE_SIZE + 2 * HIDDEN_SIZE,
-         3 * WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
-             8 * BIAS_HIDDEN_SIZE,
+         2 * WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
+             5 * BIAS_HIDDEN_SIZE,
      }},
     {"attention_self_context_layer_0",
      {
