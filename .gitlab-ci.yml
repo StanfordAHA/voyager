@@ -17,20 +17,20 @@ init-job:
     - date
     - pwd
 
-data-job:
-  stage: build
-  script: 
-    - echo "Generating test data."
-    - echo "Not yet implemented..."
+# data-job:
+#   stage: build
+#   script: 
+#     - echo "Generating test data."
+#     - echo "Not yet implemented..."
 
-build-job:
-  stage: build
-  script: 
-    - echo "Building accelerator."
-    - echo "Not yet implemented..."
+# build-job:
+#   stage: build
+#   script: 
+#     - echo "Building accelerator."
+#     - echo "Not yet implemented..."
 
-test-job:
-  stage: test
-  script: 
-    - echo "Running tests."
-    - echo "Not yet implemented..."
+# test-job:
+#   stage: test
+#   script: 
+#     - echo "Running tests."
+#     - echo "Not yet implemented..."
