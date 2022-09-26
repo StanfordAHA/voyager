@@ -1,0 +1,19 @@
+# MINOTAUR CI 
+
+# We are using runners on "rsgvm9". 
+# They can be configured using "/etc/gitlab-runner/config.toml".
+# The working-dir of runners is "/home/gitlab-runner/builds".
+
+stages:
+  - init
+  - build
+  - test
+
+init-job:
+  stage: init
+  script:
+    - echo "-> New CI job started by $GITLAB_USER_LOGIN on runner $CI_RUNNER_ID."
+    - echo "-> Running CI with commit $CI_COMMIT_SHORT_SHA $CI_COMMIT_DESCRIPTION."
+    - date
+
+
