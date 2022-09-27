@@ -48,8 +48,8 @@ test-accelerator:
     - ./models/resnet/gen_resnet_data.py
     - echo "Running accelerator tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - make -j TestRunner
-    - ./run_tests.py
+    - ./run_tests.py --simulators accelerator,file
+    # TODO(fpedd): Add more test combinations (using gold model)
 
 test-posit:
   stage: test
