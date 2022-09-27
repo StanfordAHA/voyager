@@ -12,8 +12,7 @@ stages:
 init-job:
   stage: init
   script:
-    - echo "-> New CI job started by $GITLAB_USER_LOGIN on runner $CI_RUNNER_DESCRIPTION ($CI_RUNNER_ID)."
-    - echo "-> Running CI with commit $CI_COMMIT_DESCRIPTION ($CI_COMMIT_SHORT_SHA)."
+    - echo "MINOTAUR GitLab CI starting!"
     - date
     - pwd
 
