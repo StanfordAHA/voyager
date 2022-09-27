@@ -1,4 +1,6 @@
 # MINOTAUR DNN Accelerator
+[![Tests](https://code.stanford.edu/tsmc40r/brainpower/accelerator/badges/master/pipeline.svg)](https://code.stanford.edu/tsmc40r/brainpower/accelerator/-/commits/master)
+
 This repository contains the MINOTAUR DNN accelerator HLS code. 
 
 It is written in SystemC/C++ and can be used for simulation (which allows for fast verification) and for generating Verilog (RTL code). The RTL code is then used for RTL-level (cycle-accurate) simulations and further synthesis of real HW. 
