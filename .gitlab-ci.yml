@@ -6,30 +6,56 @@
 
 stages:
   - init
-  - build
+  # - build
   - test
 
-init-job:
+init:
   stage: init
   script:
     - echo "MINOTAUR GitLab CI starting!"
     - date
     - pwd
 
-# data-job:
+# TODO(fpedd): passing build files via artifacts does not work, files too large
+#   ERROR: Uploading artifacts as "archive" to coordinator... 
+#   413 Request Entity Too Large  id=222184 responseStatus=413 Request Entity Too Large status=413 token=EDCtSpyu
+#   FATAL: too large    
+# gen-data:
 #   stage: build
+#   variables:
+#     GIT_SUBMODULE_STRATEGY: recursive
+#   artifacts:
+#     paths:
+#       - models/resnet/binary_data
+#       - models/resnet/model_data
+#     expire_in: 1 week
 #   script: 
 #     - echo "Generating test data."
-#     - echo "Not yet implemented..."
+#     - pip install -r ./models/resnet/requirements.txt
+#     - ./models/resnet/gen_resnet_data.py
 
-# build-job:
-#   stage: build
-#   script: 
-#     - echo "Building accelerator."
-#     - echo "Not yet implemented..."
+test-accelerator:
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script: 
+    - echo "Generating test data."
+    - pip install -r ./models/resnet/requirements.txt
+    - ./models/resnet/gen_resnet_data.py
+    - echo "Running accelerator tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - make -j TestRunner
+    - ./run_tests.py
 
-# test-job:
-#   stage: test
-#   script: 
-#     - echo "Running tests."
-#     - echo "Not yet implemented..."
+test-posit:
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  script: 
+    - echo "Running posit tests."
+    - make PositTest
+    - ./build/PositTest
