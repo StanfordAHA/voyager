@@ -583,7 +583,7 @@ const SimplifiedParams fc_params = {
     .REPLICATION = false,
     .RELU = false,
     .BIAS = true,
-    .BIAS_OFFSET = 8246272,
+    .BIAS_OFFSET = 8250368,
     .RESIDUAL = false,
     .RESIDUAL_OFFSET = 45056,
     .MAXPOOL = false,
@@ -672,8 +672,6 @@ std::array<std::string, 22> resnet_order{"conv1",
                                          "fc",
                                          "softmax"};
 
-std::string resnetDataDir = "/sim2/shared/MINOTAUR/nn_data/resnet/";
-
 std::map<std::string, Files> resnetFiles{
     {"conv1", {"conv1_input", "conv1_weight", "conv1_bias", "conv1_comp"}},
     {"layer1_0_conv1",
@@ -733,7 +731,9 @@ std::map<std::string, Files> resnetFiles{
     {"layer4_1_conv2",
      {"layer4_1_conv2_input", "layer4_1_conv2_weight", "layer4_1_conv2_bias",
       "layer4_1_conv2_comp", "layer4_0_conv2_comp"}},
-    {"fc", {"fc_input", "fc_weight", "fc_bias", "fc_comp"}}};
+    {"fc", {"fc_input", "fc_weight", "fc_bias", "fc_comp"}},
+    {"softmax",
+     {"softmax_input", "softmax_weight", "softmax_bias", "softmax_comp"}}};
 
 std::map<std::string, MemoryMap> resnetMemoryMap{
     {"conv1", {SRAM, RRAM, RRAM, SRAM, SRAM}},
@@ -756,4 +756,5 @@ std::map<std::string, MemoryMap> resnetMemoryMap{
     {"layer4_0_conv2", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"layer4_1_conv1", {SRAM, RRAM, RRAM, SRAM, SRAM}},
     {"layer4_1_conv2", {SRAM, RRAM, RRAM, SRAM, SRAM}},
-    {"fc", {SRAM, RRAM, RRAM, SRAM, SRAM}}};
+    {"fc", {SRAM, RRAM, RRAM, SRAM, SRAM}},
+    {"softmax", {SRAM, RRAM, RRAM, SRAM, SRAM}}};
