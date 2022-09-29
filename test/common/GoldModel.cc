@@ -169,9 +169,9 @@ void clip_grad_norm_(ACC_T *matrix, int size) {
 }
 
 template <typename T, typename ACC_T, typename INT_T>
-void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
-                 T *matrixC, T *biasMatrix, T *residualMatrix,
-                 T *weightGradMatrix, T *biasGradMatrix) {
+void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
+                 T *biasMatrix, T *residualMatrix, T *weightGradMatrix,
+                 T *biasGradMatrix) {
   std::cerr << "Running gold model " << std::endl;
 
   int X = params.loops[0][params.inputXLoopIndex[0]] *
@@ -521,6 +521,12 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
     // int C1 = params.loops[0][params.reductionLoopIndex[0]];
     int K0 = params.loops[1][params.weightLoopIndex[1]];
     // int K1 = params.loops[0][params.weightLoopIndex[0]];
+    int IC_unroll = DIMENSION;
+
+    if (params.REPLICATION) {
+      params.loops[1][params.fxIndex] = 7;
+      IC_unroll = 3;
+    }
 
     for (loop_counters[0][0] = 0; loop_counters[0][0] < params.loops[0][0];
          loop_counters[0][0]++) {
@@ -549,8 +555,7 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
                        loop_counters[1][4]++) {
                     for (loop_counters[1][5] = 0;
                          loop_counters[1][5] < params.loops[1][5];
-                         params.REPLICATION ? loop_counters[1][5] += 4
-                                            : loop_counters[1][5]++) {
+                         loop_counters[1][5]++) {
                       int x0 = loop_counters[1][params.inputXLoopIndex[1]];
                       int y0 = loop_counters[1][params.inputYLoopIndex[1]];
                       int c0 = loop_counters[1][params.reductionLoopIndex[1]];
@@ -568,8 +573,8 @@ void run_gold_op(const SimplifiedParams params, T *matrixA, T *matrixB,
                         for (int oc0 = 0; oc0 < DIMENSION; oc0++) {
                           int k = (k1 * K0 + k0) * DIMENSION + oc0;
                           int outputAddress = y * X * K + x * K + k;
-                          for (int ic0 = 0; ic0 < DIMENSION; ic0++) {
-                            int c = c0 * DIMENSION + ic0;
+                          for (int ic0 = 0; ic0 < IC_unroll; ic0++) {
+                            int c = c0 * IC_unroll + ic0;
                             int inputAddress =
                                 (STRIDE * y + fy) * STRIDE * X * C +
                                 (STRIDE * x + fx) * C + c;
