@@ -52,7 +52,7 @@ test-accelerator-file:
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - ./run_tests.py --simulators accelerator,file
 
-test-accelerator-file:
+test-accelerator-customposit:
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -103,6 +103,46 @@ test-customposit-file:
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - ./run_tests.py --simulators customposit,file
     # TODO(fpedd): also add universal to tests?
+
+test-e2e-fp32-file:
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - echo "Generating test data."
+    - pip install -r ./models/resnet/requirements.txt
+    - ./models/resnet/gen_resnet_data.py
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - mkdir ./test_outputs
+    - make -j8 clean TestRunner
+    - make TestRunner
+    - MODEL=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner
+
+test-e2e-customposit-accelerator:
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - echo "Generating test data."
+    - pip install -r ./models/resnet/requirements.txt
+    - ./models/resnet/gen_resnet_data.py
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - mkdir ./test_outputs
+    - make -j8 clean TestRunner
+    - make TestRunner
+    - MODEL=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
 
 test-posit:
   stage: test
