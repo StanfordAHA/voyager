@@ -1,8 +1,8 @@
 # MINOTAUR CI 
 
-# We are using runners on "rsgvm9". 
+# We are using three runners on "rsgvm9". 
 # They can be configured using "/etc/gitlab-runner/config.toml".
-# The working-dir of runners is "/home/gitlab-runner/builds".
+# The working-dir of the runners is "/pool0/minotaur-ci".
 
 stages:
   - init
@@ -20,6 +20,7 @@ init:
 #   ERROR: Uploading artifacts as "archive" to coordinator... 
 #   413 Request Entity Too Large  id=222184 responseStatus=413 Request Entity Too Large status=413 token=EDCtSpyu
 #   FATAL: too large    
+#
 # gen-data:
 #   stage: build
 #   variables:
@@ -34,11 +35,12 @@ init:
 #     - pip install -r ./models/resnet/requirements.txt
 #     - ./models/resnet/gen_resnet_data.py
 
-test-accelerator:
+test-accelerator-file:
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
   artifacts:
+    when: always
     paths:
       - ./test_outputs
     expire_in: 1 week
@@ -46,10 +48,101 @@ test-accelerator:
     - echo "Generating test data."
     - pip install -r ./models/resnet/requirements.txt
     - ./models/resnet/gen_resnet_data.py
-    - echo "Running accelerator tests."
+    - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - ./run_tests.py --simulators accelerator,file
-    # TODO(fpedd): Add more test combinations (using gold model)
+
+test-accelerator-customposit:
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script: 
+    - echo "Generating test data."
+    - pip install -r ./models/resnet/requirements.txt
+    - ./models/resnet/gen_resnet_data.py
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - ./run_tests.py --simulators accelerator,customposit
+
+test-fp32-file:
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script: 
+    - echo "Generating test data."
+    - pip install -r ./models/resnet/requirements.txt
+    - ./models/resnet/gen_resnet_data.py
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - ./run_tests.py --simulators fp32,file
+
+test-customposit-file:
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script: 
+    - echo "Generating test data."
+    - pip install -r ./models/resnet/requirements.txt
+    - ./models/resnet/gen_resnet_data.py
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - ./run_tests.py --simulators customposit,file
+    # TODO(fpedd): also add universal to tests?
+
+test-e2e-fp32-file:
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - echo "Generating test data."
+    - pip install -r ./models/resnet/requirements.txt
+    - ./models/resnet/gen_resnet_data.py
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - mkdir ./test_outputs
+    - make -j8 clean TestRunner
+    - make TestRunner
+    - MODEL=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner
+
+test-e2e-customposit-accelerator:
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - echo "Generating test data."
+    - pip install -r ./models/resnet/requirements.txt
+    - ./models/resnet/gen_resnet_data.py
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - mkdir ./test_outputs
+    - make -j8 clean TestRunner
+    - make TestRunner
+    - MODEL=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
 
 test-posit:
   stage: test
@@ -59,3 +152,6 @@ test-posit:
     - echo "Running posit tests."
     - make PositTest
     - ./build/PositTest
+
+# TODO(fpedd): Run HLS synth
+# TODO(fpedd): Run VCS
