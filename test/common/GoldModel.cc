@@ -711,8 +711,9 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
             acc += tmpMatrixC[y * X * K + x * K + k];
           }
         }
-        INT_T divisor = 1.0 / (X * Y);
-        matrixC[k] = acc * divisor;
+        float scale = 1.0 / (X * Y);
+        T divisor = static_cast<T>(scale);
+        matrixC[k] = acc * static_cast<INT_T>(divisor);
       }
       delete[] tmpMatrixC;
     }
