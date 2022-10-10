@@ -155,12 +155,12 @@ test-fp32-mobilebert:
     expire_in: 1 week
   script:
     - echo "Generating test data."
-    # - pip install -r ./models/mobilebert/requirements.txt
+    - pip install -r ./models/mobilebert/requirements.txt
     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators fp32x
+    - ./run_tests.py --model mobilebert --simulators fp32
 
 test-posit:
   stage: test
