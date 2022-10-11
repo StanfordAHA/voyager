@@ -6,6 +6,7 @@ import torchvision
 from torchvision import transforms
 from PIL import Image
 import argparse
+import onnx
 import functools
 import pickle
 import struct
@@ -131,8 +132,26 @@ def run_model(args: argparse.Namespace, image_paths: str, image_labels: str, ref
             with open(pkl_file_path, "wb") as f:
                 pickle.dump(resnet_record._buffer, f)
 
-            # TODO(fpedd): We only want to record and save the first model instance (for now)
-            resnet_record._export = False
+            if (args.export_onnx):
+                # Write model to disk
+                onnx_model_file_path = os.path.join(
+                    args.model_dir, "resnet18" + ".onnx")
+                torch.onnx.export(model_bnfold, input,
+                                  onnx_model_file_path, verbose=True)
+                # Load model again using ONNX
+                model_bnfold_onnx = onnx.load(onnx_model_file_path)
+                # Check that the model is well formed
+                onnx.checker.check_model(model_bnfold_onnx)
+                # Do shape inference on ONNX an save
+                model_bnfold_onnx_inferred = onnx.shape_inference.infer_shapes(
+                    model_bnfold_onnx)
+                onnx_model_file_path_inferred = os.path.join(
+                    args.model_dir, "resnet18_inferred" + ".onnx")
+                onnx.save(model_bnfold_onnx_inferred,
+                          onnx_model_file_path_inferred)
+
+        # TODO(fpedd): We only want to record and save the first model instance (for now)
+        resnet_record._export = False
 
     print("\nRan through {} samples from {} categories to verify model.".format(
         len(image_paths), len(set(image_labels))))
@@ -173,31 +192,36 @@ def write_binary(args: argparse.Namespace, pkl_file_path: str):
 
 def main():
 
+    # TODO(fpedd): Fix logic in bool args
     parser = argparse.ArgumentParser(
         description='ResNet data generator (from model and images to binary data).')
-    parser.add_argument('-ddir', '--data_dir',
+    parser.add_argument('--data_dir',
                         type=str,
                         default='../../data/imagenette',
                         help='Path to dataset.')
-    parser.add_argument('-url', '--model_url',
+    parser.add_argument('--model_url',
                         type=str,
                         default='https://download.pytorch.org/models/resnet18-5c106cde.pth',
                         help='URL pointing to a state_dict (.pth ot .pt).')
-    parser.add_argument('-umu', '--use_model_url',
+    parser.add_argument('--use_model_url',
                         default=True,
                         action='store_false',
                         help='Download model data from URL. If false, use local model file.')
-    parser.add_argument('-mdir', '--model_dir',
+    parser.add_argument('--model_dir',
                         type=str,
                         default='model_data',
                         help='Path to model directory the .pkl intermediate file will be written to. If  (.pth ot .pt).')
-    parser.add_argument('-bdir', '--binary_dir',
+    parser.add_argument('--binary_dir',
                         type=str,
                         default='binary_data',
                         help='Path the binary data output will be written to (binary files for simulation).')
-    parser.add_argument('-t', '--data_type',
+    parser.add_argument('--data_type',
                         type=str,
                         default='posit8', help='Datatype to parse (posit8, int8).')
+    parser.add_argument('--export_onnx',
+                        default=True,
+                        action='store_false',
+                        help='If this flag is used, no bn folded .onnx model will be exported.')
     args = parser.parse_args()
 
     # Convert paths from relative to absolute (allows calling script from different dir)

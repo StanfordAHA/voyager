@@ -18,4 +18,5 @@ venv
 .env
 .swp
 models/resnet/binary_data
-models/resnet/model_data/*pkl
+models/resnet/model_data/*.pkl
+models/resnet/model_data/*.onnx
