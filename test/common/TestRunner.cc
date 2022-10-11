@@ -288,7 +288,7 @@ int run_sequence(const std::string& model,
 
 void print_help() {
   std::cout << "\nConfigure simulator by using environment variables."
-            << "\n model - Type of network to run {mobilebert, resnet}"
+            << "\n MODEL - Type of network to run {mobilebert, resnet}"
             << "\n TESTS - Layers in network to run. Either single or tuple: "
                "<first>,<last>."
             << "\n SIMS - Simulators / models to compare {accelerator, "
@@ -338,7 +338,13 @@ extern "C" int sc_main(int argc, char* argv[]) {
 
   // Paths are relative to Makefile
   std::string data_dir(get_env_var("DATA_DIR"));
-  if (data_dir.empty()) data_dir = "./models/resnet/binary_data/";
+  if (data_dir.empty()) {
+    if (model == "resnet") {
+      data_dir = "./models/resnet/binary_data/";
+    } else if (model == "mobilebert") {
+      data_dir = "./data/mobilebert_tiny/datafile/step0/";
+    }
+  }
 
   std::string out_dir(get_env_var("OUT_DIR"));
   if (out_dir.empty()) out_dir = "./test_outputs/";
@@ -349,25 +355,6 @@ extern "C" int sc_main(int argc, char* argv[]) {
 
   if (tests_list.size() > 2) {
     std::cerr << "ERROR: Supply at max two TESTS." << std::endl;
-    print_help();
-    return -1;
-  }
-
-  // Check if first test is actually in our list of layers
-  if (std::find(resnet_order.begin(), resnet_order.end(), tests_list[0]) ==
-      resnet_order.end()) {
-    std::cerr << "ERROR: Test " << tests_list[0] << " is not supported."
-              << std::endl;
-    print_help();
-    return -1;
-  }
-
-  // Check if second test is actually in our list of layers
-  if (tests_list.size() == 2 &&
-      std::find(resnet_order.begin(), resnet_order.end(), tests_list[1]) ==
-          resnet_order.end()) {
-    std::cerr << "ERROR: Test " << tests_list[1] << " is not supported."
-              << std::endl;
     print_help();
     return -1;
   }
@@ -395,13 +382,13 @@ extern "C" int sc_main(int argc, char* argv[]) {
     std::string gradientDataDir = data_dir + "gradients/";
 
     int errors = 0;
-    if (task == "forward") {
+    if (tests == "forward") {
       errors = allocateMemory();
       loadWeights(weightDataDir);
       runForward(data_dir, sim_list);
       deleteMemory();
 
-    } else if (task == "backward") {
+    } else if (tests == "backward") {
       errors = allocateMemory();
       loadWeights(weightDataDir);
       loadActivation(activationDataDir);
@@ -410,7 +397,7 @@ extern "C" int sc_main(int argc, char* argv[]) {
       deleteMemory();
 
       // End-to-end pass over mobileBERT
-    } else if (task == "e2e") {
+    } else if (tests == "e2e") {
       errors = allocateMemory();
       loadWeights(weightDataDir);
       runForward(data_dir, sim_list);
@@ -427,6 +414,25 @@ extern "C" int sc_main(int argc, char* argv[]) {
 
     return errors;
   } else {  // Run ResNet or Simple
+    // Check if first test is actually in our list of layers
+    if (std::find(resnet_order.begin(), resnet_order.end(), tests_list[0]) ==
+        resnet_order.end()) {
+      std::cerr << "ERROR: Test " << tests_list[0] << " is not supported."
+                << std::endl;
+      print_help();
+      return -1;
+    }
+
+    // Check if second test is actually in our list of layers
+    if (tests_list.size() == 2 &&
+        std::find(resnet_order.begin(), resnet_order.end(), tests_list[1]) ==
+            resnet_order.end()) {
+      std::cerr << "ERROR: Test " << tests_list[1] << " is not supported."
+                << std::endl;
+      print_help();
+      return -1;
+    }
+
     if (tests_list.size() > 1) {
       // Generate a complete list of tests to run in order from test_list tuple
       auto first_test =
@@ -440,5 +446,4 @@ extern "C" int sc_main(int argc, char* argv[]) {
       return run_sequence(model, tests_list, sim_list, data_dir, out_dir);
     }
   }
-  return 0;
 }

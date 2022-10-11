@@ -14,7 +14,7 @@ ucli.key
 verdiLog/
 __pycache__
 *.py[cod]
-.venv
+venv
 .env
 .swp
 models/resnet/binary_data

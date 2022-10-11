@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import dill as pickle
 import numpy as np
@@ -50,7 +52,7 @@ if __name__ == "__main__":
 
         files = ["activations", "errors", "weights", "gradients"]
         for filename in files:
-            path = os.path.join(args.datapath, filename + str(i) + ".pkl")
+            path = os.path.join(args.datapath, "step_" + str(i) + "_" + filename + ".pkl")
             print("Reading input file: " + path)
 
             subDir = os.path.join(dataDir, filename)

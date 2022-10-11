@@ -662,7 +662,11 @@ inline PositFP<sbits, fbits> &PositFP<sbits, fbits>::operator*=(
 
 template <int sbits, int fbits>
 bool PositFP<sbits, fbits>::operator==(const PositFP<sbits, fbits> &rhs) const {
-  return sign == rhs.sign && scale == rhs.scale && fraction == rhs.fraction;
+  if (!isZero() && !rhs.isZero()) {
+    return sign == rhs.sign && scale == rhs.scale && fraction == rhs.fraction;
+  } else {
+    return isZero() == rhs.isZero();
+  }
 }
 
 template <int sbits, int fbits>
@@ -672,6 +676,14 @@ bool PositFP<sbits, fbits>::operator!=(const PositFP<sbits, fbits> &rhs) const {
 
 template <int sbits, int fbits>
 bool PositFP<sbits, fbits>::operator<(const PositFP<sbits, fbits> &rhs) const {
+  if (isZero() && rhs.isZero()) {
+    return false;
+  } else if (isZero()) {
+    return !rhs.sign;
+  } else if (rhs.isZero()) {
+    return sign;
+  }
+
   if (sign ^ rhs.sign) {
     return sign;
   } else if (scale != rhs.scale) {

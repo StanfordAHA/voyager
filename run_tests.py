@@ -9,17 +9,37 @@ import sys
 import os
 
 MODELS = {
-    # 'mobilebert':
-    # [
-    #     # 'inputBottleneck',
-    #     # 'qkvProjection',
-    #     # 'qkAttention',
-    #     # 'vAttention',
-    #     # 'wProjection',
-    #     # 'ffn1',
-    #     # 'ffn2',
-    #     # 'outputBottleneck'
-    # ],
+    'mobilebert':
+    [
+        "bottleneck_input_dense",
+        "bottleneck_input_LayerNorm",
+        "attention_self_query_layer",
+        "attention_self_key_layer",
+        "attention_self_value_layer",
+        "attention_self_attention_scores_0",
+        "attention_self_attention_scores_1",
+        "attention_self_attention_scores_2",
+        "attention_self_attention_scores_3",
+        "attention_self_attention_probs_0",
+        "attention_self_attention_probs_1",
+        "attention_self_attention_probs_2",
+        "attention_self_attention_probs_3",
+        "attention_self_context_layer_0",
+        "attention_self_context_layer_1",
+        "attention_self_context_layer_2",
+        "attention_self_context_layer_3",
+        "attention_output_dense",
+        "attention_output_LayerNorm",
+        "ffn_0_intermediate_dense",
+        "ffn_0_output_dense",
+        "ffn_0_output_LayerNorm",
+        "intermediate_dense",
+        "output_dense",
+        "output_LayerNorm",
+        "output_bottleneck_dense",
+        "output_bottleneck_LayerNorm",
+        "classifier",
+    ],
     'resnet':
     [
         "conv1",
@@ -57,10 +77,10 @@ def main():
                         default='fp32,file',
                         help='Simulators to compare (accelerator, customposit, universal, fp32, file) [SIMS].')
     # TODO(fpedd): Implement commandline args and tests (should overwrite values from MODELS dict)
-    # parser.add_argument('-mod', '--model',
-    #                     type=str,
-    #                     default=None,
-    #                     help='Model to run (simple, resnet, mobilebert) [MODEL].')
+    parser.add_argument('-mod', '--model',
+                        type=str,
+                        default="resnet",
+                        help='Model to run (simple, resnet, mobilebert) [MODEL].')
     # parser.add_argument('-tst', '--tests',
     #                     type=str,
     #                     default=None,
@@ -71,7 +91,7 @@ def main():
                         help='Operation to run (only applicable to mobilebert) [TASK].')
     parser.add_argument('-dd', '--data_dir',
                         type=str,
-                        default='./models/resnet/binary_data/',
+                        default=None,
                         help='Path to binary input data [DATA_DIR].')
     parser.add_argument('-od', '--output_dir',
                         type=str,
@@ -91,6 +111,12 @@ def main():
                         help='Name of build directory.')
     args = parser.parse_args()
 
+    if args.data_dir is None:
+        if args.model == "resnet":
+            args.data_dir = './models/resnet/binary_data/'
+        elif args.model == "mobilebert":
+            args.data_dir = './data/mobilebert_tiny/datafile/step0/'
+
     start_time = time.time()
 
     # Build SystemC code (running make twice because of linker issues when on NFS)
@@ -106,24 +132,24 @@ def main():
 
     # Prepare and run all tests/layers simultaneously as different processes
     results = []
-    for model in MODELS:
-        for test in MODELS[model]:
-            file_name = os.path.join(
-                script_output_dir, model + '_' + test + '.out')
-            file = open(file_name, 'w')
-            # Set environment variables
-            env = os.environ.copy()
-            env["MODEL"] = model
-            env["TESTS"] = test
-            env["SIMS"] = args.simulators
-            env["DATA_DIR"] = args.data_dir
-            env["OUT_DIR"] = args.output_dir
-            # Spawn an new subprocess and grab its name, handle, and output file
-            p = subprocess.Popen([os.path.join(args.build_dir, args.target_name)],
-                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
-            # Enable non-blocking read from process
-            os.set_blocking(p.stdout.fileno(), False)
-            results.append([model + "." + test, p, file])
+    for test in MODELS[args.model]:
+        file_name = os.path.join(
+            script_output_dir, args.model + '_' + test + '.out')
+        file = open(file_name, 'w')
+        # Set environment variables
+        env = os.environ.copy()
+        env["MODEL"] = args.model
+        env["TESTS"] = test
+        env["SIMS"] = args.simulators
+        env["OUT_DIR"] = args.output_dir
+        env["DATA_DIR"] = args.data_dir
+        env["TASK"] = args.task
+        # Spawn an new subprocess and grab its name, handle, and output file
+        p = subprocess.Popen([os.path.join(args.build_dir, args.target_name)],
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
+        # Enable non-blocking read from process
+        os.set_blocking(p.stdout.fileno(), False)
+        results.append([args.model + "." + test, p, file])
 
     # Observe and manage running processes
     last_print_time = 0

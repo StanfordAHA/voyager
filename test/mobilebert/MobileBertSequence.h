@@ -7,11 +7,11 @@
 #include "test/common/Utils.h"
 #include "test/mobilebert/backprop.h"
 #include "test/mobilebert/gradient.h"
-#include "test/mobilebert/inference.h"
+#include "test/mobilebert/mobilebert_tiny/inference.h"
 #include "test/mobilebert/utils.h"
 
 #define VERBOSE
-// #define ACCELERATOR
+#define ACCELERATOR
 // #define DUMP_PARAMS
 // #define ACC_T_ERROR 1
 
@@ -154,9 +154,6 @@ void loadWeights(std::string weightDataDir) {
                   float_rram_memory + params.BIAS_OFFSET);
       }
     }
-#ifdef ACCELERATOR
-    break;
-#endif
   }
 }
 
@@ -479,9 +476,25 @@ void runForward(std::string datapath, std::vector<std::string> groups) {
       params = paramsLookup(op, "inference");
       files = inferenceTestFiles.at(op);
 
+      if (op == "classifier") {
+        if (layer != 23) continue;
+        layerName = "";
+      }
+
+#ifdef ACCELERATOR
+      const int inputOffset = ACTIVATION_OFFSET;
+      const int weightOffset = layer * ENCODER_WEIGHT_SIZE;
+
+      if (op == "output_bottleneck_LayerNorm") {
+        params.OUTPUT_OFFSET = 0;
+      } else if (op == "classifier") {
+        params.INPUT_OFFSET = 0;
+      }
+#else
       const int inputOffset =
           ACTIVATION_OFFSET + layer * ENCODER_ACTIVATION_SIZE;
       const int weightOffset = layer * ENCODER_WEIGHT_SIZE;
+#endif
 
       params.INPUT_OFFSET += inputOffset;
       params.WEIGHT_OFFSET += params.WEIGHT ? weightOffset : inputOffset;
@@ -489,17 +502,11 @@ void runForward(std::string datapath, std::vector<std::string> groups) {
       params.BIAS_OFFSET += weightOffset;
       params.RESIDUAL_OFFSET += inputOffset;
 
-      params.WEIGHT_GRADIENT_OFFSET = GRADIENT_OFFSET + params.WEIGHT_OFFSET;
-      params.BIAS_GRADIENT_OFFSET = GRADIENT_OFFSET + params.BIAS_OFFSET;
-      params.WEIGHT_SPLITTING = false;
+      // params.WEIGHT_GRADIENT_OFFSET = GRADIENT_OFFSET + params.WEIGHT_OFFSET;
+      // params.BIAS_GRADIENT_OFFSET = GRADIENT_OFFSET + params.BIAS_OFFSET;
 
       if (params.ATTENTION_MASK) {
         params.WEIGHT_OFFSET = STACK_SIZE;
-      }
-
-      if (op == "classifier") {
-        if (layer != 23) continue;
-        layerName = "";
       }
 
       outfilePrefix = "test_outputs/" + op + "_activation_";
@@ -520,16 +527,14 @@ void runForward(std::string datapath, std::vector<std::string> groups) {
       }
 #endif
     }
-#ifdef ACCELERATOR
-    break;  // FIXME: layer by layer
-#endif
+    break;
   }
 
   if (std::find(groups.begin(), groups.end(), "accelerator") != groups.end()) {
-    const MemoryMap memMap = {SRAM, RRAM, RRAM, SRAM,
-                              SRAM};  // don't need this anymore
+    const MemoryMap memMap = {SRAM, RRAM, RRAM, SRAM, SRAM};
     run_op(params_list, acc_sram_memory, acc_rram_memory, memMap);
 
+    // FIXME: only check the outputs of last encoder layer
     for (int i = 0; i < params_list.size(); i++) {
       params = params_list[i];
       datafile = files_list[i];
