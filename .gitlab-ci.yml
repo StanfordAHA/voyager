@@ -37,7 +37,7 @@ LayerTest_ResNet_Accelerator-vs-File:
     - ./models/resnet/gen_resnet_data.py
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - ./run_tests.py --simulators accelerator,file
+    - ./run_tests.py --simulators accelerator,file --tolerance 10.0
 
 LayerTest_ResNet_Accelerator-vs-Customposit:
   stage: test
@@ -88,7 +88,7 @@ LayerTest_ResNet_Customposit-vs-File:
     - ./models/resnet/gen_resnet_data.py
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - ./run_tests.py --simulators customposit,file
+    - ./run_tests.py --simulators customposit,file --tolerance 10.0
 
 End2EndTest_FP32-vs-File:
   stage: test
