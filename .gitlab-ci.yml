@@ -148,6 +148,42 @@ MobileBERT Layers (FP32 Gold Model vs. Pytorch):
     - mkdir ./test_outputs
     - ./run_tests.py --model mobilebert --simulators fp32
 
+MobileBERT Layers (FP32 Gold Model vs. Custom Posit):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - echo "Generating test data."
+    - pip install -r ./models/mobilebert/requirements.txt
+    - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - mkdir ./test_outputs
+    - ./run_tests.py --model mobilebert --simulators customposit
+
+MobileBERT Layers (Accelerator vs. Custom Posit):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - echo "Generating test data."
+    - pip install -r ./models/mobilebert/requirements.txt
+    - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - mkdir ./test_outputs
+    - ./run_tests.py --model mobilebert --simulators accelerator,customposit
+
 Posit Unit Tests:
   stage: test
   variables:
