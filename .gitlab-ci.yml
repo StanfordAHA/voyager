@@ -90,7 +90,7 @@ LayerTest_ResNet_Customposit-vs-File:
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - ./run_tests.py --simulators customposit,file --tolerance 10.0
 
-End2EndTest_FP32-vs-File:
+End2End_ResNet_FP32-vs-File:
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -110,7 +110,7 @@ End2EndTest_FP32-vs-File:
     - make TestRunner
     - MODEL=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner
 
-End2EndTest_Customposit-vs-Accelerator:
+End2End_ResNet_Customposit-vs-Accelerator:
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -128,7 +128,7 @@ End2EndTest_Customposit-vs-Accelerator:
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - MODEL=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
+    - TOLERANCE=20.0 MODEL=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
 
 LayerTest_Mobilebert_FP32-vs-File:
   stage: test
