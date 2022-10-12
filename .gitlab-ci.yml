@@ -22,7 +22,7 @@ stages:
 #     - pip install -r ./models/resnet/requirements.txt
 #     - ./models/resnet/gen_resnet_data.py
 
-LayerTest_ResNet_Accelerator-vs-File:
+ResNet Layers (Accel vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -39,7 +39,7 @@ LayerTest_ResNet_Accelerator-vs-File:
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - ./run_tests.py --simulators accelerator,file --tolerance 10.0
 
-LayerTest_ResNet_Accelerator-vs-Customposit:
+ResNet Layer (Accel vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -56,7 +56,7 @@ LayerTest_ResNet_Accelerator-vs-Customposit:
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - ./run_tests.py --simulators accelerator,customposit
 
-LayerTest_ResNet_FP32-vs-File:
+ResNet Layers (FP32 Gold  Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -73,7 +73,7 @@ LayerTest_ResNet_FP32-vs-File:
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - ./run_tests.py --simulators fp32,file
 
-LayerTest_ResNet_Customposit-vs-File:
+ResNet Layers (Posit Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -90,7 +90,7 @@ LayerTest_ResNet_Customposit-vs-File:
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - ./run_tests.py --simulators customposit,file --tolerance 10.0
 
-End2End_ResNet_FP32-vs-File:
+ResNet End2End (FP32 Gold  Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -110,7 +110,7 @@ End2End_ResNet_FP32-vs-File:
     - make TestRunner
     - MODEL=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner
 
-End2End_ResNet_Customposit-vs-Accelerator:
+ResNet End2End (Accel vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -130,7 +130,7 @@ End2End_ResNet_Customposit-vs-Accelerator:
     - make TestRunner
     - TOLERANCE=20.0 MODEL=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
 
-LayerTest_Mobilebert_FP32-vs-File:
+MobileBERT Layers (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -148,7 +148,7 @@ LayerTest_Mobilebert_FP32-vs-File:
     - mkdir ./test_outputs
     - ./run_tests.py --model mobilebert --simulators fp32
 
-UnitTest_Posit:
+Posit Unit Tests:
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
