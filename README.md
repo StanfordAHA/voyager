@@ -8,22 +8,6 @@ It is written in SystemC/C++ and can be used for simulation (which allows for fa
 
 We are using the build-in [GitLab CI](https://docs.gitlab.com/ee/ci/). It triggers whenever someone pushes to a branch. 
 
-### Naming
-The CI naming convention for a job is `<type_of_test>_<model>_<what_is_being_compared>`. 
-- `<type_of_test>` 
-    - `LayerTest` tests on a layer-by-layer basis 
-    - `End2EndTest` running from start to finish through all models
-    - `UnitTest` testing individual components
-- `<model>`
-    - `Mobilebert`
-    - `ResNet`
-- `<what_is_being_compared>`
-    - `Accelerator` the SystemC HLS model
-    - `Customposit` gold model using our Posit implementation
-    - `FP32` gold model using 32bit floating-point
-    - `Universal` gold model using universal's Posit implementation
-    - `File` reference data collected through PyTorch
-
 ### Runners
 - We are using three runners on `rsgvm9`
 - They can be configured using `/etc/gitlab-runner/config.toml`

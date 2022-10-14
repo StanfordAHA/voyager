@@ -39,7 +39,7 @@ ResNet Layers (Accel vs. Pytorch):
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - ./run_tests.py --simulators accelerator,file --tolerance 10.0
 
-ResNet Layer (Accel vs. Posit Gold Model):
+ResNet Layers (Accel vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
