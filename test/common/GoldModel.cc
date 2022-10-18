@@ -115,7 +115,8 @@ inline float readInput(float *matrix, int index, bool accType) {
   return accType ? matrix[2 * index] : matrix[index];
 }
 
-// inline float readInput2(float *matrix, int index, bool accType, int expBias) {
+// inline float readInput2(float *matrix, int index, bool accType, int expBias)
+// {
 //   return accType ? matrix[2 * index] : matrix[index];
 // }
 
@@ -233,21 +234,42 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     // fully connected layer (matrix-vector)
     for (int k = 0; k < K; k++) {
       ACC_T acc = 0;
+
+      ACC_T flattened_mult[C];
       for (int c = 0; c < C; c++) {
         ACC_T a = readInput(matrixA, c, params.ACC_T_INPUT);
         ACC_T b = readInput(matrixB, k * C + c, params.ACC_T_WEIGHT);
-
-        if (params.WEIGHT_SPLITTING) {
-          ACC_T grad = weightGradMatrix[k * C + c];
-          b += static_cast<ACC_T>(learningRate * grad);
-        }
-
-        acc += static_cast<ACC_T>(a * b);
+        flattened_mult[c] =
+            static_cast<ACC_T>(static_cast<ACC_T>(a) * static_cast<ACC_T>(b));
       }
 
+      for (int reductionCount = 0; reductionCount < C;
+           reductionCount += DIMENSION) {
+        // perform a tree addition
+        ACC_T accum[DIMENSION];
+        for (int i = 0; i < DIMENSION; i++) {
+          accum[i] = flattened_mult[reductionCount + i];
+        }
+
+        int depth = DIMENSION;
+        while (depth > 1) {
+          for (int i = 0; i < depth; i += 2) {
+            accum[i / 2] = static_cast<ACC_T>(accum[i] + accum[i + 1]);
+          }
+          depth = depth / 2;
+        }
+        acc = static_cast<ACC_T>(acc + accum[0]);
+      }
+
+      // FIXME
+      // if (params.WEIGHT_SPLITTING) {
+      //   ACC_T grad = weightGradMatrix[k * C + c];
+      //   b += static_cast<ACC_T>(learningRate * grad);
+      // }
+
       if (params.BIAS) {
-        ACC_T bias = readInput(biasMatrix, k, true);
-        acc += bias;
+        INT_T bias = readInput(biasMatrix, k, true);
+        acc = static_cast<ACC_T>(acc + static_cast<ACC_T>(bias));
 
         if (params.WEIGHT_SPLITTING) {
           ACC_T biasGrad = readInput(biasGradMatrix, k, true);
