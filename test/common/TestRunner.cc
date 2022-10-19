@@ -33,7 +33,7 @@ int run_sequence(const std::string& model,
                  const std::vector<std::string>& tests,
                  const std::vector<std::string>& sims,
                  const std::string& data_dir, const std::string& out_dir,
-                 const int tolerance) {
+                 const float tolerance) {
   // Set data parameters
   bool use_data_file = true;
   std::map<std::string, MemoryMap> mem_map;
