@@ -148,7 +148,7 @@ MobileBERT Layers (FP32 Gold Model vs. Pytorch):
     - mkdir ./test_outputs
     - ./run_tests.py --model mobilebert --simulators fp32
 
-MobileBERT Layers (FP32 Gold Model vs. Custom Posit):
+MobileBERT Layers (Posit Gold Model vs. PyTorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -166,7 +166,7 @@ MobileBERT Layers (FP32 Gold Model vs. Custom Posit):
     - mkdir ./test_outputs
     - ./run_tests.py --model mobilebert --simulators customposit
 
-MobileBERT Layers (Accelerator vs. Custom Posit):
+MobileBERT Layers (Accel. vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
