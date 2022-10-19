@@ -127,7 +127,7 @@ MobileBERT Layers (FP32 Gold Model vs. Pytorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators fp32
+    - ./run_tests.py --model mobilebert --simulators fp32,pytorch
 
 MobileBERT Layers (Posit Gold Model vs. PyTorch):
   stage: test
@@ -145,7 +145,7 @@ MobileBERT Layers (Posit Gold Model vs. PyTorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators customposit
+    - ./run_tests.py --model mobilebert --simulators customposit,pytorch
 
 MobileBERT Layers (Accel. vs. Posit Gold Model):
   stage: test
