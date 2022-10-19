@@ -127,7 +127,7 @@ MobileBERT Layers (FP32 Gold Model vs. Pytorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators fp32,pytorch
+    - ./run_tests.py --model mobilebert --simulators fp32,pytorch --tolerance 0.002
 
 MobileBERT Layers (Posit Gold Model vs. PyTorch):
   stage: test
@@ -145,7 +145,7 @@ MobileBERT Layers (Posit Gold Model vs. PyTorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators customposit,pytorch
+    - ./run_tests.py --model mobilebert --simulators customposit,pytorch --tolerance 80
 
 MobileBERT Layers (Accel. vs. Posit Gold Model):
   stage: test
@@ -163,7 +163,7 @@ MobileBERT Layers (Accel. vs. Posit Gold Model):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators accelerator,customposit
+    - ./run_tests.py --model mobilebert --simulators accelerator,customposit --tolerance 0
 
 Posit Unit Tests:
   stage: test
