@@ -89,7 +89,7 @@ ResNet End2End (FP32 Gold Model vs. Pytorch):
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - TOLERANCE=0.01 MODEL=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner 
+    - TOLERANCE=0.01 NETWORK=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner 
 
 ResNet End2End (Accel vs. Posit Gold Model):
   stage: test
@@ -109,7 +109,7 @@ ResNet End2End (Accel vs. Posit Gold Model):
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - TOLERANCE=0.01 MODEL=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
+    - TOLERANCE=0.01 NETWORK=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
 
 MobileBERT Layers (FP32 Gold Model vs. Pytorch):
   stage: test
