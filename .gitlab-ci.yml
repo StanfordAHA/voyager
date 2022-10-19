@@ -3,25 +3,6 @@
 stages:
   - test
 
-# TODO(fpedd): passing build files via artifacts does not work, files too large
-#   ERROR: Uploading artifacts as "archive" to coordinator... 
-#   413 Request Entity Too Large  id=222184 responseStatus=413 Request Entity Too Large status=413 token=EDCtSpyu
-#   FATAL: too large    
-#
-# gen-data:
-#   stage: build
-#   variables:
-#     GIT_SUBMODULE_STRATEGY: recursive
-#   artifacts:
-#     paths:
-#       - models/resnet/binary_data
-#       - models/resnet/model_data
-#     expire_in: 1 week
-#   script: 
-#     - echo "Generating test data."
-#     - pip install -r ./models/resnet/requirements.txt
-#     - ./models/resnet/gen_resnet_data.py
-
 ResNet Layers (Accel vs. Pytorch):
   stage: test
   variables:
@@ -39,7 +20,7 @@ ResNet Layers (Accel vs. Pytorch):
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - ./run_tests.py --simulators accelerator,file --tolerance 10.0
 
-ResNet Layer (Accel vs. Posit Gold Model):
+ResNet Layers (Accel vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -54,9 +35,9 @@ ResNet Layer (Accel vs. Posit Gold Model):
     - ./models/resnet/gen_resnet_data.py
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - ./run_tests.py --simulators accelerator,customposit
+    - ./run_tests.py --simulators accelerator,customposit --tolerance 0.01
 
-ResNet Layers (FP32 Gold  Model vs. Pytorch):
+ResNet Layers (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -71,7 +52,7 @@ ResNet Layers (FP32 Gold  Model vs. Pytorch):
     - ./models/resnet/gen_resnet_data.py
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - ./run_tests.py --simulators fp32,file
+    - ./run_tests.py --simulators fp32,file --tolerance 0.01
 
 ResNet Layers (Posit Gold Model vs. Pytorch):
   stage: test
@@ -90,7 +71,7 @@ ResNet Layers (Posit Gold Model vs. Pytorch):
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - ./run_tests.py --simulators customposit,file --tolerance 10.0
 
-ResNet End2End (FP32 Gold  Model vs. Pytorch):
+ResNet End2End (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -108,7 +89,7 @@ ResNet End2End (FP32 Gold  Model vs. Pytorch):
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - MODEL=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner
+    - TOLERANCE=0.01 NETWORK=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner 
 
 ResNet End2End (Accel vs. Posit Gold Model):
   stage: test
@@ -128,7 +109,7 @@ ResNet End2End (Accel vs. Posit Gold Model):
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - TOLERANCE=20.0 MODEL=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
+    - TOLERANCE=0.01 NETWORK=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
 
 MobileBERT Layers (FP32 Gold Model vs. Pytorch):
   stage: test
