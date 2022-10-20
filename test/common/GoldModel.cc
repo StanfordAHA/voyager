@@ -32,13 +32,20 @@ inline void gold_relu(float &a) { a = a < 0 ? 0 : a; }
 #ifndef NO_UNIVERSAL
 inline void gold_exp(UniversalPositAccum &a) { a = sw::universal::exp(a); }
 #endif
-inline void gold_exp(ACCUM_DATATYPE &a) { a = posit_exp(a); }
+inline void gold_exp(ACCUM_DATATYPE::DecomposedPosit &a) {
+  a = static_cast<ACCUM_DATATYPE::DecomposedPosit>(
+      posit_exp(static_cast<ACCUM_DATATYPE>(a)));
+}
 inline void gold_exp(float &a) { a = exp(a); }
 
 #ifndef NO_UNIVERSAL
 inline void gold_reciprocal(UniversalPositAccum &a) { a = a.reciprocate(); }
 #endif
-inline void gold_reciprocal(ACCUM_DATATYPE &a) { a.reciprocal(); }
+inline void gold_reciprocal(ACCUM_DATATYPE::DecomposedPosit &a) {
+  ACCUM_DATATYPE tmp = static_cast<ACCUM_DATATYPE>(a);
+  tmp.reciprocal();
+  a = static_cast<ACCUM_DATATYPE::DecomposedPosit>(tmp);
+}
 inline void gold_reciprocal(float &a) { a = 1.0f / a; }
 
 #ifndef NO_UNIVERSAL
@@ -214,14 +221,31 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       ACC_T sum = 0;
       for (int y = 0; y < Y; y++) {
         if (!params.ATTENTION_MASK || static_cast<float>(matrixB[y])) {
-          INT_T exp = outputMatrix[y] - max;
+          ACC_T exp = static_cast<ACC_T>(outputMatrix[y] - max);
           gold_exp(exp);
           outputMatrix[y] = exp;
-          sum += exp;
         }
       }
 
-      INT_T divisor = sum;
+      for (int reductionCount = 0; reductionCount < Y;
+           reductionCount += DIMENSION) {
+        // perform a tree addition
+        ACC_T accum[DIMENSION];
+        for (int i = 0; i < DIMENSION; i++) {
+          accum[i] = outputMatrix[reductionCount + i];
+        }
+
+        int depth = DIMENSION;
+        while (depth > 1) {
+          for (int i = 0; i < depth; i += 2) {
+            accum[i / 2] = static_cast<ACC_T>(accum[i] + accum[i + 1]);
+          }
+          depth = depth / 2;
+        }
+        sum = static_cast<ACC_T>(sum + accum[0]);
+      }
+
+      ACC_T divisor = sum;
       gold_reciprocal(divisor);
       for (int y = 0; y < Y; y++) {
         if (!params.ATTENTION_MASK || static_cast<float>(matrixB[y])) {
@@ -428,13 +452,13 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
     ACC_T sum = 0;
     for (int i = 0; i < X; i++) {
-      INT_T exp = logits[i] - max;
+      ACC_T exp = static_cast<ACC_T>(logits[i] - max);
       gold_exp(exp);
       gradients[i] = exp;
       sum += exp;
     }
 
-    INT_T divisor = sum;
+    ACC_T divisor = sum;
     gold_reciprocal(divisor);
     for (int i = 0; i < X; i++) {
       gradients[i] *= divisor;
