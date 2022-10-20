@@ -89,7 +89,7 @@ ResNet End2End (FP32 Gold Model vs. Pytorch):
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - TOLERANCE=0.01 MODEL=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner 
+    - TOLERANCE=0.01 NETWORK=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner 
 
 ResNet End2End (Accel vs. Posit Gold Model):
   stage: test
@@ -109,7 +109,7 @@ ResNet End2End (Accel vs. Posit Gold Model):
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - TOLERANCE=0.01 MODEL=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
+    - TOLERANCE=0.01 NETWORK=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
 
 MobileBERT Layers (FP32 Gold Model vs. Pytorch):
   stage: test
@@ -127,9 +127,9 @@ MobileBERT Layers (FP32 Gold Model vs. Pytorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators fp32
+    - ./run_tests.py --model mobilebert --simulators fp32,pytorch --tolerance 0.002
 
-MobileBERT Layers (FP32 Gold Model vs. Custom Posit):
+MobileBERT Layers (Posit Gold Model vs. PyTorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -145,9 +145,9 @@ MobileBERT Layers (FP32 Gold Model vs. Custom Posit):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators customposit
+    - ./run_tests.py --model mobilebert --simulators customposit,pytorch --tolerance 80
 
-MobileBERT Layers (Accelerator vs. Custom Posit):
+MobileBERT Layers (Accel. vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -163,7 +163,7 @@ MobileBERT Layers (Accelerator vs. Custom Posit):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators accelerator,customposit
+    - ./run_tests.py --model mobilebert --simulators accelerator,customposit --tolerance 0
 
 Posit Unit Tests:
   stage: test
