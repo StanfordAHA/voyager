@@ -7,70 +7,14 @@ import time
 import datetime
 import sys
 import os
+import re
 import logging
-
-NETWORKS = {
-    'mobilebert':
-    [
-        "bottleneck_input_dense",
-        "bottleneck_input_LayerNorm",
-        "attention_self_query_layer",
-        "attention_self_key_layer",
-        "attention_self_value_layer",
-        "attention_self_attention_scores_0",
-        "attention_self_attention_scores_1",
-        "attention_self_attention_scores_2",
-        "attention_self_attention_scores_3",
-        "attention_self_attention_probs_0",
-        "attention_self_attention_probs_1",
-        "attention_self_attention_probs_2",
-        "attention_self_attention_probs_3",
-        "attention_self_context_layer_0",
-        "attention_self_context_layer_1",
-        "attention_self_context_layer_2",
-        "attention_self_context_layer_3",
-        "attention_output_dense",
-        "attention_output_LayerNorm",
-        "ffn_0_intermediate_dense",
-        "ffn_0_output_dense",
-        "ffn_0_output_LayerNorm",
-        "intermediate_dense",
-        "output_dense",
-        "output_LayerNorm",
-        "output_bottleneck_dense",
-        "output_bottleneck_LayerNorm",
-        "classifier",
-    ],
-    'resnet':
-    [
-        "conv1",
-        "layer1_0_conv1",
-        "layer1_0_conv2",
-        "layer1_1_conv1",
-        "layer1_1_conv2",
-        "layer2_0_downsample",
-        "layer2_0_conv1",
-        "layer2_0_conv2",
-        "layer2_1_conv1",
-        "layer2_1_conv2",
-        "layer3_0_downsample",
-        "layer3_0_conv1",
-        "layer3_0_conv2",
-        "layer3_1_conv1",
-        "layer3_1_conv2",
-        "layer4_0_downsample",
-        "layer4_0_conv1",
-        "layer4_0_conv2",
-        "layer4_1_conv1",
-        "layer4_1_conv2",
-        "fc",
-    ]
-}
+import numpy as np
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='MINOTAUR Test Runner. Dispatches and manages tests.')
+        description='MINOTAUR Test Runner. Dispatches and manages end2end tests.')
     parser.add_argument('-sims', '--simulators',
                         type=str,
                         default='fp32,file',
@@ -87,13 +31,17 @@ def main():
                         type=float,
                         default=0.1,
                         help='Relative normalized error in % we allow [TOLERANCE].')
+    parser.add_argument('--accuracy_tolerance',
+                        type=float,
+                        default=0.65,
+                        help='Minimum accuracy we expect on the provided dataset.')
     parser.add_argument('--data_dir',
                         type=str,
                         default=None,
                         help='Path to binary input data [DATA_DIR].')
     parser.add_argument('--output_dir',
                         type=str,
-                        default='./test_outputs/',
+                        default='./test_outputs_e2e/',
                         help='Path to output data [OUT_DIR].')
     parser.add_argument('--make_clean',
                         default=False,
@@ -107,6 +55,14 @@ def main():
                         type=str,
                         default='build',
                         help='Name of build directory.')
+    parser.add_argument('--labels_file',
+                        type=str,
+                        default='data/imagenet/labels.txt',
+                        help='Path to file containing labels.')
+    parser.add_argument('--samples',
+                        type=int,
+                        default=100,
+                        help='Relative normalized error in % we allow [TOLERANCE].')
     args = parser.parse_args()
 
     # Create output directories for both test value and console output
@@ -123,14 +79,6 @@ def main():
     if args.data_dir is None:
         if args.model == "resnet":
             args.data_dir = './models/resnet/binary_data/'
-            # Check if there are files in the binary_data dir, or whether we
-            # need to go step deeper in the hierarchy
-            sub_dir_info = list(os.walk(args.data_dir))
-            if len(sub_dir_info[0][2]) == 0:
-                assert len(
-                    sub_dir_info[0][1]) > 0, f'Directory {sub_dir_info[0][0]} appears to be empty.'
-                args.data_dir = os.path.join(
-                    args.data_dir, sub_dir_info[0][1][0]) + '/'
         elif args.model == "mobilebert":
             args.data_dir = './data/mobilebert_tiny/datafile/step0/'
 
@@ -143,27 +91,34 @@ def main():
         subprocess.run(['make', args.target_name, '-j'], check=True)
     subprocess.run(['make', args.target_name, '-j'], check=True)
 
-    # Prepare and run all tests/layers simultaneously as different processes
+    dirpath, dirnames, _ = list(os.walk(args.data_dir))[0]
+
+    assert len(
+        dirnames) >= args.samples, f'Can not generate {args.samples}, only {len(dirnames)} samples available.'
+
+    # Prepare and run all e2e tests simultaneously as different processes
     results = []
-    for test in NETWORKS[args.model]:
+    for dirname in dirnames[:args.samples]:
+
         file_name = os.path.join(
-            script_output_dir, args.model + '_' + test + '.out')
+            script_output_dir, args.model + '_' + dirname + '.out')
         file = open(file_name, 'w')
         # Set environment variables
         env = os.environ.copy()
         env["NETWORK"] = args.model
-        env["TESTS"] = test
+        env["TESTS"] = 'conv1,fc'
         env["SIMS"] = args.simulators
         env["TASK"] = args.task
         env["TOLERANCE"] = str(args.tolerance)
-        env["OUT_DIR"] = args.output_dir
-        env["DATA_DIR"] = args.data_dir
+        env["OUT_DIR"] = os.path.join(args.output_dir, dirname)+'/'
+        os.makedirs(env["OUT_DIR"], exist_ok=True)
+        env["DATA_DIR"] = os.path.join(dirpath, dirname)+'/'
         # Spawn an new subprocess and grab its name, handle, and output file
         p = subprocess.Popen([os.path.join(args.build_dir, args.target_name)],
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
         # Enable non-blocking read from process
         os.set_blocking(p.stdout.fileno(), False)
-        results.append([args.model + "." + test, p, file])
+        results.append([args.model + "." + dirname, p, file, env["OUT_DIR"]])
 
     # Observe and manage running processes
     last_print_time = 0
@@ -214,6 +169,63 @@ def main():
     logging.info('\n'.join(["{} returned with {}".format(
         res[0], res[1].returncode) for res in results]))
     logging.info("-> Total {} failed {}".format(len(results), failures))
+
+    print(f"--- Evaluating accuracy on {len(results)} samples ---")
+
+    # Get the reference labels
+    ref_labels = []
+    with open(args.labels_file, "r") as f:
+        ref_labels = [s.strip().split(',') for s in f.readlines()]
+
+    x_corr = 0
+    y_corr = 0
+    for res in results:
+        res_files = [x[0]+x[2][0] for x in os.walk(res[3])]
+        assert (l := len(res_files)) == 1, f'More than one result file in dir.'
+        res_file = res_files[0]
+        with open(res_file, "r") as f:
+            buf = f.readlines()
+            # Get names
+            names = buf[0].split(" vs. ")
+            assert len(
+                names) == 2, f"Could not locate two names in head {buf[0]} of file {res_file}."
+            x_name = names[0]
+            y_name = names[1][:-1]  # remove trailing newline
+            # Remove names from buffer
+            buf = buf[1:]
+            # Match the numbers left and right of 'vs.'
+            left = [re.findall(r"[-+]?(?:\d*\.\d+|\d+) vs.", s)[0][:-4]
+                    for s in buf]
+            right = [re.findall(r"vs. [-+]?(?:\d*\.\d+|\d+)", s)[0][4:]
+                     for s in buf]
+            left = left[:-8]  # remove last 8 zero lines
+            assert (
+                l := len(left)) == 1000, f'ResNet output should be 1000 entries, but is {l}.'
+            right = right[:-8]  # remove last 8 zero lines
+            assert (
+                l := len(right)) == 1000, f'ResNet output should be 1000 entries, but is {l}.'
+            # Convert strings to actualy numbers
+            x = [float(x) for x in left]
+            y = [float(x) for x in right]
+            # Find top category and compare with ref labels
+            top_x = np.argmax(x)
+            top_y = np.argmax(y)
+            image_label = re.findall('n[0-9]+', res_file)[0]
+            if image_label == ref_labels[top_x][0]:
+                x_corr += 1
+            if image_label == ref_labels[top_y][0]:
+                y_corr += 1
+    x_acc = x_corr / len(results)
+    y_acc = y_corr / len(results)
+    print(f"Network {args.model} -> {x_name} accuracy: {x_acc} ({x_corr}/{len(results)}), {y_name} accuracy: {y_acc} ({y_corr}/{len(results)})")
+
+    # Also log info to file
+    logging.info(f"Network {args.model} -> {x_name} accuracy: {x_acc} ({x_corr}/{len(results)}), {y_name} accuracy: {y_acc} ({y_corr}/{len(results)})")
+
+    # We expect both to match or exceed the accuracy tolerance
+    if x_acc < args.accuracy_tolerance or y_acc < args.accuracy_tolerance:
+        print(f"Did not match expected accuracy of {args.accuracy_tolerance}.")
+        failures += 1
 
     sys.exit(failures)
 

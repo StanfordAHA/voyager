@@ -12,6 +12,7 @@ import pickle
 import struct
 import os
 import re
+import tqdm
 
 try:
     from torch.hub import load_state_dict_from_url
@@ -20,7 +21,7 @@ except ImportError:
 
 # Local modules
 import resnet_reference
-import resnet_record
+import vision_models
 import bn_folding
 
 # TODO(fpedd): Re-implement the int8 part (what is that used for, actually?)
@@ -52,28 +53,23 @@ def prepare_data(args: argparse.Namespace):
 
 def run_model(args: argparse.Namespace, image_paths: str, image_labels: str, ref_labels: str):
 
-    if args.use_model_url:
-        print("Downloading model from {}".format(args.model_url))
-        state_dict = load_state_dict_from_url(args.model_url)
-    else:
-        # Alternatively, use torch.load and load weights from file in model_dir
-        model_path = os.path.join(args.model_dir, 'resnet18-5c106cde.pth')
-        print("Loading model from disk {}".format(model_path))
-        state_dict = torch.load(model_path)  # .state_dict()
-
     # Force PyTorch to CPU
     torch.device("cpu")
 
     # Create reference model and fill with weights
     model_ref = resnet_reference.ResNet(
         block=resnet_reference.BasicBlock, layers=[2, 2, 2, 2])
-    model_ref.load_state_dict(state_dict)
+    ref_state_dict = load_state_dict_from_url(
+        "https://download.pytorch.org/models/resnet18-5c106cde.pth")
+    model_ref.load_state_dict(ref_state_dict)
     model_ref.eval()
 
-    # Create bn folded model (bn folded into conv)
-    model_bnfold = resnet_record.ResNet(
-        block=resnet_record.BasicBlock, layers=[2, 2, 2, 2])
-    model_bnfold.load_state_dict(state_dict)
+    # Create bn folded + maxpool 2x2 model (bn folded into conv)
+    model_bnfold = vision_models.ResNet(
+        block=vision_models.BasicBlock, layers=[2, 2, 2, 2])
+    model_path = os.path.join(args.model_dir, 'resnet18_mp2.pth')
+    bnfold_state_dict = torch.load(model_path).state_dict()
+    model_bnfold.load_state_dict(bnfold_state_dict)
     model_bnfold.eval()
     model_bnfold = bn_folding.bn_folding_model(model_bnfold)
 
@@ -85,11 +81,20 @@ def run_model(args: argparse.Namespace, image_paths: str, image_labels: str, ref
                              std=[0.229, 0.224, 0.225]),
     ])
 
+    model_ref_corr = 0
+    model_bnfold_corr = 0
+    pkl_file_paths = []
+
+    vision_models._no_intermediates = args.no_intermediates
+    vision_models._no_weights = args.no_weights
+
     # Loop over all images and verify results
-    for i, image_path in enumerate(image_paths):
+    for i in tqdm.tqdm(range(args.samples)):
+
+        image_path = image_paths[i]
 
         # Load and prepare input image
-        input_image = Image.open(image_path)
+        input_image = Image.open(image_path).convert('RGB')
         input = preprocess(input_image).unsqueeze(0)
 
         # Run inference
@@ -107,133 +112,143 @@ def run_model(args: argparse.Namespace, image_paths: str, image_labels: str, ref
         top_prob_ref, top_catid_ref = torch.topk(output_probs_ref, 5)
         top_prob_bnfold, top_catid_bnfold = torch.topk(output_probs_bnfold, 5)
 
-        # Compare output between models
-        diff = functools.reduce(
-            (lambda acc, top: acc or top[0] != top[1]), zip(top_catid_ref, top_catid_bnfold), False)
+        # TODO(fpedd): Models have a different architecture, so they won't be bit accurate
+        # # Compare output between models
+        # diff = functools.reduce(
+        #     (lambda acc, top: acc or top[0] != top[1]), zip(top_catid_ref, top_catid_bnfold), False)
+        # if diff:
+        #     raise ValueError("Top 5 differ at {} with {} vs {}".format(
+        #         image_labels[i], top_catid_ref, top_catid_bnfold))
 
-        if diff:
-            raise ValueError("Top 5 differ at {} with {} vs {}".format(
-                image_labels[i], top_catid_ref, top_catid_bnfold))
+        if image_labels[i] == ref_labels[top_catid_ref[0]][0]:
+            model_ref_corr += 1
 
-        # Compare model top category to reference category
-        # TODO(fpedd): ResNet is not perfect, so we ignore differences to reference for now
-        #              We are happy as long as the two model match
-        # if image_labels[i] != ref_labels[top_catid_ref[0]][0]:
-        #     raise ValueError("Top 1 differs to refernce {} vs {} ({})".format(
-        #         image_labels[i], ref_labels[top_catid_ref[0]][0], ref_labels[top_catid_ref[0]][1]))
+        if image_labels[i] == ref_labels[top_catid_bnfold[0]][0]:
+            model_bnfold_corr += 1
 
-        if resnet_record._export:
+        if vision_models._export:
 
             # Get unique name from image path
-            model_id = re.findall('000[0-9]+', image_path)[-1]
+            path_components = os.path.normpath(image_path).split(os.path.sep)
+            model_id = path_components[-2] + '_' + \
+                re.findall('000[0-9]+', path_components[-1])[-1]
+            dataset_name = path_components[-3]
 
-            os.makedirs(args.model_dir, exist_ok=True)
-            pkl_file_path = os.path.join(args.model_dir, model_id + ".pkl")
+            os.makedirs(os.path.join(args.model_dir,
+                        dataset_name), exist_ok=True)
+            pkl_file_path = os.path.join(
+                args.model_dir, dataset_name, model_id + ".pkl")
             with open(pkl_file_path, "wb") as f:
-                pickle.dump(resnet_record._buffer, f)
+                pickle.dump(vision_models._buffer, f)
+            pkl_file_paths.append(pkl_file_path)
 
-            if (args.export_onnx):
+            if args.export_onnx:
                 # Write model to disk
                 onnx_model_file_path = os.path.join(
                     args.model_dir, "resnet18" + ".onnx")
                 torch.onnx.export(model_bnfold, input,
-                                  onnx_model_file_path, verbose=True)
+                                  onnx_model_file_path, verbose=False)
                 # Load model again using ONNX
                 model_bnfold_onnx = onnx.load(onnx_model_file_path)
                 # Check that the model is well formed
                 onnx.checker.check_model(model_bnfold_onnx)
-                # Do shape inference on ONNX an save
+                # Do shape inference on ONNX and save
                 model_bnfold_onnx_inferred = onnx.shape_inference.infer_shapes(
                     model_bnfold_onnx)
                 onnx_model_file_path_inferred = os.path.join(
                     args.model_dir, "resnet18_inferred" + ".onnx")
                 onnx.save(model_bnfold_onnx_inferred,
                           onnx_model_file_path_inferred)
+                # TODO(fpedd): We only want to save one onnx model currently
+                args.export_onnx = False
 
-        # TODO(fpedd): We only want to record and save the first model instance (for now)
-        resnet_record._export = False
+            vision_models.reset()
 
-    print("\nRan through {} samples from {} categories to verify model.".format(
-        len(image_paths), len(set(image_labels))))
+    model_ref_acc = model_ref_corr / args.samples
+    model_bnfold_acc = model_bnfold_corr / args.samples
 
-    return pkl_file_path
+    print(
+        f"\nRan through {args.samples} samples from {len(set(image_labels[:args.samples]))} categories. \nAccuracy: ref {model_ref_acc} bnfold {model_bnfold_acc}.")
+
+    return pkl_file_paths
 
 
-def write_binary(args: argparse.Namespace, pkl_file_path: str):
+def write_binary(args: argparse.Namespace, pkl_file_paths):
     print("Writing binary files to: {}".format(args.binary_dir))
 
     # Create output_dir if it does not already exists
     os.makedirs(args.binary_dir, exist_ok=True)
 
-    # Load pickle file and write binary layer files
-    with open(pkl_file_path, 'rb') as input:
+    for pkl_file_path in tqdm.tqdm(pkl_file_paths):
 
-        # Working with posit8 datatypes
-        if args.data_type == 'posit8':
+        instance = os.path.splitext(os.path.basename(pkl_file_path))[0]
+        output_dir = os.path.join(args.binary_dir, instance)
+        os.makedirs(output_dir, exist_ok=True)
 
-            # Iterate over all entries in the pickled dictionary
-            for name, data in pickle.load(input).items():
+        # Load pickle file and write binary layer files
+        with open(pkl_file_path, 'rb') as input:
 
-                # Convert name to filename (special case for downsample)
-                file_name = re.sub('downsample.0', 'downsample', name)
-                file_name = re.sub('\.', '_', file_name)
+            # Working with posit8 datatypes
+            if args.data_type == 'posit8':
 
-                # Open output file, then pack and write data
-                with open(os.path.join(args.binary_dir, file_name), 'wb') as output:
-                    output.write(struct.pack('%sd' % len(data), *data))
+                # Iterate over all entries in the pickled dictionary
+                for name, data in pickle.load(input).items():
 
-        elif args.data_type == 'int8':
-            raise NotImplementedError("Currently int8 is not supported!")
+                    # Convert name to filename (special case for downsample)
+                    file_name = re.sub('downsample.0', 'downsample', name)
+                    file_name = re.sub('\.', '_', file_name)
 
-        else:
-            raise ValueError("Unsupported datatype {}!".format(args.data_type))
+                    # Open output file, then pack and write data
+                    with open(os.path.join(output_dir, file_name), 'wb') as output:
+                        output.write(struct.pack('%sd' % len(data), *data))
+            else:
+                raise ValueError(
+                    "Unsupported datatype {}!".format(args.data_type))
     return
 
 
 def main():
 
-    # TODO(fpedd): Fix logic in bool args
     parser = argparse.ArgumentParser(
         description='ResNet data generator (from model and images to binary data).')
     parser.add_argument('--data_dir',
                         type=str,
-                        default='../../data/imagenette',
+                        default='data/imagenette',
                         help='Path to dataset.')
-    parser.add_argument('--model_url',
-                        type=str,
-                        default='https://download.pytorch.org/models/resnet18-5c106cde.pth',
-                        help='URL pointing to a state_dict (.pth ot .pt).')
-    parser.add_argument('--use_model_url',
-                        default=True,
-                        action='store_false',
-                        help='Download model data from URL. If false, use local model file.')
     parser.add_argument('--model_dir',
                         type=str,
-                        default='model_data',
-                        help='Path to model directory the .pkl intermediate file will be written to. If  (.pth ot .pt).')
+                        default='models/resnet/model_data',
+                        help='Path to model directory the .pkl intermediate files will be written to.')
     parser.add_argument('--binary_dir',
                         type=str,
-                        default='binary_data',
+                        default='models/resnet/binary_data',
                         help='Path the binary data output will be written to (binary files for simulation).')
+    parser.add_argument('--samples',
+                        type=int,
+                        default=1,
+                        help='How many samples to generate.')
+    parser.add_argument('--no_intermediates',
+                        default=False,
+                        action='store_true',
+                        help='Generate no intermediate buffers, only entry and exit.')
+    parser.add_argument('--no_weights',
+                        default=False,
+                        action='store_true',
+                        help='Generate no weight data.')
     parser.add_argument('--data_type',
                         type=str,
                         default='posit8', help='Datatype to parse (posit8, int8).')
     parser.add_argument('--export_onnx',
-                        default=True,
-                        action='store_false',
-                        help='If this flag is used, no bn folded .onnx model will be exported.')
+                        default=False,
+                        action='store_true',
+                        help='Export bn folded .onnx model.')
     args = parser.parse_args()
 
-    # Convert paths from relative to absolute (allows calling script from different dir)
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    args.data_dir = os.path.join(script_dir, args.data_dir)
-    args.model_dir = os.path.join(script_dir, args.model_dir)
-    args.binary_dir = os.path.join(script_dir, args.binary_dir)
-
-    # Run through three functions
     image_paths, image_labels, ref_labels = prepare_data(args)
-    pkl_file_path = run_model(args, image_paths, image_labels, ref_labels)
-    write_binary(args, pkl_file_path)
+    assert len(
+        image_paths) >= args.samples, f'Can not generate {args.samples}, only {len(image_paths)} samples available.'
+    pkl_file_paths = run_model(args, image_paths, image_labels, ref_labels)
+    write_binary(args, pkl_file_paths)
 
     print("ResNet data generator done!")
 

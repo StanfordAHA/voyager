@@ -1,12 +1,12 @@
 build
 pybuild
 data/resnet
-datafile/
 data/sst2_eval/step*
 data/sst2_train/step*
 .direnv
 .vscode
 test_outputs/
+test_outputs_e2e/
 logs/
 novas*
 *.fsdb*
@@ -17,6 +17,6 @@ __pycache__
 venv
 .env
 .swp
-models/resnet/binary_data
-models/resnet/model_data/*.pkl
-models/resnet/model_data/*.onnx
+models/resnet/binary_data*
+models/resnet/model_data/*
+!models/resnet/model_data/*.pth

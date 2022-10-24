@@ -11,10 +11,22 @@ _export = True  # Record weights and store them for export
 _buffer = {}  # Dictionary buffer for weights
 _layer_num = 1  # Layer counter
 _block_num = 0  # Block counter
+_verbose = False  # Print debug info
+_no_intermediates = False  # Generate no intermediate buffers, only entry and exit
+_no_weights = False  # Generate no weight/bias data
+
+def reset():
+    global _buffer
+    global _layer_num
+    global _block_num
+    _buffer = {}
+    _layer_num = 1
+    _block_num = 0
 
 
 def arrange_data(name: str, x: Tensor):
-    print(name, '\t', x.size())
+    if _verbose:
+        print(name, '\t', x.size())
 
     # We need to store in float64
     x = x.type(torch.float64)
@@ -88,9 +100,7 @@ class BasicBlock(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
 
-        global _export
         global _buffer
-        global _layer_num
         global _block_num
 
         identity = x
@@ -98,7 +108,7 @@ class BasicBlock(nn.Module):
         _conv_num = 1
         _layer_name = "layer" + \
             str(_layer_num)+"."+str(_block_num)+".conv"+str(_conv_num)
-        if _export:
+        if _export and not _no_intermediates:
             _buffer[_layer_name +
                     ".input"] = arrange_data(_layer_name+".input", x)
 
@@ -106,13 +116,13 @@ class BasicBlock(nn.Module):
         out = self.bn1(out)
         out = self.relu(out)
 
-        if _export:
+        if _export and not _no_intermediates:
             _buffer[_layer_name +
                     ".comp"] = arrange_data(_layer_name+".comp", out)
         _conv_num += 1
         _layer_name = "layer"+str(_layer_num)+"." + \
             str(_block_num)+".conv"+str(_conv_num)
-        if _export:
+        if _export and not _no_intermediates:
             _buffer[_layer_name +
                     ".input"] = arrange_data(_layer_name+".input", out)
 
@@ -121,11 +131,11 @@ class BasicBlock(nn.Module):
 
         _layer_name = "layer"+str(_layer_num)+".0.downsample.0"
         if self.downsample is not None:
-            if _export:
+            if _export and not _no_intermediates:
                 _buffer[_layer_name +
                         ".input"] = arrange_data(_layer_name+".input", identity)
             identity = self.downsample(x)
-            if _export:
+            if _export and not _no_intermediates:
                 _buffer[_layer_name +
                         ".comp"] = arrange_data(_layer_name+".comp", identity)
         _layer_name = "layer"+str(_layer_num)+"." + \
@@ -134,7 +144,7 @@ class BasicBlock(nn.Module):
         out += identity
         out = self.relu(out)
 
-        if _export:
+        if _export and not _no_intermediates:
             _buffer[_layer_name +
                     ".comp"] = arrange_data(_layer_name+".comp", out)
         _block_num += 1
@@ -255,15 +265,16 @@ class ResNet(nn.Module):
         global _buffer
         global _layer_num
         global _block_num
+        global _verbose
 
-        if _export:
+        if _export and _verbose:
             print("--- ResNet weight tensors:")
         # As a first step we get the weights from the state_dict
-        if _export:
+        if _export and not _no_weights:
             for name, param in self.state_dict().items():
                 _buffer[name] = arrange_data(name, param)
 
-        if _export:
+        if _export and _verbose:
             print("\n--- ResNet activation tensors:")
         # Then we go through all layers and record the input and ouput tensors
         # and store them as well
@@ -275,7 +286,7 @@ class ResNet(nn.Module):
         x = self.relu(x)
         x = self.maxpool(x)
 
-        if _export:
+        if _export and not _no_intermediates:
             _buffer["conv1.comp"] = arrange_data("conv1.comp", x)
 
         x = self.layer1(x)
@@ -292,10 +303,10 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
 
-        if _export:
+        if _export and not _no_intermediates:
             _buffer["layer4.1.conv2.comp"] = arrange_data(
                 "layer4.1.conv2.comp", x)
-        if _export:
+        if _export and not _no_intermediates:
             _buffer["fc.input"] = arrange_data("fc.input", x)
 
         x = self.fc(x)

@@ -227,9 +227,10 @@ void verifyGradients(std::string dataDir, std::string outfilePrefix) {
         std::cout << "Checking " << datafile << std::endl;
         load_weights(params, datafile, true, acc_sram_memory, hlsMatrixB,
                      uniMatrixB, floatMatrixB);
-        errors = compare_arrays(float_sram_memory + params.WEIGHT_OFFSET,
-                                floatMatrixB, weightSize,
-                                outfilePrefix + files.weights_file, false);
+        errors =
+            compare_arrays(float_sram_memory + params.WEIGHT_OFFSET, layerName,
+                           floatMatrixB, layerName + "_reference", weightSize,
+                           outfilePrefix + files.weights_file, false);
 
         if (errors) {
           std::cerr << "ERROR: " << errors << " mismatches found" << std::endl;
@@ -246,9 +247,9 @@ void verifyGradients(std::string dataDir, std::string outfilePrefix) {
         std::cout << "Checking " << datafile << std::endl;
         load_bias(params, datafile, true, acc_sram_memory, hlsBiasMatrix,
                   uniBiasMatrix, floatBiasMatrix);
-        errors = compare_arrays(float_sram_memory + params.BIAS_OFFSET,
-                                floatBiasMatrix, K,
-                                outfilePrefix + files.bias_file, true);
+        errors = compare_arrays(
+            float_sram_memory + params.BIAS_OFFSET, layerName, floatBiasMatrix,
+            layerName + "_reference", K, outfilePrefix + files.bias_file, true);
 
         if (errors) {
           std::cerr << "ERROR: " << errors << " mismatches found" << std::endl;
@@ -351,18 +352,20 @@ int runOperation(const SimplifiedParams params,
     std::cout << "(reveals bugs in mapping operations to accelerator)"
               << std::endl;
     diffFile = outfilePrefix + "hlsgold_vs_pytorch.txt";
-    errors += compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET,
-                             hlsDataFileOutput, outputSize, diffFile,
-                             params.ACC_T_OUTPUT);
+    errors +=
+        compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET,
+                       "HLS Posit Gold Model", hlsDataFileOutput, "Pytorch",
+                       outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (universal && pytorch) {
     std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in representing float as Posit)" << std::endl;
     diffFile = outfilePrefix + "universalgold_vs_pytorch.txt";
-    errors += compare_arrays(uni_sram_memory + params.OUTPUT_OFFSET,
-                             uniDataFileOutput, outputSize, diffFile,
-                             params.ACC_T_OUTPUT);
+    errors +=
+        compare_arrays(uni_sram_memory + params.OUTPUT_OFFSET,
+                       "Universal Posit Gold Model", uniDataFileOutput,
+                       "Pytorch", outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (customposit && universal) {
@@ -372,18 +375,19 @@ int runOperation(const SimplifiedParams params,
         << "(reveals bugs in implementation of custom HLS Posit operators)"
         << std::endl;
     diffFile = outfilePrefix + "hlsgold_vs_universalgold.txt";
-    errors += compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET,
-                             uni_sram_memory + params.OUTPUT_OFFSET, outputSize,
-                             diffFile, params.ACC_T_OUTPUT);
+    errors += compare_arrays(
+        hls_sram_memory + params.OUTPUT_OFFSET, "HLS Posit Gold Model",
+        uni_sram_memory + params.OUTPUT_OFFSET, "Universal Posit Gold Model",
+        outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (fp32 && pytorch) {
     std::cout << "FP32 Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
     diffFile = outfilePrefix + "fpgold_vs_pytorch.txt";
-    errors +=
-        compare_arrays(float_sram_memory + params.OUTPUT_OFFSET, dataFileOutput,
-                       outputSize, diffFile, params.ACC_T_OUTPUT);
+    errors += compare_arrays(float_sram_memory + params.OUTPUT_OFFSET,
+                             "FP32 Gold Model", dataFileOutput, "Pytorch",
+                             outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (errors) {
@@ -424,14 +428,15 @@ void checkAcceleratorOutputs(const SimplifiedParams params,
   std::cout << "Accelerator vs. PyTorch" << std::endl;
   std::cout << "(reveals bugs in accelerator or memory placement)" << std::endl;
   std::string diffFile = outfilePrefix + "accel_vs_pytorch.txt";
-  compare_arrays(acc_sram_memory + params.OUTPUT_OFFSET, hlsDataFileOutput,
-                 outputSize, diffFile, params.ACC_T_OUTPUT);
+  compare_arrays(acc_sram_memory + params.OUTPUT_OFFSET, "accel",
+                 hlsDataFileOutput, "pytorch", outputSize, diffFile,
+                 params.ACC_T_OUTPUT);
 
   std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
   std::cout << "(reveals bugs in accelerator or memory placement)" << std::endl;
   diffFile = outfilePrefix + "accel_vs_hlsgold.txt";
-  int errors = compare_arrays(acc_sram_memory + params.OUTPUT_OFFSET,
-                              hls_sram_memory + params.OUTPUT_OFFSET,
+  int errors = compare_arrays(acc_sram_memory + params.OUTPUT_OFFSET, "accel",
+                              hls_sram_memory + params.OUTPUT_OFFSET, "hlsgold",
                               outputSize, diffFile, params.ACC_T_OUTPUT);
 
   if (errors) {
