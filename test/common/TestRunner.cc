@@ -3,6 +3,8 @@
 // Parameters are passed via environment variables, not arguments.
 #include <string>
 #include <vector>
+#include <iostream>
+#include <filesystem>
 
 #include "test/common/DataLoader.h"
 #include "test/common/GoldModel.h"
@@ -224,40 +226,43 @@ int run_sequence(const std::string& model,
         (sims[i + 1] == "accelerator" && sims[i] == "customposit")) {
       rel_err += compare_arrays(
           acc_sram_memory + param_map[tests.back()].OUTPUT_OFFSET,
-          hls_gold_sram_memory + param_map[tests.back()].OUTPUT_OFFSET, size,
-          diff_file, false);
+          "accelerator",
+          hls_gold_sram_memory + param_map[tests.back()].OUTPUT_OFFSET,
+          "customposit", size, diff_file, false);
     } else if ((sims[i] == "accelerator" && sims[i + 1] == "file") ||
                (sims[i + 1] == "accelerator" && sims[i] == "file")) {
       rel_err += compare_arrays(
-          acc_sram_memory + param_map[tests.back()].OUTPUT_OFFSET, hls_comp,
-          size, diff_file, false);
+          acc_sram_memory + param_map[tests.back()].OUTPUT_OFFSET,
+          "accelerator", hls_comp, "file", size, diff_file, false);
     } else if ((sims[i] == "customposit" && sims[i + 1] == "file") ||
                (sims[i + 1] == "customposit" && sims[i] == "file")) {
       rel_err += compare_arrays(
           hls_gold_sram_memory + param_map[tests.back()].OUTPUT_OFFSET,
-          hls_comp, size, diff_file, false);
+          "customposit", hls_comp, "file", size, diff_file, false);
     } else if ((sims[i] == "universal" && sims[i + 1] == "customposit") ||
                (sims[i + 1] == "universal" && sims[i] == "customposit")) {
       rel_err += compare_arrays(
           hls_gold_sram_memory + param_map[tests.back()].OUTPUT_OFFSET,
-          uni_gold_sram_memory + param_map[tests.back()].OUTPUT_OFFSET, size,
-          diff_file, false);
+          "universal",
+          uni_gold_sram_memory + param_map[tests.back()].OUTPUT_OFFSET,
+          "customposit", size, diff_file, false);
     } else if ((sims[i] == "universal" && sims[i + 1] == "file") ||
                (sims[i + 1] == "universal" && sims[i] == "file")) {
       rel_err += compare_arrays(
           uni_gold_sram_memory + param_map[tests.back()].OUTPUT_OFFSET,
-          uni_comp, size, diff_file, false);
+          "universal", uni_comp, "file", size, diff_file, false);
     } else if ((sims[i] == "fp32" && sims[i + 1] == "file") ||
                (sims[i + 1] == "fp32" && sims[i] == "file")) {
       rel_err += compare_arrays(
           float_gold_sram_memory + param_map[tests.back()].OUTPUT_OFFSET,
-          fp_comp, size, diff_file, false);
+          "fp32", fp_comp, "file", size, diff_file, false);
     } else if ((sims[i] == "customposit" && sims[i + 1] == "fp32") ||
                (sims[i] == "fp32" && sims[i + 1] == "customposit")) {
       rel_err += compare_arrays(
           hls_gold_sram_memory + param_map[tests.back()].OUTPUT_OFFSET,
-          float_gold_sram_memory + param_map[tests.back()].OUTPUT_OFFSET, size,
-          diff_file, false);
+          "customposit",
+          float_gold_sram_memory + param_map[tests.back()].OUTPUT_OFFSET,
+          "fp32", size, diff_file, false);
     } else {
       std::cerr << "ERROR: Comparison between " + sims[i] + " and "
                 << sims[i + 1] << " not supported." << std::endl;
@@ -265,6 +270,8 @@ int run_sequence(const std::string& model,
     }
 
     if (rel_err > tolerance) error_count += rel_err < 1.0 ? 1 : (int)rel_err;
+    std::cout << "Rela. error: " << rel_err << std::endl;
+    std::cout << "Error count: " << error_count << std::endl;
   }
 
   delete[] acc_sram_memory;
@@ -337,14 +344,15 @@ extern "C" int sc_main(int argc, char* argv[]) {
   if (task.empty()) task = "forward";
 
   std::string tolerance_str(get_env_var("TOLERANCE"));
-  float tolerance = 5.0;
+  float tolerance = 0.1;
   if (!tolerance_str.empty()) tolerance = std::stof(tolerance_str);
 
   // Paths are relative to Makefile
   std::string data_dir(get_env_var("DATA_DIR"));
   if (data_dir.empty()) {
     if (model == "resnet") {
-      data_dir = "./models/resnet/binary_data/";
+      std::string raw_data_dir = "./models/resnet/binary_data/";
+      data_dir = (*std::filesystem::begin(std::filesystem::directory_iterator(raw_data_dir))).path().string() + '/';
     } else if (model == "mobilebert") {
       data_dir = "./data/mobilebert_tiny/datafile/step0/";
     }

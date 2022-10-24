@@ -192,9 +192,10 @@ float runOperation(const SimplifiedParams params, const Files files,
     std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in representing float as Posit)" << std::endl;
     diffFile = outfilePrefix + "universal_vs_pytorch.txt";
-    pctDiff += compare_arrays(uni_sram_memory + params.OUTPUT_OFFSET,
-                              uniDataFileOutput, outputSize, diffFile,
-                              params.ACC_T_OUTPUT);
+    pctDiff +=
+        compare_arrays(uni_sram_memory + params.OUTPUT_OFFSET,
+                       "Universal Posit Gold Model", uniDataFileOutput,
+                       "Pytorch", outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (customposit && pytorch) {
@@ -202,9 +203,10 @@ float runOperation(const SimplifiedParams params, const Files files,
     std::cout << "(reveals bugs in mapping operations to accelerator)"
               << std::endl;
     diffFile = outfilePrefix + "hlsgold_vs_pytorch.txt";
-    pctDiff += compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET,
-                              hlsDataFileOutput, outputSize, diffFile,
-                              params.ACC_T_OUTPUT);
+    pctDiff +=
+        compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET,
+                       "HLS Posit Gold Model", hlsDataFileOutput, "Pytorch",
+                       outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (accelerator && pytorch) {
@@ -213,8 +215,8 @@ float runOperation(const SimplifiedParams params, const Files files,
               << std::endl;
     diffFile = outfilePrefix + "accel_vs_pytorch.txt";
     pctDiff += compare_arrays(acc_sram_memory + params.OUTPUT_OFFSET,
-                              hlsDataFileOutput, outputSize, diffFile,
-                              params.ACC_T_OUTPUT);
+                              "Accelerator", hlsDataFileOutput, "PyTorch",
+                              outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (accelerator && customposit) {
@@ -222,9 +224,10 @@ float runOperation(const SimplifiedParams params, const Files files,
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
     diffFile = outfilePrefix + "accel_vs_hlsgold.txt";
-    pctDiff += compare_arrays(acc_sram_memory + params.OUTPUT_OFFSET,
-                              hls_sram_memory + params.OUTPUT_OFFSET,
-                              outputSize, diffFile, params.ACC_T_OUTPUT);
+    pctDiff += compare_arrays(
+        acc_sram_memory + params.OUTPUT_OFFSET, "Accelerator",
+        hls_sram_memory + params.OUTPUT_OFFSET, "HLS Posit Gold Model",
+        outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (customposit && universal) {
@@ -234,18 +237,19 @@ float runOperation(const SimplifiedParams params, const Files files,
         << "(reveals bugs in implementation of custom HLS Posit operators)"
         << std::endl;
     diffFile = outfilePrefix + "hlsgold_vs_universal.txt";
-    pctDiff += compare_arrays(hls_sram_memory + params.OUTPUT_OFFSET,
-                              uni_sram_memory + params.OUTPUT_OFFSET,
-                              outputSize, diffFile, params.ACC_T_OUTPUT);
+    pctDiff += compare_arrays(
+        hls_sram_memory + params.OUTPUT_OFFSET, "HLS Posit Gold Model",
+        uni_sram_memory + params.OUTPUT_OFFSET, "Universal Posit Gold Model",
+        outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   if (fp32 && pytorch) {
     std::cout << "FP32 Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
     diffFile = outfilePrefix + "fpgold_vs_pytorch.txt";
-    pctDiff +=
-        compare_arrays(float_sram_memory + params.OUTPUT_OFFSET, dataFileOutput,
-                       outputSize, diffFile, params.ACC_T_OUTPUT);
+    pctDiff += compare_arrays(float_sram_memory + params.OUTPUT_OFFSET,
+                              "FP32 Gold Model", dataFileOutput, "Pytorch",
+                              outputSize, diffFile, params.ACC_T_OUTPUT);
   }
 
   delete acc_sram_memory;

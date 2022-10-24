@@ -1,7 +1,11 @@
-# MINOTAUR CI 
+# MINOTAUR CI
 
 stages:
   - test
+
+#############################
+### ResNet Layer by Layer ###
+#############################
 
 ResNet Layers (Accel vs. Pytorch):
   stage: test
@@ -12,13 +16,15 @@ ResNet Layers (Accel vs. Pytorch):
     paths:
       - ./test_outputs
     expire_in: 1 week
-  script: 
+  script:
     - echo "Generating test data."
-    - pip install -r ./models/resnet/requirements.txt
-    - ./models/resnet/gen_resnet_data.py
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r ./models/resnet/requirements.txt
+    - python3 models/resnet/gen_resnet_data.py
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - ./run_tests.py --simulators accelerator,file --tolerance 80.0
+    - python3 run_tests.py --simulators accelerator,file --tolerance 12.0
 
 ResNet Layers (Accel vs. Posit Gold Model):
   stage: test
@@ -29,13 +35,15 @@ ResNet Layers (Accel vs. Posit Gold Model):
     paths:
       - ./test_outputs
     expire_in: 1 week
-  script: 
+  script:
     - echo "Generating test data."
-    - pip install -r ./models/resnet/requirements.txt
-    - ./models/resnet/gen_resnet_data.py
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r ./models/resnet/requirements.txt
+    - python3 models/resnet/gen_resnet_data.py
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - ./run_tests.py --simulators accelerator,customposit --tolerance 0.5
+    - python3 run_tests.py --simulators accelerator,customposit --tolerance 0.01
 
 ResNet Layers (FP32 Gold Model vs. Pytorch):
   stage: test
@@ -46,13 +54,15 @@ ResNet Layers (FP32 Gold Model vs. Pytorch):
     paths:
       - ./test_outputs
     expire_in: 1 week
-  script: 
+  script:
     - echo "Generating test data."
-    - pip install -r ./models/resnet/requirements.txt
-    - ./models/resnet/gen_resnet_data.py
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r ./models/resnet/requirements.txt
+    - python3 models/resnet/gen_resnet_data.py
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - ./run_tests.py --simulators fp32,file --tolerance 0.5
+    - python3 run_tests.py --simulators fp32,file --tolerance 0.01
 
 ResNet Layers (Posit Gold Model vs. Pytorch):
   stage: test
@@ -63,13 +73,19 @@ ResNet Layers (Posit Gold Model vs. Pytorch):
     paths:
       - ./test_outputs
     expire_in: 1 week
-  script: 
+  script:
     - echo "Generating test data."
-    - pip install -r ./models/resnet/requirements.txt
-    - ./models/resnet/gen_resnet_data.py
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r ./models/resnet/requirements.txt
+    - python3 models/resnet/gen_resnet_data.py
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - ./run_tests.py --simulators customposit,file --tolerance 80.0
+    - python3 run_tests.py --simulators customposit,file --tolerance 10.0
+
+########################
+### ResNet End 2 End ###
+########################
 
 ResNet End2End (FP32 Gold Model vs. Pytorch):
   stage: test
@@ -82,14 +98,16 @@ ResNet End2End (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - echo "Generating test data."
-    - pip install -r ./models/resnet/requirements.txt
-    - ./models/resnet/gen_resnet_data.py
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r ./models/resnet/requirements.txt
+    - python3 models/resnet/gen_resnet_data.py
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - TOLERANCE=0.5 NETWORK=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner 
+    - TOLERANCE=0.01 NETWORK=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner
 
 ResNet End2End (Accel vs. Posit Gold Model):
   stage: test
@@ -102,14 +120,78 @@ ResNet End2End (Accel vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - echo "Generating test data."
-    - pip install -r ./models/resnet/requirements.txt
-    - ./models/resnet/gen_resnet_data.py
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r ./models/resnet/requirements.txt
+    - python3 models/resnet/gen_resnet_data.py
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - TOLERANCE=0.5 NETWORK=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
+    - TOLERANCE=0.05 NETWORK=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
+
+# TODO(fpedd): Reduce tolerance in "ResNet Accuracy (Pytorch vs. FP32 Gold Model)" and "ResNet Accuracy (Posit Gold Model vs. Accel)"
+ResNet Accuracy (Pytorch vs. FP32 Gold Model):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs_e2e
+    expire_in: 1 week
+  script:
+    - echo "Generating test data."
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r ./models/resnet/requirements.txt
+    - python3 models/resnet/gen_resnet_data.py --data_dir data/imagenet --binary_dir models/resnet/binary_data_imagenet --samples 256
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests_e2e.py -sims file,fp32 --samples 256 --data_dir models/resnet/binary_data_imagenet --tolerance 80.0 --accuracy_tolerance 0.65
+
+ResNet Accuracy (FP32 Gold Model vs. Posit Gold Model):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs_e2e
+    expire_in: 1 week
+  script:
+    - echo "Generating test data."
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r ./models/resnet/requirements.txt
+    - python3 models/resnet/gen_resnet_data.py --data_dir data/imagenet --binary_dir models/resnet/binary_data_imagenet --samples 256
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests_e2e.py -sims fp32,customposit --samples 256 --data_dir models/resnet/binary_data_imagenet --tolerance 80.0 --accuracy_tolerance 0.65
+
+ResNet Accuracy (Posit Gold Model vs. Accel):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs_e2e
+    expire_in: 1 week
+  script:
+    - echo "Generating test data."
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r ./models/resnet/requirements.txt
+    - python3 models/resnet/gen_resnet_data.py --data_dir data/imagenet --binary_dir models/resnet/binary_data_imagenet --samples 64
+    - echo "Running tests."
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests_e2e.py -sims customposit,accelerator --samples 64 --data_dir models/resnet/binary_data_imagenet --tolerance 80.0 --accuracy_tolerance 0.60
+
+#################################
+### MobileBERT Layer by Layer ###
+#################################
 
 MobileBERT Layers (FP32 Gold Model vs. Pytorch):
   stage: test
@@ -127,7 +209,7 @@ MobileBERT Layers (FP32 Gold Model vs. Pytorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators fp32,pytorch --tolerance 0.002
+    - python3 run_tests.py --model mobilebert --simulators fp32,pytorch --tolerance 0.01
 
 MobileBERT Layers (Posit Gold Model vs. PyTorch):
   stage: test
@@ -145,7 +227,7 @@ MobileBERT Layers (Posit Gold Model vs. PyTorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators customposit,pytorch --tolerance 80
+    - python3 run_tests.py --model mobilebert --simulators customposit,pytorch --tolerance 80.0
 
 MobileBERT Layers (Accel. vs. Posit Gold Model):
   stage: test
@@ -163,13 +245,17 @@ MobileBERT Layers (Accel. vs. Posit Gold Model):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - ./run_tests.py --model mobilebert --simulators accelerator,customposit --tolerance 0
+    - python3 run_tests.py --model mobilebert --simulators accelerator,customposit --tolerance 0.01
+
+##################
+### Unit Tests ###
+##################
 
 Posit Unit Tests:
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
-  script: 
+  script:
     - echo "Running posit tests."
     - make PositTest
     - ./build/PositTest
