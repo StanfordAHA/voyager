@@ -129,7 +129,7 @@ ResNet End2End (Accel vs. Posit Gold Model):
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - TOLERANCE=0.05 NETWORK=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
+    - TOLERANCE=0.15 NETWORK=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
 
 # TODO(fpedd): Reduce tolerance in "ResNet Accuracy (Pytorch vs. FP32 Gold Model)" and "ResNet Accuracy (Posit Gold Model vs. Accel)"
 ResNet Accuracy (Pytorch vs. FP32 Gold Model):
