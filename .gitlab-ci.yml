@@ -259,3 +259,46 @@ Posit Unit Tests:
     - echo "Running posit tests."
     - make PositTest
     - ./build/PositTest
+
+#######################
+### Regenerate RTL  ###
+#######################
+
+Generate RTL:
+  stage: test
+  tags:
+    - tsmc40
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  rules:
+    - if: $CI_COMMIT_BRANCH == 'master'
+    - changes:
+      - src/**/*
+      - scripts/**/*
+  before_script:
+    - git config user.email "cadjoe@email.com"
+    - git config user.name "CAD-Joe"
+    - git config http.sslverify false
+    - git remote remove gitlab_origin || true # Local repo state may be cached
+    - git remote add gitlab_origin https://oauth2:$ACCESS_TOKEN@code.stanford.edu/tsmc40r/brainpower/accelerator.git
+    - git lfs install
+    - git lfs pull
+  script: 
+    - export PATH=/sim2/shared/bin:$PATH
+    - git submodule update --init --recursive
+    - eval `modulecmd bash load base catapult/2022.2 vcs verdi/S-2021.09-SP1`
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/lib:/cad/mentor/2021.1/Mgc_home/shared/lib:$PATH
+    - export VG_GNU_PACKAGE=/cad/synopsys/vcs_gnu_package/S-2021.09/gnu/linux
+    - source /cad/synopsys/vcs_gnu_package/S-2021.09/gnu/linux/source_me.sh
+    - make -j4 rtl
+    - git add release/concat_rtl.v
+    - git commit -m "[ci skip] Update RTL"
+    - git checkout -b tmp_branch
+    - git checkout $CI_COMMIT_BRANCH
+    - git pull origin $CI_COMMIT_BRANCH
+    - git checkout tmp_branch
+    - git rebase $CI_COMMIT_BRANCH
+    - git checkout $CI_COMMIT_BRANCH
+    - git merge tmp_branch
+    - git push gitlab_origin $CI_COMMIT_BRANCH
+    - git branch -d tmp_branch
