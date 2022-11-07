@@ -193,7 +193,7 @@ ResNet Accuracy (Posit Gold Model vs. Accel):
 ### MobileBERT Layer by Layer ###
 #################################
 
-MobileBERT Layers (FP32 Gold Model vs. Pytorch):
+MobileBERT Inference (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -211,7 +211,7 @@ MobileBERT Layers (FP32 Gold Model vs. Pytorch):
     - mkdir ./test_outputs
     - python3 run_tests.py --model mobilebert --simulators fp32,pytorch --tolerance 0.01
 
-MobileBERT Layers (Posit Gold Model vs. PyTorch):
+MobileBERT Inference (Posit Gold Model vs. PyTorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -229,7 +229,7 @@ MobileBERT Layers (Posit Gold Model vs. PyTorch):
     - mkdir ./test_outputs
     - python3 run_tests.py --model mobilebert --simulators customposit,pytorch --tolerance 80.0
 
-MobileBERT Layers (Accel. vs. Posit Gold Model):
+MobileBERT Inference (Accel. vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -247,7 +247,7 @@ MobileBERT Layers (Accel. vs. Posit Gold Model):
     - mkdir ./test_outputs
     - python3 run_tests.py --model mobilebert --simulators accelerator,customposit --tolerance 0.01
 
-MobileBERT Act. Gradient (FP32 Gold Model vs. Pytorch):
+MobileBERT Activation Gradient (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -259,13 +259,13 @@ MobileBERT Act. Gradient (FP32 Gold Model vs. Pytorch):
   script:
     - echo "Generating test data."
     - pip install -r ./models/mobilebert/requirements.txt
-    - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
+    - ./models/mobilebert/gen_mobilebert_data.py --datapath data/sst2_train
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
     - python3 run_tests.py --model mobilebert --task backward --simulators fp32,pytorch --tolerance 0.01
 
-MobileBERT Act. Gradient (Posit Gold Model vs. PyTorch):
+MobileBERT Activation Gradient (Posit Gold Model vs. PyTorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -277,7 +277,7 @@ MobileBERT Act. Gradient (Posit Gold Model vs. PyTorch):
   script:
     - echo "Generating test data."
     - pip install -r ./models/mobilebert/requirements.txt
-    - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
+    - ./models/mobilebert/gen_mobilebert_data.py --datapath data/sst2_train
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
@@ -295,7 +295,7 @@ MobileBERT Weight Gradient (FP32 Gold Model vs. Pytorch):
   script:
     - echo "Generating test data."
     - pip install -r ./models/mobilebert/requirements.txt
-    - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
+    - ./models/mobilebert/gen_mobilebert_data.py --datapath data/sst2_train
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
@@ -313,7 +313,7 @@ MobileBERT Weight Gradient (Posit Gold Model vs. PyTorch):
   script:
     - echo "Generating test data."
     - pip install -r ./models/mobilebert/requirements.txt
-    - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
+    - ./models/mobilebert/gen_mobilebert_data.py --datapath data/sst2_train
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
