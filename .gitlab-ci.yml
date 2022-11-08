@@ -141,6 +141,8 @@ ResNet Accuracy (Pytorch vs. FP32 Gold Model):
     paths:
       - ./test_outputs_e2e
     expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
   script:
     - echo "Generating test data."
     # - python3 -m venv venv
@@ -160,6 +162,8 @@ ResNet Accuracy (FP32 Gold Model vs. Posit Gold Model):
     paths:
       - ./test_outputs_e2e
     expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
   script:
     - echo "Generating test data."
     # - python3 -m venv venv
@@ -179,6 +183,8 @@ ResNet Accuracy (Posit Gold Model vs. Accel):
     paths:
       - ./test_outputs_e2e
     expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
   script:
     - echo "Generating test data."
     # - python3 -m venv venv
