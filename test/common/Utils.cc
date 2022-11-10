@@ -154,6 +154,7 @@ float compare_arrays_internal(TA *matrixA, std::string matrixA_name,
   std::cout << std::endl;
 
   // Ideally, these buckets should be non-overlapping...
+  // TODO(fpedd): Subtract the next smaller bucket to make them non-overlapping
   float err = (1 - (float)rel_diff_buckets[1] / size) * 0.001 +
               (1 - (float)rel_diff_buckets[2] / size) * 0.01 +
               (1 - (float)rel_diff_buckets[3] / size) * 0.1 +

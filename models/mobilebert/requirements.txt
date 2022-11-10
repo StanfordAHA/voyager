@@ -1,4 +1,0 @@
-dill
-numpy
-torch
-torchvision

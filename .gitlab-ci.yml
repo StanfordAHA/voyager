@@ -204,7 +204,7 @@ MobileBERT Layers (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - echo "Generating test data."
-    - pip install -r ./models/mobilebert/requirements.txt
+    - pip install -r requirements.txt
     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
@@ -222,7 +222,7 @@ MobileBERT Layers (Posit Gold Model vs. PyTorch):
     expire_in: 1 week
   script:
     - echo "Generating test data."
-    - pip install -r ./models/mobilebert/requirements.txt
+    - pip install -r requirements.txt
     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
@@ -240,7 +240,7 @@ MobileBERT Layers (Accel. vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - echo "Generating test data."
-    - pip install -r ./models/mobilebert/requirements.txt
+    - pip install -r requirements.txt
     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
@@ -258,7 +258,7 @@ MobileBERT Act. Gradient (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - echo "Generating test data."
-    - pip install -r ./models/mobilebert/requirements.txt
+    - pip install -r requirements.txt
     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
@@ -276,7 +276,7 @@ MobileBERT Act. Gradient (Posit Gold Model vs. PyTorch):
     expire_in: 1 week
   script:
     - echo "Generating test data."
-    - pip install -r ./models/mobilebert/requirements.txt
+    - pip install -r requirements.txt
     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
@@ -294,7 +294,7 @@ MobileBERT Weight Gradient (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - echo "Generating test data."
-    - pip install -r ./models/mobilebert/requirements.txt
+    - pip install -r requirements.txt
     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
@@ -312,7 +312,7 @@ MobileBERT Weight Gradient (Posit Gold Model vs. PyTorch):
     expire_in: 1 week
   script:
     - echo "Generating test data."
-    - pip install -r ./models/mobilebert/requirements.txt
+    - pip install -r requirements.txt
     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
@@ -345,8 +345,8 @@ Generate RTL:
   rules:
     - if: $CI_COMMIT_BRANCH == 'master'
       changes:
-      - src/**/*
-      - scripts/**/*
+        - src/**/*
+        - scripts/**/*
   before_script:
     - git config user.email "cadjoe@email.com"
     - git config user.name "CAD-Joe"
@@ -355,7 +355,7 @@ Generate RTL:
     - git remote add gitlab_origin https://oauth2:$ACCESS_TOKEN@code.stanford.edu/tsmc40r/brainpower/accelerator.git
     - git lfs install
     - git lfs pull
-  script: 
+  script:
     - export PATH=/sim2/shared/bin:$PATH
     - git submodule update --init --recursive
     - eval `modulecmd bash load base catapult/2022.2 vcs verdi/S-2021.09-SP1`
