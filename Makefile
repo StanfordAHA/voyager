@@ -78,7 +78,7 @@ build/Catapult_WeightController/WeightController.v1/concat_rtl.v: src/WeightCont
 	catapult -shell -file scripts/WeightController.tcl
 build/Catapult_ProcessingElement/ProcessingElement.v1/concat_rtl.v: src/ProcessingElement.h
 	catapult -shell -file scripts/ProcessingElement.tcl
-build/Catapult_MatrixProcessor/MatrixProcessor.v1/concat_rtl.v: build/Catapult_ProcessingElement/ProcessingElement.v1/concat_rtl.v
+build/Catapult_MatrixProcessor/MatrixProcessor.v1/concat_rtl.v: src/MatrixProcessor.h src/SystolicArray.h src/Skewer.h build/Catapult_ProcessingElement/ProcessingElement.v1/concat_rtl.v
 	catapult -shell -file scripts/MatrixProcessor.tcl
 build/Catapult_VectorUnit/VectorUnit.v1/concat_rtl.v: build/Catapult_MaxpoolUnit/MaxpoolUnit.v1/concat_rtl.v build/Catapult_OutputAddressGenerator/OutputAddressGenerator.v1/concat_rtl.v build/Catapult_VectorFetchUnit/VectorFetchUnit.v1/concat_rtl.v build/Catapult_VectorOpUnit/VectorOpUnit.v1/concat_rtl.v
 	catapult -shell -file scripts/VectorUnit.tcl
