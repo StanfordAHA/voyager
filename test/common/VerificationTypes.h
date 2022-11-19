@@ -134,3 +134,10 @@ const int GRADIENT_OFFSET =
     ACTIVATION_OFFSET + 24 * ENCODER_ACTIVATION_SIZE + INTERMEDIATE_SIZE + 16;
 const int ERROR_OFFSET = GRADIENT_OFFSET + 24 * ENCODER_WEIGHT_SIZE +
                          16 * BIAS_INTERMEDIATE_SIZE + 32;
+
+struct Workload {
+  std::string name;
+  SimplifiedParams params;
+  Files files;
+  MemoryMap memoryMap;
+};

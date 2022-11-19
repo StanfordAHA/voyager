@@ -156,7 +156,7 @@ sim: build/TestRunner
 .PHONY: TestRunner
 TestRunner: build/TestRunner
 
-build/TestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/DataLoader.o build/toolchain.a
+build/TestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/DataLoader.o build/Simulation.o build/ResNet18.o build/toolchain.a
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
 # Unit tests for custom Posit implementation
@@ -181,8 +181,17 @@ build/Utils.o: test/common/Utils.cc test/common/Utils.h src/ArchitectureParams.h
 build/DataLoader.o: test/common/DataLoader.cc test/common/DataLoader.h src/ArchitectureParams.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
-build/TestRunner.o: test/common/TestRunner.cc test/simple/params.h test/resnet/params.h test/mobilebert/*.h
+build/Simulation.o: test/common/Simulation.cc test/common/Simulation.h src/ArchitectureParams.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
+
+build/TestRunner.o: test/common/TestRunner.cc
+	$(CC) $(C17FLAGS) -c -o $@ $<
+
+# Models
+build/ResNet18.o: test/resnet/ResNet18.cc test/resnet/ResNet18.h test/resnet/params.h
+	$(CC) $(C17FLAGS) -c -o $@ $<
+
+# TODO: Compile MobileBERT-related files
 
 ###########################################################
 # Toolchain

@@ -316,44 +316,43 @@ void load_datafile_outputs(const SimplifiedParams params,
 }
 
 void load_memory(
-    const SimplifiedParams& params, const std::string& dataDir,
-    const Files& files, const MemoryMap& memoryMap, bool useDataFile,
-    INPUT_DATATYPE* sramMemory, INPUT_DATATYPE* rramMemory,
-    INPUT_DATATYPE* matrixA, INPUT_DATATYPE* matrixB,
-    INPUT_DATATYPE* biasMatrix, INPUT_DATATYPE* residualMatrix,
-    INPUT_DATATYPE* matrixC, INPUT_DATATYPE* dataFileOutput,
-    UniversalPosit* universalMatrixA, UniversalPosit* universalMatrixB,
-    UniversalPosit* universalBiasMatrix,
+    const SimplifiedParams& params, const Files& files,
+    const MemoryMap& memoryMap, bool useDataFile, INPUT_DATATYPE* sramMemory,
+    INPUT_DATATYPE* rramMemory, INPUT_DATATYPE* matrixA,
+    INPUT_DATATYPE* matrixB, INPUT_DATATYPE* biasMatrix,
+    INPUT_DATATYPE* residualMatrix, INPUT_DATATYPE* matrixC,
+    INPUT_DATATYPE* dataFileOutput, UniversalPosit* universalMatrixA,
+    UniversalPosit* universalMatrixB, UniversalPosit* universalBiasMatrix,
     UniversalPosit* universalResidualMatrix, UniversalPosit* universalMatrixC,
     UniversalPosit* universalDataFileOutput, float* floatMatrixA,
     float* floatMatrixB, float* floatBiasMatrix, float* floatResidualMatrix,
     float* floatMatrixC, float* floatDataFileOutput) {
-  load_inputs(params, dataDir + files.inputs_file, useDataFile,
+  load_inputs(params, files.inputs_file, useDataFile,
               memoryMap.inputs == SRAM ? sramMemory : rramMemory, matrixA,
               universalMatrixA, floatMatrixA);
   // if (params.WEIGHT) {
-  //   load_weights(params, dataDir + files.weights_file, useDataFile,
-  //                memoryMap.weights == SRAM ? sramMemory : rramMemory, matrixB,
-  //                universalMatrixB, floatMatrixB);
+  //   load_weights(params, files.weights_file, useDataFile,
+  //                memoryMap.weights == SRAM ? sramMemory : rramMemory,
+  //                matrixB, universalMatrixB, floatMatrixB);
   // }
   // if (params.BIAS) {
-  //   load_bias(params, dataDir + files.bias_file, useDataFile,
+  //   load_bias(params, files.bias_file, useDataFile,
   //             memoryMap.bias == SRAM ? sramMemory : rramMemory, biasMatrix,
   //             universalBiasMatrix, floatBiasMatrix);
   // }
   if (params.RESIDUAL) {
-    load_residual(params, dataDir + files.residual_file, useDataFile,
+    load_residual(params, files.residual_file, useDataFile,
                   memoryMap.residual == SRAM ? sramMemory : rramMemory,
                   residualMatrix, universalResidualMatrix, floatResidualMatrix);
   }
   if (useDataFile) {
-    load_datafile_outputs(params, dataDir + files.outputs_file, dataFileOutput,
+    load_datafile_outputs(params, files.outputs_file, dataFileOutput,
                           universalDataFileOutput, floatDataFileOutput);
   }
 }
 
-void load_wb(const SimplifiedParams& params, const std::string& dataDir,
-             const Files& files, const MemoryMap& memoryMap, bool useDataFile,
+void load_wb(const SimplifiedParams& params, const Files& files,
+             const MemoryMap& memoryMap, bool useDataFile,
              INPUT_DATATYPE* sramMemory, INPUT_DATATYPE* rramMemory,
              INPUT_DATATYPE* matrixA, INPUT_DATATYPE* matrixB,
              INPUT_DATATYPE* biasMatrix, INPUT_DATATYPE* residualMatrix,
@@ -366,11 +365,11 @@ void load_wb(const SimplifiedParams& params, const std::string& dataDir,
              float* floatMatrixB, float* floatBiasMatrix,
              float* floatResidualMatrix, float* floatMatrixC,
              float* floatDataFileOutput) {
-  load_weights(params, dataDir + files.weights_file, useDataFile,
+  load_weights(params, files.weights_file, useDataFile,
                memoryMap.weights == SRAM ? sramMemory : rramMemory, matrixB,
                universalMatrixB, floatMatrixB);
   if (params.BIAS) {
-    load_bias(params, dataDir + files.bias_file, useDataFile,
+    load_bias(params, files.bias_file, useDataFile,
               memoryMap.bias == SRAM ? sramMemory : rramMemory, biasMatrix,
               universalBiasMatrix, floatBiasMatrix);
   }
