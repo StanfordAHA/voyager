@@ -215,7 +215,7 @@ MobileBERT Inference (FP32 Gold Model vs. Pytorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - python3 run_tests.py --model mobilebert --simulators fp32,pytorch --tolerance 0.01
+    - python3 run_tests.py --model mobilebert --simulators fp32,file --tolerance 0.01
 
 MobileBERT Inference (Posit Gold Model vs. PyTorch):
   stage: test
@@ -233,7 +233,7 @@ MobileBERT Inference (Posit Gold Model vs. PyTorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - python3 run_tests.py --model mobilebert --simulators customposit,pytorch --tolerance 80.0
+    - python3 run_tests.py --model mobilebert --simulators customposit,file --tolerance 80.0
 
 MobileBERT Inference (Accel. vs. Posit Gold Model):
   stage: test
@@ -269,7 +269,7 @@ MobileBERT Activation Gradient (FP32 Gold Model vs. Pytorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - python3 run_tests.py --model mobilebert --task backward --simulators fp32,pytorch --tolerance 0.01
+    - python3 run_tests.py --model mobilebert --task backward --simulators fp32,file --tolerance 0.01
 
 MobileBERT Activation Gradient (Posit Gold Model vs. PyTorch):
   stage: test
@@ -287,7 +287,7 @@ MobileBERT Activation Gradient (Posit Gold Model vs. PyTorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - python3 run_tests.py --model mobilebert --task backward --simulators customposit,pytorch --tolerance 80.0
+    - python3 run_tests.py --model mobilebert --task backward --simulators customposit,file --tolerance 80.0
 
 MobileBERT Weight Gradient (FP32 Gold Model vs. Pytorch):
   stage: test
@@ -305,7 +305,7 @@ MobileBERT Weight Gradient (FP32 Gold Model vs. Pytorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - python3 run_tests.py --model mobilebert --task gradient --simulators fp32,pytorch --tolerance 0.01
+    - python3 run_tests.py --model mobilebert --task gradient --simulators fp32,file --tolerance 0.01
 
 MobileBERT Weight Gradient (Posit Gold Model vs. PyTorch):
   stage: test
@@ -323,7 +323,7 @@ MobileBERT Weight Gradient (Posit Gold Model vs. PyTorch):
     - echo "Running tests."
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
-    - python3 run_tests.py --model mobilebert --task gradient --simulators customposit,pytorch --tolerance 80.0
+    - python3 run_tests.py --model mobilebert --task gradient --simulators customposit,file --tolerance 80.0
 
 ##################
 ### Unit Tests ###
