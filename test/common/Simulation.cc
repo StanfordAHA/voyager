@@ -7,7 +7,7 @@
 #include "test/common/UniversalPosit.h"
 #include "test/common/Utils.h"
 #include "test/mobilebert/MobileBERT.h"
-#include "test/resnet/ResNet18.h"
+#include "test/resnet/ResNet.h"
 
 #ifdef SOC_COSIM
 #include <experimental/filesystem>
@@ -18,33 +18,12 @@ namespace filesystem = experimental::filesystem;
 #include <filesystem>
 #endif
 
-// Iterate over string and return vector of substrings
-template <typename T>
-void split_string(const std::string& in_string, char delim, T result) {
-  std::istringstream ss(in_string);
-  std::string item;
-  while (std::getline(ss, item, delim)) {
-    *result++ = item;
-  }
-}
-
-Simulation::Simulation(int argc, char* argv[]) {
-#ifndef SOC_COSIM
-  if (argc > 1) {
-    std::cerr
-        << "ERROR: Don't supply command line arguments, instead use env vars."
-        << std::endl;
-    print_help();
-    std::abort();
-  }
-#endif
-
-  // TODO(fpedd): Implement more cmd line arg tests
+Simulation::Simulation() {
   model = get_env_var("NETWORK");
-  if (model.empty()) model = "simple";
+  if (model.empty()) model = "resnet";
 
   std::string tests(get_env_var("TESTS"));
-  if (tests.empty()) tests = "simple";
+  if (tests.empty()) tests = "fc";
 
   std::string simsEnv(get_env_var("SIMS"));
   if (simsEnv.empty()) simsEnv = "accelerator,customposit";
@@ -54,23 +33,10 @@ Simulation::Simulation(int argc, char* argv[]) {
   if (task.empty()) task = "inference";
 
   std::string tolerance_str(get_env_var("TOLERANCE"));
-  tolerance = 0.1;
   if (!tolerance_str.empty()) tolerance = std::stof(tolerance_str);
 
   // Paths are relative to Makefile
   std::string data_dir(get_env_var("DATA_DIR"));
-  if (data_dir.empty()) {
-    if (model == "resnet") {
-      std::string raw_data_dir = "./models/resnet/binary_data/";
-      data_dir = (*std::filesystem::begin(
-                      std::filesystem::directory_iterator(raw_data_dir)))
-                     .path()
-                     .string() +
-                 '/';
-    } else if (model == "mobilebert") {
-      data_dir = "./data/mobilebert_tiny/datafile/step0/";
-    }
-  }
 
   out_dir = get_env_var("OUT_DIR");
   if (out_dir.empty()) out_dir = "./test_outputs/";
@@ -87,6 +53,27 @@ Simulation::Simulation(int argc, char* argv[]) {
 
   // Parse sims to run
   split_string(simsEnv, ',', std::back_inserter(sims));
+  if (sims.size() & 0x01) {
+    std::cerr << "ERROR: Need to supply even number of sim pairs." << std::endl;
+    print_help();
+    std::abort();
+  }
+
+  // Construct required network
+  std::unique_ptr<Network> network;
+  if (model == "resnet") {
+    network = std::make_unique<ResNet>(data_dir);
+  } else if (model == "mobilenetv2") {
+    throw std::runtime_error("Not implemented.");
+    // network = new MobileNetV2(data_dir);
+  } else if (model == "mobilebert") {
+    network = std::make_unique<MobileBERT>(data_dir, task);
+  } else {
+    throw std::runtime_error("Unsupported model.");
+  }
+
+  // Collect workloads (aka. layers) from Network
+  workloads = network->getWorkloads(tests_list);
 
   std::cout << "Starting new simulation with config:";
   std::cout << "\n> Model: " << model;
@@ -96,38 +83,10 @@ Simulation::Simulation(int argc, char* argv[]) {
   for (const std::string& s : sims) std::cout << s << ' ';
   if (model == "mobilebert") std::cout << "\n> Task: " << task;
   std::cout << "\n> Tolerance: " << tolerance;
-  std::cout << "\n> Data dir: " << data_dir;
+  std::cout << "\n> Data dir: " << network->getDataDir();
   std::cout << "\n> Out dir: " << out_dir << "\n";
   std::cout << "> SRAM: " << SRAM_MEMORY_SIZE / 1024 << " KB\n";
   std::cout << "> RRAM: " << RRAM_MEMORY_SIZE / 1024 << " KB\n" << std::endl;
-
-  if (model == "resnet") {
-    ResNet18 resnet18;
-    workloads = resnet18.getWorkloads(tests_list);
-  } else if (model == "mobilebert") {
-    MobileBERT mobileBERT(task);
-    workloads = mobileBERT.getWorkloads(tests_list);
-  }
-}
-
-// Return environment variable
-std::string Simulation::get_env_var(std::string const& name) {
-  const char* val = std::getenv(name.c_str());
-  return val == NULL ? std::string() : std::string(val);
-}
-
-void Simulation::print_help() {
-  std::cout
-      << "\nConfigure simulator by using environment variables."
-      << "\n NETWORK - Type of network to run {mobilebert, resnet}"
-      << "\n TESTS - Layers in network to run. Either single or tuple: "
-         "<first>,<last>."
-      << "\n SIMS - Simulators / models to compare {accelerator, "
-         "customposit, universal, fp32, file}."
-      << "\n TASK - MobileBERT run time (forward, backward, e2e)."
-      << "\n TOLERANCE - Relative normalized error in % we allow (default 10)."
-      << "\n DATA_DIR - Path to binary input data."
-      << "\n OUT_DIR - Path to output data." << std::endl;
 }
 
 void Simulation::loadMemory() {
@@ -350,4 +309,35 @@ int Simulation::checkOutput() {
   }
 
   return error_count;
+}
+
+// Iterate over string and return vector of substrings cut at delim
+template <typename T>
+void Simulation::split_string(const std::string& in_string, char delim,
+                              T result) {
+  std::istringstream ss(in_string);
+  std::string item;
+  while (std::getline(ss, item, delim)) {
+    *result++ = item;
+  }
+}
+
+// Return environment variable
+std::string Simulation::get_env_var(std::string const& name) {
+  const char* val = std::getenv(name.c_str());
+  return val == NULL ? std::string() : std::string(val);
+}
+
+void Simulation::print_help() {
+  std::cout
+      << "\nConfigure simulator by using environment variables."
+      << "\n NETWORK - Type of network to run {mobilebert, resnet}"
+      << "\n TESTS - Layers in network to run. Either single or tuple: "
+         "<first>,<last>."
+      << "\n SIMS - Simulators / models to compare {accelerator, "
+         "customposit, universal, fp32, file}."
+      << "\n TASK - MobileBERT run time (forward, backward, e2e)."
+      << "\n TOLERANCE - Relative normalized error in % we allow (default 10)."
+      << "\n DATA_DIR - Path to binary input data."
+      << "\n OUT_DIR - Path to output data." << std::endl;
 }

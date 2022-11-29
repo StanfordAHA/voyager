@@ -19,25 +19,27 @@ void run_op(std::vector<SimplifiedParams> params_list,
 
 class Simulation {
  public:
-  Simulation(int argc, char* argv[]);
+  Simulation();
 
   void loadMemory();
   void run();
   int checkOutput();
+  void print_help();
 
  private:
   std::vector<Workload> workloads;
   std::vector<std::string> sims;
   std::string out_dir;
   std::string model;
-  float tolerance;
+  float tolerance = 0.1;
 
   SimpleMemoryModel<INPUT_DATATYPE>* acceleratorMemory;
   SimpleMemoryModel<INPUT_DATATYPE>* positMemory;
   SimpleMemoryModel<float>* floatMemory;
   SimpleMemoryModel<UniversalPosit>* universalPositMemory;
 
-  // Return environment variable
   std::string get_env_var(std::string const& name);
-  void print_help();
+
+  template <typename T>
+  void split_string(const std::string& in_string, char delim, T result);
 };

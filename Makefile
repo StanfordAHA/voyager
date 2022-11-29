@@ -156,7 +156,7 @@ sim: build/TestRunner
 .PHONY: TestRunner
 TestRunner: build/TestRunner
 
-build/TestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/MemoryModel.o build/SimpleMemoryModel.o build/Simulation.o build/ResNet18.o build/MobileBERT.o build/toolchain.a
+build/TestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/MemoryModel.o build/SimpleMemoryModel.o build/Simulation.o build/ResNet.o build/MobileBERT.o build/toolchain.a
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
 # Unit tests for custom Posit implementation
@@ -191,7 +191,7 @@ build/TestRunner.o: test/common/TestRunner.cc
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 # Models
-build/ResNet18.o: test/resnet/ResNet18.cc test/resnet/ResNet18.h test/resnet/params.h
+build/ResNet.o: test/resnet/ResNet.cc test/resnet/ResNet.h test/resnet/params.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 build/MobileBERT.o: test/mobilebert/MobileBERT.cc test/mobilebert/MobileBERT.h

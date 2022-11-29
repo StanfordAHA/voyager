@@ -9,14 +9,14 @@
 
 class MobileBERT : public Network {
  public:
-  MobileBERT(const std::string &);
+  MobileBERT(const std::string &, const std::string &);
+  ~MobileBERT(void){};
 
   std::vector<Workload> getWorkloads(
       const std::vector<std::string> &) const override;
 
  private:
   std::string task;
-  std::string dataDir;
 
   std::vector<std::string> order;
   std::map<std::string, std::string> paramsMapping;

@@ -2,9 +2,7 @@
 
 #include <algorithm>
 
-MobileBERT::MobileBERT(const std::string& task) {
-  this->task = task;
-
+MobileBERT::MobileBERT(const std::string& dataDir, const std::string& task) {
   inferenceOrder = {"bottleneck_input_dense",
                     "bottleneck_input_LayerNorm",
                     "attention_self_query_layer",
@@ -4013,19 +4011,21 @@ MobileBERT::MobileBERT(const std::string& task) {
        }},
   };
 
-  if (task == "inference") {
+  this->task = task;
+
+  if (this->task == "inference") {
     order = inferenceOrder;
     paramsMapping = inferenceParamsMapping;
     params = inferenceParams;
     memOffsets = inferenceMemOffsets;
     testFiles = inferenceTestFiles;
-  } else if (task == "gradient") {
+  } else if (this->task == "gradient") {
     // NOTE: order is not defined for gradient
     paramsMapping = gradientParamsMapping;
     params = gradientParams;
     memOffsets = gradientMemOffsets;
     testFiles = gradientTestFiles;
-  } else if (task == "backprop") {
+  } else if (this->task == "backprop") {
     order = backpropOrder;
     paramsMapping = backpropParamsMapping;
     params = backpropParams;
@@ -4037,11 +4037,10 @@ MobileBERT::MobileBERT(const std::string& task) {
     std::abort();
   }
 
-  const char* dataDirEnv = std::getenv("DATA_DIR");
-  if (dataDirEnv == NULL) {
-    dataDir = "./data/mobilebert_tiny/datafile/step0/";
+  if (dataDir.empty()) {
+    this->dataDir = "./data/mobilebert_tiny/datafile/step0/";
   } else {
-    dataDir = std::string(dataDirEnv);
+    this->dataDir = dataDir;
   }
 }
 
