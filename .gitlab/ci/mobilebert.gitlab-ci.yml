@@ -17,7 +17,7 @@ MobileBERT Inference (FP32 Gold Model vs. Pytorch):
     # - pip install -r requirements.txt
     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model mobilebert --simulators fp32,pytorch --tolerance 0.01
+    - python3 run_tests.py --model mobilebert --simulators fp32,file --tolerance 0.01
 
 MobileBERT Inference (Accel. vs. Posit Gold Model):
   stage: test
@@ -53,7 +53,7 @@ MobileBERT Activation Gradient (FP32 Gold Model vs. Pytorch):
     # - pip install -r requirements.txt
     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/sst2_train
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model mobilebert --task backward --simulators fp32,pytorch --tolerance 0.01
+    - python3 run_tests.py --model mobilebert --task backward --simulators fp32,file --tolerance 0.01
 
 MobileBERT Weight Gradient (FP32 Gold Model vs. Pytorch):
   stage: test
@@ -70,4 +70,4 @@ MobileBERT Weight Gradient (FP32 Gold Model vs. Pytorch):
     # - pip install -r requirements.txt
     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/sst2_train
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model mobilebert --task gradient --simulators fp32,pytorch --tolerance 0.01
+    - python3 run_tests.py --model mobilebert --task gradient --simulators fp32,file --tolerance 0.01
