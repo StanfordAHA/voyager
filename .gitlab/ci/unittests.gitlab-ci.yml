@@ -1,0 +1,12 @@
+##################
+### Unit Tests ###
+##################
+
+Posit Unit Tests:
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    - echo "Running posit tests."
+    - make PositTest
+    - ./build/PositTest
