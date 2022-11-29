@@ -9,142 +9,12 @@ import sys
 import os
 import logging
 
-NETWORKS = {
-    "mobilebert":
-    [
-        "bottleneck_input_dense",
-        "bottleneck_input_LayerNorm",
-        "attention_self_query_layer",
-        "attention_self_key_layer",
-        "attention_self_value_layer",
-        "attention_self_attention_scores_0",
-        "attention_self_attention_scores_1",
-        "attention_self_attention_scores_2",
-        "attention_self_attention_scores_3",
-        "attention_self_attention_probs_0",
-        "attention_self_attention_probs_1",
-        "attention_self_attention_probs_2",
-        "attention_self_attention_probs_3",
-        "attention_self_context_layer_0",
-        "attention_self_context_layer_1",
-        "attention_self_context_layer_2",
-        "attention_self_context_layer_3",
-        "attention_output_dense",
-        "attention_output_LayerNorm",
-        "ffn_0_intermediate_dense",
-        "ffn_0_output_dense",
-        "ffn_0_output_LayerNorm",
-        "intermediate_dense",
-        "output_dense",
-        "output_LayerNorm",
-        "output_bottleneck_dense",
-        "output_bottleneck_LayerNorm",
-        "classifier",
-    ],
-    "mobilebert_activation_gradient": [
-        "classifier",
-        "output_bottleneck_LayerNorm",
-        "output_bottleneck_dense",
-        "output_LayerNorm",
-        "output_dense",
-        "intermediate_dense",
-        "ffn_0_output_LayerNorm",
-        "ffn_0_output_dense",
-        "ffn_0_intermediate_dense",
-        "attention_output_LayerNorm",
-        "attention_output_dense",
-        "bottleneck_input_dense",
-        "attention_self_context_layer",
-        "attention_self_value_layer_3",
-        "attention_self_value_layer_2",
-        "attention_self_value_layer_1",
-        "attention_self_value_layer_0",
-        "attention_self_attention_probs_0",
-        "attention_self_attention_probs_1",
-        "attention_self_attention_probs_2",
-        "attention_self_attention_probs_3",
-        "attention_self_attention_scores_0",
-        "attention_self_attention_scores_1",
-        "attention_self_attention_scores_2",
-        "attention_self_attention_scores_3",
-        "attention_self_query_layer_3",
-        "attention_self_query_layer_2",
-        "attention_self_query_layer_1",
-        "attention_self_query_layer_0",
-        "attention_self_key_layer_3",
-        "attention_self_key_layer_2",
-        "attention_self_key_layer_1",
-        "attention_self_key_layer_0",
-        # "bottleneck_attention_LayerNorm_q",
-        # "bottleneck_attention_LayerNorm_k",
-        "bottleneck_attention_dense",
-        # "shared_attention_input_to_hidden_states",
-        # "value_to_hidden_states",
-        # "bottlenecked_hidden_states",
-    ],
-    "mobilebert_weight_gradient": [
-        "classifier_weight",
-        "classifier_bias",
-        "output_bottleneck_LayerNorm_weight",
-        "output_bottleneck_LayerNorm_bias",
-        "output_bottleneck_dense_weight",
-        "output_bottleneck_dense_bias",
-        "output_LayerNorm_weight",
-        "output_LayerNorm_bias",
-        "output_dense_weight",
-        "output_dense_bias",
-        "intermediate_dense_weight",
-        "intermediate_dense_bias",
-        "ffn_0_output_LayerNorm_weight",
-        "ffn_0_output_LayerNorm_bias",
-        "ffn_0_output_dense_weight",
-        "ffn_0_output_dense_bias",
-        "ffn_0_intermediate_dense_weight",
-        "ffn_0_intermediate_dense_bias",
-        "attention_output_LayerNorm_weight",
-        "attention_output_LayerNorm_bias",
-        "attention_output_dense_weight",
-        "attention_output_dense_bias",
-        "attention_self_value_weight",
-        "attention_self_value_bias",
-        "attention_self_query_weight",
-        "attention_self_query_bias",
-        "attention_self_key_weight",
-        # "attention_self_key_bias", # this test is known to fail
-        "bottleneck_attention_LayerNorm_weight",
-        "bottleneck_attention_LayerNorm_bias",
-        "bottleneck_attention_dense_weight",
-        "bottleneck_attention_dense_bias",
-        "bottleneck_input_LayerNorm_weight",
-        "bottleneck_input_LayerNorm_bias",
-        "bottleneck_input_dense_weight",
-        "bottleneck_input_dense_bias",
-    ],
-    "resnet":
-    [
-        "conv1",
-        "layer1_0_conv1",
-        "layer1_0_conv2",
-        "layer1_1_conv1",
-        "layer1_1_conv2",
-        "layer2_0_downsample",
-        "layer2_0_conv1",
-        "layer2_0_conv2",
-        "layer2_1_conv1",
-        "layer2_1_conv2",
-        "layer3_0_downsample",
-        "layer3_0_conv1",
-        "layer3_0_conv2",
-        "layer3_1_conv1",
-        "layer3_1_conv2",
-        "layer4_0_downsample",
-        "layer4_0_conv1",
-        "layer4_0_conv2",
-        "layer4_1_conv1",
-        "layer4_1_conv2",
-        "fc",
-    ]
-}
+import mb_networks
+import resnet_networks
+try:
+    import codegen_networks
+except ImportError:
+    print("WARNING: Could not find codegen networks.")
 
 
 def main():
@@ -207,7 +77,7 @@ def main():
         if args.model == "resnet":
             args.data_dir = "./models/resnet/binary_data/"
             # Check if there are files in the binary_data dir, or whether we
-            # need to go step deeper in the hierarchy
+            # need to step deeper in the hierarchy
             sub_dir_info = list(os.walk(args.data_dir))
             assert len(
                 sub_dir_info) > 0, f"Directory {args.data_dir} appears to be empty. Run data gen first."
@@ -219,6 +89,8 @@ def main():
                 args.data_dir = "./data/mobilebert_tiny/datafile/step0/"
             else:
                 args.data_dir = "./data/sst2_train/datafile/step0/"
+        else:
+            raise ValueError(f"Could not find default data_dir. Please provide data_dir.")
 
     # Start timing before executing first "time-consuming" command
     start_time = time.time()
@@ -235,15 +107,23 @@ def main():
     # Prepare and run all tests/layers simultaneously as different processes
     results = []
     if args.model == "resnet":
-        all_tests = NETWORKS[args.model]
-    elif args.model == "mobilebert" and args.task == "inference":
-        all_tests = NETWORKS["mobilebert"]
-    elif args.model == "mobilebert" and args.task == "backward":
-        all_tests = NETWORKS["mobilebert_activation_gradient"]
-    elif args.model == "mobilebert" and args.task == "gradient":
-        all_tests = NETWORKS["mobilebert_weight_gradient"]
+        all_tests = resnet_networks.RESNET_NETWORKS[args.model]
+    elif args.model == "mobilebert":
+        if args.task == "inference":
+            all_tests = mb_networks.MB_NETWORKS["mobilebert"]
+        elif args.task == "backward":
+            all_tests = mb_networks.MB_NETWORKS["mobilebert_activation_gradient"]
+        elif args.task == "gradient":
+            all_tests = mb_networks.MB_NETWORKS["mobilebert_weight_gradient"]
+        else:
+            raise ValueError(f"Task {args.task} no supported on mobilebert.")
     else:
-        raise SystemExit(1)
+        try:
+            all_tests = codegen_networks.CODEGEN_NETWORKS[args.model]
+        except NameError:
+            raise NameError(f"codegen_networks file could not be found. Make sure to run codegen first.")
+        except KeyError:
+            raise KeyError(f"Could not find model {args.model} in codegen_networks.")
 
     for test in all_tests:
         file_name = os.path.join(
@@ -300,8 +180,6 @@ def main():
         # If all are done, exit
         if not running:
             break
-        # Free-running while loops are not good
-        time.sleep(0.1)
 
     print("--- Tests done ---")
     print('\n'.join(["{} returned with {}".format(
@@ -310,7 +188,7 @@ def main():
         (lambda acc, res: acc + bool(res[1].returncode)), results, 0)
     print("-> Total {} failed {}".format(len(results), failures))
 
-    # Also log info to file
+    # Also log info to logfile
     logging.info('\n'.join(["{} returned with {}".format(
         res[0], res[1].returncode) for res in results]))
     logging.info("-> Total {} failed {}".format(len(results), failures))
