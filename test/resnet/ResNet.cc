@@ -85,3 +85,19 @@ std::vector<Workload> ResNet::getWorkloads(
 
   return workloads;
 }
+
+std::vector<Workload> ResNet::getAllWorkloads() const {
+  std::vector<Workload> workloads;
+  for (const std::string& layer : order) {
+    Workload workload;
+    std::cout << "layer " << layer << std::endl;
+    workload.name = layer;
+    workload.params = paramsMap.at(layer);
+    workload.files = filesMap.at(layer);
+    workload.memoryMap = {SRAM, RRAM, RRAM, SRAM, SRAM};
+
+    workloads.push_back(workload);
+  }
+
+  return workloads;
+}

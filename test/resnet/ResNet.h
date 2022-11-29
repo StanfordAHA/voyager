@@ -14,6 +14,8 @@ class ResNet : public Network {
   std::vector<Workload> getWorkloads(
       const std::vector<std::string>&) const override;
 
+  std::vector<Workload> getAllWorkloads() const;
+
  private:
   std::vector<std::string> order;
   std::map<std::string, SimplifiedParams> paramsMap;
