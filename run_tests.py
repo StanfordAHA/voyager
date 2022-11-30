@@ -9,10 +9,10 @@ import sys
 import os
 import logging
 
-import mb_networks
-import resnet_networks
+from test.mobilebert.mb_networks import MB_NETWORKS
+from test.resnet.resnet_networks import RESNET_NETWORKS
 try:
-    import codegen_networks
+    from test.codegen.codegen_networks import CODEGEN_NETWORKS
 except ImportError:
     print("WARNING: Could not find codegen networks.")
 
@@ -90,7 +90,8 @@ def main():
             else:
                 args.data_dir = "./data/sst2_train/datafile/step0/"
         else:
-            raise ValueError(f"Could not find default data_dir. Please provide data_dir.")
+            raise ValueError(
+                f"Could not find default data_dir. Please provide data_dir.")
 
     # Start timing before executing first "time-consuming" command
     start_time = time.time()
@@ -107,23 +108,23 @@ def main():
     # Prepare and run all tests/layers simultaneously as different processes
     results = []
     if args.model == "resnet":
-        all_tests = resnet_networks.RESNET_NETWORKS[args.model]
+        all_tests = RESNET_NETWORKS[args.model]
     elif args.model == "mobilebert":
         if args.task == "inference":
-            all_tests = mb_networks.MB_NETWORKS["mobilebert"]
+            all_tests = MB_NETWORKS["mobilebert"]
         elif args.task == "backward":
-            all_tests = mb_networks.MB_NETWORKS["mobilebert_activation_gradient"]
+            all_tests = MB_NETWORKS["mobilebert_activation_gradient"]
         elif args.task == "gradient":
-            all_tests = mb_networks.MB_NETWORKS["mobilebert_weight_gradient"]
+            all_tests = MB_NETWORKS["mobilebert_weight_gradient"]
         else:
             raise ValueError(f"Task {args.task} no supported on mobilebert.")
     else:
+        assert args.use_codegen, f"Could not find model {args.model}. If you intend to use codegen, enable it with --use_codegen ."
         try:
-            all_tests = codegen_networks.CODEGEN_NETWORKS[args.model]
-        except NameError:
-            raise NameError(f"codegen_networks file could not be found. Make sure to run codegen first.")
+            all_tests = CODEGEN_NETWORKS[args.model]
         except KeyError:
-            raise KeyError(f"Could not find model {args.model} in codegen_networks.")
+            raise KeyError(
+                f"Could not find model {args.model} in codegen networks.")
 
     for test in all_tests:
         file_name = os.path.join(
@@ -138,9 +139,13 @@ def main():
         env["TOLERANCE"] = str(args.tolerance)
         env["OUT_DIR"] = args.output_dir
         env["DATA_DIR"] = args.data_dir
+        exec_path = os.path.join(args.build_dir, args.target_name)
+        if len(all_tests) == 1: # If we only run a single test, print the command for easier reproducibility
+            print("Run this to reproduce:")
+            print(f"NETWORK={env['NETWORK']} TESTS={env['TESTS']} SIMS={env['SIMS']} TASK={env['TASK']} TOLERANCE={env['TOLERANCE']} OUT_DIR={env['OUT_DIR']} DATA_DIR={env['DATA_DIR']} ./{exec_path}\n")
         # Spawn an new subprocess and grab its name, handle, and output file
-        p = subprocess.Popen([os.path.join(args.build_dir, args.target_name)],
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
+        p = subprocess.Popen(
+            [exec_path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
         # Enable non-blocking read from process
         os.set_blocking(p.stdout.fileno(), False)
         results.append([args.model + '.' + test, p, file])

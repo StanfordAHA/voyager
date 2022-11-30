@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 
+#include "test/codegen/CodeGenNet.h"
 #include "test/common/GoldModel.h"
 #include "test/common/UniversalPosit.h"
 #include "test/common/Utils.h"
@@ -64,13 +65,14 @@ Simulation::Simulation() {
   std::unique_ptr<Network> network;
   if (model == "resnet") {
     network = std::make_unique<ResNet>(data_dir);
-  } else if (model == "mobilenetv2") {
-    throw std::runtime_error("Not implemented.");
-    // network = new MobileNetV2(data_dir);
   } else if (model == "mobilebert") {
     network = std::make_unique<MobileBERT>(data_dir, task);
   } else {
+#ifdef USE_CODEGEN
+    network = std::make_unique<CodeGenNet>(data_dir);
+#else
     throw std::runtime_error("Unsupported model.");
+#endif
   }
 
   // Collect workloads (aka. layers) from Network

@@ -717,13 +717,9 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       clip_grad_norm_(outputMatrix, Y * X * K);
     }
 
-    for (int i = 0; i < X * Y * K; i++) {
-      saveOutput(matrixC, i, outputMatrix[i], params.ACC_T_OUTPUT);
-    }
-
     if (params.MAXPOOL) {
       T *tmpMatrixC = new T[X * Y * K];
-      memcpy(tmpMatrixC, matrixC, sizeof(T) * X * Y * K);
+      memcpy(tmpMatrixC, outputMatrix, sizeof(T) * X * Y * K);
 
       for (int y = 0; y < Y / 2; y++) {
         for (int x = 0; x < X / 2; x++) {
@@ -744,10 +740,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
         }
       }
       delete[] tmpMatrixC;
-    }
-
-    if (params.AVGPOOL) {
-      // create copy
+    } else if (params.AVGPOOL) {
       ACC_T *tmpMatrixC = new ACC_T[X * Y * K];
       memcpy(tmpMatrixC, outputMatrix, sizeof(ACC_T) * X * Y * K);
 
@@ -763,6 +756,10 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
         matrixC[k] = acc * static_cast<ACC_T>(divisor);
       }
       delete[] tmpMatrixC;
+    } else {
+      for (int i = 0; i < X * Y * K; i++) {
+        saveOutput(matrixC, i, outputMatrix[i], params.ACC_T_OUTPUT);
+      }
     }
 
     delete[] inputMatrixA;

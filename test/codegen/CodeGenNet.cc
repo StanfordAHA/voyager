@@ -1,4 +1,4 @@
-#include "test/resnet/ResNet.h"
+#include "test/codegen/CodeGenNet.h"
 
 #if __has_include(<filesystem>)
 #include <filesystem>
@@ -13,33 +13,33 @@ namespace filesystem = experimental::filesystem;
 #include <cassert>
 #include <iostream>
 
-#include "test/resnet/params.h"
+#if __has_include("test/codegen/params_codegen.h")
+#include "test/codegen/params_codegen.h"
+#else
+#pragma error "Could not find generated params header. Make sure to run Codegen(ZagZig) first."
+#endif
 
-ResNet::ResNet(const std::string& dataDir) {
+CodeGenNet::CodeGenNet(const std::string& dataDir) {
   this->order = ::order;
   this->paramsMap = ::paramsMap;
   this->filesMap = ::filesMap;
 
   if (dataDir.empty()) {
-    // TODO(fpedd): Clean this up
-    std::string rawDataDir = "./models/resnet/binary_data/";
-    this->dataDir = (*std::filesystem::begin(
-                         std::filesystem::directory_iterator(rawDataDir)))
-                        .path()
-                        .string() +
-                    '/';
-
+    this->tensorDir = "./test/codegen/gen_data";
+    this->weightDir = "./test/codegen/gen_data";
   } else {
-    this->dataDir = dataDir;
+    // TODO(fpedd): This needs to be individually controlable at some point
+    this->tensorDir = dataDir;
+    this->weightDir = dataDir;
   }
 
   // prepend dataDir to all files
   for (auto& it : filesMap) {
-    it.second.inputs_file.insert(0, this->dataDir);
-    it.second.weights_file.insert(0, this->dataDir);
-    it.second.bias_file.insert(0, this->dataDir);
-    it.second.outputs_file.insert(0, this->dataDir);
-    it.second.residual_file.insert(0, this->dataDir);
+    it.second.inputs_file.insert(0, this->tensorDir);
+    it.second.weights_file.insert(0, this->weightDir);
+    it.second.bias_file.insert(0, this->weightDir);
+    it.second.outputs_file.insert(0, this->tensorDir);
+    it.second.residual_file.insert(0, this->tensorDir);
     // it.second.weight_grad_file.insert(0, this->dataDir);
     // it.second.bias_grad_file.insert(0, this->dataDir);
   }
@@ -49,7 +49,7 @@ ResNet::ResNet(const std::string& dataDir) {
  * Returns a vector of workloads to run.
  * Layers specifies either a single layer or range of layers.
  */
-std::vector<Workload> ResNet::getWorkloads(
+std::vector<Workload> CodeGenNet::getWorkloads(
     const std::vector<std::string>& layers) const {
   // Expand layer vector to include intermediate layers, if necessary
   std::vector<std::string> layersInRange;

@@ -220,19 +220,20 @@ int validateMapping(SimplifiedParams params) {
     return 0;
   }
 
-  // Input buffer
-  int input_buffer_tile_size = (x0 * stride + fx - 1) * (y0 * stride + fy - 1);
-  if (params.REPLICATION) {
-    // don't check temporarily TODO(fpedd): Why not?
-    input_buffer_tile_size = 1;
-  }
-  if (input_buffer_tile_size > INPUT_BUFFER_SIZE) {
-    std::cerr << "ERROR: Input buffer tile size violation." << std::endl;
-    return -1;
-  }
+  // // Input buffer
+  // int input_buffer_tile_size = (x0 * stride + fx - 1) * (y0 * stride + fy -
+  // 1); if (params.REPLICATION) {
+  //   // don't check temporarily TODO(fpedd): Why not?
+  //   input_buffer_tile_size = 1;
+  // }
+  // if (input_buffer_tile_size > INPUT_BUFFER_SIZE) {
+  //   std::cerr << "ERROR: Input buffer tile size violation." << std::endl;
+  //   std::cerr << "Constraint " << INPUT_BUFFER_SIZE << " but is " <<
+  //   input_buffer_tile_size << std::endl; return -1;
+  // }
 
   // Weight buffer
-  if (fx * fy * k0 > WEIGHT_BUFFER_SIZE) {
+  if (fx * fy * k0 * (params.REPLICATION ? 3 : 16) > WEIGHT_BUFFER_SIZE) {
     std::cerr << "ERROR: Weight buffer tile size violation." << std::endl;
     return -1;
   }
@@ -240,6 +241,31 @@ int validateMapping(SimplifiedParams params) {
   // Accumulation buffer
   if (x0 * y0 * k0 > ACCUMULATION_BUFFER_SIZE) {
     std::cerr << "ERROR: Accumulation buffer tile size violation." << std::endl;
+    return -1;
+  }
+
+  int x_check = params.inputXLoopIndex[1] >= 4
+                    ? params.loops[1][params.inputXLoopIndex[1]]
+                    : 1;
+  int y_check = params.inputYLoopIndex[1] >= 4
+                    ? params.loops[1][params.inputYLoopIndex[1]]
+                    : 1;
+  if (x_check * y_check < 32) {
+    std::cerr << "ERROR: Innermost X*Y must be >= 32." << std::endl;
+    std::cerr << "X -> params.loops[1][" << params.inputXLoopIndex[1]
+              << "] = " << params.loops[1][params.inputXLoopIndex[1]]
+              << std::endl;
+    std::cerr << "Y -> params.loops[1][" << params.inputYLoopIndex[1]
+              << "] = " << params.loops[1][params.inputYLoopIndex[1]]
+              << std::endl;
+    std::cerr << "X*Y (with index >= 4) is " << x_check * y_check << std::endl;
+    return -1;
+  }
+
+  if (params.reductionLoopIndex[1] != 0) {
+    std::cerr
+        << "ERROR: Input channel needs to be outermost loop of buffer level."
+        << std::endl;
     return -1;
   }
 

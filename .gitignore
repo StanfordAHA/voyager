@@ -21,3 +21,7 @@ models/resnet/binary_data*
 models/resnet/model_data/*
 !models/resnet/model_data/*.pth
 datafile
+test/codegen/*
+!test/codegen/CodeGenNet.cc
+!test/codegen/CodeGenNet.h
+!test/codegen/__init__.py
