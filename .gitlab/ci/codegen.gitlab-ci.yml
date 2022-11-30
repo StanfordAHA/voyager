@@ -19,7 +19,7 @@ ResNet Codegen Layers (FP32 Gold Model vs. Pytorch):
     - (cd zagzig/proto && ./gen.sh)
     - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k)
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --use_codegen --model resnet18 --data_dir test/resnet/gen_data/ --simulators fp32,file --tolerance 0.01
+    - python3 run_tests.py --use_codegen --model resnet18 --data_dir test/codegen/gen_data/ --simulators fp32,file --tolerance 0.01
 
 ResNet Codegen Layers (Accel vs. Posit Gold Model):
   stage: test
