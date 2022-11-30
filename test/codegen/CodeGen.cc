@@ -1,3 +1,4 @@
+#ifdef USE_CODEGEN // TODO(fpedd): Replace these filewide includes with something cleaner
 #include "test/codegen/CodeGen.h"
 
 #if __has_include(<filesystem>)
@@ -89,3 +90,4 @@ std::vector<Workload> CodeGen::getWorkloadsInRange(
 std::vector<Workload> CodeGen::getAllWorkloads() const {
   return getWorkloads(order);
 }
+#endif

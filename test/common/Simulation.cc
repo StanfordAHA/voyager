@@ -4,7 +4,9 @@
 #include <iostream>
 #include <string>
 
+#ifdef USE_CODEGEN
 #include "test/codegen/CodeGen.h"
+#endif
 #include "test/common/GoldModel.h"
 #include "test/common/UniversalPosit.h"
 #include "test/common/Utils.h"
