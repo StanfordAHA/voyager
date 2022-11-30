@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 
-#include "test/codegen/CodeGenNet.h"
+#include "test/codegen/CodeGen.h"
 #include "test/common/GoldModel.h"
 #include "test/common/UniversalPosit.h"
 #include "test/common/Utils.h"
@@ -69,7 +69,7 @@ Simulation::Simulation() {
     network = std::make_unique<MobileBERT>(data_dir, task);
   } else {
 #ifdef USE_CODEGEN
-    network = std::make_unique<CodeGenNet>(data_dir);
+    network = std::make_unique<CodeGen>(data_dir);
 #else
     throw std::runtime_error("Unsupported model.");
 #endif

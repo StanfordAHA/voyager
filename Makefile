@@ -196,7 +196,7 @@ build/TestRunner.o: test/common/TestRunner.cc
 .PHONY: networks
 networks: build/networks.a
 
-build/networks.a: build/ResNet.o build/MobileBERT.o CodeGen.o
+build/networks.a: build/ResNet.o build/MobileBERT.o build/CodeGen.o
 	$(AR) rcs $@ $^
 
 build/ResNet.o: test/resnet/ResNet.cc test/resnet/ResNet.h test/resnet/params.h

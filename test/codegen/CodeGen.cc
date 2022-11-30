@@ -1,4 +1,4 @@
-#include "test/codegen/CodeGenNet.h"
+#include "test/codegen/CodeGen.h"
 
 #if __has_include(<filesystem>)
 #include <filesystem>
@@ -16,10 +16,11 @@ namespace filesystem = experimental::filesystem;
 #if __has_include("test/codegen/params_codegen.h")
 #include "test/codegen/params_codegen.h"
 #else
-#pragma error "Could not find generated params header. Make sure to run Codegen(ZagZig) first."
+#pragma error \
+    "Could not find generated params header. Make sure to run Codegen(ZagZig) first."
 #endif
 
-CodeGenNet::CodeGenNet(const std::string& dataDir) {
+CodeGen::CodeGen(const std::string& dataDir) {
   this->order = ::order;
   this->paramsMap = ::paramsMap;
   this->filesMap = ::filesMap;
@@ -45,11 +46,28 @@ CodeGenNet::CodeGenNet(const std::string& dataDir) {
   }
 }
 
+std::vector<Workload> CodeGen::getWorkloads(
+    const std::vector<std::string>& layers) const {
+  std::vector<Workload> workloads;
+
+  for (const std::string& layer : layers) {
+    Workload workload;
+    workload.name = layer;
+    workload.params = paramsMap.at(layer);
+    workload.files = filesMap.at(layer);
+    workload.memoryMap = {SRAM, RRAM, RRAM, SRAM, SRAM};
+
+    workloads.push_back(workload);
+  }
+
+  return workloads;
+}
+
 /*
  * Returns a vector of workloads to run.
  * Layers specifies either a single layer or range of layers.
  */
-std::vector<Workload> CodeGenNet::getWorkloads(
+std::vector<Workload> CodeGen::getWorkloadsInRange(
     const std::vector<std::string>& layers) const {
   // Expand layer vector to include intermediate layers, if necessary
   std::vector<std::string> layersInRange;
@@ -65,16 +83,9 @@ std::vector<Workload> CodeGenNet::getWorkloads(
 
   assert(layersInRange.size() > 0 && "Layer list is empty.");
 
-  std::vector<Workload> workloads;
-  for (const std::string& layer : layersInRange) {
-    Workload workload;
-    workload.name = layer;
-    workload.params = paramsMap.at(layer);
-    workload.files = filesMap.at(layer);
-    workload.memoryMap = {SRAM, RRAM, RRAM, SRAM, SRAM};
+  return getWorkloads(layersInRange);
+}
 
-    workloads.push_back(workload);
-  }
-
-  return workloads;
+std::vector<Workload> CodeGen::getAllWorkloads() const {
+  return getWorkloads(order);
 }
