@@ -178,7 +178,8 @@ void Simulation::run() {
     if (std::find(sims.begin(), sims.end(), "customposit") != sims.end()) {
       run_custom_posit_gold_model(
           currentParams, positMemory->sram + currentParams.INPUT_OFFSET,
-          positMemory->rram + currentParams.WEIGHT_OFFSET,
+          (currentParams.WEIGHT ? positMemory->rram : positMemory->sram) +
+              currentParams.WEIGHT_OFFSET,
           positMemory->sram + currentParams.OUTPUT_OFFSET,
           positMemory->rram + currentParams.BIAS_OFFSET,
           positMemory->sram + currentParams.RESIDUAL_OFFSET, nullptr, nullptr);
@@ -187,7 +188,9 @@ void Simulation::run() {
       run_universal_posit_gold_model(
           currentParams,
           universalPositMemory->sram + currentParams.INPUT_OFFSET,
-          universalPositMemory->rram + currentParams.WEIGHT_OFFSET,
+          (currentParams.WEIGHT ? universalPositMemory->rram
+                                : universalPositMemory->sram) +
+              currentParams.WEIGHT_OFFSET,
           universalPositMemory->sram + currentParams.OUTPUT_OFFSET,
           universalPositMemory->rram + currentParams.BIAS_OFFSET,
           universalPositMemory->sram + currentParams.RESIDUAL_OFFSET, nullptr,
@@ -196,7 +199,8 @@ void Simulation::run() {
     if (std::find(sims.begin(), sims.end(), "fp32") != sims.end()) {
       run_fp_gold_model(
           currentParams, floatMemory->sram + currentParams.INPUT_OFFSET,
-          floatMemory->rram + currentParams.WEIGHT_OFFSET,
+          (currentParams.WEIGHT ? floatMemory->rram : floatMemory->sram) +
+              currentParams.WEIGHT_OFFSET,
           floatMemory->sram + currentParams.OUTPUT_OFFSET,
           floatMemory->rram + currentParams.BIAS_OFFSET,
           floatMemory->sram + currentParams.RESIDUAL_OFFSET, nullptr, nullptr);
