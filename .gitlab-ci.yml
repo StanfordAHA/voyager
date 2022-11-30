@@ -4,7 +4,7 @@ stages:
   - test
 
 include:
-  # - local: /.gitlab/ci/codegen.gitlab-ci.yml
+  - local: /.gitlab/ci/codegen.gitlab-ci.yml
   - local: /.gitlab/ci/mobilebert.gitlab-ci.yml
   - local: /.gitlab/ci/resnet.gitlab-ci.yml
   - local: /.gitlab/ci/rtl.gitlab-ci.yml
