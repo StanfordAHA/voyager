@@ -46,11 +46,13 @@ void MemoryModel::loadInputs(const SimplifiedParams& params,
     FX = 7;
     C = 3;
   }
-  if (params.SOFTMAX || params.SOFTMAX_GRAD || params.CROSS_ENTROPY_GRAD) {
+  if (params.SOFTMAX || params.SOFTMAX_GRAD || params.CROSS_ENTROPY_GRAD ||
+      params.FC_GRAD) {
     C = 1;
   }
 
   int size = STRIDE * Y * STRIDE * X * C;
+  std::cout << "size of inputs: " << size << std::endl;
 
   double* tmpValues = readFileAsDouble(filename, size, useDataFile);
   double* tmpValuePtr = tmpValues;
