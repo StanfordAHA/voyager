@@ -6,6 +6,7 @@ MobileBERT Inference (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -23,6 +24,7 @@ MobileBERT Inference (Accel. vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -42,6 +44,7 @@ MobileBERT Activation Gradient (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -59,6 +62,7 @@ MobileBERT Weight Gradient (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:

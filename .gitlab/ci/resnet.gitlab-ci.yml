@@ -6,6 +6,7 @@ ResNet Layers (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -23,6 +24,7 @@ ResNet Layers (Accel vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -44,6 +46,7 @@ ResNet End2End (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -64,6 +67,7 @@ ResNet End2End (Accel vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -89,6 +93,7 @@ ResNet Accuracy (Pytorch vs. FP32 Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -108,6 +113,7 @@ ResNet Accuracy (Posit Gold Model vs. Accel):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
