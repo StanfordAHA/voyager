@@ -156,7 +156,7 @@ sim: build/TestRunner
 .PHONY: TestRunner
 TestRunner: build/TestRunner
 
-build/TestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/DataLoader.o build/toolchain.a
+build/TestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/MemoryModel.o build/SimpleMemoryModel.o build/Simulation.o build/networks.a build/toolchain.a
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
 # Unit tests for custom Posit implementation
@@ -178,10 +178,34 @@ build/GoldModel.o: test/common/GoldModel.cc test/common/GoldModel.h src/Architec
 build/Utils.o: test/common/Utils.cc test/common/Utils.h src/ArchitectureParams.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
-build/DataLoader.o: test/common/DataLoader.cc test/common/DataLoader.h src/ArchitectureParams.h
+build/MemoryModel.o: test/common/MemoryModel.cc test/common/MemoryModel.h src/ArchitectureParams.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
-build/TestRunner.o: test/common/TestRunner.cc test/simple/params.h test/resnet/params.h test/mobilebert/*.h
+build/SimpleMemoryModel.o: test/common/SimpleMemoryModel.cc test/common/SimpleMemoryModel.h src/ArchitectureParams.h
+	$(CC) $(C17FLAGS) -c -o $@ $<
+
+build/Simulation.o: test/common/Simulation.cc test/common/Simulation.h src/ArchitectureParams.h
+	$(CC) $(C17FLAGS) -c -o $@ $<
+
+build/TestRunner.o: test/common/TestRunner.cc
+	$(CC) $(C17FLAGS) -c -o $@ $<
+
+###########################################################
+# Networks
+###########################################################
+.PHONY: networks
+networks: build/networks.a
+
+build/networks.a: build/ResNet.o build/MobileBERT.o build/CodeGen.o
+	$(AR) rcs $@ $^
+
+build/ResNet.o: test/resnet/ResNet.cc test/resnet/ResNet.h test/resnet/params.h
+	$(CC) $(C17FLAGS) -c -o $@ $<
+
+build/MobileBERT.o: test/mobilebert/MobileBERT.cc test/mobilebert/MobileBERT.h
+	$(CC) $(C17FLAGS) -c -o $@ $<
+
+build/CodeGen.o: test/codegen/*.cc test/codegen/*.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 ###########################################################

@@ -2,6 +2,15 @@
 #include <iostream>
 #include <string>
 
+
+// By default we have 2MB of SRAM per MINOTAUR SoC
+// organized as 8x 256KB Banks with 2x 128KB Macros each
+constexpr int SRAM_MEMORY_SIZE = (2 * 1024 * 1024);
+
+// By default we have 12MB of RRAM per MINOTAUR SoC
+// organized as 12x 1MB Banks with 4x 256KB Macros each
+constexpr int RRAM_MEMORY_SIZE = (12 * 1024 * 1024);
+
 struct Files {
   std::string inputs_file;
   std::string weights_file;
@@ -98,6 +107,13 @@ struct SimplifiedParams {
   int weightExpBias;
   int outputExpBias;
   int residualExpBias;
+
+  // Depthwise convolution
+  bool depthwise;
+
+  // Power state of memory banks
+  bool sram_banks[8];
+  bool rram_banks[12];
 };
 
 struct MemoryOffsets {
@@ -134,3 +150,10 @@ const int GRADIENT_OFFSET =
     ACTIVATION_OFFSET + 24 * ENCODER_ACTIVATION_SIZE + INTERMEDIATE_SIZE + 16;
 const int ERROR_OFFSET = GRADIENT_OFFSET + 24 * ENCODER_WEIGHT_SIZE +
                          16 * BIAS_INTERMEDIATE_SIZE + 32;
+
+struct Workload {
+  std::string name;
+  SimplifiedParams params;
+  Files files;
+  MemoryMap memoryMap;
+};

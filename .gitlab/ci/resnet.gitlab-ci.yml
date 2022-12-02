@@ -1,0 +1,130 @@
+#############################
+### ResNet Layer by Layer ###
+#############################
+
+ResNet Layers (FP32 Gold Model vs. Pytorch):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r requirements.txt
+    - python3 models/resnet/gen_resnet_data.py
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests.py --simulators fp32,file --tolerance 0.01
+
+ResNet Layers (Accel vs. Posit Gold Model):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r requirements.txt
+    - python3 models/resnet/gen_resnet_data.py
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests.py --simulators accelerator,customposit --tolerance 0.01
+
+########################
+### ResNet End 2 End ###
+########################
+
+ResNet End2End (FP32 Gold Model vs. Pytorch):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r requirements.txt
+    - python3 models/resnet/gen_resnet_data.py
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - mkdir ./test_outputs
+    - make -j8 clean TestRunner
+    - make TestRunner
+    - TOLERANCE=0.01 NETWORK=resnet TESTS=conv1,fc SIMS=fp32,file ./build/TestRunner
+
+ResNet End2End (Accel vs. Posit Gold Model):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r requirements.txt
+    - python3 models/resnet/gen_resnet_data.py
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - mkdir ./test_outputs
+    - make -j8 clean TestRunner
+    - make TestRunner
+    - TOLERANCE=0.15 NETWORK=resnet TESTS=conv1,fc SIMS=customposit,accelerator ./build/TestRunner
+
+#######################
+### ResNet Accuracy ###
+#######################
+
+# TODO(fpedd): Reduce tolerance in "ResNet Accuracy (Pytorch vs. FP32 Gold Model)" and "ResNet Accuracy (Posit Gold Model vs. Accel)"
+ResNet Accuracy (Pytorch vs. FP32 Gold Model):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs_e2e
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  script:
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r requirements.txt
+    - python3 models/resnet/gen_resnet_data.py --binary_dir models/resnet/binary_data_imagenet --samples 256
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests_e2e.py -sims file,fp32 --samples 256 --data_dir models/resnet/binary_data_imagenet --tolerance 1.0 --accuracy_tolerance 0.65
+
+ResNet Accuracy (Posit Gold Model vs. Accel):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs_e2e
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  script:
+    # - python3 -m venv venv
+    # - . ./venv/bin/activate
+    # - pip install -r requirements.txt
+    - python3 models/resnet/gen_resnet_data.py --binary_dir models/resnet/binary_data_imagenet --samples 64
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests_e2e.py -sims customposit,accelerator --samples 64 --data_dir models/resnet/binary_data_imagenet --tolerance 5.0 --accuracy_tolerance 0.60

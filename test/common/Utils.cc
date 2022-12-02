@@ -9,7 +9,7 @@
 // namespace plt = matplotlibcpp;
 
 #ifndef NO_UNIVERSAL
-inline float readInput(UniversalPosit *matrix, int index, bool accType) {
+inline float readValue(UniversalPosit *matrix, int index, bool accType) {
   if (!accType) {
     return static_cast<float>(matrix[index]);
   }
@@ -22,7 +22,7 @@ inline float readInput(UniversalPosit *matrix, int index, bool accType) {
 }
 #endif
 
-inline float readInput(INPUT_DATATYPE *matrix, int index, bool accType) {
+inline float readValue(INPUT_DATATYPE *matrix, int index, bool accType) {
   if (!accType) {
     return static_cast<float>(matrix[index]);
   }
@@ -34,7 +34,7 @@ inline float readInput(INPUT_DATATYPE *matrix, int index, bool accType) {
   return static_cast<float>(p16);
 }
 
-inline float readInput(float *matrix, int index, bool accType) {
+inline float readValue(float *matrix, int index, bool accType) {
   return accType ? matrix[2 * index] : matrix[index];
 }
 
@@ -75,8 +75,8 @@ float compare_arrays_internal(TA *matrixA, std::string matrixA_name,
 
   for (int index = 0; index < size; index++) {
     // Calculate absolute difference
-    float a = readInput(matrixA, index, accType);
-    float b = readInput(matrixB, index, accType);
+    float a = readValue(matrixA, index, accType);
+    float b = readValue(matrixB, index, accType);
     float abs_diff = abs(a - b);
 
     // Write the two values + error scale indicator to file
@@ -220,19 +220,20 @@ int validateMapping(SimplifiedParams params) {
     return 0;
   }
 
-  // Input buffer
-  int input_buffer_tile_size = (x0 * stride + fx - 1) * (y0 * stride + fy - 1);
-  if (params.REPLICATION) {
-    // don't check temporarily TODO(fpedd): Why not?
-    input_buffer_tile_size = 1;
-  }
-  if (input_buffer_tile_size > INPUT_BUFFER_SIZE) {
-    std::cerr << "ERROR: Input buffer tile size violation." << std::endl;
-    return -1;
-  }
+  // // Input buffer
+  // int input_buffer_tile_size = (x0 * stride + fx - 1) * (y0 * stride + fy -
+  // 1); if (params.REPLICATION) {
+  //   // don't check temporarily TODO(fpedd): Why not?
+  //   input_buffer_tile_size = 1;
+  // }
+  // if (input_buffer_tile_size > INPUT_BUFFER_SIZE) {
+  //   std::cerr << "ERROR: Input buffer tile size violation." << std::endl;
+  //   std::cerr << "Constraint " << INPUT_BUFFER_SIZE << " but is " <<
+  //   input_buffer_tile_size << std::endl; return -1;
+  // }
 
   // Weight buffer
-  if (fx * fy * k0 > WEIGHT_BUFFER_SIZE) {
+  if (fx * fy * k0 * (params.REPLICATION ? 3 : 16) > WEIGHT_BUFFER_SIZE) {
     std::cerr << "ERROR: Weight buffer tile size violation." << std::endl;
     return -1;
   }
@@ -240,6 +241,31 @@ int validateMapping(SimplifiedParams params) {
   // Accumulation buffer
   if (x0 * y0 * k0 > ACCUMULATION_BUFFER_SIZE) {
     std::cerr << "ERROR: Accumulation buffer tile size violation." << std::endl;
+    return -1;
+  }
+
+  int x_check = params.inputXLoopIndex[1] >= 4
+                    ? params.loops[1][params.inputXLoopIndex[1]]
+                    : 1;
+  int y_check = params.inputYLoopIndex[1] >= 4
+                    ? params.loops[1][params.inputYLoopIndex[1]]
+                    : 1;
+  if (x_check * y_check < 32) {
+    std::cerr << "ERROR: Innermost X*Y must be >= 32." << std::endl;
+    std::cerr << "X -> params.loops[1][" << params.inputXLoopIndex[1]
+              << "] = " << params.loops[1][params.inputXLoopIndex[1]]
+              << std::endl;
+    std::cerr << "Y -> params.loops[1][" << params.inputYLoopIndex[1]
+              << "] = " << params.loops[1][params.inputYLoopIndex[1]]
+              << std::endl;
+    std::cerr << "X*Y (with index >= 4) is " << x_check * y_check << std::endl;
+    return -1;
+  }
+
+  if (params.reductionLoopIndex[1] != 0) {
+    std::cerr
+        << "ERROR: Input channel needs to be outermost loop of buffer level."
+        << std::endl;
     return -1;
   }
 
