@@ -19,13 +19,14 @@ void MapFCGrad(const SimplifiedParams &params, MatrixParams &matrixParams,
 
   vectorParams.VECTOR_OFFSET = params.INPUT_OFFSET;
   vectorParams.addressGen0Enable = true;
-  vectorParams.addressGen0Broadcast = false;
   for (int i = 0; i < 3; i++) {
     vectorParams.addressGen0Loop[0][i] = 1;
   }
   vectorParams.addressGen0Loop[1][0] = 1;
-  vectorParams.addressGen0Loop[1][1] = X;
-  vectorParams.addressGen0Loop[1][2] = K / DIMENSION;
+  vectorParams.addressGen0Loop[1][1] = 1;
+  vectorParams.addressGen0Loop[1][2] = X;
+  vectorParams.addressGen0Broadcast = true;
+  vectorParams.addressGen0BroadcastCount = K;
   vectorParams.DP_VEC0 = false;
 
   // address gen 1 (weights)

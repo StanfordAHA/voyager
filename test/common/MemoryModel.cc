@@ -46,11 +46,13 @@ void MemoryModel::loadInputs(const SimplifiedParams& params,
     FX = 7;
     C = 3;
   }
-  if (params.SOFTMAX || params.SOFTMAX_GRAD || params.CROSS_ENTROPY_GRAD) {
+  if (params.SOFTMAX || params.SOFTMAX_GRAD || params.CROSS_ENTROPY_GRAD ||
+      params.FC_GRAD) {
     C = 1;
   }
 
   int size = STRIDE * Y * STRIDE * X * C;
+  std::cout << "size of inputs: " << size << std::endl;
 
   double* tmpValues = readFileAsDouble(filename, size, useDataFile);
   double* tmpValuePtr = tmpValues;
@@ -266,7 +268,7 @@ void MemoryModel::loadModelActivations(const SimplifiedParams& params,
                                        const MemoryMap& memoryMap,
                                        bool useDataFile) {
   loadInputs(params, memoryMap.inputs, files.inputs_file, useDataFile);
-  if (params.RESIDUAL) {
+  if (params.RESIDUAL || params.RELU_GRAD || params.SOFTMAX_GRAD) {
     loadResiduals(params, memoryMap.residual, files.residual_file, useDataFile);
   }
 }
