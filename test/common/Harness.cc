@@ -8,6 +8,7 @@
 
 #ifdef SOC_COSIM
 extern bool syscDone;
+void init_checkers();
 void register_interface(
     std::deque<sc_lv<Wrapped<int>::width> > *serialMatrixParamsIn,
     std::deque<sc_lv<Wrapped<int>::width> > *serialVectorParamsIn,
@@ -74,6 +75,7 @@ Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
   accelerator.vectorUnitDoneSignal(vectorUnitDoneSignal);
 
 #ifdef SOC_COSIM
+  init_checkers();
   register_interface(
       serialMatrixParamsIn.getDataQueue(), serialVectorParamsIn.getDataQueue(),
       inputAddressRequest.getDataQueue(), inputDataResponse.getDataQueue(),
