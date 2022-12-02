@@ -45,7 +45,7 @@ Codegen Layers (Accel vs. Posit Gold Model):
 # ########################
 # ### ResNet End 2 End ###
 # ########################
-# TODO(fpedd): Remove dependence on layer names TESTS=Conv_0,Gemm_48 (they could change)
+# TODO(fpedd): Remove dependence on names NETWORK=resnet18 TESTS=Conv_0,Gemm_48 (they could change)
 Codegen End2End (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
@@ -67,7 +67,7 @@ Codegen End2End (FP32 Gold Model vs. Pytorch):
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - DATA_DIR=test/codegen/gen_data/ TOLERANCE=0.01 NETWORK=resnet TESTS=Conv_0,Gemm_48 SIMS=fp32,file ./build/TestRunner
+    - DATA_DIR=test/codegen/gen_data/ TOLERANCE=0.01 NETWORK=resnet18 TESTS=Conv_0,Gemm_48 SIMS=fp32,file ./build/TestRunner
 
 Codegen End2End (Accel vs. Posit Gold Model):
   stage: test
@@ -90,4 +90,4 @@ Codegen End2End (Accel vs. Posit Gold Model):
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - DATA_DIR=test/codegen/gen_data/ TOLERANCE=0.15 NETWORK=resnet TESTS=Conv_0,Gemm_48 SIMS=customposit,accelerator ./build/TestRunner
+    - DATA_DIR=test/codegen/gen_data/ TOLERANCE=0.15 NETWORK=resnet18 TESTS=Conv_0,Gemm_48 SIMS=customposit,accelerator ./build/TestRunner
