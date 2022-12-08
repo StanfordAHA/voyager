@@ -14,34 +14,45 @@ namespace filesystem = experimental::filesystem;
 #include <iostream>
 
 #include "test/resnet/params.h"
+#if __has_include("test/resnet/paramsCodeGen.h")
+#include "test/resnet/paramsCodeGen.h"
+#else
+const std::map<std::string, SimplifiedParams> paramsCodeGen;
+const std::map<std::string, Files> filesCodeGen;
+const std::vector<std::string> orderCodeGen;
+#endif
 
-ResNet::ResNet(const std::string& dataDir) {
-  this->order = ::order;
-  this->paramsMap = ::paramsMap;
-  this->filesMap = ::filesMap;
+ResNet::ResNet(const std::string& modelName, const std::string& dataDir)
+    : Network(modelName, dataDir) {
+  std::cout << modelName << " " << dataDir << std::endl;
 
-  if (dataDir.empty()) {
-    // TODO(fpedd): Clean this up
-    std::string rawDataDir = "./models/resnet/binary_data/";
-    this->dataDir = (*std::filesystem::begin(
-                         std::filesystem::directory_iterator(rawDataDir)))
-                        .path()
-                        .string() +
-                    '/';
+  // Make "codgen" matching case insensitive
+  std::string& modelNameLower = const_cast<std::string&>(this->modelName);
+  std::transform(modelNameLower.begin(), modelNameLower.end(),
+                 modelNameLower.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
 
+  if (modelNameLower.find("codegen") != std::string::npos) {
+    if (paramsCodeGen.empty() || filesCodeGen.empty() || orderCodeGen.empty()) {
+      throw std::runtime_error(
+          "Codegen files not found. Did you run the codegen script?");
+    }
+    this->order = ::orderCodeGen;
+    this->params = ::paramsCodeGen;
+    this->files = ::filesCodeGen;
   } else {
-    this->dataDir = dataDir;
+    this->order = ::order;
+    this->params = ::params;
+    this->files = ::files;
   }
 
-  // prepend dataDir to all files
-  for (auto& it : filesMap) {
+  // Prepend dataDir to all files
+  for (auto& it : files) {
     it.second.inputs_file.insert(0, this->dataDir);
     it.second.weights_file.insert(0, this->dataDir);
     it.second.bias_file.insert(0, this->dataDir);
     it.second.outputs_file.insert(0, this->dataDir);
     it.second.residual_file.insert(0, this->dataDir);
-    // it.second.weight_grad_file.insert(0, this->dataDir);
-    // it.second.bias_grad_file.insert(0, this->dataDir);
   }
 }
 
@@ -52,8 +63,8 @@ std::vector<Workload> ResNet::getWorkloads(
   for (const std::string& layer : layers) {
     Workload workload;
     workload.name = layer;
-    workload.params = paramsMap.at(layer);
-    workload.files = filesMap.at(layer);
+    workload.params = params.at(layer);
+    workload.files = files.at(layer);
     workload.memoryMap = {SRAM, RRAM, RRAM, SRAM, SRAM};
 
     workloads.push_back(workload);
@@ -80,7 +91,9 @@ std::vector<Workload> ResNet::getWorkloadsInRange(
     layersInRange = std::vector<std::string>(firstLayer, lastLayer + 1);
   }
 
-  assert(layersInRange.size() > 0 && "Layer list is empty.");
+  if (layersInRange.empty()) {
+    throw std::runtime_error("Layer list is empty.");
+  }
 
   return getWorkloads(layersInRange);
 }

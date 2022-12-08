@@ -2,7 +2,9 @@
 
 #include <algorithm>
 
-MobileBERT::MobileBERT(const std::string& dataDir, const std::string& task) {
+MobileBERT::MobileBERT(const std::string& modelName, const std::string& dataDir,
+                       const std::string& task)
+    : Network(modelName, dataDir), task(task) {
   inferenceOrder = {"bottleneck_input_dense",
                     "bottleneck_input_LayerNorm",
                     "attention_self_query_layer",
@@ -4011,8 +4013,6 @@ MobileBERT::MobileBERT(const std::string& dataDir, const std::string& task) {
        }},
   };
 
-  this->task = task;
-
   if (this->task == "inference") {
     order = inferenceOrder;
     paramsMapping = inferenceParamsMapping;
@@ -4035,12 +4035,6 @@ MobileBERT::MobileBERT(const std::string& dataDir, const std::string& task) {
     std::cerr << "Task must be one of: inference, gradient, backprop"
               << std::endl;
     std::abort();
-  }
-
-  if (dataDir.empty()) {
-    this->dataDir = "./data/mobilebert_tiny/datafile/step0/";
-  } else {
-    this->dataDir = dataDir;
   }
 }
 

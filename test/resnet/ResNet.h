@@ -8,19 +8,20 @@
 
 class ResNet : public Network {
  public:
-  ResNet(const std::string&);
+  ResNet() : ResNet("resnet"){};
+  ResNet(const std::string &modelName) : ResNet(modelName, "./models/resnet/binary_data/"){};
+  ResNet(const std::string &modelName, const std::string &dataDir);
   ~ResNet(void){};
 
   std::vector<Workload> getWorkloadsInRange(
-      const std::vector<std::string>&) const override;
+      const std::vector<std::string> &) const override;
 
   std::vector<Workload> getAllWorkloads() const override;
 
  private:
   std::vector<std::string> order;
-  std::map<std::string, SimplifiedParams> paramsMap;
-  std::map<std::string, Files> filesMap;
-  std::map<std::string, MemoryMap> memoryMap;
+  std::map<std::string, SimplifiedParams> params;
+  std::map<std::string, Files> files;
 
-  std::vector<Workload> getWorkloads(const std::vector<std::string>&) const;
+  std::vector<Workload> getWorkloads(const std::vector<std::string> &) const;
 };

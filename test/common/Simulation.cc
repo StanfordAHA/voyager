@@ -21,8 +21,8 @@ namespace filesystem = experimental::filesystem;
 #endif
 
 Simulation::Simulation() {
-  model = get_env_var("NETWORK");
-  if (model.empty()) model = "resnet";
+  modelName = get_env_var("NETWORK");
+  if (modelName.empty()) modelName = "resnet";
 
   std::string tests(get_env_var("TESTS"));
   if (tests.empty()) tests = "fc";
@@ -48,40 +48,50 @@ Simulation::Simulation() {
   split_string(tests, ',', std::back_inserter(tests_list));
 
   if (tests_list.size() > 2) {
-    std::cerr << "ERROR: Supply at max two TESTS." << std::endl;
-    print_help();
-    std::abort();
+    throw std::runtime_error("Supply at max two TESTS.");
   }
 
   // Parse sims to run
   split_string(simsEnv, ',', std::back_inserter(sims));
   if (sims.size() & 0x01) {
-    std::cerr << "ERROR: Need to supply even number of sim pairs." << std::endl;
-    print_help();
-    std::abort();
+    throw std::runtime_error("Need to supply even number of sim pairs.");
   }
 
-  // Construct required network
+  // Make modelName matching case insensitive
+  std::string& modelNameLower = const_cast<std::string&>(this->modelName);
+  std::transform(modelNameLower.begin(), modelNameLower.end(),
+                 modelNameLower.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+
+  // Match the model family and construct required network
   std::unique_ptr<Network> network;
-  if (model == "resnet") {
-    network = std::make_unique<ResNet>(data_dir);
-  } else if (model == "mobilebert") {
-    network = std::make_unique<MobileBERT>(data_dir, task);
+  if (modelNameLower.find("resnet") != std::string::npos) {
+    if (data_dir.empty()) {
+      network = std::make_unique<ResNet>(modelName);
+    } else {
+      network = std::make_unique<ResNet>(modelName, data_dir);
+    }
+  } else if (modelNameLower.find("mobilebert") != std::string::npos) {
+    if (data_dir.empty()) {
+      network = std::make_unique<MobileBERT>(modelName, task);
+    } else {
+      network = std::make_unique<MobileBERT>(modelName, data_dir, task);
+    }
   } else {
-    // If the model name does not match any of the 
-    network = std::make_unique<CodeGen>(data_dir);
+    throw std::runtime_error("Unknown model: " + modelName);
   }
 
   // Collect workloads (aka. layers) from Network
   workloads = network->getWorkloadsInRange(tests_list);
 
   std::cout << "Starting new simulation with config:";
-  std::cout << "\n> Model: " << model;
+  std::cout << "\n> Model: " << modelName;
   std::cout << "\n> Tests: ";
   for (const std::string& l : tests_list) std::cout << l << ' ';
   std::cout << "\n> Sims: ";
   for (const std::string& s : sims) std::cout << s << ' ';
-  if (model == "mobilebert") std::cout << "\n> Task: " << task;
+  if (modelName.find("modelNameLower") != std::string::npos)
+    std::cout << "\n> Task: " << task;
   std::cout << "\n> Tolerance: " << tolerance;
   std::cout << "\n> Data dir: " << network->getDataDir();
   std::cout << "\n> Out dir: " << out_dir << "\n";
@@ -262,10 +272,10 @@ int Simulation::checkOutput() {
 
   std::string outFilePrefix;
   if (workloads.size() == 1) {
-    outFilePrefix = out_dir + model + '.' + workloads.front().name + '.';
+    outFilePrefix = out_dir + modelName + '.' + workloads.front().name + '.';
   } else {
-    outFilePrefix = out_dir + model + '.' + workloads.front().name + "_to_" +
-                    workloads.back().name + '.';
+    outFilePrefix = out_dir + modelName + '.' + workloads.front().name +
+                    "_to_" + workloads.back().name + '.';
   }
 
   float rel_err = 0;

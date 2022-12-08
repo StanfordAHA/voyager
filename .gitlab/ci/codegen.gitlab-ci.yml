@@ -2,7 +2,7 @@
 ### Codegen Layer by Layer ###
 #####################################
 
-Codegen Layers (FP32 Gold Model vs. Pytorch):
+ResNet Codegen Layers (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -20,9 +20,9 @@ Codegen Layers (FP32 Gold Model vs. Pytorch):
     - (cd zagzig/proto && ./gen.sh)
     - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k)
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model resnet18 --data_dir test/codegen/gen_data/ --simulators fp32,file --tolerance 0.01
+    - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators fp32,file --tolerance 0.01
 
-Codegen Layers (Accel vs. Posit Gold Model):
+ResNet Codegen Layers (Accel vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -40,13 +40,13 @@ Codegen Layers (Accel vs. Posit Gold Model):
     - (cd zagzig/proto && ./gen.sh)
     - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k)
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model resnet18 --data_dir test/codegen/gen_data/ --simulators accelerator,customposit --tolerance 0.01
+    - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators accelerator,customposit --tolerance 0.01
 
 # ########################
 # ### ResNet End 2 End ###
 # ########################
-# TODO(fpedd): Remove dependence on names NETWORK=resnet18 TESTS=Conv_0,Gemm_48 (they could change)
-Codegen End2End (FP32 Gold Model vs. Pytorch):
+# TODO(fpedd): Remove dependence on names NETWORK=resnet18_codegen TESTS=Conv_0,Gemm_48 (they could change)
+ResNet Codegen End2End (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -67,9 +67,9 @@ Codegen End2End (FP32 Gold Model vs. Pytorch):
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - DATA_DIR=test/codegen/gen_data/ TOLERANCE=0.01 NETWORK=resnet18 TESTS=Conv_0,Gemm_48 SIMS=fp32,file ./build/TestRunner
+    - DATA_DIR=test/resnet/gen_data/ TOLERANCE=0.01 NETWORK=resnet18_codegen TESTS=Conv_0,Gemm_48 SIMS=fp32,file ./build/TestRunner
 
-Codegen End2End (Accel vs. Posit Gold Model):
+ResNet Codegen End2End (Accel vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -90,4 +90,4 @@ Codegen End2End (Accel vs. Posit Gold Model):
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
-    - DATA_DIR=test/codegen/gen_data/ TOLERANCE=0.15 NETWORK=resnet18 TESTS=Conv_0,Gemm_48 SIMS=customposit,accelerator ./build/TestRunner
+    - DATA_DIR=test/resnet/gen_data/ TOLERANCE=0.15 NETWORK=resnet18_codegen TESTS=Conv_0,Gemm_48 SIMS=customposit,accelerator ./build/TestRunner

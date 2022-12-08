@@ -597,7 +597,7 @@ const SimplifiedParams fc_params = {
     .FC = true,
 };
 
-const std::map<std::string, SimplifiedParams> paramsMap{
+const std::map<std::string, SimplifiedParams> params{
     {"conv1", conv1_params},
     {"layer1_0_conv1", layer1_0_conv1_params},
     {"layer1_0_conv2", layer1_0_conv2_params},
@@ -642,7 +642,7 @@ const std::vector<std::string> order{"conv1",
                                      "layer4_1_conv2",
                                      "fc"};
 
-const std::map<std::string, Files> filesMap{
+const std::map<std::string, Files> files{
     {"conv1", {"conv1_input", "conv1_weight", "conv1_bias", "conv1_comp"}},
     {"layer1_0_conv1",
      {"layer1_0_conv1_input", "layer1_0_conv1_weight", "layer1_0_conv1_bias",

@@ -1,4 +1,4 @@
-MB_NETWORKS = {
+NETWORKS = {
     "mobilebert":
     [
         "bottleneck_input_dense",

@@ -9,10 +9,10 @@ import sys
 import os
 import logging
 
-from test.mobilebert.mb_networks import MB_NETWORKS
-from test.resnet.resnet_networks import RESNET_NETWORKS
+from test.mobilebert import mb_networks
+from test.resnet import resnet_networks
 try:
-    from test.codegen.codegen_networks import CODEGEN_NETWORKS
+    from test.resnet import resnet_networks_codegen
 except ImportError:
     print("WARNING: Could not find codegen networks.")
 
@@ -104,20 +104,20 @@ def main():
     results = []
     # Default resnet model (with handwritten config)
     if args.model == "resnet":
-        all_tests = RESNET_NETWORKS[args.model]
+        all_tests = resnet_networks.NETWORKS[args.model]
     elif args.model == "mobilebert":
         if args.task == "inference":
-            all_tests = MB_NETWORKS["mobilebert"]
+            all_tests = mb_networks.NETWORKS["mobilebert"]
         elif args.task == "backward":
-            all_tests = MB_NETWORKS["mobilebert_activation_gradient"]
+            all_tests = mb_networks.NETWORKS["mobilebert_activation_gradient"]
         elif args.task == "gradient":
-            all_tests = MB_NETWORKS["mobilebert_weight_gradient"]
+            all_tests = mb_networks.NETWORKS["mobilebert_weight_gradient"]
         else:
             raise ValueError(f"Task {args.task} no supported on mobilebert.")
     # If we can't find the model in any of the handwritten configs, we look in the codegen
     else:
         try:
-            all_tests = CODEGEN_NETWORKS[args.model]
+            all_tests = resnet_networks_codegen.NETWORKS[args.model]
         except KeyError:
             raise KeyError(
                 f"Could not find model {args.model}.")
