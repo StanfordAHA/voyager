@@ -22,11 +22,10 @@ const std::map<std::string, Files> filesCodeGen;
 const std::vector<std::string> orderCodeGen;
 #endif
 
-ResNet::ResNet(const std::string& modelName, const std::string& dataDir)
+ResNet::ResNet(const std::string modelName, const std::string dataDir)
     : Network(modelName, dataDir) {
-  std::cout << modelName << " " << dataDir << std::endl;
 
-  // Make "codgen" matching case insensitive
+  // Make "codgen"-matching case insensitive
   std::string& modelNameLower = const_cast<std::string&>(this->modelName);
   std::transform(modelNameLower.begin(), modelNameLower.end(),
                  modelNameLower.begin(),

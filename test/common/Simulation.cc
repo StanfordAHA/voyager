@@ -56,8 +56,8 @@ Simulation::Simulation() {
     throw std::runtime_error("Need to supply even number of sim pairs.");
   }
 
-  // Make modelName matching case insensitive
-  std::string& modelNameLower = const_cast<std::string&>(this->modelName);
+  // Make "modelName"-matching case insensitive
+  std::string modelNameLower = const_cast<std::string&>(this->modelName);
   std::transform(modelNameLower.begin(), modelNameLower.end(),
                  modelNameLower.begin(),
                  [](unsigned char c) { return std::tolower(c); });
@@ -89,7 +89,7 @@ Simulation::Simulation() {
   for (const std::string& l : tests_list) std::cout << l << ' ';
   std::cout << "\n> Sims: ";
   for (const std::string& s : sims) std::cout << s << ' ';
-  if (modelName.find("modelNameLower") != std::string::npos)
+  if (modelNameLower.find("mobilebert") != std::string::npos)
     std::cout << "\n> Task: " << task;
   std::cout << "\n> Tolerance: " << tolerance;
   std::cout << "\n> Data dir: " << network->getDataDir();

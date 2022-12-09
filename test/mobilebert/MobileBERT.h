@@ -16,10 +16,10 @@
 class MobileBERT : public Network {
  public:
   MobileBERT() : MobileBERT("mobilebert", "inference"){};
-  MobileBERT(const std::string &modelName, const std::string &task)
+  MobileBERT(const std::string modelName, const std::string task)
       : MobileBERT(modelName, task, "./data/mobilebert_tiny/datafile/step0/"){};
-  MobileBERT(const std::string &modelName, const std::string &task,
-             const std::string &dataDir);
+  MobileBERT(const std::string modelName, const std::string task,
+             const std::string dataDir);
   ~MobileBERT(void){};
 
   std::vector<Workload> getWorkloadsInRange(
@@ -28,7 +28,7 @@ class MobileBERT : public Network {
   std::vector<Workload> getAllWorkloads() const override;
 
  private:
-  const std::string &task;
+  const std::string task;
 
   std::vector<std::string> order;
   std::map<std::string, std::string> paramsMapping;
