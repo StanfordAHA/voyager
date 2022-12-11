@@ -2,8 +2,8 @@
 
 #include <algorithm>
 
-MobileBERT::MobileBERT(const std::string modelName, const std::string dataDir,
-                       const std::string task)
+MobileBERT::MobileBERT(const std::string modelName, 
+                       const std::string task, const std::string dataDir)
     : Network(modelName, dataDir), task(task) {
   inferenceOrder = {"bottleneck_input_dense",
                     "bottleneck_input_LayerNorm",
