@@ -4,8 +4,6 @@ stages:
   - test
 
 include:
-  # TODO(fpedd): Remove codegen.gitlab-ci.yml
-  # - local: /.gitlab/ci/codegen.gitlab-ci.yml
   - local: /.gitlab/ci/mobilebert_codegen.gitlab-ci.yml
   - local: /.gitlab/ci/mobilebert.gitlab-ci.yml
   - local: /.gitlab/ci/resnet_codegen.gitlab-ci.yml
