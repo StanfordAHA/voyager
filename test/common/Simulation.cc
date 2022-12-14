@@ -215,12 +215,31 @@ void Simulation::run() {
     }
   }
 
+  // TODO(fpedd): Once run_op has support for different memory mappings, we can
+  // remove this check
+  // auto memoryMapCompare = [](const MemoryMap& lhs, const MemoryMap& rhs) {
+  //   return lhs.inputs == rhs.inputs && lhs.weights == rhs.weights &&
+  //          lhs.bias == rhs.bias && lhs.residual == rhs.residual &&
+  //          lhs.outputs == rhs.outputs;
+  // };
+
   // Run accelerator
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
     std::vector<SimplifiedParams> params_list;
+    MemoryMap memoryMap = workloads.front().memoryMap;
+
     for (const Workload& workload : workloads) {
       params_list.push_back(workload.params);
+
+      // std::cout << "Checking memory map of " + workload.name << std::endl;
+      // if (!memoryMapCompare(workload.memoryMap, memoryMap)) {
+      //   std::cerr << "Memory map mismatch" << std::endl;
+      //   std::abort();
+      // }
     }
+
+    // TODO(fpedd): Figure out why mobileBERT, despite having different memory-mappings,
+    // still works with this
     // TODO: currently assumes that all layers have the same memory map
     run_op(params_list, acceleratorMemory->sram, acceleratorMemory->rram,
            workloads.front().memoryMap);

@@ -1,5 +1,6 @@
 #include "test/common/MemoryModel.h"
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <random>
@@ -14,7 +15,8 @@ double* readFileAsDouble(const std::string& filename, int size,
 
   if (useDataFile) {
     std::ifstream is(filename, std::ios::binary);
-    if (!is.good())
+    if (!is.good() || !std::filesystem::exists(filename) ||
+        !std::filesystem::is_regular_file(filename))
       throw std::runtime_error("File \"" + filename + "\" does not exist");
     is.read(tmpValuesArray, size * sizeof(double));
   } else {
@@ -277,7 +279,12 @@ void MemoryModel::loadModelParams(const SimplifiedParams& params,
                                   const Files& files,
                                   const MemoryMap& memoryMap,
                                   bool useDataFile) {
-  loadWeights(params, memoryMap.weights, files.weights_file, useDataFile);
+  // TODO(fpedd): This if for loading weights needs to be revisited. It is
+  // currently based on the assumption that we only ever don't want to load
+  // weights if we are doing a softmax without mask.
+  if (!(params.SOFTMAX && !params.ATTENTION_MASK)) {
+    loadWeights(params, memoryMap.weights, files.weights_file, useDataFile);
+  }
   if (params.BIAS) {
     loadBias(params, memoryMap.bias, files.bias_file, useDataFile);
   }
