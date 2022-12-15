@@ -171,10 +171,10 @@ std::vector<Workload> MobileBERT::getWorkloads(
 
       // Fake memory offsets used for unit tests
       workload.params.INPUT_OFFSET = STACK_SIZE;
-      if (workload.params.WEIGHT && !workload.params.SOFTMAX) {
-        workload.params.WEIGHT_OFFSET = STACK_SIZE + INTERMEDIATE_SIZE;
-      } else {
+      if (workload.params.SOFTMAX) {  // Softmax gets no weight address
         workload.params.WEIGHT_OFFSET = -1;
+      } else {
+        workload.params.WEIGHT_OFFSET = STACK_SIZE + INTERMEDIATE_SIZE;
       }
       workload.params.OUTPUT_OFFSET = STACK_SIZE + 2 * INTERMEDIATE_SIZE;
       if (workload.params.BIAS) {
