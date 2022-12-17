@@ -122,11 +122,6 @@ inline float readInput(float *matrix, int index, bool accType) {
   return accType ? matrix[2 * index] : matrix[index];
 }
 
-// inline float readInput2(float *matrix, int index, bool accType, int expBias)
-// {
-//   return accType ? matrix[2 * index] : matrix[index];
-// }
-
 #ifndef NO_UNIVERSAL
 inline void saveOutput(UniversalPosit *matrix, int index,
                        UniversalPositAccum value, bool accType) {
@@ -141,7 +136,12 @@ inline void saveOutput(UniversalPosit *matrix, int index,
 #endif
 
 inline void saveOutput(INPUT_DATATYPE *matrix, int index,
-                       ACCUM_DATATYPE::DecomposedPosit value, bool accType) {
+                       ACCUM_DATATYPE::DecomposedPosit value, bool accType,
+                       int expBias = 0) {
+  if (expBias) {
+    value.scale -= expBias;
+  }
+
   if (!accType) {
     matrix[index] = static_cast<INPUT_DATATYPE>(value);
   } else {
@@ -436,6 +436,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       saveOutput(matrixC, i, outputMatrix[i], params.ACC_T_OUTPUT);
     }
   } else if (params.CROSS_ENTROPY_GRAD) {
+    std::cerr << "CROSS_ENTROPY_GRAD" << std::endl;
     ACC_T labels[X];
     ACC_T logits[X];
     ACC_T gradients[X];
@@ -464,7 +465,9 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       gradients[i] *= divisor;
       gradients[i] -= labels[i];
       saveOutput(matrixC, i, gradients[i], params.ACC_T_OUTPUT);
+      std::cerr << gradients[i] << '\t';
     }
+    std::cerr << std::endl << std::endl;
   } else if (params.MSE_GRAD) {
     INT_T divisor = 2 / X;
     for (int i = 0; i < X; i++) {

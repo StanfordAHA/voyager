@@ -38,7 +38,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     dataDir = os.path.join(args.datapath, "datafile") if args.output_dir is None else args.output_dir
-    files = ["activations", "errors", "weights", "gradients"]
+    files = ["activations", "activation_gradients", "weights", "weight_gradients"]
     for filename in files:
         path = os.path.join(args.datapath, f"{filename}.pkl")
         print("Reading input file: " + path)

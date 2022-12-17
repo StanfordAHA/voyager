@@ -1307,10 +1307,10 @@ std::map<std::string, MemoryOffsets> backpropMemOffsets{
 std::map<std::string, Files> backpropTestFiles{
     {"classifier",
      {
-         "mobilebert_logits",
+         "classifier",
          "mobilebert_labels",
          "",
-         "mobilebert_logits",
+         "classifier",
      }},
     {"output_bottleneck_LayerNorm",
      {
