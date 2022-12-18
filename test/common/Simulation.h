@@ -30,7 +30,7 @@ class Simulation {
   std::vector<Workload> workloads;
   std::vector<std::string> sims;
   std::string out_dir;
-  std::string model;
+  std::string modelName;
   float tolerance = 0.1;
 
   SimpleMemoryModel<INPUT_DATATYPE> *acceleratorMemory;

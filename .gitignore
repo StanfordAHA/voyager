@@ -1,8 +1,6 @@
 build
 pybuild
 data/resnet
-data/sst2_eval/step*
-data/sst2_train/step*
 .direnv
 .vscode
 test_outputs/
@@ -21,3 +19,14 @@ models/resnet/binary_data*
 models/resnet/model_data/*
 !models/resnet/model_data/*.pth
 datafile
+test/resnet/*
+!test/resnet/ResNet.cc
+!test/resnet/ResNet.h
+!test/resnet/params.h
+!test/resnet/resnet_networks.py
+test/mobilebert/*
+!test/mobilebert/MobileBERT.cc
+!test/mobilebert/MobileBERT.h
+!test/mobilebert/params.h
+!test/mobilebert/mobilebert_networks.py
+!test/mobilebert/legacy

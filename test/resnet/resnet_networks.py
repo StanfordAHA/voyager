@@ -1,4 +1,4 @@
-RESNET_NETWORKS = {
+NETWORKS = {
     "resnet":
     [
         "conv1",
