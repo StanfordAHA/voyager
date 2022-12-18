@@ -536,6 +536,13 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       }
     }
 
+    // for (int x = 0; x < X; x++) {
+    //   for (int c = 0; c < C; c++) {
+    //     std::cerr << inputMatrixA[x * C + c] << '\t';
+    //   }
+    //   std::cerr << std::endl;
+    // }
+
     if (params.CONCAT_WEIGHT) {
       INT_T copyMatrixB[C * K];
       memcpy(copyMatrixB, inputMatrixB, sizeof(copyMatrixB));
