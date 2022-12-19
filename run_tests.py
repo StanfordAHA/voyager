@@ -91,7 +91,7 @@ def main():
             if args.task == "inference":
                 args.data_dir = "./data/mobilebert_tiny/datafile/"
             else:
-                args.data_dir = "./data/sst2_train/datafile/"
+                args.data_dir = "./data/qnli/datafile/"
         else:
             raise ValueError(
                 f"Could not find default data_dir for model {args.model}. Please provide data_dir.")
@@ -116,7 +116,7 @@ def main():
     elif args.model == "mobilebert":
         if args.task == "inference":
             all_tests = mobilebert_networks.NETWORKS[args.model]
-        elif args.task == "backward":
+        elif args.task == "backprop":
             all_tests = mobilebert_networks.NETWORKS[args.model+"_activation_gradient"]
         elif args.task == "gradient":
             all_tests = mobilebert_networks.NETWORKS[args.model+"_weight_gradient"]

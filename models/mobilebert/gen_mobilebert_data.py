@@ -52,6 +52,6 @@ if __name__ == "__main__":
 
         for name, param in parameters.items():
             outfile = os.path.join(subDir, name.replace('.', '_'))
-            write_fp64(outfile, param)
+            write_fp64(outfile, param.flatten())
             print(outfile, end="\r", flush=True)
         print("=" * 120)
