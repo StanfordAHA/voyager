@@ -1,6 +1,6 @@
-#################################
-### MobileBERT Layer by Layer ###
-#################################
+#############################
+### MobileBERT Unit Tests ###
+#############################
 
 MobileBERT Inference Layers (FP32 Gold Model vs. Pytorch):
   stage: test
@@ -13,10 +13,7 @@ MobileBERT Inference Layers (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    # - python3 -m venv venv
-    # - . ./venv/bin/activate
-    # - pip install -r requirements.txt
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
+    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --simulators fp32,file --tolerance 0.01
 
@@ -31,50 +28,66 @@ MobileBERT Inference Layers (Accel. vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    # - python3 -m venv venv
-    # - . ./venv/bin/activate
-    # - pip install -r requirements.txt
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/mobilebert_tiny
+    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --simulators accelerator,customposit --tolerance 0.01
-#
-# TODO(fpedd): Commented out tests that failed for a long time anyways. Lets
-# activate them again when we think they should work. There is no point in having
-# always failing tests...
-# # TODO(fpedd): @jeffrey, why no accelerator,customposit tests for the gradinets?
 
-# MobileBERT Activation Gradient Layers (FP32 Gold Model vs. Pytorch):
-#   stage: test
-#   variables:
-#     GIT_SUBMODULE_STRATEGY: recursive
-#     GIT_SUBMODULE_DEPTH: 3
-#   artifacts:
-#     when: always
-#     paths:
-#       - ./test_outputs
-#     expire_in: 1 week
-#   script:
-#     # - python3 -m venv venv
-#     # - . ./venv/bin/activate
-#     # - pip install -r requirements.txt
-#     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/sst2_train/step_0 --output_dir data/sst2_train/datafile/
-#     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-#     - python3 run_tests.py --model mobilebert --task backward --simulators fp32,file --tolerance 0.01
+MobileBERT Activation Gradients (FP32 Gold Model vs. Pytorch):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests.py --model mobilebert --task backprop --simulators fp32,file --tolerance 0.01
 
-# MobileBERT Weight Gradient Layers (FP32 Gold Model vs. Pytorch):
-#   stage: test
-#   variables:
-#     GIT_SUBMODULE_STRATEGY: recursive
-#     GIT_SUBMODULE_DEPTH: 3
-#   artifacts:
-#     when: always
-#     paths:
-#       - ./test_outputs
-#     expire_in: 1 week
-#   script:
-#     # - python3 -m venv venv
-#     # - . ./venv/bin/activate
-#     # - pip install -r requirements.txt
-#     - ./models/mobilebert/gen_mobilebert_data.py --datapath data/sst2_train/step_0 --output_dir data/sst2_train/datafile/
-#     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-#     - python3 run_tests.py --model mobilebert --task gradient --simulators fp32,file --tolerance 0.01
+MobileBERT Activation Gradients (Accel. vs. Posit Gold Model):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests.py --model mobilebert --task backprop --simulators accelerator,customposit --tolerance 0.01
+
+MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests.py --model mobilebert --task gradient --simulators fp32,file --tolerance 0.01
+
+MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests.py --model mobilebert --task gradient --simulators accelerator,customposit --tolerance 0.01
