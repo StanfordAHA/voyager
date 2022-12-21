@@ -77,7 +77,7 @@ MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task gradient --simulators fp32,file --tolerance 0.01
 
-MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
+MobileBERT Weight Gradients (Accel. vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
