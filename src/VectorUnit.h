@@ -269,9 +269,11 @@ SC_MODULE(VectorOpUnit) {
         //              << " = " << std::endl
         //              << res3);
       } else if (inst.vOp3 == VectorInstructions::vmult ||
-                 inst.vOp3 == VectorInstructions::vdiv) {
+                 inst.vOp3 == VectorInstructions::vdiv ||
+                 inst.vOp3 == VectorInstructions::vsquare) {
         vmultdiv<typename ACC_DTYPE::DecomposedPosit, WIDTH>(
-            op3Src0, op3Src1, res3, inst.vOp3 == VectorInstructions::vdiv);
+            op3Src0, op3Src1, res3, inst.vOp3 == VectorInstructions::vdiv,
+            inst.vOp3 == VectorInstructions::vsquare);
       } else {
         res3 = op3Src0;
       }
