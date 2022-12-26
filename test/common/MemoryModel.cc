@@ -130,11 +130,6 @@ void MemoryModel::loadWeights(const SimplifiedParams& params,
   for (int address = 0; address < size; address++) {
     double val = *(tmpValuePtr++);
     writeToMemory(params.WEIGHT_OFFSET + address, val, mem, false);
-    // save_float(&acceleratorMemory[params.WEIGHT_OFFSET], i, val,
-    //            params.ACC_T_WEIGHT);
-    // save_float(goldMemory, i, val, params.ACC_T_WEIGHT);
-    // save_float(universalGoldMemory, i, val, params.ACC_T_WEIGHT);
-    // save_float(floatGoldMemory, i, val, params.ACC_T_WEIGHT);
   }
 
   delete[] tmpValues;
@@ -165,10 +160,6 @@ void MemoryModel::loadBias(const SimplifiedParams& params,
   for (int address = 0; address < size; address++) {
     double val = *(tmpValuePtr++);
     writeToMemory(params.BIAS_OFFSET + 2 * address, val, mem, true);
-    // save_float(&acceleratorMemory[params.BIAS_OFFSET], i, val, true);
-    // save_float(goldMemory, i, val, true);
-    // save_float(universalGoldMemory, i, val, true);
-    // save_float(floatGoldMemory, i, val, true);
   }
 
   delete[] tmpValues;
@@ -204,11 +195,6 @@ void MemoryModel::loadResiduals(const SimplifiedParams& params,
 
     // TODO: work with double precision
     writeToMemory(params.RESIDUAL_OFFSET + address, val, mem, false);
-    // save_float(&acceleratorMemory[params.RESIDUAL_OFFSET], i, val,
-    //            params.ACC_T_OUTPUT);
-    // save_float(goldMemory, i, val, params.ACC_T_OUTPUT);
-    // save_float(universalGoldMemory, i, val, params.ACC_T_OUTPUT);
-    // save_float(floatGoldMemory, i, val, params.ACC_T_OUTPUT);
   }
 
   delete[] tmpValues;
@@ -254,9 +240,6 @@ void MemoryModel::loadReferenceOutput(const SimplifiedParams& params,
     double val = *(tmpValuePtr++);
     // TODO: work with double precision
     writeToReference(i, val);
-    // save_float(outputMatrix, i, val, params.ACC_T_OUTPUT);
-    // save_float(universalOutputMatrix, i, val, params.ACC_T_OUTPUT);
-    // save_float(floatOutputMatrix, i, val, params.ACC_T_OUTPUT);
   }
 
   delete[] tmpValues;
@@ -279,6 +262,16 @@ void MemoryModel::loadModelActivations(const SimplifiedParams& params,
   }
   if (params.RESIDUAL || params.RELU_GRAD || params.SOFTMAX_GRAD) {
     loadResiduals(params, memoryMap.residual, files.residual_file, useDataFile);
+  }
+  if (params.WEIGHT_SPLITTING) {
+    // TODO: Hacky way of filling weight gradient memory
+    SimplifiedParams copy = params;
+    copy.WEIGHT_OFFSET = params.WEIGHT_GRADIENT_OFFSET;
+    copy.BIAS_OFFSET = params.BIAS_GRADIENT_OFFSET;
+
+    std::cerr << "Weight splitting" << std::endl;
+    loadWeights(params, SRAM, files.weight_grad_file, useDataFile);
+    loadBias(params, SRAM, files.bias_grad_file, useDataFile);
   }
 }
 

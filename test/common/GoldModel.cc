@@ -306,7 +306,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
         if (params.WEIGHT_SPLITTING) {
           ACC_T biasGrad = readInput(biasGradMatrix, k, true);
-          acc += static_cast<ACC_T>(learningRate * biasGrad);
+          acc -= static_cast<ACC_T>(learningRate * biasGrad);
         }
       }
 
@@ -320,7 +320,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
         if (params.WEIGHT_SPLITTING) {
           ACC_T grad = weightGradMatrix[k];
-          b += static_cast<ACC_T>(learningRate * grad);
+          b -= static_cast<ACC_T>(learningRate * grad);
         }
 
         ACC_T acc = static_cast<ACC_T>(a * b);
@@ -331,7 +331,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
           if (params.WEIGHT_SPLITTING) {
             ACC_T biasGrad = readInput(biasGradMatrix, k, true);
-            acc += static_cast<ACC_T>(learningRate * biasGrad);
+            acc -= static_cast<ACC_T>(learningRate * biasGrad);
           }
         }
 
@@ -549,9 +549,10 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
     for (int i = 0; i < FX * FY * C * K; i++) {
       inputMatrixB[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
+
       if (params.WEIGHT_SPLITTING) {
-        inputMatrixB[i] -=
-            learningRate * readInput(weightGradMatrix, i, params.ACC_T_WEIGHT);
+        ACC_T weightGrad = readInput(weightGradMatrix, i, params.ACC_T_WEIGHT);
+        inputMatrixB[i] -= learningRate * weightGrad;
       }
     }
 
@@ -724,9 +725,8 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
                     outputMatrix[outputAddress] += bias;
 
                     if (params.WEIGHT_SPLITTING) {
-                      ACC_T grad = readInput(biasGradMatrix, k, true);
-                      outputMatrix[outputAddress] +=
-                          static_cast<ACC_T>(learningRate * grad);
+                      ACC_T biasGrad = readInput(biasGradMatrix, k, true);
+                      outputMatrix[outputAddress] -= learningRate * biasGrad;
                     }
                   }
 

@@ -42,7 +42,7 @@ MobileBERT::MobileBERT(const std::string modelName, const std::string task,
       it.second.residual_file.insert(0, this->dataDir);
     }
   } else {
-    if (task == "inference") {
+    if (task == "inference" || task == "weight_splitting") {
       order = inferenceOrder;
       paramsMapping = inferenceParamsMapping;
       params = inferenceParams;
@@ -60,7 +60,7 @@ MobileBERT::MobileBERT(const std::string modelName, const std::string task,
       params = backpropParams;
       memOffsets = backpropMemOffsets;
       files = backpropTestFiles;
-    } else if (task == "weight_update" || task == "weight_update_with_ef") {
+    } else if (task == "weight_update" || task == "error_feedback") {
       paramsMapping = weightParamsMapping;
       params = weightParams;
       memOffsets = weightMemOffsets;
@@ -71,8 +71,8 @@ MobileBERT::MobileBERT(const std::string modelName, const std::string task,
         files.insert({it->first, file});
       }
     } else {
-      std::cerr << "ERROR: Task must be one of: inference, gradient, backprop, "
-                   "weight_update."
+      std::cerr << "ERROR: Task must be one of \"inference\", \"gradient\", "
+                   "\"backprop\", \"weight_update\", and \"weight_splitting\"."
                 << std::endl;
       std::abort();
     }
@@ -120,12 +120,10 @@ std::vector<Workload> MobileBERT::getWorkloads(
         weightDataDir = "weights/";
         outputDataDir = "activations/";
         residualDataDir = "activations/";
-        gradientDataDir = "weight_gradients/";
 
         if (!workload.params.WEIGHT || workload.params.ATTENTION_MASK) {
           weightDataDir = "activations/";
         }
-
       } else if (task == "backprop") {
         inputDataDir = "activation_gradients/";
         weightDataDir = "weights/";
@@ -146,7 +144,6 @@ std::vector<Workload> MobileBERT::getWorkloads(
           inputDataDir = "activations/";
           weightDataDir = "activations/";
         }
-
       } else if (task == "gradient") {
         inputDataDir = "activations/";
         weightDataDir = "activation_gradients/";
@@ -161,14 +158,29 @@ std::vector<Workload> MobileBERT::getWorkloads(
         // TODO: accelerator doesn't support these functionalities yet
         // this results in FP32<->Pytorch failing for backprop and gradients
         workload.params.ACC_T_OUTPUT = false;
-      } else if (task == "weight_update" || task == "weight_update_with_ef") {
-        workload.params.ERROR_FEEDBACK = task == "weight_update_with_ef";
+      } else if (task == "weight_update" || task == "error_feedback") {
+        workload.params.ERROR_FEEDBACK = task == "error_feedback";
 
         inputDataDir = "quantized_weight_gradients/";
         weightDataDir = "quantized_weights/";
         outputDataDir = workload.params.ERROR_FEEDBACK
                             ? "updated_weight_gradients/"
                             : "updated_weights/";
+      } else if (task == "weight_splitting") {
+        workload.params.WEIGHT_SPLITTING = true;
+        workload.params.learningRate = 3e-2;
+        workload.files.weight_grad_file = workload.files.weights_file;
+        workload.files.bias_grad_file = workload.files.bias_file;
+
+        inputDataDir = "activations2/";
+        weightDataDir = "weights/";
+        outputDataDir = "activations2/";
+        residualDataDir = "activations2/";
+        gradientDataDir = "weight_gradients/";
+
+        if (!workload.params.WEIGHT || workload.params.ATTENTION_MASK) {
+          weightDataDir = "activations/";
+        }
       }
 
       std::string encLayerName = "mobilebert_encoder_layer_0_";
@@ -181,6 +193,7 @@ std::vector<Workload> MobileBERT::getWorkloads(
         workload.files.inputs_file.insert(
             0, dataDir + inputDataDir + encLayerName);
       }
+
       if (workload.params.ATTENTION_MASK) {
         workload.files.weights_file.insert(0, dataDir + weightDataDir);
       } else if (!workload.files.weights_file.empty()) {
@@ -194,6 +207,10 @@ std::vector<Workload> MobileBERT::getWorkloads(
                                       dataDir + weightDataDir + encLayerName);
       workload.files.residual_file.insert(
           0, dataDir + residualDataDir + encLayerName);
+      workload.files.weight_grad_file.insert(
+          0, dataDir + gradientDataDir + encLayerName);
+      workload.files.bias_grad_file.insert(
+          0, dataDir + gradientDataDir + encLayerName);
 
       // Fake memory offsets used for unit tests
       workload.params.INPUT_OFFSET = STACK_SIZE;
@@ -205,9 +222,6 @@ std::vector<Workload> MobileBERT::getWorkloads(
 
       if (workload.params.WEIGHT_UPDATE) {
         // Offset only used for comparing outputs in unit tests
-        std::cerr << "workload.params.ERROR_FEEDBACK: "
-                  << (workload.params.ERROR_FEEDBACK ? "true" : "false")
-                  << std::endl;
         workload.params.OUTPUT_OFFSET = workload.params.ERROR_FEEDBACK
                                             ? workload.params.INPUT_OFFSET
                                             : workload.params.WEIGHT_OFFSET;
@@ -215,16 +229,11 @@ std::vector<Workload> MobileBERT::getWorkloads(
         workload.params.OUTPUT_OFFSET = STACK_SIZE + 2 * INTERMEDIATE_SIZE;
       }
 
-      if (workload.params.BIAS) {
-        workload.params.BIAS_OFFSET = STACK_SIZE + 3 * INTERMEDIATE_SIZE;
-      } else {
-        workload.params.BIAS_OFFSET = -1;
-      }
-      if (workload.params.RESIDUAL) {
-        workload.params.RESIDUAL_OFFSET = STACK_SIZE + 4 * INTERMEDIATE_SIZE;
-      } else {
-        workload.params.RESIDUAL_OFFSET = -1;
-      }
+      workload.params.BIAS_OFFSET = STACK_SIZE + 3 * INTERMEDIATE_SIZE;
+      workload.params.RESIDUAL_OFFSET = STACK_SIZE + 4 * INTERMEDIATE_SIZE;
+      workload.params.WEIGHT_GRADIENT_OFFSET =
+          STACK_SIZE + 5 * INTERMEDIATE_SIZE;
+      workload.params.BIAS_GRADIENT_OFFSET = STACK_SIZE + 6 * INTERMEDIATE_SIZE;
 
       workload.memoryMap = {SRAM, (workload.params.WEIGHT ? RRAM : SRAM), RRAM,
                             SRAM, SRAM};
