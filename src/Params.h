@@ -213,6 +213,7 @@ struct VectorInstructions {
   // static const unsigned int vmult = 2;
   static const unsigned int vdiv = 3;
   static const unsigned int vsquare = 4;
+  static const unsigned int vscaleexp = 5;
 
   // Stage 4: relu
   ac_int<2, false> vOp4;
