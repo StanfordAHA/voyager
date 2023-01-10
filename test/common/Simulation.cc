@@ -190,7 +190,9 @@ void Simulation::run() {
               currentParams.WEIGHT_OFFSET,
           positMemory->sram + currentParams.OUTPUT_OFFSET,
           positMemory->rram + currentParams.BIAS_OFFSET,
-          positMemory->sram + currentParams.RESIDUAL_OFFSET, nullptr, nullptr);
+          positMemory->sram + currentParams.RESIDUAL_OFFSET,
+          positMemory->sram + currentParams.WEIGHT_GRADIENT_OFFSET,
+          positMemory->sram + currentParams.BIAS_GRADIENT_OFFSET);
     }
     if (std::find(sims.begin(), sims.end(), "universal") != sims.end()) {
       run_universal_posit_gold_model(
@@ -201,8 +203,9 @@ void Simulation::run() {
               currentParams.WEIGHT_OFFSET,
           universalPositMemory->sram + currentParams.OUTPUT_OFFSET,
           universalPositMemory->rram + currentParams.BIAS_OFFSET,
-          universalPositMemory->sram + currentParams.RESIDUAL_OFFSET, nullptr,
-          nullptr);
+          universalPositMemory->sram + currentParams.RESIDUAL_OFFSET,
+          universalPositMemory->sram + currentParams.WEIGHT_GRADIENT_OFFSET,
+          universalPositMemory->sram + currentParams.BIAS_GRADIENT_OFFSET);
     }
     if (std::find(sims.begin(), sims.end(), "fp32") != sims.end()) {
       run_fp_gold_model(
@@ -211,7 +214,9 @@ void Simulation::run() {
               currentParams.WEIGHT_OFFSET,
           floatMemory->sram + currentParams.OUTPUT_OFFSET,
           floatMemory->rram + currentParams.BIAS_OFFSET,
-          floatMemory->sram + currentParams.RESIDUAL_OFFSET, nullptr, nullptr);
+          floatMemory->sram + currentParams.RESIDUAL_OFFSET,
+          floatMemory->sram + currentParams.WEIGHT_GRADIENT_OFFSET,
+          floatMemory->sram + currentParams.BIAS_GRADIENT_OFFSET);
     }
   }
 
@@ -274,6 +279,10 @@ int Simulation::checkOutput() {
     Y = 1;
   }
 
+  if (currentParams.SOFTMAX) {
+    K = 1;
+  }
+
   size_t size = X * Y * K;
 
   bool accelerator =
@@ -293,18 +302,17 @@ int Simulation::checkOutput() {
                     "_to_" + workloads.back().name + '.';
   }
 
-  double rel_err = 0;
+  double rel_err;
   bool any_comparison = false;
 
-  if (universal && pytorch) {
-    std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
-    std::cout << "(reveals issues in representing float as Posit)" << std::endl;
-    std::string diffFile = outFilePrefix + "universal_vs_pytorch.txt";
+  if (fp32 && pytorch) {
+    std::cout << "FP32 Gold Model vs. Pytorch" << std::endl;
+    std::cout << "(reveals issues in data loading or mapping)" << std::endl;
+    std::string diffFile = outFilePrefix + "fpgold_vs_pytorch.txt";
 
-    rel_err += compare_arrays(
-        universalPositMemory->sram + workloads.back().params.OUTPUT_OFFSET,
-        "universal", universalPositMemory->reference, "file", size, diffFile,
-        false);
+    rel_err +=
+        compare_arrays(floatMemory->sram + currentParams.OUTPUT_OFFSET, "fp32",
+                       floatMemory->reference, "file", size, diffFile, false);
     any_comparison = true;
   }
 
@@ -314,9 +322,20 @@ int Simulation::checkOutput() {
               << std::endl;
     std::string diffFile = outFilePrefix + "hlsgold_vs_pytorch.txt";
 
+    rel_err += compare_arrays(positMemory->sram + currentParams.OUTPUT_OFFSET,
+                              "customposit", positMemory->reference, "file",
+                              size, diffFile, false);
+    any_comparison = true;
+  }
+
+  if (universal && pytorch) {
+    std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
+    std::cout << "(reveals issues in representing float as Posit)" << std::endl;
+    std::string diffFile = outFilePrefix + "universal_vs_pytorch.txt";
+
     rel_err += compare_arrays(
-        positMemory->sram + workloads.back().params.OUTPUT_OFFSET,
-        "customposit", positMemory->reference, "file", size, diffFile, false);
+        universalPositMemory->sram + currentParams.OUTPUT_OFFSET, "universal",
+        universalPositMemory->reference, "file", size, diffFile, false);
     any_comparison = true;
   }
 
@@ -327,23 +346,21 @@ int Simulation::checkOutput() {
     std::string diffFile = outFilePrefix + "accel_vs_pytorch.txt";
 
     rel_err += compare_arrays(
-        acceleratorMemory->sram + workloads.back().params.OUTPUT_OFFSET,
-        "accelerator", acceleratorMemory->reference, "file", size, diffFile,
-        false);
+        acceleratorMemory->sram + currentParams.OUTPUT_OFFSET, "accelerator",
+        acceleratorMemory->reference, "file", size, diffFile, false);
     any_comparison = true;
   }
 
-  if (accelerator && customposit) {
+  if (customposit && accelerator) {
     std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
     std::string diffFile = outFilePrefix + "accel_vs_hlsgold.txt";
 
     rel_err += compare_arrays(
-        acceleratorMemory->sram + workloads.back().params.OUTPUT_OFFSET,
-        "accelerator",
-        positMemory->sram + workloads.back().params.OUTPUT_OFFSET,
-        "customposit", size, diffFile, false);
+        acceleratorMemory->sram + currentParams.OUTPUT_OFFSET, "accelerator",
+        positMemory->sram + currentParams.OUTPUT_OFFSET, "customposit", size,
+        diffFile, false);
     any_comparison = true;
   }
 
@@ -356,21 +373,9 @@ int Simulation::checkOutput() {
     std::string diffFile = outFilePrefix + "hlsgold_vs_universal.txt";
 
     rel_err += compare_arrays(
-        positMemory->sram + workloads.back().params.OUTPUT_OFFSET,
-        "customposit",
-        universalPositMemory->sram + workloads.back().params.OUTPUT_OFFSET,
-        "universal", size, diffFile, false);
-    any_comparison = true;
-  }
-
-  if (fp32 && pytorch) {
-    std::cout << "FP32 Gold Model vs. Pytorch" << std::endl;
-    std::cout << "(reveals issues in data loading or mapping)" << std::endl;
-    std::string diffFile = outFilePrefix + "fpgold_vs_pytorch.txt";
-
-    rel_err += compare_arrays(
-        floatMemory->sram + workloads.back().params.OUTPUT_OFFSET, "fp32",
-        floatMemory->reference, "file", size, diffFile, false);
+        positMemory->sram + currentParams.OUTPUT_OFFSET, "customposit",
+        universalPositMemory->sram + currentParams.OUTPUT_OFFSET, "universal",
+        size, diffFile, false);
     any_comparison = true;
   }
 
@@ -381,11 +386,10 @@ int Simulation::checkOutput() {
         << std::endl;
     std::string diffFile = outFilePrefix + "hlsgold_vs_fpgold.txt";
 
-    rel_err += compare_arrays(
-        positMemory->sram + workloads.back().params.OUTPUT_OFFSET,
-        "customposit",
-        floatMemory->sram + workloads.back().params.OUTPUT_OFFSET, "fp32", size,
-        diffFile, false);
+    rel_err += compare_arrays(positMemory->sram + currentParams.OUTPUT_OFFSET,
+                              "customposit",
+                              floatMemory->sram + currentParams.OUTPUT_OFFSET,
+                              "fp32", size, diffFile, false);
     any_comparison = true;
   }
 
@@ -397,10 +401,9 @@ int Simulation::checkOutput() {
     std::string diffFile = outFilePrefix + "accel_vs_fpgold.txt";
 
     rel_err += compare_arrays(
-        acceleratorMemory->sram + workloads.back().params.OUTPUT_OFFSET,
-        "accelerator",
-        floatMemory->sram + workloads.back().params.OUTPUT_OFFSET, "fp32", size,
-        diffFile, false);
+        acceleratorMemory->sram + currentParams.OUTPUT_OFFSET, "accelerator",
+        floatMemory->sram + currentParams.OUTPUT_OFFSET, "fp32", size, diffFile,
+        false);
     any_comparison = true;
   }
 
@@ -410,8 +413,10 @@ int Simulation::checkOutput() {
   }
 
   int error_count = 0;
-  if (rel_err > tolerance)
+  if (rel_err > tolerance) {
     error_count += rel_err < 1.0 ? 1 : static_cast<int>(rel_err);
+  }
+
   std::cout << "Rela. error: " << rel_err << std::endl;
   std::cout << "Error count: " << error_count << std::endl;
 

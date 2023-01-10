@@ -209,7 +209,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     C = 3;
   }
 
-  ACC_T learningRate = params.learningRate;
+  INT_T learningRate = params.learningRate;
 
   if (params.SOFTMAX) {
     for (int x = 0; x < X; x++) {
@@ -308,7 +308,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
         if (params.WEIGHT_SPLITTING) {
           ACC_T biasGrad = readInput(biasGradMatrix, k, true);
-          acc += static_cast<ACC_T>(learningRate * biasGrad);
+          acc -= static_cast<ACC_T>(learningRate * biasGrad);
         }
       }
 
@@ -322,7 +322,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
         if (params.WEIGHT_SPLITTING) {
           ACC_T grad = weightGradMatrix[k];
-          b += static_cast<ACC_T>(learningRate * grad);
+          b -= static_cast<ACC_T>(learningRate * grad);
         }
 
         ACC_T acc = static_cast<ACC_T>(a * b);
@@ -333,7 +333,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
           if (params.WEIGHT_SPLITTING) {
             ACC_T biasGrad = readInput(biasGradMatrix, k, true);
-            acc += static_cast<ACC_T>(learningRate * biasGrad);
+            acc -= static_cast<ACC_T>(learningRate * biasGrad);
           }
         }
 
@@ -500,56 +500,25 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
   } else if (params.WEIGHT_UPDATE) {
     INT_T *weights = new INT_T[FX * FY * C * K];
     INT_T *gradients = new INT_T[FX * FY * C * K];
-    INT_T learningRate = params.learningRate;
-
-    // for (int i = 0; i < C; i++) {
-    //   for (int j = 0; j < K; j++) {
-    //     std::cerr << (float)matrixA[i * K + j] << '\t';
-    //   }
-    //   std::cerr << std::endl;
-    // }
-    // std::cerr << std::endl << std::endl;
-    // for (int i = 0; i < C; i++) {
-    //   for (int j = 0; j < K; j++) {
-    //     std::cerr << (float)matrixB[i * K + j] << '\t';
-    //   }
-    //   std::cerr << std::endl;
-    // }
 
     for (int i = 0; i < FX * FY * C * K; i++) {
       gradients[i] = readInput(matrixA, i, params.ACC_T_INPUT);
       weights[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
-      // weights[i] -= learningRate * gradients[i];
-      float val = (float)weights[i] - (float)learningRate * (float)gradients[i];
-      std::cerr << val << '\t';
-      if ((i + 1) % K == 0) {
-        std::cerr << std::endl;
-      }
-      weights[i] = val;
-      // save 8-bit quantized weight
+      weights[i] -= learningRate * gradients[i];
+      // float val = (float)weights[i] - params.learningRate *
+      // (float)gradients[i];
+
+      // save 8-bit quantized weight to RRAM
       saveOutput(matrixB, i, weights[i], params.ACC_T_OUTPUT);
 
       if (!params.ACC_T_OUTPUT && params.ERROR_FEEDBACK) {
-        // gradients[i] =
-        //     (weights[i] - static_cast<INT_T>(matrixB[i])) / learningRate;
         gradients[i] =
-            ((float)matrixB[i] - (float)weights[i]) / (float)learningRate;
+            (static_cast<INT_T>(matrixB[i]) - weights[i]) / learningRate;
+        // gradients[i] = ((float)matrixB[i] - val) / params.learningRate;
+
+        // Save 8-bit weight residual to SRAM
         saveOutput(matrixA, i, gradients[i], params.ACC_T_OUTPUT);
       }
-    }
-
-    for (int i = 0; i < C; i++) {
-      for (int j = 0; j < K; j++) {
-        std::cerr << (float)matrixB[i * K + j] << '\t';
-      }
-      std::cerr << std::endl;
-    }
-    std::cerr << std::endl << std::endl;
-    for (int i = 0; i < C; i++) {
-      for (int j = 0; j < K; j++) {
-        std::cerr << (float)weights[i * K + j] << '\t';
-      }
-      std::cerr << std::endl;
     }
   } else {
     // Large arrays need to go on the heap
@@ -568,6 +537,11 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
     for (int i = 0; i < FX * FY * C * K; i++) {
       inputMatrixB[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
+
+      if (params.WEIGHT_SPLITTING) {
+        ACC_T weightGrad = readInput(weightGradMatrix, i, params.ACC_T_WEIGHT);
+        inputMatrixB[i] -= learningRate * weightGrad;
+      }
     }
 
     if (params.RESIDUAL || params.RELU_GRAD) {
@@ -739,9 +713,8 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
                     outputMatrix[outputAddress] += bias;
 
                     if (params.WEIGHT_SPLITTING) {
-                      ACC_T grad = readInput(biasGradMatrix, k, true);
-                      outputMatrix[outputAddress] +=
-                          static_cast<ACC_T>(learningRate * grad);
+                      ACC_T biasGrad = readInput(biasGradMatrix, k, true);
+                      outputMatrix[outputAddress] -= learningRate * biasGrad;
                     }
                   }
 

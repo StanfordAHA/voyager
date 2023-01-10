@@ -52,7 +52,7 @@ template <>
 void SimpleMemoryModel<float>::writeToMemory(int address, double val,
                                              const MemorySource& mem,
                                              bool doublePrecision) {
-  float* memArray = mem == SRAM ? sram : rram;
+  float* memArray = (mem == SRAM) ? sram : rram;
 
   memArray[address] = val;
 }
@@ -62,7 +62,7 @@ template <>
 void SimpleMemoryModel<UniversalPosit>::writeToMemory(int address, double val,
                                                       const MemorySource& mem,
                                                       bool doublePrecision) {
-  UniversalPosit* memArray = mem == SRAM ? sram : rram;
+  UniversalPosit* memArray = (mem == SRAM) ? sram : rram;
 
   if (!doublePrecision) {
     memArray[address] = val;
