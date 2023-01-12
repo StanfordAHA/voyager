@@ -1,6 +1,13 @@
 #include "test/common/MemoryModel.h"
 
+#if __has_include(<filesystem>)
 #include <filesystem>
+#else
+#include <experimental/filesystem>
+namespace std {
+namespace filesystem = experimental::filesystem;
+}
+#endif
 #include <fstream>
 #include <iostream>
 #include <random>
