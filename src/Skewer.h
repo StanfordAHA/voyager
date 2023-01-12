@@ -50,7 +50,7 @@ SC_MODULE(SerializedSkewer) {
   Connections::In<Pack1D<IDTYPE, SIZE> > CCS_INIT_S1(din);
   Connections::Out<ODTYPE> dout[SIZE];
 
-#define FIFO_SIZE_INIT(z, i, unused) BOOST_PP_CAT(fifo, i)(i * 1 + 1),
+#define FIFO_SIZE_INIT(z, i, unused) BOOST_PP_CAT(fifo, i)(i * 2 + 1),
 
   SC_CTOR(SerializedSkewer) : REPEAT(FIFO_SIZE_INIT) dummy(0) {
 #undef FIFO_SIZE_INIT
@@ -124,7 +124,7 @@ SC_MODULE(DeserializedSkewer) {
   Connections::Out<Pack1D<ODTYPE, SIZE> > CCS_INIT_S1(dout);
 
 #define FIFO_SIZE_INIT(z, i, unused) \
-  BOOST_PP_CAT(fifo, i)(1 * (DIMENSION - i + 1)),
+  BOOST_PP_CAT(fifo, i)(2 * (DIMENSION - i + 1)),
 
   SC_CTOR(DeserializedSkewer) : REPEAT(FIFO_SIZE_INIT) dummy(0) {
 #undef FIFO_SIZE_INIT

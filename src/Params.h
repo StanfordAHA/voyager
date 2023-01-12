@@ -4,7 +4,14 @@
 #include "TypeToBits.h"
 #endif
 
-struct MatrixParams {
+// Base params struct
+struct BaseParams {
+  // empty, only purpose is to serve as a base class for polymorphism
+  // We need this or any other virtual member to make Base polymorphic
+  virtual ~BaseParams() {}
+};
+
+struct MatrixParams : BaseParams {
   int INPUT_OFFSET;
   int WEIGHT_OFFSET;
 
@@ -201,10 +208,12 @@ struct VectorInstructions {
   static const unsigned int readNormalInterface = 2;
   static const unsigned int op3immediate0 = 3;
   static const unsigned int op3immediate1 = 4;
-  ac_int<2, false> vOp3;  // add, div
+  ac_int<3, false> vOp3;  // add, div
   // static const unsigned int vadd = 1;
   // static const unsigned int vmult = 2;
   static const unsigned int vdiv = 3;
+  static const unsigned int vsquare = 4;
+  static const unsigned int vscaleexp = 5;
 
   // Stage 4: relu
   ac_int<2, false> vOp4;
@@ -237,7 +246,7 @@ struct VectorInstructions {
   ac_int<8, false> immediate0;
   ac_int<8, false> immediate1;
 
-  static const unsigned int width = 55;
+  static const unsigned int width = 56;
   VectorInstructions() {}
 
 #ifndef NO_SYSC
@@ -305,7 +314,7 @@ struct VectorInstructions {
   }
 };
 
-struct VectorParams {
+struct VectorParams : BaseParams {
   // 3 address generators:
   // - Vector Input
   // - Residual/Op0Src1
@@ -440,7 +449,7 @@ struct VectorParams {
   }
 };
 
-struct VectorInstructionConfig {
+struct VectorInstructionConfig : BaseParams {
   VectorInstructions inst[8];
   int instCount[8];
   int instLen;

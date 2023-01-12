@@ -71,6 +71,21 @@ void vexp(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& res) {
   }
 }
 
+#pragma hls_design ccore
+template <typename ACC_DTYPE, int WIDTH>
+void vscaleexp(Pack1D<ACC_DTYPE, WIDTH>& op0, ac_int<8, false> expScale,
+               Pack1D<ACC_DTYPE, WIDTH>& res) {
+#pragma hls_unroll yes
+  for (int i = 0; i < WIDTH; i++) {
+    res[i] = op0[i];
+  }
+
+#pragma hls_unroll yes
+  for (int i = 0; i < WIDTH; i++) {
+    res[i].scale += expScale;
+  }
+}
+
 // #pragma hls_design ccore
 // template <typename ACC_DTYPE, int WIDTH>
 // void vdiv(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
@@ -99,7 +114,7 @@ void vexp(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& res) {
 #pragma hls_design ccore
 template <typename ACC_DTYPE, int WIDTH>
 void vmultdiv(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
-              Pack1D<ACC_DTYPE, WIDTH>& res, bool div) {
+              Pack1D<ACC_DTYPE, WIDTH>& res, bool div, bool square) {
   Pack1D<ACC_DTYPE, WIDTH> op1_factor;
   if (div) {
     // convert to Posit16
@@ -119,6 +134,8 @@ void vmultdiv(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
     for (int i = 0; i < WIDTH; i++) {
       op1_factor[i] = tmp[i];
     }
+  } else if (square) {
+    op1_factor = op0;
   } else {
     op1_factor = op1;
   }

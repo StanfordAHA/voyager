@@ -1005,7 +1005,7 @@ SC_MODULE(WeightController) {
 #pragma hls_unroll yes
           for (int i = 0; i < NROWS; i++) {
             weightsDecomposed[i] = static_cast<typename DTYPE::DecomposedPosit>(
-                weightsDecomposed[i] + gradientsDecomposed[i]);
+                weightsDecomposed[i] - gradientsDecomposed[i]);
           }
         }
 

@@ -1,7 +1,10 @@
 #include "test/toolchain/operations/Operations.h"
 
-void MapGenericErrorGrad(const SimplifiedParams &params,
-                         std::deque<BaseParams *> &mappedParams) {
+// This operation performs:
+// weight = weight - learningRate * gradient;
+// it handles the case when the weight is 8b or 16b
+void MapWeightUpdate(const SimplifiedParams &params,
+                     std::deque<BaseParams *> &mappedParams) {
   int X = params.loops[0][params.inputXLoopIndex[0]] *
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
@@ -17,32 +20,30 @@ void MapGenericErrorGrad(const SimplifiedParams &params,
   VectorInstructionConfig *vectorInstructionConfig =
       new VectorInstructionConfig;
 
-  /*
-   * Subtract vector from vector, and multiply with factor
-   * 2/X for MSE_GRAD and 1/X for BCE_WITH_LOGITS_GRAD
-   */
-
+  // this is gradients
   vectorParams->VECTOR_OFFSET = params.INPUT_OFFSET;
   vectorParams->addressGen0Enable = true;
+  vectorParams->addressGen0Broadcast = false;
   for (int i = 0; i < 3; i++) {
     vectorParams->addressGen0Loop[0][i] = 1;
   }
   vectorParams->addressGen0Loop[1][0] = 1;
-  vectorParams->addressGen0Loop[1][1] = 1;
-  vectorParams->addressGen0Loop[1][2] = X / DIMENSION;
-  vectorParams->addressGen0Broadcast = false;
+  vectorParams->addressGen0Loop[1][1] = FX * FY;
+  vectorParams->addressGen0Loop[1][2] = C * K / DIMENSION;
+  vectorParams->DP_VEC0 = params.ACC_T_INPUT;
 
+  // address gen 1 (weights)
   vectorParams->ADDRESS_GEN1_OFFSET = params.WEIGHT_OFFSET;
-  vectorParams->addressGen1Mode = 2;  // 2d tensor
-  vectorParams->addressGen1Loops[0][0] = 1;
-  vectorParams->addressGen1Loops[0][1] = 1;
-  vectorParams->addressGen1Loops[0][2] = 1;
-  vectorParams->addressGen1Loops[1][0] = 1;
-  vectorParams->addressGen1Loops[1][1] = 1;
-  vectorParams->addressGen1Loops[1][2] = X / DIMENSION;
+  vectorParams->addressGen1Mode = 0;  // disable
 
-  vectorParams->ADDRESS_GEN2_OFFSET = params.INPUT_OFFSET;
-  vectorParams->addressGen2Mode = 0;  // 2d tensor
+  vectorParams->ADDRESS_GEN2_OFFSET = params.WEIGHT_OFFSET;
+  vectorParams->addressGen2Mode = 2;  // 2d tensor
+  for (int i = 0; i < 3; i++) {
+    vectorParams->addressGen2Loops[0][i] = 1;
+  }
+  vectorParams->addressGen2Loops[1][0] = 1;
+  vectorParams->addressGen2Loops[1][1] = FX * FY;
+  vectorParams->addressGen2Loops[1][2] = C * K / DIMENSION;
 
   vectorParams->VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
   vectorParams->SCALAR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
@@ -50,45 +51,43 @@ void MapGenericErrorGrad(const SimplifiedParams &params,
   vectorParams->scalarOutputCount = 0;
   vectorParams->MAXPOOL = params.MAXPOOL;
   vectorParams->AVGPOOL = params.AVGPOOL;
+  vectorParams->SPLIT_OUTPUT = params.SPLIT_OUTPUT;
 
   // output
   for (int i = 0; i < 3; i++) {
     vectorParams->outputLoops[0][i] = 1;
   }
-  vectorParams->outputXLoopIndex[0] = 0;
-  vectorParams->outputYLoopIndex[0] = 1;
-  vectorParams->outputWeightLoopIndex[0] = 2;
-  vectorParams->outputLoops[1][0] = 1;
-  vectorParams->outputLoops[1][1] = 1;
-  vectorParams->outputLoops[1][2] = X / DIMENSION;
-  vectorParams->outputWeightLoopIndex[1] = 2;
-  vectorParams->outputXLoopIndex[1] = 1;
-  vectorParams->outputYLoopIndex[1] = 0;
+  vectorParams->outputXLoopIndex[0] = params.inputXLoopIndex[0];
+  vectorParams->outputYLoopIndex[0] = params.inputYLoopIndex[0];
+  vectorParams->outputWeightLoopIndex[0] = params.weightLoopIndex[0];
 
-  // subtract, multiply by divisor
+  vectorParams->outputLoops[1][0] = 1;
+  vectorParams->outputLoops[1][1] = FX * FY;
+  vectorParams->outputLoops[1][2] = C * K / DIMENSION;
+  vectorParams->outputWeightLoopIndex[1] = 2;
+  vectorParams->outputYLoopIndex[1] = 0;
+  vectorParams->outputXLoopIndex[1] = 1;
+  vectorParams->DP_OUTPUT = params.ACC_T_OUTPUT;
+
+  // inst 1- (-learning_rate) * gradients + weights
   VectorInstructions vInst0;
   vInst0.instType = VectorInstructions::vector;
   vInst0.vInput = VectorInstructions::readFromVectorFetch;
   vInst0.vAccumulatePush = VectorInstructions::nop;
-  vInst0.vOp0Src1 = VectorInstructions::readInterface;
-  vInst0.vOp0 = VectorInstructions::vsub;
+  vInst0.vOp0Src1 = VectorInstructions::op0immediate0;
+  vInst0.immediate0 = (Posit<8, 1>(-1 * params.learningRate)).bits;
+  vInst0.vOp0 = VectorInstructions::vmult;
   vInst0.vOp1 = VectorInstructions::nop;
   vInst0.vOp2 = VectorInstructions::nop;
-  vInst0.vOp3Src1 = VectorInstructions::op3immediate0;
-  vInst0.vOp3 = VectorInstructions::nop;
+  vInst0.vOp3Src1 = VectorInstructions::readNormalInterface;
+  vInst0.vOp3 = VectorInstructions::vadd;
   vInst0.vOp4 = VectorInstructions::nop;
   vInst0.vDest = VectorInstructions::vWriteOut;
-
-  float divisor;
-  if (params.MSE_GRAD) {
-    divisor = 2.0 / X;
-  } else {
-    divisor = 1.0 / X;
-  }
-  vInst0.immediate0 = (Posit<8, 1>(divisor)).bits;
-
   vectorInstructionConfig->inst[0] = vInst0;
-  vectorInstructionConfig->instCount[0] = X / DIMENSION;
+
+  // C/DIMENSION to do the complete reduction
+  // DIMENSION to fill up the entire vector
+  vectorInstructionConfig->instCount[0] = FX * FY * C * K / DIMENSION;
 
   vectorInstructionConfig->instLen = 1;
   vectorInstructionConfig->instLoopCount = 1;

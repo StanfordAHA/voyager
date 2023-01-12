@@ -3,10 +3,8 @@
 #include "test/toolchain/operations/Operations.h"
 
 // create Matrix and Vector Params from SimplifiedParams
-void MapOperation(const SimplifiedParams &params, MatrixParams &matrixParams,
-                  bool &matrixParamsValid, VectorParams &vectorParams,
-                  VectorInstructionConfig &vectorInstructionConfig,
-                  bool &vectorParamsValid) {
+void MapOperation(const SimplifiedParams &params,
+                  std::deque<BaseParams *> &mappedParams) {
   int X = params.loops[0][params.inputXLoopIndex[0]] *
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
@@ -18,29 +16,33 @@ void MapOperation(const SimplifiedParams &params, MatrixParams &matrixParams,
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
 
-  if (params.SOFTMAX) {
-    MapSoftmax(params, matrixParams, matrixParamsValid, vectorParams,
-               vectorInstructionConfig, vectorParamsValid);
+  if (params.GRAD_CLIPPING_UNIT_TEST) {
+    MapGradNormClipping(params, mappedParams, X * C);
+  } else if (params.SOFTMAX) {
+    MapSoftmax(params, mappedParams);
   } else if (params.SOFTMAX_GRAD) {
-    MapSoftmaxGrad(params, matrixParams, matrixParamsValid, vectorParams,
-                   vectorInstructionConfig, vectorParamsValid);
+    MapSoftmaxGrad(params, mappedParams);
   } else if (params.FC_GRAD) {
-    MapFCGrad(params, matrixParams, matrixParamsValid, vectorParams,
-              vectorInstructionConfig, vectorParamsValid);
+    if (params.GRAD_CLIPPING) {
+      MapFCGradWithNormClipping(params, mappedParams);
+    } else {
+      MapFCGrad(params, mappedParams);
+    }
   } else if (params.FC) {
-    MapFC(params, matrixParams, matrixParamsValid, vectorParams,
-          vectorInstructionConfig, vectorParamsValid);
+    MapFC(params, mappedParams);
   } else if (params.NO_NORM) {
-    MapNoNorm(params, matrixParams, matrixParamsValid, vectorParams,
-              vectorInstructionConfig, vectorParamsValid);
+    MapNoNorm(params, mappedParams);
   } else if (params.NO_NORM_GRAD) {
-    MapNoNormGrad(params, matrixParams, matrixParamsValid, vectorParams,
-                  vectorInstructionConfig, vectorParamsValid);
+    MapNoNormGrad(params, mappedParams);
   } else if (params.MSE_GRAD || params.BCE_WITH_LOGITS_GRAD) {
-    MapGenericErrorGrad(params, matrixParams, matrixParamsValid, vectorParams,
-                        vectorInstructionConfig, vectorParamsValid);
+    MapGenericErrorGrad(params, mappedParams);
+  } else if (params.BIAS_GRAD) {
+    MapBiasGrad(params, mappedParams);
+  } else if (params.CROSS_ENTROPY_GRAD) {
+    MapCrossEntropyGrad(params, mappedParams);
+  } else if (params.WEIGHT_UPDATE) {
+    MapWeightUpdate(params, mappedParams);
   } else {
-    MapMatrixOp(params, matrixParams, matrixParamsValid, vectorParams,
-                vectorInstructionConfig, vectorParamsValid);
+    MapMatrixOp(params, mappedParams);
   }
 }
