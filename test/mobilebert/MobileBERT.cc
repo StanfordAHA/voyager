@@ -162,10 +162,6 @@ std::vector<Workload> MobileBERT::getWorkloads(
           inputDataDir = "activation_gradients/";
           weightDataDir = "activations/";
         }
-
-        // TODO: accelerator doesn't support these functionalities yet
-        // this results in FP32<->Pytorch failing for backprop and gradients
-        workload.params.ACC_T_OUTPUT = false;
       } else if (task == "weight_update" || task == "error_feedback") {
         workload.params.ERROR_FEEDBACK = task == "error_feedback";
 

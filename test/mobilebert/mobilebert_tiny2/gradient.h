@@ -74,7 +74,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -99,7 +98,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = false,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (16 x 1)
@@ -130,7 +129,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -155,7 +153,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = false,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (128 x 512) * (128 x 512)
@@ -186,7 +184,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -211,7 +208,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = false,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (128 x 128) x (128 x 512)
@@ -242,7 +239,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -267,7 +263,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = false,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (512 x 128) x (128 x 128)
@@ -298,7 +294,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -323,7 +318,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = false,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (128 x 128) x (128 x 128)
@@ -354,7 +349,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -379,7 +373,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = false,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (512 x 128) x (128 x 128)
@@ -410,7 +404,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -435,7 +428,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = false,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (128 x 128) x (128 x 128)
@@ -466,7 +459,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -491,7 +483,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = false,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (128 x 128) * (128 x 128)
@@ -522,7 +514,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -547,7 +538,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = false,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (512 x 128) x (128 x 128)
@@ -578,7 +569,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -603,7 +593,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = false,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (128 x 128)
@@ -634,7 +624,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -659,7 +648,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = true,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (128 x 128)
@@ -690,7 +679,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -715,7 +703,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = true,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 
     // (128 x 512)
@@ -746,7 +734,6 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .STORE_IN_ACC = false,
          .ACC_FROM_ACC = false,
          .SOFTMAX = false,
-         .ATTENTION_MASK = false,
          .ATTENTION_SCALING = false,
          .FC = false,
          .NO_NORM = false,
@@ -771,7 +758,7 @@ std::map<std::string, SimplifiedParams> gradientParams{
          .ACC_T_INPUT = false,
          .ACC_T_WEIGHT = false,
          .ACC_T_OUTPUT = true,
-         .outputExpBias = -5,
+         .outputExpBias = -12,
      }},
 };
 
