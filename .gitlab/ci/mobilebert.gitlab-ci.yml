@@ -4,9 +4,6 @@
 
 MobileBERT Inference (FP32 Gold Model vs. Pytorch):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -19,9 +16,6 @@ MobileBERT Inference (FP32 Gold Model vs. Pytorch):
 
 MobileBERT Inference (Accel. vs. Posit Gold Model):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -34,9 +28,6 @@ MobileBERT Inference (Accel. vs. Posit Gold Model):
 
 MobileBERT Activation Gradients (FP32 Gold Model vs. Pytorch):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -49,9 +40,6 @@ MobileBERT Activation Gradients (FP32 Gold Model vs. Pytorch):
 
 MobileBERT Activation Gradients (Accel. vs. Posit Gold Model):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -64,9 +52,6 @@ MobileBERT Activation Gradients (Accel. vs. Posit Gold Model):
 
 MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -79,9 +64,6 @@ MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
 
 MobileBERT Weight Gradients (Accel. vs. Posit Gold Model):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -94,9 +76,6 @@ MobileBERT Weight Gradients (Accel. vs. Posit Gold Model):
 
 MobileBERT Weight Update (FP32 Gold Model vs. Pytorch):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -109,9 +88,6 @@ MobileBERT Weight Update (FP32 Gold Model vs. Pytorch):
 
 MobileBERT Weight Update (Accel. vs. Posit Gold Model):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
