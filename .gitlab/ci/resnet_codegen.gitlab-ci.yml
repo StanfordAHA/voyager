@@ -4,9 +4,6 @@
 
 ResNet Codegen Layers (FP32 Gold Model vs. Pytorch):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -24,9 +21,6 @@ ResNet Codegen Layers (FP32 Gold Model vs. Pytorch):
 
 ResNet Codegen Layers (Accel vs. Posit Gold Model):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -48,9 +42,6 @@ ResNet Codegen Layers (Accel vs. Posit Gold Model):
 
 ResNet Codegen End2End (FP32 Gold Model vs. Pytorch):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -71,9 +62,6 @@ ResNet Codegen End2End (FP32 Gold Model vs. Pytorch):
 
 ResNet Codegen End2End (Accel vs. Posit Gold Model):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:

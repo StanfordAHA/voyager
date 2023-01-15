@@ -4,9 +4,6 @@
 
 MobileBERT Codegen Layers (FP32 Gold Model vs. Pytorch):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -24,9 +21,6 @@ MobileBERT Codegen Layers (FP32 Gold Model vs. Pytorch):
 
 MobileBERT Codegen Layers (Accel vs. Posit Gold Model):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -48,9 +42,6 @@ MobileBERT Codegen Layers (Accel vs. Posit Gold Model):
 
 MobileBERT Codegen End2End (FP32 Gold Model vs. Pytorch):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
@@ -71,9 +62,6 @@ MobileBERT Codegen End2End (FP32 Gold Model vs. Pytorch):
 
 MobileBERT Codegen End2End (Accel vs. Posit Gold Model):
   stage: test
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
   artifacts:
     when: always
     paths:
