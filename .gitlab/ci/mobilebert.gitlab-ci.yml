@@ -11,7 +11,6 @@ MobileBERT Inference (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --simulators fp32,file --tolerance 0.01
 
 MobileBERT Inference (Accel. vs. Posit Gold Model):
@@ -23,7 +22,6 @@ MobileBERT Inference (Accel. vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --simulators accelerator,customposit --tolerance 0.01
 
 MobileBERT Activation Gradients (FP32 Gold Model vs. Pytorch):
@@ -35,7 +33,6 @@ MobileBERT Activation Gradients (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task backprop --simulators fp32,file --tolerance 0.01
 
 MobileBERT Activation Gradients (Accel. vs. Posit Gold Model):
@@ -47,7 +44,6 @@ MobileBERT Activation Gradients (Accel. vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task backprop --simulators accelerator,customposit --tolerance 0.01
 
 MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
@@ -59,7 +55,6 @@ MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task gradient --simulators fp32,file --tolerance 0.01
 
 MobileBERT Weight Gradients (Accel. vs. Posit Gold Model):
@@ -71,7 +66,6 @@ MobileBERT Weight Gradients (Accel. vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task gradient --simulators accelerator,customposit --tolerance 0.01
 
 MobileBERT Weight Update (FP32 Gold Model vs. Pytorch):
@@ -83,7 +77,6 @@ MobileBERT Weight Update (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task weight_update --simulators fp32,file --tolerance 0.01
 
 MobileBERT Weight Update (Accel. vs. Posit Gold Model):
@@ -95,5 +88,4 @@ MobileBERT Weight Update (Accel. vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task weight_update --simulators accelerator,customposit --tolerance 0.01

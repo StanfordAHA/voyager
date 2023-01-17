@@ -3,10 +3,18 @@
 stages:
   - test
 
+before_script:
+  - echo "Before script."
+  # - python3 -m venv venv
+  # - . ./venv/bin/activate
+  # - pip3 install -r zagzig/requirements.txt
+  # - pip3 install -r requirements.txt
+  - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   GIT_SUBMODULE_DEPTH: 3
-  GIT_CLEAN_FLAGS: -ffdx -e build/** -e test_outputs/**
+  GIT_CLEAN_FLAGS: -ffdx # -e build/** -e test_outputs/**
 
 include:
   - local: /.gitlab/ci/mobilebert_codegen.gitlab-ci.yml
