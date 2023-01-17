@@ -164,8 +164,9 @@ const int ENCODER_WEIGHT_SIZE = 8 * WEIGHT_INTERMEDIATE_SIZE +
 //     5 * BIAS_INTERMEDIATE_SIZE + 15 * BIAS_HIDDEN_SIZE;
 
 // SRAM Memory Offsets
-const int STACK_SIZE = 1024 * 1024;
-const int ACTIVATION_OFFSET = STACK_SIZE + 128;
+const int STACK_SIZE = 512 * 1024;
+const int ACTIVATION_OFFSET = STACK_SIZE;
+const int WEIGHT_OFFSET = 128 * 2 + 16;
 const int GRADIENT_OFFSET =
     ACTIVATION_OFFSET + 24 * ENCODER_ACTIVATION_SIZE + INTERMEDIATE_SIZE + 16;
 const int ERROR_OFFSET = GRADIENT_OFFSET + 24 * ENCODER_WEIGHT_SIZE +
@@ -176,4 +177,5 @@ struct Workload {
   SimplifiedParams params;
   Files files;
   MemoryMap memoryMap;
+  bool loadWeight = true;
 };

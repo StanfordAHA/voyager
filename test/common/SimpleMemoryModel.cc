@@ -14,7 +14,7 @@ SimpleMemoryModel<T>::SimpleMemoryModel(bool isDut) : MemoryModel(isDut) {
   try {
     sram = new T[SRAM_MEMORY_SIZE];
     rram = new T[RRAM_MEMORY_SIZE];
-    reference = new T[SRAM_MEMORY_SIZE];
+    reference = new T[1024 * 1024];
   } catch (const std::bad_alloc&) {
     throw std::runtime_error("ERROR: Failed to allocate simulation memory");
   }
@@ -28,8 +28,13 @@ SimpleMemoryModel<T>::~SimpleMemoryModel() {
 }
 
 template <class T>
-void SimpleMemoryModel<T>::writeToReference(int address, double val) {
-  reference[address] = val;
+void SimpleMemoryModel<T>::writeToReference(int address, double val,
+                                            bool doublePrecision) {
+  if (doublePrecision) {
+    reference[2 * address] = val;
+  } else {
+    reference[address] = val;
+  }
 }
 
 template <>
@@ -38,13 +43,13 @@ void SimpleMemoryModel<INPUT_DATATYPE>::writeToMemory(int address, double val,
                                                       bool doublePrecision) {
   INPUT_DATATYPE* memArray = mem == SRAM ? sram : rram;
 
-  if (!doublePrecision) {
-    memArray[address] = val;
-  } else {
+  if (doublePrecision) {
     ACCUM_DATATYPE p16 = val;
     int bits = p16.bits;
     memArray[address].setbits(bits & 0xFF);
     memArray[address + 1].setbits((bits >> 8) & 0xFF);
+  } else {
+    memArray[address] = val;
   }
 }
 
@@ -65,12 +70,12 @@ void SimpleMemoryModel<UniversalPosit>::writeToMemory(int address, double val,
   UniversalPosit* memArray = (mem == SRAM) ? sram : rram;
 
   if (!doublePrecision) {
-    memArray[address] = val;
-  } else {
     UniversalPositAccum p16 = val;
     int bits = p16.encoding();
     memArray[address].setbits(bits & 0xFF);
     memArray[address + 1].setbits((bits >> 8) & 0xFF);
+  } else {
+    memArray[address] = val;
   }
 }
 #endif

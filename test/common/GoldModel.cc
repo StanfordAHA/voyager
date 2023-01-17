@@ -60,8 +60,8 @@ inline void gold_inv_sqrt(float &a) { a = 1.0f / std::sqrt(a); }
 
 #ifndef NO_UNIVERSAL
 inline UniversalPositAccum readInput(UniversalPosit *matrix, int index,
-                                     bool accType) {
-  if (!accType) {
+                                     bool doublePrecision) {
+  if (!doublePrecision) {
     return static_cast<UniversalPositAccum>(matrix[index]);
   }
 
@@ -71,27 +71,11 @@ inline UniversalPositAccum readInput(UniversalPosit *matrix, int index,
   p16.setbits((encoding2 << 8) + encoding1);
   return p16;
 }
-
-// inline UniversalPositAccum readInput2(UniversalPosit *matrix, int index,
-//                                       bool accType, int expBias = 0) {
-//   UniversalPositAccum p16;
-//   if (!accType) {
-//     p16 = matrix[index];
-//   } else {
-//     int encoding1 = matrix[2 * index].encoding();
-//     int encoding2 = matrix[2 * index + 1].encoding();
-//     p16.setbits((encoding2 << 8) + encoding1);
-//   }
-//   sw::universal::value<12> val = p16.to_value();
-//   val.setExponent(val.scale() + expBias);
-//   sw::universal::convert<16, 1>(val, p16);
-//   return p16;
-// }
 #endif
 
 inline ACCUM_DATATYPE readInput(INPUT_DATATYPE *matrix, int index,
-                                bool accType) {
-  if (!accType) {
+                                bool doublePrecision) {
+  if (!doublePrecision) {
     return static_cast<ACCUM_DATATYPE>(matrix[index]);
   }
 
@@ -102,30 +86,14 @@ inline ACCUM_DATATYPE readInput(INPUT_DATATYPE *matrix, int index,
   return p16;
 }
 
-// inline ACCUM_DATATYPE readInput2(INPUT_DATATYPE *matrix, int index,
-//                                  bool accType, int expBias = 0) {
-//   ACCUM_DATATYPE p16;
-//   if (!accType) {
-//     p16 = matrix[index];
-//   } else {
-//     int encoding1 = matrix[2 * index].bits;
-//     int encoding2 = matrix[2 * index + 1].bits;
-//     p16.setbits((encoding2 << 8) + encoding1);
-//   }
-
-//   ACCUM_DATATYPE::DecomposedPosit val = p16;
-//   val.scale += expBias;
-//   return val;
-// }
-
-inline float readInput(float *matrix, int index, bool accType) {
-  return accType ? matrix[2 * index] : matrix[index];
+inline float readInput(float *matrix, int index, bool doublePrecision) {
+  return doublePrecision ? matrix[2 * index] : matrix[index];
 }
 
 #ifndef NO_UNIVERSAL
 inline void saveOutput(UniversalPosit *matrix, int index,
-                       UniversalPositAccum value, bool accType) {
-  if (!accType) {
+                       UniversalPositAccum value, bool doublePrecision) {
+  if (!doublePrecision) {
     matrix[index] = static_cast<UniversalPosit>(value);
   } else {
     int bits = value.encoding();
@@ -136,8 +104,9 @@ inline void saveOutput(UniversalPosit *matrix, int index,
 #endif
 
 inline void saveOutput(INPUT_DATATYPE *matrix, int index,
-                       ACCUM_DATATYPE::DecomposedPosit value, bool accType) {
-  if (!accType) {
+                       ACCUM_DATATYPE::DecomposedPosit value,
+                       bool doublePrecision) {
+  if (!doublePrecision) {
     matrix[index] = static_cast<INPUT_DATATYPE>(value);
   } else {
     ACCUM_DATATYPE p16 = value;
@@ -147,8 +116,9 @@ inline void saveOutput(INPUT_DATATYPE *matrix, int index,
   }
 }
 
-inline void saveOutput(float *matrix, int index, float value, bool accType) {
-  if (!accType) {
+inline void saveOutput(float *matrix, int index, float value,
+                       bool doublePrecision) {
+  if (!doublePrecision) {
     matrix[index] = value;
   } else {
     matrix[2 * index] = value;
@@ -492,22 +462,23 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     INT_T *gradients = new INT_T[FX * FY * C * K];
 
     for (int i = 0; i < FX * FY * C * K; i++) {
-      gradients[i] = readInput(matrixA, i, params.ACC_T_INPUT);
-      weights[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
-      weights[i] -= learningRate * gradients[i];
+      weights[i] = readInput(matrixA, i, params.ACC_T_INPUT);
+      gradients[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
+
       // float val = (float)weights[i] - params.learningRate *
       // (float)gradients[i];
+      weights[i] -= learningRate * gradients[i];
 
       // save 8-bit quantized weight to RRAM
-      saveOutput(matrixB, i, weights[i], params.ACC_T_OUTPUT);
+      saveOutput(matrixA, i, weights[i], params.ACC_T_OUTPUT);
 
       if (!params.ACC_T_OUTPUT && params.ERROR_FEEDBACK) {
         gradients[i] =
-            (static_cast<INT_T>(matrixB[i]) - weights[i]) / learningRate;
-        // gradients[i] = ((float)matrixB[i] - val) / params.learningRate;
+            (static_cast<INT_T>(matrixA[i]) - weights[i]) / learningRate;
+        // float feedback = ((float)matrixA[i] - val) / learningRate;
 
         // Save 8-bit weight residual to SRAM
-        saveOutput(matrixA, i, gradients[i], params.ACC_T_OUTPUT);
+        saveOutput(matrixB, i, gradients[i], params.ACC_T_OUTPUT);
       }
     }
   } else {

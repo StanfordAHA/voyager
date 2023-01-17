@@ -121,3 +121,63 @@ MobileBERT Weight Update (Accel. vs. Posit Gold Model):
     - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task weight_update --simulators accelerator,customposit --tolerance 0.01
+
+MobileBERT Weight Splitting (FP32 Gold Model vs. Pytorch):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests.py --model mobilebert --task weight_splitting --simulators fp32,file --tolerance 0.01
+
+MobileBERT Weight Splitting (Accel. vs. Posit Gold Model):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests.py --model mobilebert --task weight_splitting --simulators accelerator,customposit --tolerance 0.01
+
+MobileBERT Error Feedback (Posit Gold Model vs. Pytorch):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests.py --model mobilebert --task error_feedback --simulators fp32,file --tolerance 0.01
+
+MobileBERT Error Feedback (Accel. vs. Posit Gold Model):
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 3
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+    - python3 run_tests.py --model mobilebert --task error_feedback --simulators accelerator,customposit --tolerance 0.01

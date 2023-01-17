@@ -111,7 +111,7 @@ const SimplifiedParams classifier_bias = {
     .learningRate = 3e-2,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = false,
+    .ACC_T_OUTPUT = true,
     .outputExpBias = 0,
     .WEIGHT_UPDATE = true,
 };

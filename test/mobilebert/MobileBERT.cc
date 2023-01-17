@@ -101,11 +101,11 @@ std::vector<Workload> MobileBERT::getWorkloads(
     }
   } else {
     for (const std::string& layer : layers) {
-      std::string encLayerName =
+      std::string encoderPrefix =
           "mobilebert_encoder_layer_" + std::to_string(encoderIndex) + "_";
 
       Workload workload;
-      workload.name = encLayerName + layer;
+      workload.name = encoderPrefix + layer;
       workload.params = params.at(layer);
       workload.files = files.at(layer);
 
@@ -156,10 +156,10 @@ std::vector<Workload> MobileBERT::getWorkloads(
           weightDataDir = "activations/";
         }
       } else if (task == "weight_update" || task == "error_feedback") {
-        workload.params.ERROR_FEEDBACK = task == "error_feedback";
+        workload.params.ERROR_FEEDBACK = (task == "error_feedback");
 
-        inputDataDir = "quantized_weight_gradients/";
-        weightDataDir = "quantized_weights/";
+        inputDataDir = "quantized_weights/";
+        weightDataDir = "quantized_weight_gradients/";
         outputDataDir = workload.params.ERROR_FEEDBACK
                             ? "updated_weight_gradients/"
                             : "updated_weights/";
@@ -176,40 +176,40 @@ std::vector<Workload> MobileBERT::getWorkloads(
         gradientDataDir = "weight_gradients/";
 
         if (!workload.params.WEIGHT) {
-          weightDataDir = "activations/";
+          weightDataDir = "activations2/";
         }
       }
 
       if (layer.find("classifier") != std::string::npos ||
           (task == "backprop" && layer == "output_bottleneck_LayerNorm")) {
-        encLayerName = "";
+        encoderPrefix = "";
       }
 
       if (!workload.files.inputs_file.empty()) {
         workload.files.inputs_file.insert(
-            0, dataDir + inputDataDir + encLayerName);
+            0, dataDir + inputDataDir + encoderPrefix);
       }
 
       if (!workload.files.weights_file.empty()) {
         workload.files.weights_file.insert(
-            0, dataDir + weightDataDir + encLayerName);
+            0, dataDir + weightDataDir + encoderPrefix);
       }
 
       if (workload.files.bias_file == "mobilebert_attention_mask") {
         workload.files.bias_file.insert(0, dataDir + inputDataDir);
       } else {
-        workload.files.bias_file.insert(0,
-                                        dataDir + weightDataDir + encLayerName);
+        workload.files.bias_file.insert(
+            0, dataDir + weightDataDir + encoderPrefix);
       }
 
       workload.files.outputs_file.insert(
-          0, dataDir + outputDataDir + encLayerName);
+          0, dataDir + outputDataDir + encoderPrefix);
       workload.files.residual_file.insert(
-          0, dataDir + residualDataDir + encLayerName);
+          0, dataDir + residualDataDir + encoderPrefix);
       workload.files.weight_grad_file.insert(
-          0, dataDir + gradientDataDir + encLayerName);
+          0, dataDir + gradientDataDir + encoderPrefix);
       workload.files.bias_grad_file.insert(
-          0, dataDir + gradientDataDir + encLayerName);
+          0, dataDir + gradientDataDir + encoderPrefix);
 
       if (useOffsets) {
         MemoryOffsets offsets = memOffsets.at(layer);
@@ -226,8 +226,8 @@ std::vector<Workload> MobileBERT::getWorkloads(
         if (workload.params.WEIGHT_UPDATE) {
           // Offset used for comparing outputs in weight update unit tests
           workload.params.OUTPUT_OFFSET = workload.params.ERROR_FEEDBACK
-                                              ? workload.params.INPUT_OFFSET
-                                              : workload.params.WEIGHT_OFFSET;
+                                              ? workload.params.WEIGHT_OFFSET
+                                              : workload.params.INPUT_OFFSET;
         } else {
           workload.params.OUTPUT_OFFSET = STACK_SIZE + 2 * INTERMEDIATE_SIZE;
         }
@@ -261,12 +261,10 @@ std::vector<Workload> MobileBERT::getWorkloadsInRange(
   if (layers.size() == 1) {  // Single layer
     if (layers.front() == "all") {
       std::vector<Workload> workloads;
-      setTask("inference");
       std::vector<Workload> inference = getInferenceWorkloads();
-      // setTask("backprop");
-      // std::vector<Workload> backprop = getBackpropWorkloads();
       workloads.insert(workloads.end(), inference.begin(), inference.end());
-      // workloads.insert(workloads.end(), backprop.begin(), backprop.end());
+      std::vector<Workload> backprop = getBackpropWorkloads();
+      workloads.insert(workloads.end(), backprop.begin(), backprop.end());
       return workloads;
     }
     layersInRange.push_back(layers.front());
@@ -295,18 +293,21 @@ std::vector<Workload> MobileBERT::getAllWorkloads() {
   return getWorkloads(order);
 }
 
-std::vector<Workload> MobileBERT::getInferenceWorkloads() const {
+std::vector<Workload> MobileBERT::getInferenceWorkloads() {
+  setTask("inference");
   std::vector<Workload> inferenceWorkloads;
-  auto encoderOrder = std::vector<std::string>(inferenceOrder.begin(),
-                                               inferenceOrder.end() - 1);
 
   int inputOffset;
   int weightOffset;
+
+  auto encoderOrder = std::vector<std::string>(inferenceOrder.begin(),
+                                               inferenceOrder.end() - 1);
+
   for (int layer = 0; layer < 24; layer++) {
     std::vector<Workload> workloads = getWorkloads(encoderOrder, layer, true);
 
     inputOffset = ACTIVATION_OFFSET + layer * ENCODER_ACTIVATION_SIZE;
-    weightOffset = layer * ENCODER_WEIGHT_SIZE;
+    weightOffset = WEIGHT_OFFSET + layer * ENCODER_WEIGHT_SIZE;
 
     for (auto workload : workloads) {
       workload.params.INPUT_OFFSET += inputOffset;
@@ -318,40 +319,66 @@ std::vector<Workload> MobileBERT::getInferenceWorkloads() const {
 
       if (workload.files.bias_file.find("mobilebert_attention_mask") !=
           std::string::npos) {
-        workload.params.BIAS_OFFSET = STACK_SIZE;
+        workload.params.BIAS_OFFSET = 0;
       }
 
       inferenceWorkloads.push_back(workload);
     }
   }
 
-  std::vector<std::string> workloadInRange{"classifier"};
-  Workload classifier = getWorkloads(workloadInRange, 23, true).front();
+  Workload classifier = getWorkloads({"classifier"}, 23, true).front();
   classifier.params.INPUT_OFFSET += inputOffset;
-  classifier.params.WEIGHT_OFFSET +=
-      classifier.params.WEIGHT ? weightOffset : inputOffset;
+  classifier.params.WEIGHT_OFFSET += weightOffset;
   classifier.params.OUTPUT_OFFSET += inputOffset;
   classifier.params.BIAS_OFFSET += weightOffset;
-  classifier.params.RESIDUAL_OFFSET += inputOffset;
-
   inferenceWorkloads.push_back(classifier);
+
+  // inferenceWorkloads = std::vector<Workload>(inferenceWorkloads.begin(),
+  //                                            inferenceWorkloads.begin() +
+  //                                            20);
+
+  // for (auto workload : inferenceWorkloads) {
+  //   std::cerr << workload.files.outputs_file << "\t"
+  //             << workload.params.INPUT_OFFSET << "\t"
+  //             << workload.params.WEIGHT_OFFSET << "\t"
+  //             << workload.params.RESIDUAL_OFFSET << "\t"
+  //             << workload.params.OUTPUT_OFFSET << std::endl;
+  // }
 
   return inferenceWorkloads;
 }
 
-std::vector<Workload> MobileBERT::getBackpropWorkloads() const {
+std::vector<Workload> MobileBERT::getBackpropWorkloads() {
+  setTask("backprop");
   std::vector<Workload> backpropWorkloads;
+
+  int inputOffset = ACTIVATION_OFFSET + 23 * ENCODER_ACTIVATION_SIZE;
+  int weightOffset = WEIGHT_OFFSET + 23 * ENCODER_WEIGHT_SIZE;
+
+  // Cross entropy gradient
+  Workload workload = getWorkloads({"classifier"}, 23, true).front();
+  workload.params.INPUT_OFFSET += inputOffset;
+  workload.params.WEIGHT_OFFSET = 2 * 128 + 16;
+  workload.params.OUTPUT_OFFSET += ERROR_OFFSET;
+  backpropWorkloads.push_back(workload);
+
+  // Classifier layer backprop
+  workload = getWorkloads({"output_bottleneck_LayerNorm"}, 23, true).front();
+  workload.params.INPUT_OFFSET += ERROR_OFFSET;
+  workload.params.WEIGHT_OFFSET += weightOffset;
+  workload.params.OUTPUT_OFFSET += ERROR_OFFSET;
+  workload.loadWeight = false;
+  backpropWorkloads.push_back(workload);
 
   auto encoderOrder =
       std::vector<std::string>(backpropOrder.begin() + 2, backpropOrder.end());
 
-  int inputOffset;
-  int weightOffset;
   for (int layer = 23; layer >= 0; layer--) {
     std::vector<Workload> workloads = getWorkloads(encoderOrder, layer, true);
+    SimplifiedParams params = workload.params;
 
     inputOffset = ACTIVATION_OFFSET + layer * ENCODER_ACTIVATION_SIZE;
-    weightOffset = layer * ENCODER_WEIGHT_SIZE;
+    weightOffset = WEIGHT_OFFSET + layer * ENCODER_WEIGHT_SIZE;
 
     for (auto workload : workloads) {
       workload.params.INPUT_OFFSET += ERROR_OFFSET;
@@ -360,26 +387,26 @@ std::vector<Workload> MobileBERT::getBackpropWorkloads() const {
       workload.params.RESIDUAL_OFFSET += ERROR_OFFSET;
 
       if (!workload.params.WEIGHT) {
-        workload.params.WEIGHT_OFFSET += inputOffset - ERROR_OFFSET;
+        workload.params.WEIGHT_OFFSET = inputOffset + params.WEIGHT_OFFSET;
       }
 
       if (workload.params.RELU_GRAD || workload.params.SOFTMAX_GRAD) {
-        workload.params.RESIDUAL_OFFSET += inputOffset - ERROR_OFFSET;
+        workload.params.RESIDUAL_OFFSET = inputOffset + params.RESIDUAL_OFFSET;
       }
 
       if (workload.name.find("attention_self_value_layer") !=
-              std::string::npos ||
-          workload.params.CROSS_ENTROPY_GRAD) {
-        workload.params.INPUT_OFFSET += inputOffset - ERROR_OFFSET;
-        workload.params.WEIGHT_OFFSET += ERROR_OFFSET - weightOffset;
+          std::string::npos) {
+        workload.params.INPUT_OFFSET = inputOffset + params.INPUT_OFFSET;
+        workload.params.WEIGHT_OFFSET = ERROR_OFFSET + params.WEIGHT_OFFSET;
       }
 
-      // std::cerr << workload.files.outputs_file << std::endl;
+      workload.loadWeight = false;
+
       backpropWorkloads.push_back(workload);
     }
   }
 
   backpropWorkloads = std::vector<Workload>(backpropWorkloads.begin(),
-                                            backpropWorkloads.begin() + 4);
+                                            backpropWorkloads.begin() + 2);
   return backpropWorkloads;
 }

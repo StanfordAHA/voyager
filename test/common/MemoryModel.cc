@@ -154,11 +154,6 @@ void MemoryModel::loadBias(const SimplifiedParams& params,
           params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
-  // int STRIDE = params.STRIDE;
-  // if (params.REPLICATION) {
-  //   FX = 7;
-  //   C = 3;
-  // }
 
   int size = K;
   double* tmpValues = readFileAsDouble(filename, size, useDataFile);
@@ -208,7 +203,8 @@ void MemoryModel::loadResiduals(const SimplifiedParams& params,
 }
 
 void MemoryModel::loadReferenceOutput(const SimplifiedParams& params,
-                                      const Files& files) {
+                                      const Files& files,
+                                      bool doublePrecision) {
   int X = params.loops[0][params.inputXLoopIndex[0]] *
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
@@ -245,8 +241,7 @@ void MemoryModel::loadReferenceOutput(const SimplifiedParams& params,
 
   for (int i = 0; i < size; i++) {
     double val = *(tmpValuePtr++);
-    // TODO: work with double precision
-    writeToReference(i, val);
+    writeToReference(i, val, params.ACC_T_OUTPUT);
   }
 
   delete[] tmpValues;
@@ -259,26 +254,21 @@ void MemoryModel::loadModelActivations(const SimplifiedParams& params,
   if (!files.inputs_file.empty()) {
     loadInputs(params, memoryMap.inputs, files.inputs_file, useDataFile);
   }
-
-  // TODO(fpedd): Revisit the params.WEIGHT_OFFSET != -1 logic here
-  // We only want to load the 2nd input as weights if weights is false, but the
-  // offset is not -1 (i.e. it is set to a valid value)
-  if (!params.WEIGHT && params.WEIGHT_OFFSET != -1 &&
-      !files.weights_file.empty()) {
+  if (!params.WEIGHT && !files.weights_file.empty()) {
     loadWeights(params, memoryMap.weights, files.weights_file, useDataFile);
   }
   if (params.RESIDUAL || params.RELU_GRAD || params.SOFTMAX_GRAD) {
     loadResiduals(params, memoryMap.residual, files.residual_file, useDataFile);
   }
   if (params.WEIGHT_SPLITTING) {
-    // TODO: Hacky way of filling weight gradient memory
-    SimplifiedParams copy = params;
-    copy.WEIGHT_OFFSET = params.WEIGHT_GRADIENT_OFFSET;
-    copy.BIAS_OFFSET = params.BIAS_GRADIENT_OFFSET;
+    SimplifiedParams gradParams = params;
+    gradParams.WEIGHT_OFFSET = params.WEIGHT_GRADIENT_OFFSET;
+    gradParams.BIAS_OFFSET = params.BIAS_GRADIENT_OFFSET;
 
-    std::cerr << "Weight splitting" << std::endl;
-    loadWeights(params, SRAM, files.weight_grad_file, useDataFile);
-    loadBias(params, SRAM, files.bias_grad_file, useDataFile);
+    loadWeights(gradParams, SRAM, files.weight_grad_file, useDataFile);
+    std::cerr << gradParams.BIAS_OFFSET << std::endl;
+    std::cerr << files.bias_grad_file << std::endl;
+    loadBias(gradParams, SRAM, files.bias_grad_file, useDataFile);
   }
 }
 

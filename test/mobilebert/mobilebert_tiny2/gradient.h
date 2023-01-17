@@ -711,7 +711,8 @@ const SimplifiedParams inter_bottleneck_bias_gradient = {
 std::map<std::string, SimplifiedParams> gradientParams{
     {"classifier_weight", classifier_weight_gradient},
     {"classifier_bias", classifier_bias_gradient},
-    {"output_bottleneck_LayerNorm", output_bottleneck_LayerNorm_gradient},
+    {"output_bottleneck_LayerNorm_weight",
+     output_bottleneck_LayerNorm_gradient},
     {"output_bottleneck_LayerNorm_bias", inter_bottleneck_bias_gradient},
     {"output_bottleneck_dense_weight", intermediate_dense_weight_gradient},
     {"output_bottleneck_dense_bias", inter_bottleneck_bias_gradient},
@@ -763,7 +764,7 @@ std::map<std::string, MemoryOffsets> gradientMemOffsets{
          8 * WEIGHT_INTERMEDIATE_SIZE + 21 * BIAS_INTERMEDIATE_SIZE +
              3 * WEIGHT_HIDDEN_SIZE + 18 * BIAS_HIDDEN_SIZE,
      }},
-    {"output_bottleneck_LayerNorm",
+    {"output_bottleneck_LayerNorm_weight",
      {
          3 * INTERMEDIATE_SIZE + 22 * HIDDEN_SIZE,
          0,
@@ -1015,12 +1016,12 @@ std::map<std::string, Files> gradientTestFiles{
          "",
          "classifier_bias",
      }},
-    {"output_bottleneck_LayerNorm",
+    {"output_bottleneck_LayerNorm_weight",
      {
          "output_bottleneck_dense",
          "output_bottleneck_LayerNorm",
          "",
-         "output_bottleneck_LayerNorm",
+         "output_bottleneck_LayerNorm_weight",
      }},
     {"output_bottleneck_LayerNorm_bias",
      {

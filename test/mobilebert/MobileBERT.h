@@ -38,6 +38,6 @@ class MobileBERT : public Network {
 
   std::vector<Workload> getWorkloads(const std::vector<std::string> &, int,
                                      bool) const;
-  std::vector<Workload> getInferenceWorkloads() const;
-  std::vector<Workload> getBackpropWorkloads() const;
+  std::vector<Workload> getInferenceWorkloads();
+  std::vector<Workload> getBackpropWorkloads();
 };
