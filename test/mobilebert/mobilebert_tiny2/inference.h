@@ -13,18 +13,18 @@ std::vector<std::string> inferenceOrder{
     "bottleneck_attention_LayerNorm",
     "attention_self_query_layer",
     "attention_self_key_layer",
-    "attention_self_attention_scores_0",
-    "attention_self_attention_scores_1",
-    "attention_self_attention_scores_2",
-    "attention_self_attention_scores_3",
-    "attention_self_attention_probs_0",
-    "attention_self_attention_probs_1",
-    "attention_self_attention_probs_2",
-    "attention_self_attention_probs_3",
     "attention_self_value_layer",
+    "attention_self_attention_scores_0",
+    "attention_self_attention_probs_0",
     "attention_self_context_layer_0",
+    "attention_self_attention_scores_1",
+    "attention_self_attention_probs_1",
     "attention_self_context_layer_1",
+    "attention_self_attention_scores_2",
+    "attention_self_attention_probs_2",
     "attention_self_context_layer_2",
+    "attention_self_attention_scores_3",
+    "attention_self_attention_probs_3",
     "attention_self_context_layer_3",
     "attention_output_dense",
     "attention_output_LayerNorm",
@@ -524,6 +524,15 @@ std::map<std::string, MemoryOffsets> inferenceMemOffsets{
          2 * WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
              7 * BIAS_HIDDEN_SIZE,
      }},
+    {"attention_self_value_layer",
+     {
+         0,
+         2 * WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
+             8 * BIAS_HIDDEN_SIZE,
+         INTERMEDIATE_SIZE + 2 * HIDDEN_SIZE,
+         3 * WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
+             8 * BIAS_HIDDEN_SIZE,
+     }},
     {"attention_self_attention_scores_0",
      {
          INTERMEDIATE_SIZE + 5 * HIDDEN_SIZE,
@@ -571,15 +580,6 @@ std::map<std::string, MemoryOffsets> inferenceMemOffsets{
          INTERMEDIATE_SIZE + 10 * HIDDEN_SIZE,
          0,
          INTERMEDIATE_SIZE + 14 * HIDDEN_SIZE,
-     }},
-    {"attention_self_value_layer",
-     {
-         0,
-         2 * WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
-             8 * BIAS_HIDDEN_SIZE,
-         INTERMEDIATE_SIZE + 2 * HIDDEN_SIZE,
-         3 * WEIGHT_INTERMEDIATE_SIZE + 2 * WEIGHT_HIDDEN_SIZE +
-             8 * BIAS_HIDDEN_SIZE,
      }},
     {"attention_self_context_layer_0",
      {
@@ -933,7 +933,7 @@ std::map<std::string, Files> inferenceTestFiles{
 
     {"classifier",
      {
-         "mobilebert_encoder_layer_23_output_bottleneck_LayerNorm",
+         "mobilebert_encoder_layer_20_output_bottleneck_LayerNorm",
          "classifier_weight",
          "classifier_bias",
          "classifier",

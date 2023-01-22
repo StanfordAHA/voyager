@@ -71,7 +71,7 @@ const SimplifiedParams cross_entropy_gradient = {
     .RESIDUAL_OFFSET = 0,
     .MAXPOOL = false,
     .AVGPOOL = false,
-    .WEIGHT = true,
+    .WEIGHT = false,
     .STORE_IN_ACC = false,
     .ACC_FROM_ACC = false,
     .SOFTMAX = false,
@@ -93,13 +93,12 @@ const SimplifiedParams cross_entropy_gradient = {
     .GRAD_CLIPPING = false,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = false,
-    .outputExpBias = 12,
+    .outputExpBias = 11,
 };
 
 // (128 x 16) x (16 x 512)
@@ -971,7 +970,7 @@ std::map<std::string, Files> backpropTestFiles{
          "classifier",
          "classifier_weight",
          "",
-         "mobilebert_encoder_layer_23_output_bottleneck_LayerNorm",
+         "mobilebert_encoder_layer_20_output_bottleneck_LayerNorm",
      }},
     {"output_bottleneck_dense",
      {

@@ -40,4 +40,5 @@ class MobileBERT : public Network {
                                      bool) const;
   std::vector<Workload> getInferenceWorkloads();
   std::vector<Workload> getBackpropWorkloads();
+  std::vector<Workload> getWeightUpdateWorkloads();
 };

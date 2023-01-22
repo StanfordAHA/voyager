@@ -138,7 +138,7 @@ void MemoryModel::loadWeights(const SimplifiedParams& params,
 
   for (int address = 0; address < size; address++) {
     double val = *(tmpValuePtr++);
-    if (params.ACC_T_WEIGHT) {
+    if (params.ACC_T_WEIGHT || params.NO_NORM) {
       writeToMemory(params.WEIGHT_OFFSET + 2 * address, val, mem, true);
     } else {
       writeToMemory(params.WEIGHT_OFFSET + address, val, mem, false);
@@ -264,7 +264,8 @@ void MemoryModel::loadModelActivations(const SimplifiedParams& params,
   if (!files.inputs_file.empty()) {
     loadInputs(params, SRAM, files.inputs_file, useDataFile);
   }
-  if (!params.WEIGHT && !files.weights_file.empty()) {
+  if ((!params.WEIGHT && !files.weights_file.empty()) ||
+      params.CROSS_ENTROPY_GRAD) {
     loadWeights(params, SRAM, files.weights_file, useDataFile);
   }
   if (params.RESIDUAL || params.RELU_GRAD || params.SOFTMAX_GRAD) {
@@ -272,11 +273,8 @@ void MemoryModel::loadModelActivations(const SimplifiedParams& params,
   }
   if (params.WEIGHT_SPLITTING) {
     SimplifiedParams gradParams = params;
-    gradParams.WEIGHT_OFFSET = params.WEIGHT_GRADIENT_OFFSET;
-    gradParams.BIAS_OFFSET = params.BIAS_GRADIENT_OFFSET;
-
+    gradParams.WEIGHT_OFFSET = params.WEIGHT_RESIDUAL_OFFSET;
     loadWeights(gradParams, SRAM, files.weight_grad_file, useDataFile);
-    loadBias(gradParams, SRAM, files.bias_grad_file, useDataFile);
   }
 }
 

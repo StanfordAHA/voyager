@@ -10,10 +10,7 @@ constexpr int SRAM_MEMORY_SIZE = NUM_SRAM_BANKS * 256 * 1024;
 
 // By default we have 12MB of RRAM per MINOTAUR SoC
 // organized as 12x 1MB Banks with 4x 256KB Macros each
-// constexpr int NUM_RRAM_BANKS = 12;
-
-// End 2 end tests require 24 banks, ie 2 chips
-constexpr int NUM_RRAM_BANKS = 14;
+constexpr int NUM_RRAM_BANKS = 12;
 constexpr int RRAM_MEMORY_SIZE = NUM_RRAM_BANKS * 1024 * 1024;
 
 // Bandwidth-mode for a RRAM memory bank
@@ -35,7 +32,6 @@ struct Files {
   std::string outputs_file;
   std::string residual_file;
   std::string weight_grad_file;
-  std::string bias_grad_file;
 };
 
 enum MemorySource { SRAM, RRAM };
@@ -111,8 +107,7 @@ struct SimplifiedParams {
   bool GRAD_CLIPPING_UNIT_TEST;
 
   bool WEIGHT_SPLITTING;
-  int WEIGHT_GRADIENT_OFFSET;
-  int BIAS_GRADIENT_OFFSET;
+  int WEIGHT_RESIDUAL_OFFSET;
   float learningRate;
 
   bool ACC_T_INPUT;

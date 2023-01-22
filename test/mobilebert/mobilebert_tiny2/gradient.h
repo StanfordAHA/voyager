@@ -51,13 +51,12 @@ const SimplifiedParams classifier_weight_gradient = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = false,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 // (16 x 1)
@@ -105,13 +104,12 @@ const SimplifiedParams classifier_bias_gradient = {
     .GRAD_CLIPPING = false,
     .GRAD_CLIPPING_UNIT_TEST = true,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = false,
-    .outputExpBias = -12,
+    .ACC_T_OUTPUT = true,
+    .outputExpBias = -11,
 };
 
 // (128 x 512) * (128 x 512)
@@ -159,13 +157,12 @@ const SimplifiedParams output_bottleneck_LayerNorm_gradient = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = false,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 // (128 x 128) x (128 x 512)
@@ -213,13 +210,12 @@ const SimplifiedParams intermediate_dense_weight_gradient = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = false,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 // (512 x 128) x (128 x 128)
@@ -267,13 +263,12 @@ const SimplifiedParams output_dense_weight_gradient = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = false,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 // (128 x 128) x (128 x 128)
@@ -321,13 +316,12 @@ const SimplifiedParams attention_output_dense_weight_gradient = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = false,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 // (512 x 128) x (128 x 128)
@@ -375,13 +369,12 @@ const SimplifiedParams value_projection_weight_gradient = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = false,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 // (128 x 128) x (128 x 128)
@@ -429,13 +422,12 @@ const SimplifiedParams query_key_projection_weight = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = false,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 // (128 x 128) * (128 x 128)
@@ -483,13 +475,12 @@ const SimplifiedParams input_bottleneck_LayerNorm_gradient = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = false,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 // (512 x 128) x (128 x 128)
@@ -537,13 +528,12 @@ const SimplifiedParams input_bottleneck_weight_gradient = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = false,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 // (128 x 128)
@@ -591,13 +581,12 @@ const SimplifiedParams intra_bottleneck_bias_gradient = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = true,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 // (128 x 128)
@@ -645,13 +634,12 @@ const SimplifiedParams intra_bottleneck_bias_with_head_concat = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = true,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 // (128 x 512)
@@ -699,13 +687,12 @@ const SimplifiedParams inter_bottleneck_bias_gradient = {
     .GRAD_CLIPPING = true,
     .GRAD_CLIPPING_UNIT_TEST = false,
     .WEIGHT_SPLITTING = false,
-    .WEIGHT_GRADIENT_OFFSET = 0,
-    .BIAS_GRADIENT_OFFSET = 0,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = true,
-    .outputExpBias = -12,
+    .outputExpBias = -11,
 };
 
 std::map<std::string, SimplifiedParams> gradientParams{
@@ -1005,7 +992,7 @@ std::map<std::string, Files> gradientTestFiles{
     {"classifier_weight",
      {
          "classifier",
-         "mobilebert_encoder_layer_23_output_bottleneck_LayerNorm",
+         "mobilebert_encoder_layer_20_output_bottleneck_LayerNorm",
          "",
          "classifier_weight",
      }},

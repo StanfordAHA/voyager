@@ -194,8 +194,7 @@ void Simulation::run() {
           positMemory->sram + params.OUTPUT_OFFSET,
           positMemory->rram + params.BIAS_OFFSET,
           positMemory->sram + params.RESIDUAL_OFFSET,
-          positMemory->sram + params.WEIGHT_GRADIENT_OFFSET,
-          positMemory->sram + params.BIAS_GRADIENT_OFFSET);
+          positMemory->sram + params.WEIGHT_RESIDUAL_OFFSET);
     }
     if (std::find(sims.begin(), sims.end(), "universal") != sims.end()) {
       run_universal_posit_gold_model(
@@ -206,8 +205,7 @@ void Simulation::run() {
           universalPositMemory->sram + params.OUTPUT_OFFSET,
           universalPositMemory->rram + params.BIAS_OFFSET,
           universalPositMemory->sram + params.RESIDUAL_OFFSET,
-          universalPositMemory->sram + params.WEIGHT_GRADIENT_OFFSET,
-          universalPositMemory->sram + params.BIAS_GRADIENT_OFFSET);
+          universalPositMemory->sram + params.WEIGHT_RESIDUAL_OFFSET);
     }
     if (std::find(sims.begin(), sims.end(), "fp32") != sims.end()) {
       run_fp_gold_model(
@@ -217,8 +215,7 @@ void Simulation::run() {
           floatMemory->sram + params.OUTPUT_OFFSET,
           floatMemory->rram + params.BIAS_OFFSET,
           floatMemory->sram + params.RESIDUAL_OFFSET,
-          floatMemory->sram + params.WEIGHT_GRADIENT_OFFSET,
-          floatMemory->sram + params.BIAS_GRADIENT_OFFSET);
+          floatMemory->sram + params.WEIGHT_RESIDUAL_OFFSET);
     }
   }
 
