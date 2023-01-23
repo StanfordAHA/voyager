@@ -36,7 +36,7 @@ MobileBERT Backprop (FP32 Gold Model vs. Pytorch):
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model mobilebert --task backprop --simulators fp32,file --tolerance 0.01
+    - python3 run_tests.py --model mobilebert --task backward --simulators fp32,file --tolerance 0.01
 
 MobileBERT Backprop (Accel. vs. Posit Gold Model):
   stage: test
@@ -48,7 +48,7 @@ MobileBERT Backprop (Accel. vs. Posit Gold Model):
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model mobilebert --task backprop --simulators accelerator,customposit --tolerance 0.01
+    - python3 run_tests.py --model mobilebert --task backward --simulators accelerator,customposit --tolerance 0.01
 
 MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
   stage: test
