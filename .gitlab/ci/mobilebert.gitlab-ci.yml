@@ -10,7 +10,7 @@ MobileBERT Inference (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --simulators fp32,file --tolerance 0.01
 
@@ -22,7 +22,7 @@ MobileBERT Inference (Accel. vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --simulators accelerator,customposit --tolerance 0.01
 
@@ -34,7 +34,7 @@ MobileBERT Backprop (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task backprop --simulators fp32,file --tolerance 0.01
 
@@ -46,7 +46,7 @@ MobileBERT Backprop (Accel. vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task backprop --simulators accelerator,customposit --tolerance 0.01
 
@@ -58,7 +58,7 @@ MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task gradient --simulators fp32,file --tolerance 0.01
 
@@ -70,7 +70,7 @@ MobileBERT Weight Gradients (Accel. vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task gradient --simulators accelerator,customposit --tolerance 0.01
 
@@ -82,7 +82,7 @@ MobileBERT Weight Update (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task weight_update --simulators fp32,file --tolerance 0.01
 
@@ -94,7 +94,7 @@ MobileBERT Weight Update (Accel. vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task weight_update --simulators accelerator,customposit --tolerance 0.01
 
@@ -109,7 +109,7 @@ MobileBERT Forward with Weight Splitting (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task forward_with_weight_splitting --simulators fp32,file --tolerance 0.01
 
@@ -124,7 +124,7 @@ MobileBERT Forward with Weight Splitting (Accel. vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task forward_with_weight_splitting --simulators accelerator,customposit --tolerance 0.01
 
@@ -139,7 +139,7 @@ MobileBERT Backward with Weight Splitting (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task backward_with_weight_splitting --simulators fp32,file --tolerance 0.01
 
@@ -154,7 +154,7 @@ MobileBERT Backward with Weight Splitting (Accel. vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task backward_with_weight_splitting --simulators accelerator,customposit --tolerance 0.01
 
@@ -169,7 +169,7 @@ MobileBERT Backward with Weight Splitting (Accel. vs. Posit Gold Model):
 #       - ./test_outputs
 #     expire_in: 1 week
 #   script:
-#     - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+#     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
 #     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
 #     - python3 run_tests.py --model mobilebert --task error_feedback --simulators fp32,file --tolerance 0.01
 
@@ -184,6 +184,6 @@ MobileBERT Backward with Weight Splitting (Accel. vs. Posit Gold Model):
 #       - ./test_outputs
 #     expire_in: 1 week
 #   script:
-#     - python3 models/mobilebert/gen_mobilebert_data.py --datapath data/qnli
+#     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
 #     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
 #     - python3 run_tests.py --model mobilebert --task error_feedback --simulators accelerator,customposit --tolerance 0.01
