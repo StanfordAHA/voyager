@@ -10,7 +10,6 @@ ResNet Codegen Layers (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig/proto && ./gen.sh)
     - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend naive_conv)
     - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators fp32,file --tolerance 0.01
 
@@ -22,7 +21,6 @@ ResNet Codegen Layers (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig/proto && ./gen.sh)
     - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend naive_conv)
     - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators accelerator,customposit --tolerance 0.01
 
@@ -38,7 +36,6 @@ ResNet Codegen End2End (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig/proto && ./gen.sh)
     - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend naive_conv)
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
@@ -53,7 +50,6 @@ ResNet Codegen End2End (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig/proto && ./gen.sh)
     - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend naive_conv)
     - mkdir ./test_outputs
     - make -j8 clean TestRunner

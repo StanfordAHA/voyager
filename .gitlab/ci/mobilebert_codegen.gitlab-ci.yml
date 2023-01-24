@@ -10,8 +10,6 @@ MobileBERT Codegen Layers (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig/proto && ./gen.sh)
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01
 
 MobileBERT Codegen Layers (Accel vs. Posit Gold Model):
@@ -22,8 +20,6 @@ MobileBERT Codegen Layers (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig/proto && ./gen.sh)
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01
 
 ####################################
@@ -38,8 +34,6 @@ MobileBERT Codegen End2End (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig/proto && ./gen.sh)
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
@@ -53,8 +47,6 @@ MobileBERT Codegen End2End (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig/proto && ./gen.sh)
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner

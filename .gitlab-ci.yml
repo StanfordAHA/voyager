@@ -4,12 +4,12 @@ stages:
   - test
 
 before_script:
-  - echo "Before script."
+  - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
   # - python3 -m venv venv
   # - . ./venv/bin/activate
   # - pip3 install -r zagzig/requirements.txt
   # - pip3 install -r requirements.txt
-  - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+  - (cd zagzig/proto && ./gen.sh)
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
