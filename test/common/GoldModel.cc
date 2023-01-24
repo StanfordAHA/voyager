@@ -137,11 +137,7 @@ inline void adjustExp(ACCUM_DATATYPE::DecomposedPosit &value, int expBias) {
 inline void adjustExp(float &value, int expBias) { value *= pow(2, expBias); }
 
 template <typename ACC_T>
-void grad_clip_norm(ACC_T *matrix, int size, int expBias) {
-  for (int i = 0; i < size; i++) {
-    adjustExp(matrix[i], expBias);
-  }
-
+void grad_clip_norm(ACC_T *matrix, int size) {
   // TODO: perform this as a tree add
   ACC_T norm = 0;
   for (int i = 0; i < size; i++) {
@@ -321,8 +317,19 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       }
     }
 
+    for (int i = 0; i < X * K; i++) {
+      adjustExp(outputMatrix[i], params.outputExpBias);
+    }
+
+    if (params.RESIDUAL) {
+      for (int i = 0; i < X * K; i++) {
+        ACC_T grad = readInput(residualMatrix, i, params.ACC_T_RESIDUAL);
+        outputMatrix[i] += grad;
+      }
+    }
+
     if (params.GRAD_CLIPPING) {
-      grad_clip_norm(outputMatrix, X * K, params.outputExpBias);
+      grad_clip_norm(outputMatrix, X * K);
     }
 
     for (int i = 0; i < X * K; i++) {
@@ -342,8 +349,19 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       }
     }
 
+    for (int i = 0; i < K; i++) {
+      adjustExp(outputMatrix[i], params.outputExpBias);
+    }
+
+    if (params.RESIDUAL) {
+      for (int i = 0; i < K; i++) {
+        ACC_T grad = readInput(residualMatrix, i, params.ACC_T_RESIDUAL);
+        outputMatrix[i] += grad;
+      }
+    }
+
     if (params.GRAD_CLIPPING) {
-      grad_clip_norm(outputMatrix, K, params.outputExpBias);
+      grad_clip_norm(outputMatrix, K);
     }
 
     for (int i = 0; i < K; i++) {
@@ -379,8 +397,19 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       }
     }
 
+    for (int i = 0; i < X * K; i++) {
+      adjustExp(outputMatrix[i], params.outputExpBias);
+    }
+
+    if (params.RESIDUAL) {
+      for (int i = 0; i < X * K; i++) {
+        ACC_T grad = readInput(residualMatrix, i, params.ACC_T_RESIDUAL);
+        outputMatrix[i] += grad;
+      }
+    }
+
     if (params.GRAD_CLIPPING) {
-      grad_clip_norm(outputMatrix, K, params.outputExpBias);
+      grad_clip_norm(outputMatrix, K);
     }
 
     for (int i = 0; i < K; i++) {
@@ -434,7 +463,19 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     for (int i = 0; i < X * C; i++) {
       outputMatrix[i] = readInput(matrixA, i, params.ACC_T_INPUT);
     }
-    grad_clip_norm(outputMatrix, X * C, params.outputExpBias);
+
+    for (int i = 0; i < X * K; i++) {
+      adjustExp(outputMatrix[i], params.outputExpBias);
+    }
+
+    if (params.RESIDUAL) {
+      for (int i = 0; i < X * K; i++) {
+        ACC_T grad = readInput(residualMatrix, i, params.ACC_T_RESIDUAL);
+        outputMatrix[i] += grad;
+      }
+    }
+
+    grad_clip_norm(outputMatrix, X * C);
 
     for (int i = 0; i < X * C; i++) {
       saveOutput(matrixC, i, outputMatrix[i], params.ACC_T_OUTPUT);
@@ -491,7 +532,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     if (params.RESIDUAL || params.RELU_GRAD) {
       for (int i = 0; i < X * Y * K; i++) {
         inputResidualMatrix[i] =
-            readInput(residualMatrix, i, params.ACC_T_INPUT);
+            readInput(residualMatrix, i, params.ACC_T_RESIDUAL);
       }
     }
 
@@ -647,6 +688,8 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
                   int k = (k1 * K0 + k0) * DIMENSION + oc0;
                   int outputAddress = y * X * K + x * K + k;
 
+                  adjustExp(outputMatrix[outputAddress], params.outputExpBias);
+
                   if (params.RESIDUAL) {
                     outputMatrix[outputAddress] +=
                         inputResidualMatrix[outputAddress];
@@ -692,7 +735,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     }
 
     if (params.GRAD_CLIPPING) {
-      grad_clip_norm(outputMatrix, Y * X * K, params.outputExpBias);
+      grad_clip_norm(outputMatrix, Y * X * K);
     }
 
     if (params.MAXPOOL) {

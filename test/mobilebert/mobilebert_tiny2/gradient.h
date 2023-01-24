@@ -49,14 +49,6 @@ const SimplifiedParams classifier_weight_gradient = {
     .CONCAT_WEIGHT = false,
     .SPLIT_OUTPUT = false,
     .GRAD_CLIPPING = true,
-    .GRAD_CLIPPING_UNIT_TEST = false,
-    .WEIGHT_SPLITTING = false,
-    .WEIGHT_RESIDUAL_OFFSET = 0,
-    .learningRate = 0.0,
-    .ACC_T_INPUT = false,
-    .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = false,
-    .outputExpBias = -11,
 };
 
 // (16 x 1)
@@ -109,7 +101,7 @@ const SimplifiedParams classifier_bias_gradient = {
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = true,
-    .outputExpBias = -11,
+    .ACC_T_RESIDUAL = true,
 };
 
 // (128 x 512) * (128 x 512)
@@ -161,8 +153,8 @@ const SimplifiedParams output_bottleneck_LayerNorm_gradient = {
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = false,
-    .outputExpBias = -11,
+    .ACC_T_OUTPUT = true,
+    .ACC_T_RESIDUAL = true,
 };
 
 // (128 x 128) x (128 x 512)
@@ -208,14 +200,6 @@ const SimplifiedParams intermediate_dense_weight_gradient = {
     .CONCAT_WEIGHT = false,
     .SPLIT_OUTPUT = false,
     .GRAD_CLIPPING = true,
-    .GRAD_CLIPPING_UNIT_TEST = false,
-    .WEIGHT_SPLITTING = false,
-    .WEIGHT_RESIDUAL_OFFSET = 0,
-    .learningRate = 0.0,
-    .ACC_T_INPUT = false,
-    .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = false,
-    .outputExpBias = -11,
 };
 
 // (512 x 128) x (128 x 128)
@@ -261,14 +245,6 @@ const SimplifiedParams output_dense_weight_gradient = {
     .CONCAT_WEIGHT = false,
     .SPLIT_OUTPUT = false,
     .GRAD_CLIPPING = true,
-    .GRAD_CLIPPING_UNIT_TEST = false,
-    .WEIGHT_SPLITTING = false,
-    .WEIGHT_RESIDUAL_OFFSET = 0,
-    .learningRate = 0.0,
-    .ACC_T_INPUT = false,
-    .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = false,
-    .outputExpBias = -11,
 };
 
 // (128 x 128) x (128 x 128)
@@ -314,14 +290,6 @@ const SimplifiedParams attention_output_dense_weight_gradient = {
     .CONCAT_WEIGHT = false,
     .SPLIT_OUTPUT = false,
     .GRAD_CLIPPING = true,
-    .GRAD_CLIPPING_UNIT_TEST = false,
-    .WEIGHT_SPLITTING = false,
-    .WEIGHT_RESIDUAL_OFFSET = 0,
-    .learningRate = 0.0,
-    .ACC_T_INPUT = false,
-    .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = false,
-    .outputExpBias = -11,
 };
 
 // (512 x 128) x (128 x 128)
@@ -367,14 +335,6 @@ const SimplifiedParams value_projection_weight_gradient = {
     .CONCAT_WEIGHT = true,
     .SPLIT_OUTPUT = false,
     .GRAD_CLIPPING = true,
-    .GRAD_CLIPPING_UNIT_TEST = false,
-    .WEIGHT_SPLITTING = false,
-    .WEIGHT_RESIDUAL_OFFSET = 0,
-    .learningRate = 0.0,
-    .ACC_T_INPUT = false,
-    .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = false,
-    .outputExpBias = -11,
 };
 
 // (128 x 128) x (128 x 128)
@@ -420,14 +380,6 @@ const SimplifiedParams query_key_projection_weight = {
     .CONCAT_WEIGHT = true,
     .SPLIT_OUTPUT = false,
     .GRAD_CLIPPING = true,
-    .GRAD_CLIPPING_UNIT_TEST = false,
-    .WEIGHT_SPLITTING = false,
-    .WEIGHT_RESIDUAL_OFFSET = 0,
-    .learningRate = 0.0,
-    .ACC_T_INPUT = false,
-    .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = false,
-    .outputExpBias = -11,
 };
 
 // (128 x 128) * (128 x 128)
@@ -479,8 +431,8 @@ const SimplifiedParams input_bottleneck_LayerNorm_gradient = {
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = false,
-    .outputExpBias = -11,
+    .ACC_T_OUTPUT = true,
+    .ACC_T_RESIDUAL = true,
 };
 
 // (512 x 128) x (128 x 128)
@@ -526,14 +478,6 @@ const SimplifiedParams input_bottleneck_weight_gradient = {
     .CONCAT_WEIGHT = false,
     .SPLIT_OUTPUT = false,
     .GRAD_CLIPPING = true,
-    .GRAD_CLIPPING_UNIT_TEST = false,
-    .WEIGHT_SPLITTING = false,
-    .WEIGHT_RESIDUAL_OFFSET = 0,
-    .learningRate = 0.0,
-    .ACC_T_INPUT = false,
-    .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = false,
-    .outputExpBias = -11,
 };
 
 // (128 x 128)
@@ -586,7 +530,7 @@ const SimplifiedParams intra_bottleneck_bias_gradient = {
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = true,
-    .outputExpBias = -11,
+    .ACC_T_RESIDUAL = true,
 };
 
 // (128 x 128)
@@ -639,7 +583,7 @@ const SimplifiedParams intra_bottleneck_bias_with_head_concat = {
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = true,
-    .outputExpBias = -11,
+    .ACC_T_RESIDUAL = true,
 };
 
 // (128 x 512)
@@ -692,7 +636,7 @@ const SimplifiedParams inter_bottleneck_bias_gradient = {
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = true,
-    .outputExpBias = -11,
+    .ACC_T_RESIDUAL = true,
 };
 
 std::map<std::string, SimplifiedParams> gradientParams{

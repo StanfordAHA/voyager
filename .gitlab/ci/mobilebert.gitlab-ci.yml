@@ -26,7 +26,7 @@ MobileBERT Inference (Accel. vs. Posit Gold Model):
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --simulators accelerator,customposit --tolerance 0.01
 
-MobileBERT Backprop (FP32 Gold Model vs. Pytorch):
+MobileBERT Backward Pass (FP32 Gold Model vs. Pytorch):
   stage: test
   artifacts:
     when: always
@@ -38,7 +38,7 @@ MobileBERT Backprop (FP32 Gold Model vs. Pytorch):
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task backward --simulators fp32,file --tolerance 0.01
 
-MobileBERT Backprop (Accel. vs. Posit Gold Model):
+MobileBERT Backward Pass (Accel. vs. Posit Gold Model):
   stage: test
   artifacts:
     when: always
@@ -98,7 +98,7 @@ MobileBERT Weight Update (Accel. vs. Posit Gold Model):
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task weight_update --simulators accelerator,customposit --tolerance 0.01
 
-MobileBERT Forward with Weight Splitting (FP32 Gold Model vs. Pytorch):
+MobileBERT Forward Pass with Weight Splitting (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -113,7 +113,7 @@ MobileBERT Forward with Weight Splitting (FP32 Gold Model vs. Pytorch):
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task forward_with_weight_splitting --simulators fp32,file --tolerance 0.01
 
-MobileBERT Forward with Weight Splitting (Accel. vs. Posit Gold Model):
+MobileBERT Forward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -128,7 +128,7 @@ MobileBERT Forward with Weight Splitting (Accel. vs. Posit Gold Model):
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task forward_with_weight_splitting --simulators accelerator,customposit --tolerance 0.01
 
-MobileBERT Backward with Weight Splitting (FP32 Gold Model vs. Pytorch):
+MobileBERT Backward Pass with Weight Splitting (FP32 Gold Model vs. Pytorch):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -143,7 +143,7 @@ MobileBERT Backward with Weight Splitting (FP32 Gold Model vs. Pytorch):
     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task backward_with_weight_splitting --simulators fp32,file --tolerance 0.01
 
-MobileBERT Backward with Weight Splitting (Accel. vs. Posit Gold Model):
+MobileBERT Backward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
   stage: test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive

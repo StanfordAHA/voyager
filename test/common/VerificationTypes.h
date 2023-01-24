@@ -113,6 +113,7 @@ struct SimplifiedParams {
   bool ACC_T_INPUT;
   bool ACC_T_WEIGHT;
   bool ACC_T_OUTPUT;
+  bool ACC_T_RESIDUAL;
 
   // int inputExpBias;
   // int weightExpBias;

@@ -115,93 +115,95 @@ std::vector<Workload> MobileBERT::getWorkloads(
       std::string gradientDataDir;
 
       if (task == "inference") {
-        inputDataDir = "activations/";
-        weightDataDir = "weights/";
-        outputDataDir = "activations/";
-        residualDataDir = "activations/";
+        inputDataDir = "step_51_activations/";
+        weightDataDir = "step_51_weights/";
+        outputDataDir = "step_51_activations/";
+        residualDataDir = "step_51_activations/";
 
         if (!workload.params.WEIGHT) {
-          weightDataDir = "activations/";
+          weightDataDir = "step_51_activations/";
         }
       } else if (task == "backward") {
-        inputDataDir = "activation_gradients/";
-        weightDataDir = "weights/";
-        outputDataDir = "activation_gradients/";
-        residualDataDir = "activation_gradients/";
+        inputDataDir = "step_51_activation_gradients/";
+        weightDataDir = "step_51_weights/";
+        outputDataDir = "step_51_activation_gradients/";
+        residualDataDir = "step_51_activation_gradients/";
 
         if (!workload.params.WEIGHT) {
-          weightDataDir = "activations/";
+          weightDataDir = "step_51_activations/";
         }
         if (workload.params.SOFTMAX_GRAD || workload.params.RELU_GRAD) {
-          residualDataDir = "activations/";
+          residualDataDir = "step_51_activations/";
         }
         if (layer.find("attention_self_value_layer") != std::string::npos) {
-          inputDataDir = "activations/";
-          weightDataDir = "activation_gradients/";
+          inputDataDir = "step_51_activations/";
+          weightDataDir = "step_51_activation_gradients/";
         }
         if (workload.params.CROSS_ENTROPY_GRAD) {
-          inputDataDir = "activations/";
-          weightDataDir = "activations/";
+          inputDataDir = "step_51_activations/";
+          weightDataDir = "step_51_activations/";
         }
       } else if (task == "gradient") {
-        inputDataDir = "activations/";
-        weightDataDir = "activation_gradients/";
-        outputDataDir = "weight_gradients/";
-        residualDataDir = "weight_gradients/";
+        workload.params.RESIDUAL = true;
+        workload.params.outputExpBias = -13;
+        workload.files.residual_file = workload.files.outputs_file;
+
+        inputDataDir = "step_51_activations/";
+        weightDataDir = "step_51_activation_gradients/";
+        outputDataDir = "step_51_weight_gradients/";
+        residualDataDir = "step_50_weight_gradients/";
 
         if (layer.find("classifier") != std::string::npos) {
-          inputDataDir = "activation_gradients/";
-          weightDataDir = "activations/";
+          inputDataDir = "step_51_activation_gradients/";
+          weightDataDir = "step_51_activations/";
         }
       } else if (task == "weight_update") {
-        inputDataDir = "weights/";
-        weightDataDir = "weight_gradients/";
-        outputDataDir = "weights2/";
+        inputDataDir = "step_51_weights/";
+        weightDataDir = "step_51_weight_gradients/";
+        outputDataDir = "step_52_weights/";
       } else if (task == "forward_with_weight_splitting") {
         workload.params.WEIGHT_SPLITTING = workload.params.WEIGHT;
-        workload.params.learningRate = 3e-2;
+        workload.params.learningRate = 0.02995417748587139;
         workload.files.weight_grad_file = workload.files.weights_file;
 
-        inputDataDir = "activations2/";
-        weightDataDir = "weights2/";
-        outputDataDir = "activations2/";
-        residualDataDir = "activations2/";
-        gradientDataDir = "weight_gradients/";
+        inputDataDir = "step_52_activations/";
+        weightDataDir = "step_52_ws_weights/";
+        outputDataDir = "step_52_activations/";
+        residualDataDir = "step_52_activations/";
+        gradientDataDir = "step_51_weight_gradients/";
 
         if (!workload.params.WEIGHT) {
-          weightDataDir = "activations2/";
+          weightDataDir = "step_52_activations/";
         }
       } else if (task == "backward_with_weight_splitting") {
         workload.params.WEIGHT_SPLITTING = workload.params.WEIGHT;
-        workload.params.learningRate = 3e-2;
+        workload.params.learningRate = 0.02995417748587139;
         workload.files.weight_grad_file = workload.files.weights_file;
 
         if (workload.params.CROSS_ENTROPY_GRAD) {
-          workload.params.outputExpBias = 10;
+          workload.params.outputExpBias = 8;
         }
 
-        inputDataDir = "activation_gradients2/";
-        weightDataDir = "weights2/";
-        outputDataDir = "activation_gradients2/";
-        residualDataDir = "activation_gradients2/";
-        gradientDataDir = "weight_gradients/";
+        inputDataDir = "step_52_activation_gradients/";
+        weightDataDir = "step_52_ws_weights/";
+        outputDataDir = "step_52_activation_gradients/";
+        residualDataDir = "step_52_activation_gradients/";
+        gradientDataDir = "step_51_weight_gradients/";
 
         if (!workload.params.WEIGHT) {
-          weightDataDir = "activations2/";
+          weightDataDir = "step_52_activations/";
         }
         if (workload.params.SOFTMAX_GRAD || workload.params.RELU_GRAD) {
-          residualDataDir = "activations2/";
+          residualDataDir = "step_52_activations/";
         }
         if (layer.find("attention_self_value_layer") != std::string::npos) {
-          inputDataDir = "activations2/";
-          weightDataDir = "activation_gradients2/";
+          inputDataDir = "step_52_activations/";
+          weightDataDir = "step_52_activation_gradients/";
         }
         if (workload.params.CROSS_ENTROPY_GRAD) {
-          inputDataDir = "activations2/";
-          weightDataDir = "activations2/";
+          inputDataDir = "step_52_activations/";
+          weightDataDir = "step_52_activations/";
         }
-      } else if (task == "error_feedback") {
-        // TODO:
       }
 
       if (layer.find("classifier") != std::string::npos ||
@@ -233,6 +235,12 @@ std::vector<Workload> MobileBERT::getWorkloads(
           0, dataDir + residualDataDir + encoderPrefix);
       workload.files.weight_grad_file.insert(
           0, dataDir + gradientDataDir + encoderPrefix);
+
+      std::cerr << workload.files.inputs_file << std::endl;
+      std::cerr << workload.files.weights_file << std::endl;
+      std::cerr << workload.files.outputs_file << std::endl;
+      std::cerr << workload.files.bias_file << std::endl;
+      std::cerr << workload.files.residual_file << std::endl;
 
       if (useOffsets) {
         MemoryOffsets offsets = memOffsets.at(layer);

@@ -201,9 +201,11 @@ void MemoryModel::loadResiduals(const SimplifiedParams& params,
 
   for (int address = 0; address < size; address++) {
     double val = *(tmpValuePtr++);
-
-    // TODO: work with double precision
-    writeToMemory(params.RESIDUAL_OFFSET + address, val, mem, false);
+    if (params.ACC_T_RESIDUAL) {
+      writeToMemory(params.RESIDUAL_OFFSET + 2 * address, val, mem, true);
+    } else {
+      writeToMemory(params.RESIDUAL_OFFSET + address, val, mem, false);
+    }
   }
 
   delete[] tmpValues;
