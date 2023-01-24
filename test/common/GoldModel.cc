@@ -137,11 +137,7 @@ inline void adjustExp(ACCUM_DATATYPE::DecomposedPosit &value, int expBias) {
 inline void adjustExp(float &value, int expBias) { value *= pow(2, expBias); }
 
 template <typename ACC_T>
-void grad_clip_norm(ACC_T *matrix, int size, int expBias) {
-  for (int i = 0; i < size; i++) {
-    adjustExp(matrix[i], expBias);
-  }
-
+void grad_clip_norm(ACC_T *matrix, int size) {
   // TODO: perform this as a tree add
   ACC_T norm = 0;
   for (int i = 0; i < size; i++) {
@@ -159,8 +155,7 @@ void grad_clip_norm(ACC_T *matrix, int size, int expBias) {
 
 template <typename T, typename ACC_T, typename INT_T>
 void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
-                 T *biasMatrix, T *residualMatrix, T *weightGradMatrix,
-                 T *biasGradMatrix) {
+                 T *biasMatrix, T *residualMatrix, T *weightResidualMatrix) {
   std::cerr << "Running gold model " << std::endl;
 
   int X = params.loops[0][params.inputXLoopIndex[0]] *
@@ -179,7 +174,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     C = 3;
   }
 
-  INT_T learningRate = params.learningRate;
+  ACC_T learningRate = static_cast<T>(params.learningRate);
 
   if (params.SOFTMAX) {
     for (int x = 0; x < X; x++) {
@@ -234,6 +229,12 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       for (int c = 0; c < C; c++) {
         ACC_T a = readInput(matrixA, c, params.ACC_T_INPUT);
         ACC_T b = readInput(matrixB, k * C + c, params.ACC_T_WEIGHT);
+
+        if (params.WEIGHT_SPLITTING) {
+          ACC_T grad = readInput(weightResidualMatrix, k * C + c, false);
+          b -= static_cast<ACC_T>(learningRate * grad);
+        }
+
         flattened_mult[c] =
             static_cast<ACC_T>(static_cast<ACC_T>(a) * static_cast<ACC_T>(b));
       }
@@ -256,20 +257,8 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
         acc = static_cast<ACC_T>(acc + accum[0]);
       }
 
-      // FIXME
-      // if (params.WEIGHT_SPLITTING) {
-      //   ACC_T grad = weightGradMatrix[k * C + c];
-      //   b += static_cast<ACC_T>(learningRate * grad);
-      // }
-
       if (params.BIAS) {
-        INT_T bias = readInput(biasMatrix, k, true);
-        acc = static_cast<ACC_T>(acc + static_cast<ACC_T>(bias));
-
-        if (params.WEIGHT_SPLITTING) {
-          ACC_T biasGrad = readInput(biasGradMatrix, k, true);
-          acc -= static_cast<ACC_T>(learningRate * biasGrad);
-        }
+        acc += readInput(biasMatrix, k, true);
       }
 
       saveOutput(matrixC, k, acc, params.ACC_T_OUTPUT);
@@ -278,23 +267,12 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     for (int x = 0; x < X; x++) {
       for (int k = 0; k < K; k++) {
         ACC_T a = readInput(matrixA, x * K + k, params.ACC_T_INPUT);
-        ACC_T b = readInput(matrixB, k, params.ACC_T_WEIGHT);
-
-        if (params.WEIGHT_SPLITTING) {
-          ACC_T grad = weightGradMatrix[k];
-          b -= static_cast<ACC_T>(learningRate * grad);
-        }
-
+        ACC_T b = readInput(matrixB, k, true);
         ACC_T acc = static_cast<ACC_T>(a * b);
 
         if (params.BIAS) {
           ACC_T bias = readInput(biasMatrix, k, true);
           acc += bias;
-
-          if (params.WEIGHT_SPLITTING) {
-            ACC_T biasGrad = readInput(biasGradMatrix, k, true);
-            acc -= static_cast<ACC_T>(learningRate * biasGrad);
-          }
         }
 
         saveOutput(matrixC, x * K + k, acc, params.ACC_T_OUTPUT);
@@ -339,8 +317,19 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       }
     }
 
+    for (int i = 0; i < X * K; i++) {
+      adjustExp(outputMatrix[i], params.outputExpBias);
+    }
+
+    if (params.RESIDUAL) {
+      for (int i = 0; i < X * K; i++) {
+        ACC_T grad = readInput(residualMatrix, i, params.ACC_T_RESIDUAL);
+        outputMatrix[i] += grad;
+      }
+    }
+
     if (params.GRAD_CLIPPING) {
-      grad_clip_norm(outputMatrix, X * K, params.outputExpBias);
+      grad_clip_norm(outputMatrix, X * K);
     }
 
     for (int i = 0; i < X * K; i++) {
@@ -360,8 +349,19 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       }
     }
 
+    for (int i = 0; i < K; i++) {
+      adjustExp(outputMatrix[i], params.outputExpBias);
+    }
+
+    if (params.RESIDUAL) {
+      for (int i = 0; i < K; i++) {
+        ACC_T grad = readInput(residualMatrix, i, params.ACC_T_RESIDUAL);
+        outputMatrix[i] += grad;
+      }
+    }
+
     if (params.GRAD_CLIPPING) {
-      grad_clip_norm(outputMatrix, K, params.outputExpBias);
+      grad_clip_norm(outputMatrix, K);
     }
 
     for (int i = 0; i < K; i++) {
@@ -397,8 +397,19 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       }
     }
 
+    for (int i = 0; i < X * K; i++) {
+      adjustExp(outputMatrix[i], params.outputExpBias);
+    }
+
+    if (params.RESIDUAL) {
+      for (int i = 0; i < X * K; i++) {
+        ACC_T grad = readInput(residualMatrix, i, params.ACC_T_RESIDUAL);
+        outputMatrix[i] += grad;
+      }
+    }
+
     if (params.GRAD_CLIPPING) {
-      grad_clip_norm(outputMatrix, K, params.outputExpBias);
+      grad_clip_norm(outputMatrix, K);
     }
 
     for (int i = 0; i < K; i++) {
@@ -452,16 +463,28 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     for (int i = 0; i < X * C; i++) {
       outputMatrix[i] = readInput(matrixA, i, params.ACC_T_INPUT);
     }
-    grad_clip_norm(outputMatrix, X * C, params.outputExpBias);
+
+    for (int i = 0; i < X * K; i++) {
+      adjustExp(outputMatrix[i], params.outputExpBias);
+    }
+
+    if (params.RESIDUAL) {
+      for (int i = 0; i < X * K; i++) {
+        ACC_T grad = readInput(residualMatrix, i, params.ACC_T_RESIDUAL);
+        outputMatrix[i] += grad;
+      }
+    }
+
+    grad_clip_norm(outputMatrix, X * C);
 
     for (int i = 0; i < X * C; i++) {
       saveOutput(matrixC, i, outputMatrix[i], params.ACC_T_OUTPUT);
     }
   } else if (params.WEIGHT_UPDATE) {
-    INT_T *weights = new INT_T[FX * FY * C * K];
-    INT_T *gradients = new INT_T[FX * FY * C * K];
+    INT_T *weights = new INT_T[X * C];
+    INT_T *gradients = new INT_T[X * C];
 
-    for (int i = 0; i < FX * FY * C * K; i++) {
+    for (int i = 0; i < X * C; i++) {
       weights[i] = readInput(matrixA, i, params.ACC_T_INPUT);
       gradients[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
 
@@ -473,8 +496,8 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       saveOutput(matrixA, i, weights[i], params.ACC_T_OUTPUT);
 
       if (!params.ACC_T_OUTPUT && params.ERROR_FEEDBACK) {
-        gradients[i] =
-            (static_cast<INT_T>(matrixA[i]) - weights[i]) / learningRate;
+        INT_T lr = learningRate;
+        gradients[i] = (static_cast<INT_T>(matrixA[i]) - weights[i]) / lr;
         // float feedback = ((float)matrixA[i] - val) / learningRate;
 
         // Save 8-bit weight residual to SRAM
@@ -500,15 +523,16 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       inputMatrixB[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
 
       if (params.WEIGHT_SPLITTING) {
-        ACC_T weightGrad = readInput(weightGradMatrix, i, params.ACC_T_WEIGHT);
-        inputMatrixB[i] -= learningRate * weightGrad;
+        ACC_T grad = readInput(weightResidualMatrix, i, false);
+        inputMatrixB[i] -= learningRate * grad;
+        inputMatrixB[i] = static_cast<T>(inputMatrixB[i]);
       }
     }
 
     if (params.RESIDUAL || params.RELU_GRAD) {
       for (int i = 0; i < X * Y * K; i++) {
         inputResidualMatrix[i] =
-            readInput(residualMatrix, i, params.ACC_T_INPUT);
+            readInput(residualMatrix, i, params.ACC_T_RESIDUAL);
       }
     }
 
@@ -664,6 +688,8 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
                   int k = (k1 * K0 + k0) * DIMENSION + oc0;
                   int outputAddress = y * X * K + x * K + k;
 
+                  adjustExp(outputMatrix[outputAddress], params.outputExpBias);
+
                   if (params.RESIDUAL) {
                     outputMatrix[outputAddress] +=
                         inputResidualMatrix[outputAddress];
@@ -672,11 +698,6 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
                   if (params.BIAS) {
                     ACC_T bias = readInput(biasMatrix, k, true);
                     outputMatrix[outputAddress] += bias;
-
-                    if (params.WEIGHT_SPLITTING) {
-                      ACC_T biasGrad = readInput(biasGradMatrix, k, true);
-                      outputMatrix[outputAddress] -= learningRate * biasGrad;
-                    }
                   }
 
                   if (params.RELU) {
@@ -684,7 +705,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
                   }
 
                   if (params.RELU_GRAD &&
-                      inputResidualMatrix[outputAddress] < 0) {
+                      inputResidualMatrix[outputAddress] == 0) {
                     outputMatrix[outputAddress] = 0;
                   }
 
@@ -714,7 +735,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     }
 
     if (params.GRAD_CLIPPING) {
-      grad_clip_norm(outputMatrix, Y * X * K, params.outputExpBias);
+      grad_clip_norm(outputMatrix, Y * X * K);
     }
 
     if (params.MAXPOOL) {
@@ -769,31 +790,34 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
   }
 }
 
-void run_custom_posit_gold_model(
-    const SimplifiedParams params, INPUT_DATATYPE *matrixA,
-    INPUT_DATATYPE *matrixB, INPUT_DATATYPE *matrixC,
-    INPUT_DATATYPE *biasMatrix, INPUT_DATATYPE *residualMatrix,
-    INPUT_DATATYPE *weightGradMatrix, INPUT_DATATYPE *biasGradMatrix) {
+void run_custom_posit_gold_model(const SimplifiedParams params,
+                                 INPUT_DATATYPE *matrixA,
+                                 INPUT_DATATYPE *matrixB,
+                                 INPUT_DATATYPE *matrixC,
+                                 INPUT_DATATYPE *biasMatrix,
+                                 INPUT_DATATYPE *residualMatrix,
+                                 INPUT_DATATYPE *weightResidualMatrix) {
   run_gold_op<INPUT_DATATYPE, ACCUM_DATATYPE::DecomposedPosit, ACCUM_DATATYPE>(
       params, matrixA, matrixB, matrixC, biasMatrix, residualMatrix,
-      weightGradMatrix, biasGradMatrix);
+      weightResidualMatrix);
 }
 
-void run_universal_posit_gold_model(
-    const SimplifiedParams params, UniversalPosit *matrixA,
-    UniversalPosit *matrixB, UniversalPosit *matrixC,
-    UniversalPosit *biasMatrix, UniversalPosit *residualMatrix,
-    UniversalPosit *weightGradMatrix, UniversalPosit *biasGradMatrix) {
+void run_universal_posit_gold_model(const SimplifiedParams params,
+                                    UniversalPosit *matrixA,
+                                    UniversalPosit *matrixB,
+                                    UniversalPosit *matrixC,
+                                    UniversalPosit *biasMatrix,
+                                    UniversalPosit *residualMatrix,
+                                    UniversalPosit *weightResidualMatrix) {
   run_gold_op<UniversalPosit, UniversalPositAccum, UniversalPositAccum>(
       params, matrixA, matrixB, matrixC, biasMatrix, residualMatrix,
-      weightGradMatrix, biasGradMatrix);
+      weightResidualMatrix);
 }
 
 void run_fp_gold_model(const SimplifiedParams params, float *matrixA,
                        float *matrixB, float *matrixC, float *biasMatrix,
-                       float *residualMatrix, float *weightGradMatrix,
-                       float *biasGradMatrix) {
+                       float *residualMatrix, float *weightResidualMatrix) {
   run_gold_op<float, float, float>(params, matrixA, matrixB, matrixC,
-                                   biasMatrix, residualMatrix, weightGradMatrix,
-                                   biasGradMatrix);
+                                   biasMatrix, residualMatrix,
+                                   weightResidualMatrix);
 }

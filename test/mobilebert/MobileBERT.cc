@@ -48,17 +48,17 @@ MobileBERT::MobileBERT(const std::string modelName, const std::string task,
 
 void MobileBERT::setTask(std::string task) {
   this->task = task;
-  if (task == "inference" || task == "weight_splitting") {
+  if (task == "inference" || task == "forward_with_weight_splitting") {
     order = inferenceOrder;
     params = inferenceParams;
     memOffsets = inferenceMemOffsets;
     files = inferenceTestFiles;
-  } else if (task == "backprop") {
+  } else if (task == "backward" || task == "backward_with_weight_splitting") {
     order = backpropOrder;
     params = backpropParams;
     memOffsets = backpropMemOffsets;
     files = backpropTestFiles;
-  } else if (task == "gradient") {
+  } else if (task == "gradient" || task == "gradient_accumulation") {
     params = gradientParams;
     memOffsets = gradientMemOffsets;
     files = gradientTestFiles;
@@ -71,9 +71,7 @@ void MobileBERT::setTask(std::string task) {
       files.insert({it->first, file});
     }
   } else {
-    std::cerr << "ERROR: Task must be one of \"inference\", \"gradient\", "
-                 "\"backprop\", \"weight_update\", and \"weight_splitting\"."
-              << std::endl;
+    std::cerr << "ERROR: unrecognized task: " << task << std::endl;
     std::abort();
   }
 }
@@ -105,7 +103,7 @@ std::vector<Workload> MobileBERT::getWorkloads(
           "mobilebert_encoder_layer_" + std::to_string(encoderIndex) + "_";
 
       Workload workload;
-      workload.name = encoderPrefix + layer;
+      workload.name = layer;
       workload.params = params.at(layer);
       workload.files = files.at(layer);
 
@@ -117,71 +115,100 @@ std::vector<Workload> MobileBERT::getWorkloads(
       std::string gradientDataDir;
 
       if (task == "inference") {
-        inputDataDir = "activations/";
-        weightDataDir = "weights/";
-        outputDataDir = "activations/";
-        residualDataDir = "activations/";
+        inputDataDir = "step_51_activations/";
+        weightDataDir = "step_51_weights/";
+        outputDataDir = "step_51_activations/";
+        residualDataDir = "step_51_activations/";
 
         if (!workload.params.WEIGHT) {
-          weightDataDir = "activations/";
+          weightDataDir = "step_51_activations/";
         }
-      } else if (task == "backprop") {
-        inputDataDir = "activation_gradients/";
-        weightDataDir = "weights/";
-        outputDataDir = "activation_gradients/";
-        residualDataDir = "activation_gradients/";
+      } else if (task == "backward") {
+        inputDataDir = "step_51_activation_gradients/";
+        weightDataDir = "step_51_weights/";
+        outputDataDir = "step_51_activation_gradients/";
+        residualDataDir = "step_51_activation_gradients/";
 
         if (!workload.params.WEIGHT) {
-          weightDataDir = "activations/";
+          weightDataDir = "step_51_activations/";
         }
         if (workload.params.SOFTMAX_GRAD || workload.params.RELU_GRAD) {
-          residualDataDir = "activations/";
+          residualDataDir = "step_51_activations/";
         }
         if (layer.find("attention_self_value_layer") != std::string::npos) {
-          inputDataDir = "activations/";
-          weightDataDir = "activation_gradients/";
+          inputDataDir = "step_51_activations/";
+          weightDataDir = "step_51_activation_gradients/";
         }
         if (workload.params.CROSS_ENTROPY_GRAD) {
-          inputDataDir = "activations/";
-          weightDataDir = "activations/";
+          inputDataDir = "step_51_activations/";
+          weightDataDir = "step_51_activations/";
         }
       } else if (task == "gradient") {
-        inputDataDir = "activations/";
-        weightDataDir = "activation_gradients/";
-        outputDataDir = "weight_gradients/";
-        residualDataDir = "weight_gradients/";
+        workload.params.RESIDUAL = true;
+        workload.params.outputExpBias = -13;
+        workload.files.residual_file = workload.files.outputs_file;
+
+        inputDataDir = "step_51_activations/";
+        weightDataDir = "step_51_activation_gradients/";
+        outputDataDir = "step_51_weight_gradients/";
+        residualDataDir = "step_50_weight_gradients/";
 
         if (layer.find("classifier") != std::string::npos) {
-          inputDataDir = "activation_gradients/";
-          weightDataDir = "activations/";
+          inputDataDir = "step_51_activation_gradients/";
+          weightDataDir = "step_51_activations/";
         }
-      } else if (task == "weight_update" || task == "error_feedback") {
-        workload.params.ERROR_FEEDBACK = (task == "error_feedback");
-
-        inputDataDir = "quantized_weights/";
-        weightDataDir = "quantized_weight_gradients/";
-        outputDataDir = workload.params.ERROR_FEEDBACK
-                            ? "updated_weight_gradients/"
-                            : "updated_weights/";
-      } else if (task == "weight_splitting") {
-        workload.params.WEIGHT_SPLITTING = true;
-        workload.params.learningRate = 3e-2;
+      } else if (task == "weight_update") {
+        inputDataDir = "step_51_weights/";
+        weightDataDir = "step_51_weight_gradients/";
+        outputDataDir = "step_52_weights/";
+      } else if (task == "forward_with_weight_splitting") {
+        workload.params.WEIGHT_SPLITTING = workload.params.WEIGHT;
+        workload.params.learningRate = 0.02995417748587139;
         workload.files.weight_grad_file = workload.files.weights_file;
-        workload.files.bias_grad_file = workload.files.bias_file;
 
-        inputDataDir = "activations2/";
-        weightDataDir = "weights/";
-        outputDataDir = "activations2/";
-        residualDataDir = "activations2/";
-        gradientDataDir = "weight_gradients/";
+        inputDataDir = "step_52_activations/";
+        weightDataDir = "step_52_ws_weights/";
+        outputDataDir = "step_52_activations/";
+        residualDataDir = "step_52_activations/";
+        gradientDataDir = "step_51_weight_gradients/";
 
         if (!workload.params.WEIGHT) {
-          weightDataDir = "activations2/";
+          weightDataDir = "step_52_activations/";
+        }
+      } else if (task == "backward_with_weight_splitting") {
+        workload.params.WEIGHT_SPLITTING = workload.params.WEIGHT;
+        workload.params.learningRate = 0.02995417748587139;
+        workload.files.weight_grad_file = workload.files.weights_file;
+
+        if (workload.params.CROSS_ENTROPY_GRAD) {
+          workload.params.outputExpBias = 8;
+        }
+
+        inputDataDir = "step_52_activation_gradients/";
+        weightDataDir = "step_52_ws_weights/";
+        outputDataDir = "step_52_activation_gradients/";
+        residualDataDir = "step_52_activation_gradients/";
+        gradientDataDir = "step_51_weight_gradients/";
+
+        if (!workload.params.WEIGHT) {
+          weightDataDir = "step_52_activations/";
+        }
+        if (workload.params.SOFTMAX_GRAD || workload.params.RELU_GRAD) {
+          residualDataDir = "step_52_activations/";
+        }
+        if (layer.find("attention_self_value_layer") != std::string::npos) {
+          inputDataDir = "step_52_activations/";
+          weightDataDir = "step_52_activation_gradients/";
+        }
+        if (workload.params.CROSS_ENTROPY_GRAD) {
+          inputDataDir = "step_52_activations/";
+          weightDataDir = "step_52_activations/";
         }
       }
 
       if (layer.find("classifier") != std::string::npos ||
-          (task == "backprop" && layer == "output_bottleneck_LayerNorm")) {
+          (layer == "output_bottleneck_LayerNorm" &&
+           task.find("backward") != std::string::npos)) {
         encoderPrefix = "";
       }
 
@@ -208,8 +235,12 @@ std::vector<Workload> MobileBERT::getWorkloads(
           0, dataDir + residualDataDir + encoderPrefix);
       workload.files.weight_grad_file.insert(
           0, dataDir + gradientDataDir + encoderPrefix);
-      workload.files.bias_grad_file.insert(
-          0, dataDir + gradientDataDir + encoderPrefix);
+
+      std::cerr << workload.files.inputs_file << std::endl;
+      std::cerr << workload.files.weights_file << std::endl;
+      std::cerr << workload.files.outputs_file << std::endl;
+      std::cerr << workload.files.bias_file << std::endl;
+      std::cerr << workload.files.residual_file << std::endl;
 
       if (useOffsets) {
         MemoryOffsets offsets = memOffsets.at(layer);
@@ -234,10 +265,8 @@ std::vector<Workload> MobileBERT::getWorkloads(
 
         workload.params.BIAS_OFFSET = STACK_SIZE + 3 * INTERMEDIATE_SIZE;
         workload.params.RESIDUAL_OFFSET = STACK_SIZE + 4 * INTERMEDIATE_SIZE;
-        workload.params.WEIGHT_GRADIENT_OFFSET =
+        workload.params.WEIGHT_RESIDUAL_OFFSET =
             STACK_SIZE + 5 * INTERMEDIATE_SIZE;
-        workload.params.BIAS_GRADIENT_OFFSET =
-            STACK_SIZE + 6 * INTERMEDIATE_SIZE;
       }
 
       workload.memoryMap = {SRAM, (workload.params.WEIGHT ? RRAM : SRAM), RRAM,
@@ -261,10 +290,10 @@ std::vector<Workload> MobileBERT::getWorkloadsInRange(
   if (layers.size() == 1) {  // Single layer
     if (layers.front() == "all") {
       std::vector<Workload> workloads;
-      std::vector<Workload> inference = getInferenceWorkloads();
-      workloads.insert(workloads.end(), inference.begin(), inference.end());
-      std::vector<Workload> backprop = getBackpropWorkloads();
-      workloads.insert(workloads.end(), backprop.begin(), backprop.end());
+      std::vector<Workload> forward = getForwardWorkloads();
+      workloads.insert(workloads.end(), forward.begin(), forward.end());
+      std::vector<Workload> backward = getBackwardWorkloads();
+      workloads.insert(workloads.end(), backward.begin(), backward.end());
       return workloads;
     }
     layersInRange.push_back(layers.front());
@@ -293,7 +322,7 @@ std::vector<Workload> MobileBERT::getAllWorkloads() {
   return getWorkloads(order);
 }
 
-std::vector<Workload> MobileBERT::getInferenceWorkloads() {
+std::vector<Workload> MobileBERT::getForwardWorkloads() {
   setTask("inference");
   std::vector<Workload> inferenceWorkloads;
 
@@ -303,7 +332,7 @@ std::vector<Workload> MobileBERT::getInferenceWorkloads() {
   auto encoderOrder = std::vector<std::string>(inferenceOrder.begin(),
                                                inferenceOrder.end() - 1);
 
-  for (int layer = 0; layer < 24; layer++) {
+  for (int layer = 0; layer < 21; layer++) {
     std::vector<Workload> workloads = getWorkloads(encoderOrder, layer, true);
 
     inputOffset = ACTIVATION_OFFSET + layer * ENCODER_ACTIVATION_SIZE;
@@ -326,7 +355,7 @@ std::vector<Workload> MobileBERT::getInferenceWorkloads() {
     }
   }
 
-  Workload classifier = getWorkloads({"classifier"}, 23, true).front();
+  Workload classifier = getWorkloads({"classifier"}, 20, true).front();
   classifier.params.INPUT_OFFSET += inputOffset;
   classifier.params.WEIGHT_OFFSET += weightOffset;
   classifier.params.OUTPUT_OFFSET += inputOffset;
@@ -334,53 +363,45 @@ std::vector<Workload> MobileBERT::getInferenceWorkloads() {
   inferenceWorkloads.push_back(classifier);
 
   // inferenceWorkloads = std::vector<Workload>(inferenceWorkloads.begin(),
-  //                                            inferenceWorkloads.begin() +
-  //                                            20);
-
-  // for (auto workload : inferenceWorkloads) {
-  //   std::cerr << workload.files.outputs_file << "\t"
-  //             << workload.params.INPUT_OFFSET << "\t"
-  //             << workload.params.WEIGHT_OFFSET << "\t"
-  //             << workload.params.RESIDUAL_OFFSET << "\t"
-  //             << workload.params.OUTPUT_OFFSET << std::endl;
-  // }
+  //                                            inferenceWorkloads.end() - 266);
 
   return inferenceWorkloads;
 }
 
-std::vector<Workload> MobileBERT::getBackpropWorkloads() {
-  setTask("backprop");
-  std::vector<Workload> backpropWorkloads;
+std::vector<Workload> MobileBERT::getBackwardWorkloads() {
+  setTask("backward");
+  std::vector<Workload> backwardWorkloads;
 
-  int inputOffset = ACTIVATION_OFFSET + 23 * ENCODER_ACTIVATION_SIZE;
-  int weightOffset = WEIGHT_OFFSET + 23 * ENCODER_WEIGHT_SIZE;
+  int inputOffset = ACTIVATION_OFFSET + 20 * ENCODER_ACTIVATION_SIZE;
+  int weightOffset = WEIGHT_OFFSET + 20 * ENCODER_WEIGHT_SIZE;
 
   // Cross entropy gradient
-  Workload workload = getWorkloads({"classifier"}, 23, true).front();
+  Workload workload = getWorkloads({"classifier"}, 20, true).front();
   workload.params.INPUT_OFFSET += inputOffset;
-  workload.params.WEIGHT_OFFSET = 2 * 128 + 16;
+  workload.params.WEIGHT_OFFSET = ACTIVATION_OFFSET - 16;
   workload.params.OUTPUT_OFFSET += ERROR_OFFSET;
-  backpropWorkloads.push_back(workload);
+  backwardWorkloads.push_back(workload);
 
   // Classifier layer backprop
-  workload = getWorkloads({"output_bottleneck_LayerNorm"}, 23, true).front();
+  workload = getWorkloads({"output_bottleneck_LayerNorm"}, 20, true).front();
   workload.params.INPUT_OFFSET += ERROR_OFFSET;
   workload.params.WEIGHT_OFFSET += weightOffset;
   workload.params.OUTPUT_OFFSET += ERROR_OFFSET;
   workload.loadWeight = false;
-  backpropWorkloads.push_back(workload);
+  backwardWorkloads.push_back(workload);
 
   auto encoderOrder =
       std::vector<std::string>(backpropOrder.begin() + 2, backpropOrder.end());
 
-  for (int layer = 23; layer >= 0; layer--) {
+  for (int layer = 20; layer >= 0; layer--) {
     std::vector<Workload> workloads = getWorkloads(encoderOrder, layer, true);
-    SimplifiedParams params = workload.params;
 
     inputOffset = ACTIVATION_OFFSET + layer * ENCODER_ACTIVATION_SIZE;
     weightOffset = WEIGHT_OFFSET + layer * ENCODER_WEIGHT_SIZE;
 
     for (auto workload : workloads) {
+      SimplifiedParams params = workload.params;
+
       workload.params.INPUT_OFFSET += ERROR_OFFSET;
       workload.params.WEIGHT_OFFSET += weightOffset;
       workload.params.OUTPUT_OFFSET += ERROR_OFFSET;
@@ -402,11 +423,14 @@ std::vector<Workload> MobileBERT::getBackpropWorkloads() {
 
       workload.loadWeight = false;
 
-      backpropWorkloads.push_back(workload);
+      backwardWorkloads.push_back(workload);
+
+      // TODO: add gradient tests
     }
   }
 
-  backpropWorkloads = std::vector<Workload>(backpropWorkloads.begin(),
-                                            backpropWorkloads.begin() + 2);
-  return backpropWorkloads;
+  backwardWorkloads = std::vector<Workload>(backwardWorkloads.begin(),
+                                            backwardWorkloads.end() - 3);
+
+  return backwardWorkloads;
 }
