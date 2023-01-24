@@ -126,7 +126,7 @@ void MapMatrixOp(const SimplifiedParams &params,
   matrixParams->CONCAT_INPUT = params.CONCAT_INPUT;
   matrixParams->CONCAT_HEAD_WEIGHTS = params.CONCAT_WEIGHT;
   matrixParams->TRANPOSE_INPUTS = params.INPUT_TRANSPOSE;
-  matrixParams->GRAD_OFFSET = params.WEIGHT_GRADIENT_OFFSET;
+  matrixParams->GRAD_OFFSET = params.WEIGHT_RESIDUAL_OFFSET;
   matrixParams->COMBINE_GRADS = params.WEIGHT_SPLITTING;
   P8 learningRate = static_cast<P8>(params.learningRate);
   matrixParams->learningRate = learningRate.bits;
