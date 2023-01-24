@@ -688,6 +688,11 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
                   int k = (k1 * K0 + k0) * DIMENSION + oc0;
                   int outputAddress = y * X * K + x * K + k;
 
+                  if (params.ATTENTION_SCALING) {
+                    T scale = 1.0f / sqrt(32);
+                    outputMatrix[outputAddress] *= static_cast<ACC_T>(scale);
+                  }
+
                   adjustExp(outputMatrix[outputAddress], params.outputExpBias);
 
                   if (params.RESIDUAL) {
@@ -707,11 +712,6 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
                   if (params.RELU_GRAD &&
                       inputResidualMatrix[outputAddress] == 0) {
                     outputMatrix[outputAddress] = 0;
-                  }
-
-                  if (params.ATTENTION_SCALING) {
-                    T scale = 1.0f / sqrt(32);
-                    outputMatrix[outputAddress] *= static_cast<ACC_T>(scale);
                   }
                 }
               }
