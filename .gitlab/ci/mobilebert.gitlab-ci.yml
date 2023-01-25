@@ -158,7 +158,6 @@ MobileBERT Backward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
 #     expire_in: 1 week
 #   script:
 #     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-#
 #     - python3 run_tests.py --model mobilebert --task error_feedback --simulators fp32,file --tolerance 0.01
 
 # MobileBERT Error Feedback (Accel. vs. Posit Gold Model):
@@ -173,5 +172,4 @@ MobileBERT Backward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
 #     expire_in: 1 week
 #   script:
 #     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-#
 #     - python3 run_tests.py --model mobilebert --task error_feedback --simulators accelerator,customposit --tolerance 0.01
