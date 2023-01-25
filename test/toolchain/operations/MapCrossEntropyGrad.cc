@@ -14,30 +14,22 @@ void MapCrossEntropyGrad(const SimplifiedParams &params,
   int STRIDE = params.STRIDE;
 
   // softmax, but with an additional subtraction
-  MapSoftmax(params, mappedParams);
+
+  // softmax uses a different convention for X and Y
+  // in softmax, X is the vertical dimension and Y is the horizontal
+  // in cross entropy grad, X is the horizontal
+  // so to make them match up, we create a copy of the params with the
+  // softmax convention for mapping the softmax part.
+  SimplifiedParams modifiedSoftmaxParams = params;
+  modifiedSoftmaxParams.loops[1][modifiedSoftmaxParams.inputYLoopIndex[1]] = X;
+  modifiedSoftmaxParams.loops[1][modifiedSoftmaxParams.inputXLoopIndex[1]] = 1;
+  MapSoftmax(modifiedSoftmaxParams, mappedParams);
 
   VectorParams *softmaxVectorParams =
       dynamic_cast<VectorParams *>(mappedParams.at(0));
-  softmaxVectorParams->addressGen0Loop[0][0] = 1;
-  softmaxVectorParams->addressGen0Loop[0][1] = 1;
-  softmaxVectorParams->addressGen0Loop[0][2] = 1;
-  softmaxVectorParams->addressGen0Loop[1][0] = 1;
-  softmaxVectorParams->addressGen0Loop[1][1] = 1;
-  softmaxVectorParams->addressGen0Loop[1][2] = X / DIMENSION;
-  // output
-  for (int i = 0; i < 3; i++) {
-    softmaxVectorParams->outputLoops[0][i] = 1;
-  }
-  softmaxVectorParams->outputXLoopIndex[0] = 0;
-  softmaxVectorParams->outputYLoopIndex[0] = 1;
-  softmaxVectorParams->outputWeightLoopIndex[0] = 2;
+  VectorInstructionConfig *softmaxVectorInstructionConfig =
+      dynamic_cast<VectorInstructionConfig *>(mappedParams.at(1));
 
-  softmaxVectorParams->outputLoops[1][0] = 1;
-  softmaxVectorParams->outputLoops[1][1] = 1;
-  softmaxVectorParams->outputLoops[1][2] = X / DIMENSION;
-  softmaxVectorParams->outputWeightLoopIndex[1] = 2;
-  softmaxVectorParams->outputYLoopIndex[1] = 1;
-  softmaxVectorParams->outputXLoopIndex[1] = 0;
   // make softmax output in DP
   softmaxVectorParams->DP_OUTPUT = true;
 
@@ -92,6 +84,8 @@ void MapCrossEntropyGrad(const SimplifiedParams &params,
   vectorParams->outputXLoopIndex[1] = 0;
   vectorParams->DP_OUTPUT = false;
 
+  // logits[i] - labels[i]
+  // and scale output exponent
   VectorInstructions vInst0;
   vInst0.instType = VectorInstructions::vector;
   vInst0.vInput = VectorInstructions::readFromVectorFetch;
@@ -99,8 +93,9 @@ void MapCrossEntropyGrad(const SimplifiedParams &params,
   vInst0.vOp0 = VectorInstructions::vsub;
   vInst0.vOp1 = VectorInstructions::nop;
   vInst0.vOp2 = VectorInstructions::nop;
-  vInst0.vOp3Src1 = VectorInstructions::nop;
-  vInst0.vOp3 = VectorInstructions::nop;
+  vInst0.vOp3Src1 = VectorInstructions::op3immediate0;
+  vInst0.vOp3 = VectorInstructions::vscaleexp;
+  vInst0.immediate0 = params.outputExpBias;
   vInst0.vOp4 = VectorInstructions::nop;
   vInst0.vAccumulatePush = 0;
   vInst0.vDest = VectorInstructions::vWriteOut;
