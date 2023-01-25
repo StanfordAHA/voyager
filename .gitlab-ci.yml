@@ -17,9 +17,9 @@ variables:
   GIT_CLEAN_FLAGS: -ffdx # -e build/** -e test_outputs/**
 
 include:
-  - local: /.gitlab/ci/mobilebert_codegen.gitlab-ci.yml
-  - local: /.gitlab/ci/mobilebert.gitlab-ci.yml
-  - local: /.gitlab/ci/resnet_codegen.gitlab-ci.yml
-  - local: /.gitlab/ci/resnet.gitlab-ci.yml
-  - local: /.gitlab/ci/rtl.gitlab-ci.yml
-  - local: /.gitlab/ci/unittests.gitlab-ci.yml
+  - local: .gitlab/ci/mobilebert_codegen.gitlab-ci.yml
+  - local: .gitlab/ci/mobilebert.gitlab-ci.yml
+  - local: .gitlab/ci/resnet_codegen.gitlab-ci.yml
+  - local: .gitlab/ci/resnet.gitlab-ci.yml
+  - local: .gitlab/ci/rtl.gitlab-ci.yml
+  - local: .gitlab/ci/unittests.gitlab-ci.yml
