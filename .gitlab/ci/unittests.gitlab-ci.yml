@@ -5,6 +5,5 @@
 Posit Unit Tests:
   stage: test
   script:
-    - echo "Running posit tests."
     - make PositTest
     - ./build/PositTest
