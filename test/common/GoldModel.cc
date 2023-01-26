@@ -496,27 +496,25 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       saveOutput(matrixC, i, outputMatrix[i], params.ACC_T_OUTPUT);
     }
   } else if (params.WEIGHT_UPDATE) {
-    INT_T *weights = new INT_T[X * C];
-    INT_T *gradients = new INT_T[X * C];
-
+    ACC_T *weights = new ACC_T[X * C];
+    ACC_T *gradients = new ACC_T[X * C];
     for (int i = 0; i < X * C; i++) {
       gradients[i] = readInput(matrixA, i, params.ACC_T_INPUT);
       weights[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
 
-      // std::cerr << gradients[i] << "\t" << weights[i] << std::endl;
-
-      // float val = (float)weights[i] - params.learningRate *
-      // (float)gradients[i];
-      weights[i] -= learningRate * gradients[i];
+      weights[i] += static_cast<ACC_T>(
+          static_cast<ACC_T>(static_cast<T>(-params.learningRate)) *
+          gradients[i]);
 
       // save 8-bit quantized weight to RRAM
       saveOutput(matrixB, i, weights[i], params.ACC_T_WEIGHT);
 
       if (!params.ACC_T_OUTPUT && params.ERROR_FEEDBACK) {
         INT_T lr = learningRate;
-        gradients[i] = (static_cast<INT_T>(matrixA[i]) - weights[i]) / lr;
+        gradients[i] =
+            static_cast<ACC_T>(static_cast<ACC_T>(matrixA[i]) - weights[i]);
+        gradients[i] *= static_cast<ACC_T>(1 / lr);
         // float feedback = ((float)matrixA[i] - val) / learningRate;
-
         // Save 8-bit weight residual to SRAM
         saveOutput(matrixA, i, gradients[i], params.ACC_T_OUTPUT);
       }

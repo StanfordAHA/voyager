@@ -36,7 +36,7 @@ void MapWeightUpdate(const SimplifiedParams &params,
       new VectorInstructionConfig;
 
   // this are gradients (called weights in the gold model)
-  vectorParams->VECTOR_OFFSET = params.WEIGHT_OFFSET;
+  vectorParams->VECTOR_OFFSET = params.INPUT_OFFSET;
   vectorParams->addressGen0Enable = true;
   vectorParams->addressGen0Broadcast = false;
   for (int i = 0; i < 3; i++) {
@@ -45,19 +45,19 @@ void MapWeightUpdate(const SimplifiedParams &params,
   vectorParams->addressGen0Loop[1][0] = 1;
   vectorParams->addressGen0Loop[1][1] = factor1;
   vectorParams->addressGen0Loop[1][2] = factor0;
-  vectorParams->DP_VEC0 = params.ACC_T_WEIGHT;
+  vectorParams->DP_VEC0 = params.ACC_T_INPUT;
 
   // address gen 1 (disabled)
   vectorParams->ADDRESS_GEN1_OFFSET = params.WEIGHT_OFFSET;
   vectorParams->addressGen1Mode = 0;  // disable
 
   // these are weights (called inputs in the gold model)
-  vectorParams->ADDRESS_GEN2_OFFSET = params.INPUT_OFFSET;
+  vectorParams->ADDRESS_GEN2_OFFSET = params.WEIGHT_OFFSET;
   vectorParams->addressGen2Mode = 2;  // 2d tensor
   vectorParams->addressGen2Loops[0][0] = 1;
   vectorParams->addressGen2Loops[0][1] = factor1;
   vectorParams->addressGen2Loops[0][2] = factor0;
-  vectorParams->DP_VEC2 = params.ACC_T_INPUT;
+  vectorParams->DP_VEC2 = params.ACC_T_WEIGHT;
 
   vectorParams->VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
   vectorParams->SCALAR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
@@ -81,7 +81,7 @@ void MapWeightUpdate(const SimplifiedParams &params,
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputYLoopIndex[1] = 0;
   vectorParams->outputXLoopIndex[1] = 1;
-  vectorParams->DP_OUTPUT = params.ACC_T_OUTPUT;
+  vectorParams->DP_OUTPUT = params.ACC_T_WEIGHT;
 
   // inst 1- (-learning_rate) * gradients + weights
   VectorInstructions vInst0;
