@@ -123,6 +123,9 @@ std::vector<Workload> MobileBERT::getWorkloads(
         if (!workload.params.WEIGHT) {
           weightDataDir = "step_51_activations/";
         }
+
+        workload.memoryMap = {SRAM, workload.params.WEIGHT ? RRAM : SRAM, RRAM,
+                              SRAM, SRAM};
       } else if (task == "backward") {
         inputDataDir = "step_51_activation_gradients/";
         weightDataDir = "step_51_weights/";
@@ -143,6 +146,9 @@ std::vector<Workload> MobileBERT::getWorkloads(
           inputDataDir = "step_51_activations/";
           weightDataDir = "step_51_activations/";
         }
+
+        workload.memoryMap = {SRAM, workload.params.WEIGHT ? RRAM : SRAM, RRAM,
+                              SRAM, SRAM};
       } else if (task == "gradient") {
         workload.params.RESIDUAL = true;
         workload.params.outputExpBias = -13;
@@ -157,10 +163,15 @@ std::vector<Workload> MobileBERT::getWorkloads(
           inputDataDir = "step_51_activation_gradients/";
           weightDataDir = "step_51_activations/";
         }
+
+        workload.memoryMap = {SRAM, SRAM, RRAM, SRAM, SRAM};
       } else if (task == "weight_update") {
-        inputDataDir = "step_51_weights/";
-        weightDataDir = "step_51_weight_gradients/";
+        workload.params.learningRate = 0.02995417748587139;
+        inputDataDir = "step_51_weight_gradients/";
+        weightDataDir = "step_51_weights/";
         outputDataDir = "step_52_weights/";
+
+        workload.memoryMap = {SRAM, RRAM, RRAM, SRAM, RRAM};
       } else if (task == "forward_with_weight_splitting") {
         workload.params.WEIGHT_SPLITTING = workload.params.WEIGHT;
         workload.params.learningRate = 0.02995417748587139;
@@ -175,6 +186,9 @@ std::vector<Workload> MobileBERT::getWorkloads(
         if (!workload.params.WEIGHT) {
           weightDataDir = "step_52_activations/";
         }
+
+        workload.memoryMap = {SRAM, workload.params.WEIGHT ? RRAM : SRAM, RRAM,
+                              SRAM, SRAM};
       } else if (task == "backward_with_weight_splitting") {
         workload.params.WEIGHT_SPLITTING = workload.params.WEIGHT;
         workload.params.learningRate = 0.02995417748587139;
@@ -204,6 +218,9 @@ std::vector<Workload> MobileBERT::getWorkloads(
           inputDataDir = "step_52_activations/";
           weightDataDir = "step_52_activations/";
         }
+
+        workload.memoryMap = {SRAM, workload.params.WEIGHT ? RRAM : SRAM, RRAM,
+                              SRAM, SRAM};
       }
 
       if (layer.find("classifier") != std::string::npos ||
@@ -252,7 +269,7 @@ std::vector<Workload> MobileBERT::getWorkloads(
           // Offset used for comparing outputs in weight update unit tests
           workload.params.OUTPUT_OFFSET = workload.params.ERROR_FEEDBACK
                                               ? workload.params.WEIGHT_OFFSET
-                                              : workload.params.INPUT_OFFSET;
+                                              : workload.params.WEIGHT_OFFSET;
         } else {
           workload.params.OUTPUT_OFFSET = STACK_SIZE + 2 * INTERMEDIATE_SIZE;
         }
@@ -262,9 +279,6 @@ std::vector<Workload> MobileBERT::getWorkloads(
         workload.params.WEIGHT_RESIDUAL_OFFSET =
             STACK_SIZE + 5 * INTERMEDIATE_SIZE;
       }
-
-      workload.memoryMap = {SRAM, (workload.params.WEIGHT ? RRAM : SRAM), RRAM,
-                            SRAM, SRAM};
 
       workloads.push_back(workload);
     }
