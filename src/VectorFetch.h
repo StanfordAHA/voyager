@@ -574,9 +574,9 @@ SC_MODULE(VectorFetchUnit) {
               if (params.DP_VEC2) {
                 // TODO: use burst here
                 for (int precision = 0; precision < 2; precision++) {
-                  address = address * 2 + precision * WIDTH;
+                  int dp_address = address * 2 + precision * WIDTH;
                   MemoryRequest memRequest = {
-                      params.ADDRESS_GEN2_OFFSET + address, WIDTH};
+                      params.ADDRESS_GEN2_OFFSET + dp_address, WIDTH};
                   vectorFetch2AddressRequest.Push(memRequest);
                 }
               } else {
@@ -681,7 +681,6 @@ SC_MODULE(VectorFetchUnit) {
                 // cast up to 16b
                 Pack1D<ODTYPE, WIDTH> originalVec =
                     vectorFetch2DataResponse.Pop();
-                CCS_LOG(originalVec);
 
 #pragma hls_unroll yes
                 for (int dim = 0; dim < WIDTH; dim++) {
