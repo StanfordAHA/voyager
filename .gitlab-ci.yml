@@ -3,15 +3,23 @@
 stages:
   - test
 
+before_script:
+  - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
+  # - python3 -m venv venv
+  # - . ./venv/bin/activate
+  # - pip3 install -r zagzig/requirements_ci.txt
+  # - pip3 install -r requirements.txt
+  - (cd zagzig/proto && ./gen.sh)
+
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   GIT_SUBMODULE_DEPTH: 3
-  GIT_CLEAN_FLAGS: -ffdx -e build/** -e test_outputs/**
+  GIT_CLEAN_FLAGS: -ffdx # -e build/** -e test_outputs/**
 
 include:
-  - local: /.gitlab/ci/mobilebert_codegen.gitlab-ci.yml
-  - local: /.gitlab/ci/mobilebert.gitlab-ci.yml
-  - local: /.gitlab/ci/resnet_codegen.gitlab-ci.yml
-  - local: /.gitlab/ci/resnet.gitlab-ci.yml
-  - local: /.gitlab/ci/rtl.gitlab-ci.yml
-  - local: /.gitlab/ci/unittests.gitlab-ci.yml
+  - local: .gitlab/ci/mobilebert_codegen.gitlab-ci.yml
+  - local: .gitlab/ci/mobilebert.gitlab-ci.yml
+  - local: .gitlab/ci/resnet_codegen.gitlab-ci.yml
+  - local: .gitlab/ci/resnet.gitlab-ci.yml
+  - local: .gitlab/ci/rtl.gitlab-ci.yml
+  - local: .gitlab/ci/unittests.gitlab-ci.yml

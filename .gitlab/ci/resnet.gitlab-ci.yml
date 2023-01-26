@@ -10,11 +10,7 @@ ResNet Layers (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    # - python3 -m venv venv
-    # - . ./venv/bin/activate
-    # - pip install -r requirements.txt
     - python3 models/resnet/gen_resnet_data.py
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --simulators fp32,file --tolerance 0.01
 
 ResNet Layers (Accel vs. Posit Gold Model):
@@ -25,11 +21,7 @@ ResNet Layers (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    # - python3 -m venv venv
-    # - . ./venv/bin/activate
-    # - pip install -r requirements.txt
     - python3 models/resnet/gen_resnet_data.py
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --simulators accelerator,customposit --tolerance 0.01
 
 ########################
@@ -44,11 +36,7 @@ ResNet End2End (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    # - python3 -m venv venv
-    # - . ./venv/bin/activate
-    # - pip install -r requirements.txt
     - python3 models/resnet/gen_resnet_data.py
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
@@ -62,11 +50,7 @@ ResNet End2End (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    # - python3 -m venv venv
-    # - . ./venv/bin/activate
-    # - pip install -r requirements.txt
     - python3 models/resnet/gen_resnet_data.py
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - mkdir ./test_outputs
     - make -j8 clean TestRunner
     - make TestRunner
@@ -87,11 +71,7 @@ ResNet Accuracy (Pytorch vs. FP32 Gold Model):
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
   script:
-    # - python3 -m venv venv
-    # - . ./venv/bin/activate
-    # - pip install -r requirements.txt
     - python3 models/resnet/gen_resnet_data.py --binary_dir models/resnet/binary_data_imagenet --samples 256
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests_e2e.py -sims file,fp32 --samples 256 --data_dir models/resnet/binary_data_imagenet --tolerance 1.0 --accuracy_tolerance 0.65
 
 ResNet Accuracy (Posit Gold Model vs. Accel):
@@ -104,9 +84,5 @@ ResNet Accuracy (Posit Gold Model vs. Accel):
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
   script:
-    # - python3 -m venv venv
-    # - . ./venv/bin/activate
-    # - pip install -r requirements.txt
     - python3 models/resnet/gen_resnet_data.py --binary_dir models/resnet/binary_data_imagenet --samples 64
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests_e2e.py -sims customposit,accelerator --samples 64 --data_dir models/resnet/binary_data_imagenet --tolerance 5.0 --accuracy_tolerance 0.60
