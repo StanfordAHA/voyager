@@ -6,4 +6,4 @@ Posit Unit Tests:
   stage: test
   script:
     - make PositTest
-    - ./build/PositTest
+    - ./build/PositTest encoding, fma
