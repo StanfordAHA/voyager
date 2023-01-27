@@ -280,6 +280,12 @@ std::vector<Workload> MobileBERT::getWorkloads(
             STACK_SIZE + 5 * INTERMEDIATE_SIZE;
       }
 
+      std::cerr << workload.params.INPUT_OFFSET << std::endl;
+      std::cerr << workload.params.WEIGHT_OFFSET << std::endl;
+      std::cerr << workload.params.OUTPUT_OFFSET << std::endl;
+      std::cerr << workload.params.BIAS_OFFSET << std::endl;
+      std::cerr << workload.params.RESIDUAL_OFFSET << std::endl;
+
       workloads.push_back(workload);
     }
   }

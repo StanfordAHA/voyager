@@ -502,12 +502,10 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       gradients[i] = readInput(matrixA, i, params.ACC_T_INPUT);
       weights[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
 
-      weights[i] += static_cast<ACC_T>(
-          static_cast<ACC_T>(static_cast<T>(-params.learningRate)) *
-          gradients[i]);
+      weights[i] -= static_cast<ACC_T>(learningRate * gradients[i]);
 
       // save 8-bit quantized weight to RRAM
-      saveOutput(matrixB, i, weights[i], params.ACC_T_WEIGHT);
+      saveOutput(matrixB, i, weights[i], params.ACC_T_OUTPUT);
 
       if (!params.ACC_T_OUTPUT && params.ERROR_FEEDBACK) {
         INT_T lr = learningRate;
