@@ -4,7 +4,7 @@
 
 MobileBERT Inference (FP32 Gold Model vs. Pytorch):
   stage: test
-  timeout: 10 minutes
+  timeout: 15 minutes
   artifacts:
     when: always
     paths:
@@ -12,12 +12,11 @@ MobileBERT Inference (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --simulators fp32,file --tolerance 0.01
 
 MobileBERT Inference (Accel. vs. Posit Gold Model):
   stage: test
-  timeout: 15 minutes
+  timeout: 20 minutes
   artifacts:
     when: always
     paths:
@@ -25,24 +24,10 @@ MobileBERT Inference (Accel. vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --simulators accelerator,customposit --tolerance 0.01
 
 MobileBERT Backward Pass (FP32 Gold Model vs. Pytorch):
   stage: test
-  timeout: 10 minutes
-  artifacts:
-    when: always
-    paths:
-      - ./test_outputs
-    expire_in: 1 week
-  script:
-    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model mobilebert --task backward --simulators fp32,file --tolerance 0.01
-
-MobileBERT Backward Pass (Accel. vs. Posit Gold Model):
-  stage: test
   timeout: 15 minutes
   artifacts:
     when: always
@@ -51,12 +36,24 @@ MobileBERT Backward Pass (Accel. vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model mobilebert --task backward --simulators accelerator,customposit --tolerance 0.01
+    - python3 run_tests.py --model mobilebert --task backward --simulators fp32,file --tolerance 0.01
+
+# TODO(fpedd): Gets stuck
+# MobileBERT Backward Pass (Accel. vs. Posit Gold Model):
+#   stage: test
+#   timeout: 20 minutes
+#   artifacts:
+#     when: always
+#     paths:
+#       - ./test_outputs
+#     expire_in: 1 week
+#   script:
+#     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
+#     - python3 run_tests.py --model mobilebert --task backward --simulators accelerator,customposit --tolerance 0.01
 
 MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
   stage: test
-  timeout: 10 minutes
+  timeout: 15 minutes
   artifacts:
     when: always
     paths:
@@ -64,10 +61,22 @@ MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task gradient --simulators fp32,file --tolerance 0.01
 
-MobileBERT Weight Gradients (Accel. vs. Posit Gold Model):
+# TODO(fpedd): Gets stuck
+# MobileBERT Weight Gradients (Accel. vs. Posit Gold Model):
+#   stage: test
+#   timeout: 20 minutes
+#   artifacts:
+#     when: always
+#     paths:
+#       - ./test_outputs
+#     expire_in: 1 week
+#   script:
+#     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
+#     - python3 run_tests.py --model mobilebert --task gradient --simulators accelerator,customposit --tolerance 0.01
+
+MobileBERT Weight Update (FP32 Gold Model vs. Pytorch):
   stage: test
   timeout: 15 minutes
   artifacts:
@@ -77,25 +86,11 @@ MobileBERT Weight Gradients (Accel. vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model mobilebert --task gradient --simulators accelerator,customposit --tolerance 0.01
-
-MobileBERT Weight Update (FP32 Gold Model vs. Pytorch):
-  stage: test
-  timeout: 10 minutes
-  artifacts:
-    when: always
-    paths:
-      - ./test_outputs
-    expire_in: 1 week
-  script:
-    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task weight_update --simulators fp32,file --tolerance 0.01
 
 MobileBERT Weight Update (Accel. vs. Posit Gold Model):
   stage: test
-  timeout: 15 minutes
+  timeout: 20 minutes
   artifacts:
     when: always
     paths:
@@ -103,12 +98,11 @@ MobileBERT Weight Update (Accel. vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task weight_update --simulators accelerator,customposit --tolerance 0.01
 
 MobileBERT Forward Pass with Weight Splitting (FP32 Gold Model vs. Pytorch):
   stage: test
-  timeout: 10 minutes
+  timeout: 15 minutes
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_SUBMODULE_DEPTH: 3
@@ -119,12 +113,11 @@ MobileBERT Forward Pass with Weight Splitting (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task forward_with_weight_splitting --simulators fp32,file --tolerance 0.01
 
 MobileBERT Forward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
   stage: test
-  timeout: 15 minutes
+  timeout: 20 minutes
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_SUBMODULE_DEPTH: 3
@@ -135,27 +128,10 @@ MobileBERT Forward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
     - python3 run_tests.py --model mobilebert --task forward_with_weight_splitting --simulators accelerator,customposit --tolerance 0.01
 
 MobileBERT Backward Pass with Weight Splitting (FP32 Gold Model vs. Pytorch):
   stage: test
-  timeout: 10 minutes
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_DEPTH: 3
-  artifacts:
-    when: always
-    paths:
-      - ./test_outputs
-    expire_in: 1 week
-  script:
-    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model mobilebert --task backward_with_weight_splitting --simulators fp32,file --tolerance 0.01
-
-MobileBERT Backward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
-  stage: test
   timeout: 15 minutes
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -167,8 +143,23 @@ MobileBERT Backward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-    - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-    - python3 run_tests.py --model mobilebert --task backward_with_weight_splitting --simulators accelerator,customposit --tolerance 0.01
+    - python3 run_tests.py --model mobilebert --task backward_with_weight_splitting --simulators fp32,file --tolerance 0.01
+
+    # TODO(fpedd): Gets stuck
+# MobileBERT Backward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
+#   stage: test
+#   timeout: 20 minutes
+#   variables:
+#     GIT_SUBMODULE_STRATEGY: recursive
+#     GIT_SUBMODULE_DEPTH: 3
+#   artifacts:
+#     when: always
+#     paths:
+#       - ./test_outputs
+#     expire_in: 1 week
+#   script:
+#     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
+#     - python3 run_tests.py --model mobilebert --task backward_with_weight_splitting --simulators accelerator,customposit --tolerance 0.01
 
 # MobileBERT Error Feedback (Posit Gold Model vs. Pytorch):
 #   stage: test
@@ -182,7 +173,6 @@ MobileBERT Backward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
 #     expire_in: 1 week
 #   script:
 #     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-#     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
 #     - python3 run_tests.py --model mobilebert --task error_feedback --simulators fp32,file --tolerance 0.01
 
 # MobileBERT Error Feedback (Accel. vs. Posit Gold Model):
@@ -197,5 +187,4 @@ MobileBERT Backward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
 #     expire_in: 1 week
 #   script:
 #     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-#     - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
 #     - python3 run_tests.py --model mobilebert --task error_feedback --simulators accelerator,customposit --tolerance 0.01

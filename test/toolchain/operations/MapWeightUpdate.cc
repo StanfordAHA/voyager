@@ -20,11 +20,11 @@ void MapWeightUpdate(const SimplifiedParams &params,
             << std::endl;
 
   int factor0, factor1;
-  int totalSize = FX * FY * C * K / DIMENSION;
-  if (totalSize >
-      128) {  // address generator is 8 bit, so we need to split it up
-    factor0 = 128;
-    factor1 = totalSize / 128;
+  int totalSize = X * C / DIMENSION;
+  if (totalSize > 512) {  // address generator is 10 bit, so we need to split
+                          // it up if it's too big
+    factor0 = 512;
+    factor1 = totalSize / 512;
 
   } else {
     factor0 = totalSize;
@@ -35,7 +35,7 @@ void MapWeightUpdate(const SimplifiedParams &params,
   VectorInstructionConfig *vectorInstructionConfig =
       new VectorInstructionConfig;
 
-  // this is gradients
+  // this are gradients (called weights in the gold model)
   vectorParams->VECTOR_OFFSET = params.INPUT_OFFSET;
   vectorParams->addressGen0Enable = true;
   vectorParams->addressGen0Broadcast = false;
@@ -47,18 +47,17 @@ void MapWeightUpdate(const SimplifiedParams &params,
   vectorParams->addressGen0Loop[1][2] = factor0;
   vectorParams->DP_VEC0 = params.ACC_T_INPUT;
 
-  // address gen 1 (weights)
+  // address gen 1 (disabled)
   vectorParams->ADDRESS_GEN1_OFFSET = params.WEIGHT_OFFSET;
   vectorParams->addressGen1Mode = 0;  // disable
 
+  // these are weights (called inputs in the gold model)
   vectorParams->ADDRESS_GEN2_OFFSET = params.WEIGHT_OFFSET;
   vectorParams->addressGen2Mode = 2;  // 2d tensor
-  for (int i = 0; i < 3; i++) {
-    vectorParams->addressGen2Loops[0][i] = 1;
-  }
   vectorParams->addressGen2Loops[0][0] = 1;
   vectorParams->addressGen2Loops[0][1] = factor1;
   vectorParams->addressGen2Loops[0][2] = factor0;
+  vectorParams->DP_VEC2 = params.ACC_T_WEIGHT;
 
   vectorParams->VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
   vectorParams->SCALAR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
@@ -82,7 +81,7 @@ void MapWeightUpdate(const SimplifiedParams &params,
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputYLoopIndex[1] = 0;
   vectorParams->outputXLoopIndex[1] = 1;
-  vectorParams->DP_OUTPUT = params.ACC_T_OUTPUT;
+  vectorParams->DP_OUTPUT = params.ACC_T_WEIGHT;
 
   // inst 1- (-learning_rate) * gradients + weights
   VectorInstructions vInst0;
@@ -102,7 +101,7 @@ void MapWeightUpdate(const SimplifiedParams &params,
 
   // C/DIMENSION to do the complete reduction
   // DIMENSION to fill up the entire vector
-  vectorInstructionConfig->instCount[0] = FX * FY * C * K / DIMENSION;
+  vectorInstructionConfig->instCount[0] = totalSize;
 
   vectorInstructionConfig->instLen = 1;
   vectorInstructionConfig->instLoopCount = 1;
