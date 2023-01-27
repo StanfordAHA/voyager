@@ -138,7 +138,7 @@ def main():
     # Build SystemC code (running make twice because of linker issues on NFS)
     cmd = ["make", "-j"] + \
         [f"BASE_FLAGS=-DNUM_SRAM_BANKS={args.sram_banks} -DNUM_RRAM_BANKS={args.rram_banks*4}"] + \
-        [args.target_name]
+        [args.target_name]  # We multiply rram_banks (superbanks) by 4 because we have 4 RRAM banks per superbank
     subprocess.run(cmd, check=True)
     subprocess.run(cmd, check=True)
 
