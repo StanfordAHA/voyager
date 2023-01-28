@@ -38,18 +38,17 @@ MobileBERT Backward Pass (FP32 Gold Model vs. Pytorch):
     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
     - python3 run_tests.py --model mobilebert --task backward --simulators fp32,file --tolerance 0.01
 
-# TODO(fpedd): Gets stuck
-# MobileBERT Backward Pass (Accel. vs. Posit Gold Model):
-#   stage: test
-#   timeout: 20 minutes
-#   artifacts:
-#     when: always
-#     paths:
-#       - ./test_outputs
-#     expire_in: 1 week
-#   script:
-#     - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
-#     - python3 run_tests.py --model mobilebert --task backward --simulators accelerator,customposit --tolerance 0.01
+MobileBERT Backward Pass (Accel. vs. Posit Gold Model):
+  stage: test
+  timeout: 20 minutes
+  artifacts:
+    when: always
+    paths:
+      - ./test_outputs
+    expire_in: 1 week
+  script:
+    - python3 models/mobilebert/gen_mobilebert_data.py data/qnli
+    - python3 run_tests.py --model mobilebert --task backward --simulators accelerator,customposit --tolerance 0.01
 
 MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
   stage: test
