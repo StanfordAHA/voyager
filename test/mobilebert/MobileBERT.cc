@@ -173,7 +173,8 @@ std::vector<Workload> MobileBERT::getWorkloads(
 
         workload.memoryMap = {SRAM, RRAM, RRAM, SRAM, RRAM};
       } else if (task == "forward_with_weight_splitting") {
-        workload.params.WEIGHT_SPLITTING = workload.params.WEIGHT;
+        workload.params.WEIGHT_SPLITTING =
+            workload.params.WEIGHT && !workload.params.NO_NORM;
         workload.params.learningRate = 0.02995417748587139;
         workload.files.weight_grad_file = workload.files.weights_file;
 

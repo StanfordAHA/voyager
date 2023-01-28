@@ -47,10 +47,11 @@ template <int nbits, int es, int fbits>
 void convert_(const bool sign, const int scale,
               const ac_int<fbits, false> fraction_in,
               ac_int<nbits, false> &bits) {
-  // if (scale < -(nbits - 1) * (1 << es) + (1 << (es - 1))) {
-  //   bits = 0;
-  //   return;
-  // }
+  if ((es > 0 && scale < -(nbits - 1) * (1 << es) + (1 << (es - 1))) ||
+      (es == 0 && scale < -(nbits - 1))) {
+    bits = 0;
+    return;
+  }
 
   if ((scale >> es) > nbits - 2 || (scale >> es) < -(nbits - 2)) {
     bits = 0;

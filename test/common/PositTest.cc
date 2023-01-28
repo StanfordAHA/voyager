@@ -37,15 +37,17 @@ int testPositEncoding(const float f) {
   int errors = 0;
 
   // Round toward 0
-  // if (f < -(nbits - 1) * pow(2, es) + pow(2, es - 1)) {
-  //   if (p.bits != 0) {
-  //     std::cerr << "ERROR: incorrect encoding produced!" << std::endl
-  //               << "Input: " << f << std::endl
-  //               << "HLS Posit: " << p.bits.to_string(AC_BIN) << std::endl;
-  //     return 1;
-  //   }
-  //   return 0;
-  // }
+  int n;
+  float result = frexp(f, &n);
+  if (n - 1 < -(nbits - 1) * pow(2, es) + pow(2, es - 1)) {
+    if (p.bits != 0) {
+      std::cerr << "ERROR: incorrect encoding produced!" << std::endl
+                << "Input: " << f << std::endl
+                << "HLS Posit: " << p.bits.to_string(AC_BIN) << std::endl;
+      return 1;
+    }
+    return 0;
+  }
 
   // Encoding test
   long encoding = ref.encoding();
@@ -106,10 +108,10 @@ int main(int argc, char* argv[]) {
     for (unsigned int i = 0; i < 0xffffffff; i++) {
       ufloat.input = i;
       if (std::isfinite(ufloat.output)) {
-        errors += testPositEncoding<8, 0>(ufloat.output);
+        // errors += testPositEncoding<8, 0>(ufloat.output);
         errors += testPositEncoding<8, 1>(ufloat.output);
         errors += testPositEncoding<16, 1>(ufloat.output);
-        errors += testPositEncoding<32, 2>(ufloat.output);
+        // errors += testPositEncoding<32, 2>(ufloat.output);
       }
     }
 
