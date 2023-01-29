@@ -490,8 +490,6 @@ PositFP<sbits, fbits>::PositFP(ac_float_rep ac_f) {
   ac_fixed<fbits + 1, 1, false> mantissa = ac_f.m;
   ac_fixed<fbits, 0, false> mantissa_hidden = mantissa;
   fraction = mantissa_hidden.template slc<fbits>(0);
-
-  // std::cout << ac_f.to_float() << " -> " << (float)(*this) << std::endl;
 }
 
 #ifndef __SYNTHESIS__
@@ -501,9 +499,12 @@ PositFP<sbits, fbits>::PositFP(const float f) {
     setZero();
     return;
   }
+
   union ufloat uf = {f};
+  _zero = false;
   sign = f < 0;
   scale = ((uf.u >> 23) & 0xff) - 127;
+  // FIXME: add rounding here
   ac_int<23, false> mantissa = uf.u;
   copy_(mantissa, fraction);
 }
@@ -804,12 +805,10 @@ typename Posit<nbits2, es2>::DecomposedPosit decomposed_fma(
   }
 
   PositFP<8, mbits> product = a * b;
-  // fprintf(stderr, "Inside FMA product: %.12f\n", (float)product);
   if (c.isZero()) {
     return static_cast<typename Posit<nbits2, es2>::DecomposedPosit>(product);
   } else {
     PositFP<8, abits + 1> sum = static_cast<PositFP<8, fbits2>>(product) + c;
-    // fprintf(stderr, "Inside FMA sum: %.18f\n", (float)sum);
     return static_cast<typename Posit<nbits2, es2>::DecomposedPosit>(sum);
   }
 }
@@ -827,13 +826,10 @@ PositFP<sbits, fbits2> fma(const PositFP<sbits, fbits1> &a,
   }
 
   PositFP<sbits, mbits> product = a * b;
-  // fprintf(stderr, "Inside FMA product: %.12f\n", (float)product);
   if (c.isZero()) {
     return PositFP<sbits, fbits2>(product);
   } else {
-    PositFP<8, abits + 1> sum =
-        static_cast<PositFP<sbits, fbits2>>(product) + c;
-    // fprintf(stderr, "Inside FMA sum: %.18f\n", (float)sum);
+    PositFP<8, abits + 1> sum = PositFP<sbits, fbits2>(product) + c;
     return PositFP<sbits, fbits2>(sum);
   }
 }

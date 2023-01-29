@@ -26,8 +26,8 @@
 // Turn on extra print statements for more information
 #define VERBOSE_PRINTS
 
-using posit8e1 = sw::universal::posit<8, 1>;
-using posit16e1 = sw::universal::posit<16, 1>;
+using Posit8E1 = sw::universal::posit<8, 1>;
+using Posit16E1 = sw::universal::posit<16, 1>;
 using Internal = sw::universal::value<15>;
 
 template <int nbits, int es>
@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
         // errors += testPositEncoding<8, 0>(ufloat.output);
         errors += testPositEncoding<8, 1>(ufloat.output);
         errors += testPositEncoding<16, 1>(ufloat.output);
-        // errors += testPositEncoding<32, 2>(ufloat.output);
+        errors += testPositEncoding<32, 2>(ufloat.output);
       }
     }
 
@@ -133,13 +133,13 @@ int main(int argc, char* argv[]) {
           pB.setbits(j);
           pC.setbits(k);
 
-          Posit<8, 1>::DecomposedPosit positfpA = pA;
-          Posit<8, 1>::DecomposedPosit positfpB = pB;
-          PositFP<8, 15> positfpC = pC;
+          Posit<8, 1>::DecomposedPosit positfpA(pA);
+          Posit<8, 1>::DecomposedPosit positfpB(pB);
+          PositFP<8, 15> positfpC(pC);
           positfpC = fma(positfpA, positfpB, positfpC);
           double hlsResult = (float)positfpC;
 
-          posit8e1 universalA, universalB, universalC;
+          Posit8E1 universalA, universalB, universalC;
           universalA.setbits(i);
           universalB.setbits(j);
           universalC.setbits(k);
@@ -189,7 +189,7 @@ int main(int argc, char* argv[]) {
         pC = pA + pB;
         double hlsResult = (float)pC;
 
-        posit16e1 universalA, universalB, universalC;
+        Posit16E1 universalA, universalB, universalC;
         universalA.setbits(i);
         universalB.setbits(j);
         universalC = universalA + universalB;
@@ -197,17 +197,18 @@ int main(int argc, char* argv[]) {
 
         double a = (float)universalA;
         double b = (float)universalB;
-        double gold = a + b;
+        double floatResult = a + b;
 
-        float hlsDiff = abs((hlsResult - gold) / gold);
-        float universalDiff = abs((universalResult - gold) / gold);
+        float hlsDiff = abs((hlsResult - floatResult) / (floatResult + 1e-6));
+        float universalDiff =
+            abs((universalResult - floatResult) / (floatResult + 1e-6));
 
         if (hlsDiff > universalDiff) {
           errors++;
           fprintf(stderr, "bits: a: %d, b: %d\n", i, j);
           fprintf(stderr, "values: a: %.15f, b: %.15f\n", (float)universalA,
                   (float)universalB);
-          fprintf(stderr, "Float:     %.18f\n", gold);
+          fprintf(stderr, "Float:     %.18f\n", floatResult);
           fprintf(stderr, "HLS Posit: %.18f\n", hlsResult);
           fprintf(stderr, "Universal: %.18f\n", universalResult);
           fprintf(stderr, "HLS diff: %.6f, Universal diff: %.6f\n",
@@ -230,10 +231,10 @@ int main(int argc, char* argv[]) {
         Posit<16, 1> pA, pB, pC;
         pA.setbits(i);
         pB.setbits(j);
-        pC = pA + pB;
+        pC = pA * pB;
         double hlsResult = (float)pC;
 
-        posit16e1 universalA, universalB, universalC;
+        Posit16E1 universalA, universalB, universalC;
         universalA.setbits(i);
         universalB.setbits(j);
         universalC = universalA * universalB;
@@ -241,17 +242,18 @@ int main(int argc, char* argv[]) {
 
         double a = (float)universalA;
         double b = (float)universalB;
-        double gold = a * b;
+        double floatResult = a * b;
 
-        float hlsDiff = abs((hlsResult - gold) / gold);
-        float universalDiff = abs((universalResult - gold) / gold);
+        float hlsDiff = abs((hlsResult - floatResult) / (floatResult + 1e-6));
+        float universalDiff =
+            abs((universalResult - floatResult) / (floatResult + 1e-6));
 
         if (hlsDiff > universalDiff) {
           errors++;
           fprintf(stderr, "bits: a: %d, b: %d\n", i, j);
           fprintf(stderr, "values: a: %.15f, b: %.15f\n", (float)universalA,
                   (float)universalB);
-          fprintf(stderr, "Float:     %.18f\n", gold);
+          fprintf(stderr, "Float:     %.18f\n", floatResult);
           fprintf(stderr, "HLS Posit: %.18f\n", hlsResult);
           fprintf(stderr, "Universal: %.18f\n", universalResult);
           fprintf(stderr, "HLS diff: %.6f, Universal diff: %.6f\n",
@@ -294,7 +296,7 @@ int main(int argc, char* argv[]) {
 
       Posit<16, 1> p16B = posit_exp(p16A);
 
-      posit16e1 uni16A, uni16B;
+      Posit16E1 uni16A, uni16B;
       uni16A.setbits(i);
       uni16B = sw::universal::exp(uni16B);
 
