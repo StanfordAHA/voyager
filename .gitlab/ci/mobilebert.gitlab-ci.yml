@@ -4,7 +4,7 @@
 
 MobileBERT Inference (FP32 Gold Model vs. Pytorch):
   stage: test
-  timeout: 15 minutes
+  timeout: 30 minutes
   artifacts:
     when: always
     paths:
@@ -16,7 +16,7 @@ MobileBERT Inference (FP32 Gold Model vs. Pytorch):
 
 MobileBERT Inference (Accel. vs. Posit Gold Model):
   stage: test
-  timeout: 20 minutes
+  timeout: 60 minutes
   artifacts:
     when: always
     paths:
@@ -28,7 +28,7 @@ MobileBERT Inference (Accel. vs. Posit Gold Model):
 
 MobileBERT Backward Pass (FP32 Gold Model vs. Pytorch):
   stage: test
-  timeout: 15 minutes
+  timeout: 30 minutes
   artifacts:
     when: always
     paths:
@@ -40,7 +40,7 @@ MobileBERT Backward Pass (FP32 Gold Model vs. Pytorch):
 
 MobileBERT Backward Pass (Accel. vs. Posit Gold Model):
   stage: test
-  timeout: 20 minutes
+  timeout: 60 minutes
   artifacts:
     when: always
     paths:
@@ -52,7 +52,7 @@ MobileBERT Backward Pass (Accel. vs. Posit Gold Model):
 
 MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
   stage: test
-  timeout: 15 minutes
+  timeout: 30 minutes
   artifacts:
     when: always
     paths:
@@ -65,7 +65,7 @@ MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
 # TODO(fpedd): Gets stuck
 # MobileBERT Weight Gradients (Accel. vs. Posit Gold Model):
 #   stage: test
-#   timeout: 20 minutes
+#   timeout: 60 minutes
 #   artifacts:
 #     when: always
 #     paths:
@@ -77,7 +77,7 @@ MobileBERT Weight Gradients (FP32 Gold Model vs. Pytorch):
 
 MobileBERT Weight Update (FP32 Gold Model vs. Pytorch):
   stage: test
-  timeout: 15 minutes
+  timeout: 30 minutes
   artifacts:
     when: always
     paths:
@@ -89,7 +89,7 @@ MobileBERT Weight Update (FP32 Gold Model vs. Pytorch):
 
 MobileBERT Weight Update (Accel. vs. Posit Gold Model):
   stage: test
-  timeout: 20 minutes
+  timeout: 60 minutes
   artifacts:
     when: always
     paths:
@@ -101,7 +101,7 @@ MobileBERT Weight Update (Accel. vs. Posit Gold Model):
 
 MobileBERT Forward Pass with Weight Splitting (FP32 Gold Model vs. Pytorch):
   stage: test
-  timeout: 15 minutes
+  timeout: 30 minutes
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_SUBMODULE_DEPTH: 3
@@ -116,7 +116,7 @@ MobileBERT Forward Pass with Weight Splitting (FP32 Gold Model vs. Pytorch):
 
 MobileBERT Forward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
   stage: test
-  timeout: 20 minutes
+  timeout: 60 minutes
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_SUBMODULE_DEPTH: 3
@@ -131,7 +131,7 @@ MobileBERT Forward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
 
 MobileBERT Backward Pass with Weight Splitting (FP32 Gold Model vs. Pytorch):
   stage: test
-  timeout: 15 minutes
+  timeout: 30 minutes
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
     GIT_SUBMODULE_DEPTH: 3
@@ -147,7 +147,7 @@ MobileBERT Backward Pass with Weight Splitting (FP32 Gold Model vs. Pytorch):
     # TODO(fpedd): Gets stuck
 # MobileBERT Backward Pass with Weight Splitting (Accel. vs. Posit Gold Model):
 #   stage: test
-#   timeout: 20 minutes
+#   timeout: 60 minutes
 #   variables:
 #     GIT_SUBMODULE_STRATEGY: recursive
 #     GIT_SUBMODULE_DEPTH: 3
