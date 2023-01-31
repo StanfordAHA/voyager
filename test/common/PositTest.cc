@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
 
   if (std::find(tests_list.begin(), tests_list.end(), "fma") !=
       tests_list.end()) {
-    std::cout << "Test 8-bit Posit fused multiply-add... " << std::flush;
+    std::cout << "Test Posit fused multiply-add... " << std::flush;
     for (int k = 0; k < 256; k++) {
       for (int i = 0; i < 256; i++) {
         for (int j = 0; j < 256; j++) {
@@ -160,10 +160,10 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "values: a: %.15f, b: %.15f, c: %.15f\n",
                     (float)universalA, (float)universalB, (float)universalC);
             fprintf(stderr, "Float:     %.18f\n", gold);
-            fprintf(stderr, "HLS Posit: %.18f\n", hls);
-            fprintf(stderr, "Universal: %.18f\n", universal);
-            fprintf(stderr, "HLS diff: %.6f, Universal diff: %.6f\n",
-                    hlsDiff * 100, universalDiff * 100);
+            fprintf(stderr, "HLS Posit: %.18f\tdifference:%.6f\n", hls,
+                    hlsDiff * 100);
+            fprintf(stderr, "Universal: %.18f\tdifference:%.6f\n", universal,
+                    universalDiff * 100);
           }
         }
       }
@@ -174,7 +174,8 @@ int main(int argc, char* argv[]) {
 
   if (std::find(tests_list.begin(), tests_list.end(), "full_fma") !=
       tests_list.end()) {
-    std::cout << "Test Posit fused multiply-add... " << std::flush;
+    std::cout << "Test Posit fused multiply-add with more test cases... "
+              << std::flush;
     for (int k = 0; k < 65536; k++) {
       for (int i = 0; i < 256; i++) {
         for (int j = 0; j < 256; j++) {
@@ -210,10 +211,10 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "values: a: %.15f, b: %.15f, c: %.15f\n", floatA,
                     floatB, floatC);
             fprintf(stderr, "Float:     %.18f\n", gold);
-            fprintf(stderr, "HLS Posit: %.18f\n", hls);
-            fprintf(stderr, "Universal: %.18f\n", universal);
-            fprintf(stderr, "HLS diff: %.6f, Universal diff: %.6f\n",
-                    hlsDiff * 100, universalDiff * 100);
+            fprintf(stderr, "HLS Posit: %.18f\tdifference:%.6f\n", hls,
+                    hlsDiff * 100);
+            fprintf(stderr, "Universal: %.18f\tdifference:%.6f\n", universal,
+                    universalDiff * 100);
           }
         }
       }

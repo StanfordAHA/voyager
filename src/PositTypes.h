@@ -502,7 +502,7 @@ PositFP<sbits, fbits>::PositFP(const float f) {
   _zero = false;
   sign = f < 0;
   scale = ((uf.u >> 23) & 0xff) - 127;
-  // TODO: add rounding here
+  // TODO: Add rounding
   ac_int<23, false> mantissa = uf.u;
   copy_(mantissa, fraction);
 }
@@ -787,6 +787,7 @@ PositFP<sbits, fbits>::operator float() const {
   uf.u = sign ? 1 << 31 : 0;
   uf.u += (scale + 127) << 23;
 
+  // TODO: Add rounding
   ac_int<23, false> mantissa;
   copy_(fraction, mantissa);
   uf.u += mantissa;
