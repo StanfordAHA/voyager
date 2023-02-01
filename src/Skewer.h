@@ -123,7 +123,7 @@ SC_MODULE(MultiInputSerializedSkewer) {
   Connections::In<Pack1D<PEInput<IDTYPE>, SIZE> > CCS_INIT_S1(din);
   Connections::Out<PEInput<ODTYPE> > dout[SIZE];
 
-#define FIFO_SIZE_INIT(z, i, unused) BOOST_PP_CAT(fifo, i)(i * 3 + 2),
+#define FIFO_SIZE_INIT(z, i, unused) BOOST_PP_CAT(fifo, i)(i * 1 + 1),
 
   SC_CTOR(MultiInputSerializedSkewer) : REPEAT(FIFO_SIZE_INIT) dummy(0) {
 #undef FIFO_SIZE_INIT
@@ -234,11 +234,11 @@ SC_MODULE(DeserializedSkewer) {
 #define FIFO_READ(z, i, unused) output[i] = BOOST_PP_CAT(fifo, i).read();
       REPEAT(FIFO_READ)
 #undef FIFO_READ
-      CCS_LOG("psum output");
-      for (int i = 0; i < SIZE; i++) {
-        std::cout << output[i].bits.to_string(AC_HEX) << " ";
-      }
-      std::cout << std::endl;
+      // CCS_LOG("psum output");
+      // for (int i = 0; i < SIZE; i++) {
+      //   std::cout << output[i].bits.to_string(AC_HEX) << " ";
+      // }
+      // std::cout << std::endl;
       // CCS_LOG("psumOut: " << output);
       dout.Push(output);
     }
