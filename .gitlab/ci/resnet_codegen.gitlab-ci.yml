@@ -10,7 +10,7 @@ ResNet Codegen Layers (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend naive_conv)
+    - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
     - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators fp32,file --tolerance 0.01
 
 ResNet Codegen Layers (Accel vs. Posit Gold Model):
@@ -21,7 +21,7 @@ ResNet Codegen Layers (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend naive_conv)
+    - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
     - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators accelerator,customposit --tolerance 0.01
 
 ################################
@@ -36,7 +36,7 @@ ResNet Codegen End2End (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend naive_conv)
+    - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
     - mkdir -p ./test_outputs
     - make clean
     - make -j8 TestRunner
@@ -51,7 +51,7 @@ ResNet Codegen End2End (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend naive_conv)
+    - (cd zagzig && python3 run_zagzig.py --data_dir /pool0/fpedd/su/imagenet/val_1k --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
     - mkdir -p ./test_outputs
     - make clean
     - make -j8 TestRunner
