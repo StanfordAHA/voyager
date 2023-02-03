@@ -123,7 +123,7 @@ SC_MODULE(MultiInputSerializedSkewer) {
   Connections::In<Pack1D<PEInput<IDTYPE>, SIZE> > CCS_INIT_S1(din);
   Connections::Out<PEInput<ODTYPE> > dout[SIZE];
 
-#define FIFO_SIZE_INIT(z, i, unused) BOOST_PP_CAT(fifo, i)(i * 3 + 2),
+#define FIFO_SIZE_INIT(z, i, unused) BOOST_PP_CAT(fifo, i)(i * 3 + 1),
 
   SC_CTOR(MultiInputSerializedSkewer) : REPEAT(FIFO_SIZE_INIT) dummy(0) {
 #undef FIFO_SIZE_INIT
