@@ -302,7 +302,6 @@ void Harness::sendParams() {
 
       MatrixParams *matrixParams = dynamic_cast<MatrixParams *>(baseParam);
       matrixParamsValid = matrixParams != NULL;
-      std::cout << "matrix: " << matrixParamsValid << std::endl;
 
       if (matrixParamsValid) {
         opParams.pop_front();
