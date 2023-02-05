@@ -12,33 +12,79 @@ struct BaseParams {
 };
 
 struct MatrixParams : BaseParams {
+#ifndef NO_SYSC
+  MatrixParams() {
+    INPUT_OFFSET = 0;
+    WEIGHT_OFFSET = 0;
+
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 6; j++) {
+        loops[i][j] = 0;
+      }
+    }
+    for (int i = 0; i < 2; i++) {
+      inputXLoopIndex[i] = 0;
+      inputYLoopIndex[i] = 0;
+      reductionLoopIndex[i] = 0;
+      weightLoopIndex[i] = 0;
+      weightReuseIndex[i] = 0;
+    }
+    fxIndex = 0;
+    fyIndex = 0;
+
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 5; j++) {
+        weightAddressGenLoops[i][j] = 0;
+      }
+    }
+    for (int i = 0; i < 2; i++) {
+      weightAddressGenReductionLoopIndex[i] = 0;
+      weightAddressGenWeightLoopIndex[i] = 0;
+    }
+    weightAddressGenFxIndex = 0;
+    weightAddressGenFyIndex = 0;
+
+    STRIDE = 1;
+
+    WEIGHT_TRANSPOSE = false;
+    REPLICATION = false;
+
+    STORE_IN_ACC = false;
+    ACC_FROM_ACC = false;
+    CONCAT_INPUT = false;
+    CONCAT_HEAD_WEIGHTS = false;
+    TRANPOSE_INPUTS = false;
+
+    GRAD_OFFSET = 0;
+    COMBINE_GRADS = false;
+    learningRate = 0;
+  }
+#endif
+
   int INPUT_OFFSET;
   int WEIGHT_OFFSET;
 
   // systolic array loop
-  int loops[2][6];
-  int inputXLoopIndex[2];
-  int inputYLoopIndex[2];
-  int reductionLoopIndex[2];
-  int weightLoopIndex[2];
-  int fxIndex;
-  int fyIndex;
-  int weightReuseIndex[2];
+  ac_int<10, false> loops[2][6];
+  ac_int<3, false> inputXLoopIndex[2];
+  ac_int<3, false> inputYLoopIndex[2];
+  ac_int<3, false> reductionLoopIndex[2];
+  ac_int<3, false> weightLoopIndex[2];
+  ac_int<3, false> fxIndex;
+  ac_int<3, false> fyIndex;
+  ac_int<3, false> weightReuseIndex[2];
 
   // weight address generator loop
-  int weightAddressGenLoops[2][5];
+  ac_int<10, false> weightAddressGenLoops[2][5];
   // in the inner loop, there are actually 2 reduction loops: the
   // standard reduction loop and the reduction that is parallelized in
   // the systolic array
-  int weightAddressGenReductionLoopIndex[2];
-  int weightAddressGenWeightLoopIndex[2];
-  int weightAddressGenFxIndex;
-  int weightAddressGenFyIndex;
-  int weightAddressGenInputXLoopIndex;  // only care about outer X and Y loops
-  int weightAddressGenInputYLoopIndex;
+  ac_int<3, false> weightAddressGenReductionLoopIndex[2];
+  ac_int<3, false> weightAddressGenWeightLoopIndex[2];
+  ac_int<3, false> weightAddressGenFxIndex;
+  ac_int<3, false> weightAddressGenFyIndex;
 
-  int STRIDE;
-  int HEAD_SIZE_LG2;
+  ac_int<2, false> STRIDE;
 
   bool WEIGHT_TRANSPOSE;
   bool REPLICATION;
@@ -54,7 +100,8 @@ struct MatrixParams : BaseParams {
   ac_int<8, false> learningRate;
 
   static const unsigned int width =
-      13 * 32 + 12 * 32 + 10 * 32 + 7 * 1 + 11 * 32 + 32 + 1 + 8;
+      3 * 32 /* OFFSETS */ + (12 + 10) * 10 /* Loops */ +
+      (6 + 3) * 2 * 3 /* Loop indices */ + 8 * 1 /* Bools */ + 2 + 8;
 
 #ifndef NO_SYSC
   template <unsigned int Size>
@@ -96,10 +143,7 @@ struct MatrixParams : BaseParams {
     }
     m& weightAddressGenFxIndex;
     m& weightAddressGenFyIndex;
-    m& weightAddressGenInputXLoopIndex;
-    m& weightAddressGenInputYLoopIndex;
     m& STRIDE;
-    m& HEAD_SIZE_LG2;
     m& WEIGHT_TRANSPOSE;
     m& REPLICATION;
     m& STORE_IN_ACC;
@@ -166,6 +210,30 @@ struct VectorInstructions {
    * Vector Unit Pipeline Configuration
    * Reduce Unit Configuration
    */
+
+#ifndef NO_SYSC
+  VectorInstructions() {
+    ac_int<2, false> instType = 0;
+    ac_int<3, false> vInput = 0;
+    ac_int<3, false> vOp0Src1 = 0;
+    ac_int<2, false> vOp0 = 0;
+    ac_int<1, false> vOp1 = 0;
+    ac_int<1, false> vOp2 = 0;
+    ac_int<3, false> vOp3Src1 = 0;
+    ac_int<3, false> vOp3 = 0;
+    ac_int<2, false> vOp4 = 0;
+    ac_int<1, false> vAccumulatePush = 0;
+    ac_int<1, false> vDest = 0;
+    ac_int<10, false> rCount = 0;
+    ac_int<2, false> rOp = 0;
+    ac_int<1, false> rInvSqrt = 0;
+    ac_int<1, false> rDuplicate = 0;
+    ac_int<3, false> rDest = 0;
+    ac_int<1, false> rBroadcast = 0;
+    ac_int<8, false> immediate0 = 0;
+    ac_int<8, false> immediate1 = 0;
+  }
+#endif
 
   ac_int<2, false> instType;
   static const unsigned int vector = 0;
@@ -252,7 +320,6 @@ struct VectorInstructions {
   ac_int<8, false> immediate1;
 
   static const unsigned int width = 59;
-  VectorInstructions() {}
 
 #ifndef NO_SYSC
   VectorInstructions(const int a) {
@@ -327,51 +394,112 @@ struct VectorParams : BaseParams {
   // - Residual/Op0Src1
   // - Bias/Op3Src1
 
+#ifndef NO_SYSC
+  VectorParams() {
+    VECTOR_OFFSET = 0;
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 3; j++) {
+        addressGen0Loop[i][j] = 0;
+      }
+    }
+    DP_VEC0 = false;
+
+    ADDRESS_GEN1_OFFSET = 0;
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 3; j++) {
+        addressGen1Loops[i][j] = 0;
+      }
+    }
+    for (int i = 0; i < 2; i++) {
+      addressGen1InputXLoopIndex[i] = 0;
+      addressGen1InputYLoopIndex[i] = 0;
+      addressGen1WeightLoopIndex[i] = 0;
+    }
+    DP_VEC1 = false;
+
+    ADDRESS_GEN2_OFFSET = 0;
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 3; j++) {
+        addressGen2Loops[i][j] = 0;
+      }
+    }
+    for (int i = 0; i < 2; i++) {
+      addressGen2InputXLoopIndex[i] = 0;
+      addressGen2InputYLoopIndex[i] = 0;
+      addressGen2WeightLoopIndex[i] = 0;
+    }
+    DP_VEC2 = false;
+
+    VECTOR_OUTPUT_OFFSET = 0;
+    SCALAR_OUTPUT_OFFSET = 0;
+
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 3; j++) {
+        outputLoops[i][j] = 0;
+      }
+    }
+    for (int i = 0; i < 2; i++) {
+      outputXLoopIndex[i] = 0;
+      outputYLoopIndex[i] = 0;
+      outputWeightLoopIndex[i] = 0;
+    }
+    SPLIT_OUTPUT = false;
+
+    DP_OUTPUT = false;
+
+    addressGen0Enable = false;
+    addressGen0Broadcast = false;
+    addressGen0BroadcastCount = 0;
+    addressGen1Mode = 0;
+    addressGen2Mode = 0;
+    MAXPOOL = false;
+    AVGPOOL = false;
+  }
+#endif
+
   // Address Gen 0 (vector input)
   int VECTOR_OFFSET;
-  int addressGen0Loop[2][3];  // tiled 2d tensor
+  ac_int<10, false> addressGen0Loop[2][3];  // tiled 2d tensor
   bool DP_VEC0;
 
   // Address Gen 1 (residual/op0src1)
   int ADDRESS_GEN1_OFFSET;
-  int addressGen1Loops[2][3];
-  int addressGen1InputXLoopIndex[2];
-  int addressGen1InputYLoopIndex[2];
-  int addressGen1WeightLoopIndex[2];
+  ac_int<10, false> addressGen1Loops[2][3];
+  ac_int<3, false> addressGen1InputXLoopIndex[2];
+  ac_int<3, false> addressGen1InputYLoopIndex[2];
+  ac_int<3, false> addressGen1WeightLoopIndex[2];
   bool DP_VEC1;
 
   // Address Gen 2 (bias/op3src1)
   int ADDRESS_GEN2_OFFSET;
-  int addressGen2Loops[2][3];
-  int addressGen2InputXLoopIndex[2];
-  int addressGen2InputYLoopIndex[2];
-  int addressGen2WeightLoopIndex[2];
+  ac_int<10, false> addressGen2Loops[2][3];
+  ac_int<3, false> addressGen2InputXLoopIndex[2];
+  ac_int<3, false> addressGen2InputYLoopIndex[2];
+  ac_int<3, false> addressGen2WeightLoopIndex[2];
   bool DP_VEC2;
 
   int VECTOR_OUTPUT_OFFSET;
   int SCALAR_OUTPUT_OFFSET;
 
-  int scalarOutputCount;
-
-  int outputLoops[2][3];
-  int outputXLoopIndex[2];
-  int outputYLoopIndex[2];
-  int outputWeightLoopIndex[2];
-  int FULL_HEAD_SIZE;
+  ac_int<10, false> outputLoops[2][3];
+  ac_int<3, false> outputXLoopIndex[2];
+  ac_int<3, false> outputYLoopIndex[2];
+  ac_int<3, false> outputWeightLoopIndex[2];
   bool SPLIT_OUTPUT;
 
   bool DP_OUTPUT;
 
   bool addressGen0Enable;
   bool addressGen0Broadcast;
-  int addressGen0BroadcastCount;
+  ac_int<10, false> addressGen0BroadcastCount;
   ac_int<2, false> addressGen1Mode;  // 1- residual, 2- 2dtensor
   ac_int<2, false> addressGen2Mode;  // 1- bias, 2- 2dtensor
   bool MAXPOOL;
   bool AVGPOOL;
 
   static const unsigned int width =
-      13 * 32 + 1 + 1 + 2 + 2 + 1 + 1 + 37 * 32 + 2 + 1 + 1 + 1;
+      5 * 32 /* OFFSETS */ + 4 * 6 * 10 /* Loops */ +
+      3 * 6 * 3 /* Loop indices */ + 9 * 1 /* Bools */ + 10 + 2 * 2;
 
 #ifndef NO_SYSC
   template <unsigned int Size>
@@ -418,7 +546,6 @@ struct VectorParams : BaseParams {
     m& DP_VEC2;
     m& VECTOR_OUTPUT_OFFSET;
     m& SCALAR_OUTPUT_OFFSET;
-    m& scalarOutputCount;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
         m& outputLoops[i][j];
@@ -433,7 +560,6 @@ struct VectorParams : BaseParams {
     for (int i = 0; i < 2; i++) {
       m& outputWeightLoopIndex[i];
     }
-    m& FULL_HEAD_SIZE;
     m& SPLIT_OUTPUT;
     m& DP_OUTPUT;
     m& addressGen0Enable;
@@ -459,13 +585,23 @@ struct VectorParams : BaseParams {
 };
 
 struct VectorInstructionConfig : BaseParams {
+#ifndef NO_SYSC
+  VectorInstructionConfig() {
+    for (int i = 0; i < 8; i++) {
+      instCount[i] = 0;
+    }
+    instLen = 0;
+    instLoopCount = 0;
+  }
+#endif
+
   VectorInstructions inst[8];
-  int instCount[8];
-  int instLen;
-  int instLoopCount;
+  ac_int<20, false> instCount[8];
+  ac_int<3, false> instLen;
+  ac_int<10, false> instLoopCount;
 
   static const unsigned int width =
-      VectorInstructions::width * 8 + 32 * 8 + 32 + 32;
+      VectorInstructions::width * 8 + 20 * 8 + 3 + 10;
 
 #ifndef NO_SYSC
   template <unsigned int Size>

@@ -35,7 +35,7 @@ void MapWeightUpdate(const SimplifiedParams &params,
   VectorInstructionConfig *vectorInstructionConfig =
       new VectorInstructionConfig;
 
-  // this are gradients (called weights in the gold model)
+  // this are gradients (called inputs in the gold model)
   vectorParams->VECTOR_OFFSET = params.INPUT_OFFSET;
   vectorParams->addressGen0Enable = true;
   vectorParams->addressGen0Broadcast = false;
@@ -51,7 +51,7 @@ void MapWeightUpdate(const SimplifiedParams &params,
   vectorParams->ADDRESS_GEN1_OFFSET = params.WEIGHT_OFFSET;
   vectorParams->addressGen1Mode = 0;  // disable
 
-  // these are weights (called inputs in the gold model)
+  // these are weights (called weights in the gold model)
   vectorParams->ADDRESS_GEN2_OFFSET = params.WEIGHT_OFFSET;
   vectorParams->addressGen2Mode = 2;  // 2d tensor
   vectorParams->addressGen2Loops[0][0] = 1;
@@ -62,7 +62,7 @@ void MapWeightUpdate(const SimplifiedParams &params,
   vectorParams->VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
   vectorParams->SCALAR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
 
-  vectorParams->scalarOutputCount = 0;
+  // vectorParams->scalarOutputCount = 0;
   vectorParams->MAXPOOL = params.MAXPOOL;
   vectorParams->AVGPOOL = params.AVGPOOL;
   vectorParams->SPLIT_OUTPUT = params.SPLIT_OUTPUT;
