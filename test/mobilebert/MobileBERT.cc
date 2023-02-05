@@ -174,6 +174,7 @@ std::vector<Workload> MobileBERT::getWorkloads(
         workload.memoryMap = {SRAM, SRAM, RRAM, SRAM, SRAM};
       } else if (task == "weight_update") {
         workload.params.learningRate = 0.02995417748587139;
+
         inputDataDir = "step_51_weight_gradients/";
         weightDataDir = "step_51_weights/";
         outputDataDir = "step_52_weights/";
@@ -186,7 +187,7 @@ std::vector<Workload> MobileBERT::getWorkloads(
         weightDataDir = "step_51_weights/";
         outputDataDir = "step_52_weights/";
 
-        workload.memoryMap = {SRAM, SRAM, RRAM, SRAM, SRAM};
+        workload.memoryMap = {SRAM, SRAM, SRAM, SRAM, SRAM};
       } else if (task == "forward_with_weight_splitting") {
         workload.params.WEIGHT_SPLITTING =
             workload.params.WEIGHT && !workload.params.NO_NORM;

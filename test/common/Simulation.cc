@@ -285,7 +285,7 @@ int Simulation::checkOutput() {
   bool universal =
       std::find(sims.begin(), sims.end(), "universal") != sims.end();
   bool fp32 = std::find(sims.begin(), sims.end(), "fp32") != sims.end();
-  bool pytorch = std::find(sims.begin(), sims.end(), "file") != sims.end();
+  bool file = std::find(sims.begin(), sims.end(), "file") != sims.end();
 
   std::string outFilePrefix;
   if (workloads.size() == 1) {
@@ -303,6 +303,10 @@ int Simulation::checkOutput() {
   INPUT_DATATYPE* positOutput;
   INPUT_DATATYPE* acceleratorOutput;
 
+  std::cerr << "Input: " << memoryMaps.inputs << std::endl;
+  std::cerr << "Weight: " << memoryMaps.weights << std::endl;
+  std::cerr << "Output: " << memoryMaps.outputs << std::endl;
+
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
     acceleratorOutput =
         memoryMaps.outputs ? acceleratorMemory->rram : acceleratorMemory->sram;
@@ -318,7 +322,7 @@ int Simulation::checkOutput() {
     floatOutput = memoryMaps.outputs ? floatMemory->rram : floatMemory->sram;
   }
 
-  if (fp32 && pytorch) {
+  if (fp32 && file) {
     std::cout << "FP32 Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
     std::string diffFile = outFilePrefix + "fpgold_vs_pytorch.txt";
@@ -329,7 +333,7 @@ int Simulation::checkOutput() {
     any_comparison = true;
   }
 
-  if (customposit && pytorch) {
+  if (customposit && file) {
     std::cout << "HLS Posit Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals bugs in mapping operations to accelerator)"
               << std::endl;
@@ -341,7 +345,7 @@ int Simulation::checkOutput() {
     any_comparison = true;
   }
 
-  if (universal && pytorch) {
+  if (universal && file) {
     std::cout << "Universal Posit Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in representing float as Posit)" << std::endl;
     std::string diffFile = outFilePrefix + "universal_vs_pytorch.txt";
@@ -352,7 +356,7 @@ int Simulation::checkOutput() {
     any_comparison = true;
   }
 
-  if (accelerator && pytorch) {
+  if (accelerator && file) {
     std::cout << "Accelerator vs. PyTorch" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
