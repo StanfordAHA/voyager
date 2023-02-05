@@ -236,6 +236,7 @@ struct VectorInstructions {
   static const unsigned int rmax = 2;
 
   ac_int<1, false> rInvSqrt;
+  ac_int<1, false> rMax1;
   ac_int<1, false> rDuplicate;
 
   ac_int<3, false> rDest;
@@ -250,7 +251,7 @@ struct VectorInstructions {
   ac_int<8, false> immediate0;
   ac_int<8, false> immediate1;
 
-  static const unsigned int width = 58;
+  static const unsigned int width = 59;
   VectorInstructions() {}
 
 #ifndef NO_SYSC
@@ -286,6 +287,7 @@ struct VectorInstructions {
     m& rCount;
     m& rOp;
     m& rInvSqrt;
+    m& rMax1;
     m& rDuplicate;
     m& rDest;
     m& rBroadcast;
@@ -512,6 +514,9 @@ struct VectorInstructionConfig : BaseParams {
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].rInvSqrt;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].rMax1;
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].rDuplicate;
