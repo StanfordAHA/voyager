@@ -28,7 +28,6 @@ SC_MODULE(VectorOpUnit) {
 
   Connections::Out<Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
       CCS_INIT_S1(vectorOpUnitOutput);
-  Connections::Out<Pack1D<IDTYPE, WIDTH> > CCS_INIT_S1(scalarOpUnitOutput);
 
   Connections::Combinational<
       Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
@@ -361,7 +360,6 @@ SC_MODULE(VectorOpUnit) {
   }
 
   void reductionOpRun() {
-    scalarOpUnitOutput.Reset();
     reductionOpUnitInstructions.Reset();
     reductionOpInput.ResetRead();
     reductionOpOutputOp0Src0.ResetWrite();
@@ -370,7 +368,6 @@ SC_MODULE(VectorOpUnit) {
     broadcastReduction0Count.ResetWrite();
     broadcastReduction1Count.ResetWrite();
     broadcastReduction2Count.ResetWrite();
-    scalarOpUnitOutput.Reset();
 
     wait();
 
@@ -479,14 +476,6 @@ SC_MODULE(VectorOpUnit) {
           }
           broadcastReduction2Count.Push(broadcastCount);
           reductionOpOutputOp3Src1.Push(res);
-        } else if (inst.rDest == VectorInstructions::sWriteOut) {
-          Pack1D<IDTYPE, WIDTH> outputRes;
-#pragma hls_unroll yes
-          for (int i = 0; i < WIDTH; i++) {
-            outputRes[i] = res[i];
-          }
-
-          scalarOpUnitOutput.Push(outputRes);
         }
       }
     }
@@ -516,9 +505,6 @@ SC_MODULE(VectorUnit) {
   Connections::In<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(vectorFetch2DataResponse);
   Connections::Combinational<Pack1D<ACC_DTYPE, WIDTH> > CCS_INIT_S1(
       vectorFetch2DataResponseReplicated);
-
-  Connections::Out<int> CCS_INIT_S1(scalarOutputAddress);
-  Connections::Out<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(scalarUnitOutput);
 
   Connections::Out<int> CCS_INIT_S1(vectorOutputAddress);
   Connections::Out<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(finalVectorOutput);
@@ -585,7 +571,6 @@ SC_MODULE(VectorUnit) {
     vectorOpUnit.vectorFetch1Output(vectorFetch1DataResponseConverted);
     vectorOpUnit.vectorFetch2Output(vectorFetch2DataResponseReplicated);
     vectorOpUnit.vectorOpUnitOutput(vectorOpUnitOutput);
-    vectorOpUnit.scalarOpUnitOutput(scalarUnitOutput);
 
     maxpoolUnit.clk(clk);
     maxpoolUnit.rstn(rstn);
@@ -598,7 +583,6 @@ SC_MODULE(VectorUnit) {
     outputAddressGenerator.rstn(rstn);
     outputAddressGenerator.paramsIn(outputAddressGenParams);
     outputAddressGenerator.vectorOutputAddress(vectorOutputAddress);
-    outputAddressGenerator.scalarOutputAddress(scalarOutputAddress);
 
     SC_THREAD(read_params);
     sensitive << clk.pos();

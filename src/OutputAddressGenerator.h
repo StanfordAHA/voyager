@@ -7,12 +7,9 @@ SC_MODULE(OutputAddressGenerator) {
 
   Connections::In<VectorParams> CCS_INIT_S1(paramsIn);
   Connections::Out<int> CCS_INIT_S1(vectorOutputAddress);
-  Connections::Out<int> CCS_INIT_S1(scalarOutputAddress);
 
   Connections::Combinational<VectorParams> CCS_INIT_S1(
       vectorOutputAddressParams);
-  Connections::Combinational<VectorParams> CCS_INIT_S1(
-      scalarOutputAddressParams);
 
   SC_CTOR(OutputAddressGenerator) {
     SC_THREAD(read_params);
@@ -22,16 +19,11 @@ SC_MODULE(OutputAddressGenerator) {
     SC_THREAD(vectorAddressGen);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
-
-    SC_THREAD(scalarAddressGen);
-    sensitive << clk.pos();
-    async_reset_signal_is(rstn, false);
   }
 
   void read_params() {
     paramsIn.Reset();
     vectorOutputAddressParams.ResetWrite();
-    scalarOutputAddressParams.ResetWrite();
 
     wait();
 
@@ -39,27 +31,6 @@ SC_MODULE(OutputAddressGenerator) {
       VectorParams params = paramsIn.Pop();
 
       vectorOutputAddressParams.Push(params);
-
-      // if (params.scalarOutputCount != 0) {
-      //   scalarOutputAddressParams.Push(params);
-      // }
-    }
-  }
-
-  // TODO(fpedd): This SC_THREAD seems dead since I removed the for loop in the
-  // while loop...
-  void scalarAddressGen() {
-    scalarOutputAddress.Reset();
-    scalarOutputAddressParams.ResetRead();
-
-    wait();
-
-    while (true) {
-      VectorParams params = scalarOutputAddressParams.Pop();
-
-      // for (int i = 0; i < params.scalarOutputCount; i++) {
-      //   scalarOutputAddress.Push(params.SCALAR_OUTPUT_OFFSET + i * WIDTH);
-      // }
     }
   }
 

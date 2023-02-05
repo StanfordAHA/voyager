@@ -51,9 +51,6 @@ SC_MODULE(Accelerator) {
   Connections::Out<Pack1D<OUTPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       vectorOutput);
   Connections::Out<int> CCS_INIT_S1(vectorOutputAddress);
-  Connections::Out<Pack1D<OUTPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
-      scalarUnitOutput);
-  Connections::Out<int> CCS_INIT_S1(scalarOutputAddress);
 
   Connections::SyncOut CCS_INIT_S1(vectorUnitStartSignal);
   Connections::SyncOut CCS_INIT_S1(vectorUnitDoneSignal);
@@ -82,8 +79,6 @@ SC_MODULE(Accelerator) {
     vectorUnit.vectorFetch1DataResponse(vectorFetch1DataResponse);
     vectorUnit.vectorFetch2AddressRequest(vectorFetch2AddressRequest);
     vectorUnit.vectorFetch2DataResponse(vectorFetch2DataResponse);
-    vectorUnit.scalarOutputAddress(scalarOutputAddress);
-    vectorUnit.scalarUnitOutput(scalarUnitOutput);
     vectorUnit.vectorOutputAddress(vectorOutputAddress);
     vectorUnit.finalVectorOutput(vectorOutput);
     vectorUnit.start(vectorUnitStartSignal);

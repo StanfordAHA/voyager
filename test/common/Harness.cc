@@ -68,8 +68,6 @@ Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
   accelerator.vectorFetch2DataResponse(vectorFetch2DataResponse);
   accelerator.vectorOutput(vectorOutput);
   accelerator.vectorOutputAddress(vectorOutputAddress);
-  accelerator.scalarUnitOutput(scalarUnitOutput);
-  accelerator.scalarOutputAddress(scalarOutputAddress);
 
   accelerator.matrixUnitStartSignal(matrixUnitStartSignal);
   accelerator.matrixUnitDoneSignal(matrixUnitDoneSignal);
@@ -119,10 +117,6 @@ Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
   async_reset_signal_is(rstn, false);
 
   SC_THREAD(storeVectorOutputs);
-  sensitive << clk.posedge_event();
-  async_reset_signal_is(rstn, false);
-
-  SC_THREAD(storeScalarOutputs);
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
 
@@ -394,18 +388,6 @@ void Harness::storeVectorOutputs() {
 
       memory[address + i] = data[i];
     }
-  }
-}
-
-void Harness::storeScalarOutputs() {
-  scalarUnitOutput.ResetRead();
-  scalarOutputAddress.ResetRead();
-
-  wait();
-
-  while (true) {
-    Pack1D<OUTPUT_DATATYPE, DIMENSION> data = scalarUnitOutput.Pop();
-    int address = scalarOutputAddress.Pop();
   }
 }
 

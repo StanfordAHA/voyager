@@ -89,10 +89,6 @@ SC_MODULE(Harness) {
       vectorOutput);
   CombinationalInterface<int> CCS_INIT_S1(vectorOutputAddress);
 
-  CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
-      scalarUnitOutput);
-  CombinationalInterface<int> CCS_INIT_S1(scalarOutputAddress);
-
   Connections::SyncChannel CCS_INIT_S1(matrixUnitStartSignal);
   Connections::SyncChannel CCS_INIT_S1(matrixUnitDoneSignal);
   Connections::SyncChannel CCS_INIT_S1(vectorUnitStartSignal);
