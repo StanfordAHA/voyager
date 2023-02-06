@@ -12,7 +12,7 @@ struct BaseParams {
 };
 
 struct MatrixParams : BaseParams {
-#ifndef NO_SYSC
+#ifndef __SYNTHESIS__
   MatrixParams() {
     INPUT_OFFSET = 0;
     WEIGHT_OFFSET = 0;
@@ -211,27 +211,29 @@ struct VectorInstructions {
    * Reduce Unit Configuration
    */
 
-#ifndef NO_SYSC
+#ifndef __SYNTHESIS__
   VectorInstructions() {
-    ac_int<2, false> instType = 0;
-    ac_int<3, false> vInput = 0;
-    ac_int<3, false> vOp0Src1 = 0;
-    ac_int<2, false> vOp0 = 0;
-    ac_int<1, false> vOp1 = 0;
-    ac_int<1, false> vOp2 = 0;
-    ac_int<3, false> vOp3Src1 = 0;
-    ac_int<3, false> vOp3 = 0;
-    ac_int<2, false> vOp4 = 0;
-    ac_int<1, false> vAccumulatePush = 0;
-    ac_int<1, false> vDest = 0;
-    ac_int<10, false> rCount = 0;
-    ac_int<2, false> rOp = 0;
-    ac_int<1, false> rInvSqrt = 0;
-    ac_int<1, false> rDuplicate = 0;
-    ac_int<3, false> rDest = 0;
-    ac_int<1, false> rBroadcast = 0;
-    ac_int<8, false> immediate0 = 0;
-    ac_int<8, false> immediate1 = 0;
+    instType = 0;
+    vInput = 0;
+    vOp0Src1 = 0;
+    vOp0 = 0;
+    vOp1 = 0;
+    vOp1Src1 = 0;
+    vOp2 = 0;
+    vOp3Src1 = 0;
+    vOp3 = 0;
+    vOp4 = 0;
+    vAccumulatePush = 0;
+    vDest = 0;
+    rCount = 0;
+    rOp = 0;
+    rInvSqrt = 0;
+    rMax1 = 0;
+    rDuplicate = 0;
+    rDest = 0;
+    rBroadcast = 0;
+    immediate0 = 0;
+    immediate1 = 0;
   }
 #endif
 
@@ -262,8 +264,13 @@ struct VectorInstructions {
   static const unsigned int vsub = 3;
 
   // Stage 1: exp
-  ac_int<1, false> vOp1;
+  ac_int<2, false> vOp1;
   static const unsigned int vexp = 1;
+  static const unsigned int vscaleexp = 2;
+
+  ac_int<1, false> vOp1Src1;
+  static const unsigned int op1immediate0 = 0;
+  static const unsigned int op1immediate1 = 1;
 
   // Stage 2: send to reduce unit
   ac_int<1, false> vOp2;
@@ -281,7 +288,6 @@ struct VectorInstructions {
   // static const unsigned int vmult = 2;
   static const unsigned int vdiv = 3;
   static const unsigned int vsquare = 4;
-  static const unsigned int vscaleexp = 5;
 
   // Stage 4: relu
   ac_int<2, false> vOp4;
@@ -300,6 +306,7 @@ struct VectorInstructions {
   static const unsigned int rmax = 2;
 
   ac_int<1, false> rInvSqrt;
+  ac_int<1, false> rMax1;
   ac_int<1, false> rDuplicate;
 
   ac_int<3, false> rDest;
@@ -314,24 +321,9 @@ struct VectorInstructions {
   ac_int<8, false> immediate0;
   ac_int<8, false> immediate1;
 
-  static const unsigned int width = 56;
+  static const unsigned int width = 59;
 
 #ifndef NO_SYSC
-  VectorInstructions(const int a) {
-    ac_int<width, false> val = a;
-    sc_lv<width> valLV;
-    type_to_vector(val, width, valLV);
-    *this = BitsToType<VectorInstructions>(valLV);
-  }
-
-  explicit operator int() const {
-    ac_int<32, false> val;
-    vector_to_type(TypeToBits<VectorInstructions>(*this), false, &val);
-
-    int a = val;
-    return a;
-  }
-
   template <unsigned int Size>
   void Marshall(Marshaller<Size>& m) {
     m& instType;
@@ -339,6 +331,7 @@ struct VectorInstructions {
     m& vOp0Src1;
     m& vOp0;
     m& vOp1;
+    m& vOp1Src1;
     m& vOp2;
     m& vOp3Src1;
     m& vOp3;
@@ -348,6 +341,7 @@ struct VectorInstructions {
     m& rCount;
     m& rOp;
     m& rInvSqrt;
+    m& rMax1;
     m& rDuplicate;
     m& rDest;
     m& rBroadcast;
@@ -387,7 +381,7 @@ struct VectorParams : BaseParams {
   // - Residual/Op0Src1
   // - Bias/Op3Src1
 
-#ifndef NO_SYSC
+#ifndef __SYNTHESIS__
   VectorParams() {
     VECTOR_OFFSET = 0;
     for (int i = 0; i < 2; i++) {
@@ -578,7 +572,7 @@ struct VectorParams : BaseParams {
 };
 
 struct VectorInstructionConfig : BaseParams {
-#ifndef NO_SYSC
+#ifndef __SYNTHESIS__
   VectorInstructionConfig() {
     for (int i = 0; i < 8; i++) {
       instCount[i] = 0;
@@ -615,6 +609,9 @@ struct VectorInstructionConfig : BaseParams {
       m& inst[j].vOp1;
     }
     for (int j = 0; j < 8; j++) {
+      m& inst[j].vOp1Src1;
+    }
+    for (int j = 0; j < 8; j++) {
       m& inst[j].vOp2;
     }
     for (int j = 0; j < 8; j++) {
@@ -640,6 +637,9 @@ struct VectorInstructionConfig : BaseParams {
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].rInvSqrt;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].rMax1;
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].rDuplicate;
