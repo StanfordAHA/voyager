@@ -8,7 +8,7 @@ DATA_DIR=/pool0/fpedd/su/imagenet/val_1k
 
 ### ONNX models to test (need to reside in the models/onnx directory)
 # MODELS="resnet18 resnet34 resnet50 resnet101 resnet152 mobilebert_single_enc"
-MODELS="resnet18"
+MODELS="resnet18 mobilebert_single_enc"
 # MODELS="resnet34"
 # MODELS="resnet50"
 # MODELS="resnet101"
@@ -28,6 +28,9 @@ RRAM_BANKS=3
 
 ### Number of tests to run (-1 for all)
 NUM_TESTS=-1
+
+### Set the number of samples to generate
+NUM_SAMPLES=16
 
 for tr in $(seq 1 $TORTURE_ROUNDS); do
   for model in $MODELS; do
@@ -54,15 +57,30 @@ for tr in $(seq 1 $TORTURE_ROUNDS); do
       --data_dir /pool0/fpedd/su/imagenet/val_1k \
       --model_path zagzig/models/onnx/${model}.onnx \
       --frontend ${ZAGZIG_FRONTEND} \
-      --bw_aware \
-      --rram_banks $RRAM_BANKS)
-      # --debug \
+      --samples ${NUM_SAMPLES} \
+      --rram_banks ${RRAM_BANKS}
+    # --bw_aware \
+    # --debug \
 
     # Compile and run tests comparing the goldmodel using floating point and the reference data from the ONNX runtime
-    python3 run_tests.py --model ${model}_codegen --data_dir test/${model_family}/gen_data/ --simulators fp32,file --tolerance 0.01 --rram_banks $RRAM_BANKS --num_tests $NUM_TESTS # --make_clean
+    python3 run_tests.py \
+      --model ${model}_codegen \
+      --data_dir test/${model_family}/gen_data/ \
+      --simulators fp32,file \
+      --tolerance 0.01 \
+      --rram_banks $RRAM_BANKS \ 
+      --num_tests $NUM_TESTS 
+      #--make_clean \
 
     # Compile and run tests comparing the goldmodel using custom posit and the systemC HLS code
-    python3 run_tests.py --model ${model}_codegen --data_dir test/${model_family}/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --rram_banks $RRAM_BANKS --num_tests $NUM_TESTS
+    python3 run_tests.py \ 
+      --model ${model}_codegen \
+      --data_dir test/${model_family}/gen_data/ \
+      --simulators accelerator,customposit \
+      --tolerance 0.01 \
+      --rram_banks $RRAM_BANKS \
+      --num_tests $NUM_TESTS
 
   done
+
 done
