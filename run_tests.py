@@ -208,7 +208,7 @@ def main():
         # If we only want to run a subset of tests, we truncate the list.
         # Ignore this (run all available tests) if num_tests is -1 (default)
         if args.num_tests > 0:
-            assert args.nums_tests <= len(
+            assert args.num_tests <= len(
                 args.all_tests
             ), f"Requested {args.num_tests} tests, but only {len(args.all_tests)} available."
             args.all_tests = args.all_tests[: args.num_tests]
