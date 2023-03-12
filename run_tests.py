@@ -104,7 +104,7 @@ def main():
     parser.add_argument(
         "--num_tests",
         type=int,
-        default=-1,
+        default=-1,  # -1 means we will run all available tests
         help="Number of tests from the list of tests to run (-1 -> run all).",
     )
     parser.add_argument(
@@ -117,7 +117,7 @@ def main():
         "--target_name",
         type=str,
         default="TestRunner",
-        help="Name of main target (compiled C++ binary).",
+        help="Name of main target (compiled C++ binary). See Makefile for details.",
     )
     parser.add_argument(
         "--build_dir", type=str, default="build", help="Name of build directory."
@@ -139,7 +139,7 @@ def main():
     args.script_output_dir = os.path.join(args.output_dir, "console_outputs")
     os.makedirs(args.script_output_dir, exist_ok=True)
 
-    # TODO(fpedd): Move all prints to console to seperate logger, see here https://stackoverflow.com/a/9321890/8130394
+    # TODO(fpedd): Move all prints to console to separate logger, see here https://stackoverflow.com/a/9321890/8130394
     # Setup a logger to log to file
     logging.basicConfig(
         level=logging.INFO,
@@ -165,6 +165,13 @@ def main():
             raise ValueError(
                 f"Could not find default data_dir for model {args.model}. Please provide data_dir."
             )
+
+    # Check if data_dir exists
+    assert os.path.isdir(
+        args.data_dir
+    ), f"Data dir {args.data_dir} does not exist. Please provide a valid data and/or run ZagZig first."
+
+    assert args.num_tests == -1 or args.num_tests > 0, "num_tests must be -1 (all) or > 0."
 
     # Start timing before executing first "time-consuming" command
     args.start_time = time.time()
@@ -214,15 +221,15 @@ def main():
             args.all_tests = args.all_tests[: args.num_tests]
 
     elif args.test_type == "end2end":
-        # TODO(fpedd): The end to end test are need knowledge of the layer names. Which is
-        # not available in the handwritten configs
-        pass
+        assert args.num_tests == -1, "Cannot specify num_tests for end2end tests."
+        args.layer_names = args.all_tests  # all_tests will be overwritten
+        args.all_tests = ["end2end"]
 
     elif args.test_type == "accuracy":
         dirpath, dirnames, files = list(os.walk(args.data_dir))[0]
         tensor_names = [f for f in files if f not in ["input", "output"]]
         args.layer_names = args.all_tests  # all_tests will be overwritten
-        args.all_tests = dirnames[: args.num_tests]
+        args.all_tests = dirnames[: args.num_tests if args.num_tests > 0 else None]
         args.root_data_dir = args.data_dir  # data_dir will be overwritten
 
         # Copy the tensor files to every test directory
@@ -254,7 +261,7 @@ def main():
         env["NETWORK"] = args.model
         env["TESTS"] = (
             f"{args.layer_names[0]},{args.layer_names[-1]}"
-            if args.test_type == "accuracy"
+            if args.test_type in ["accuracy", "end2end"]
             else test
         )
         env["SIMS"] = args.simulators
@@ -370,7 +377,7 @@ def main():
         (lambda acc, res: acc + bool(res[1].returncode)), results, 0
     )
 
-    # Print a checkmark green or an x red depending on whether the tests passed or failed
+    # Print a green check mark or a red cross depending on whether the tests passed or failed
     if failures == 0:
         print(
             "\u001b[32m"
@@ -415,7 +422,7 @@ def main():
             # Get the result directory
             res_dir = os.path.join(args.output_dir, test)
 
-            # Get the result file
+            # Get the result file path
             res_files = [os.path.join(x[0], x[2][0]) for x in os.walk(res_dir)]
 
             # Ensure there is only one result file
@@ -454,7 +461,7 @@ def main():
                     right
                 ), f"Left {len(left)} != right {len(right)}"
 
-                # Imagenet has 1000 classes
+                # ImageNet has 1000 classes
                 if len(left) == 1008:
                     left = left[:-8]  # remove last 8 zero lines
                     assert (
@@ -514,6 +521,7 @@ def main():
             print(f"Did not match expected accuracy of {args.accuracy_tolerance}.")
             failures += 1
 
+    # Return the number of failed tests as exit code so that CI can detect failures
     sys.exit(failures)
 
 
