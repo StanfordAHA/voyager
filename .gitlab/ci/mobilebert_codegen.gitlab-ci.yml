@@ -2,7 +2,7 @@
 ### MobileBERT Codegen Layer by Layer ###
 #########################################
 
-MobileBERT Codegen Layers (FP32 Gold Model vs. Pytorch):
+MobileBERT Full Codegen Layers (FP32 Gold Model vs. Pytorch):
   stage: test
   artifacts:
     when: always
@@ -13,7 +13,7 @@ MobileBERT Codegen Layers (FP32 Gold Model vs. Pytorch):
     - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/mobilebert_full.onnx --frontend zigzag --rram_banks 6)
     - python3 run_tests.py --model mobilebert_full_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --rram_banks 6 --test_type layerbylayer
 
-MobileBERT Codegen Layers (Accel vs. Posit Gold Model):
+MobileBERT Full Codegen Layers (Accel vs. Posit Gold Model):
   stage: test
   artifacts:
     when: always
@@ -24,7 +24,7 @@ MobileBERT Codegen Layers (Accel vs. Posit Gold Model):
     - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/mobilebert_full.onnx --frontend zigzag --rram_banks 6)
     - python3 run_tests.py --model mobilebert_full_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --rram_banks 6 --test_type layerbylayer
 
-MobileBERT Single Encoder Codegen Layers (FP32 Gold Model vs. Pytorch):
+MobileBERT Codegen Layers (FP32 Gold Model vs. Pytorch):
   stage: test
   artifacts:
     when: always
@@ -35,7 +35,7 @@ MobileBERT Single Encoder Codegen Layers (FP32 Gold Model vs. Pytorch):
     - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/mobilebert.onnx --frontend zigzag)
     - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type layerbylayer
 
-MobileBERT Single Encoder Codegen Layers (Accel vs. Posit Gold Model):
+MobileBERT Codegen Layers (Accel vs. Posit Gold Model):
   stage: test
   artifacts:
     when: always
@@ -50,7 +50,7 @@ MobileBERT Single Encoder Codegen Layers (Accel vs. Posit Gold Model):
 ### MobileBERT Codegen End 2 End ###
 ####################################
 
-MobileBERT Codegen End2End (FP32 Gold Model vs. Pytorch):
+MobileBERT Full Codegen End2End (FP32 Gold Model vs. Pytorch):
   stage: test
   artifacts:
     when: always
@@ -61,7 +61,7 @@ MobileBERT Codegen End2End (FP32 Gold Model vs. Pytorch):
     - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/mobilebert_full.onnx --frontend zigzag --rram_banks 6)
     - python3 run_tests.py --model mobilebert_full_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --rram_banks 6 --test_type end2end
 
-MobileBERT Codegen End2End (Accel vs. Posit Gold Model):
+MobileBERT Full Codegen End2End (Accel vs. Posit Gold Model):
   stage: test
   artifacts:
     when: always
@@ -72,7 +72,7 @@ MobileBERT Codegen End2End (Accel vs. Posit Gold Model):
     - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/mobilebert_full.onnx --frontend zigzag --rram_banks 6)
     - python3 run_tests.py --model mobilebert_full_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --rram_banks 6 --test_type end2end
 
-MobileBERT Single Encoder Codegen End2End (FP32 Gold Model vs. Pytorch):
+MobileBERT Codegen End2End (FP32 Gold Model vs. Pytorch):
   stage: test
   artifacts:
     when: always
@@ -83,7 +83,7 @@ MobileBERT Single Encoder Codegen End2End (FP32 Gold Model vs. Pytorch):
     - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/mobilebert.onnx --frontend zigzag)
     - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type end2end
 
-MobileBERT Single Encoder Codegen End2End (Accel vs. Posit Gold Model):
+MobileBERT Codegen End2End (Accel vs. Posit Gold Model):
   stage: test
   artifacts:
     when: always
@@ -98,7 +98,7 @@ MobileBERT Single Encoder Codegen End2End (Accel vs. Posit Gold Model):
 ### MobileBERT Codegen Accuracy ###
 ###################################
 
-MobileBERT Codegen Accuracy (FP32 Gold Model and Pytorch):
+MobileBERT Full Codegen Accuracy (FP32 Gold Model and Pytorch):
   stage: test
   artifacts:
     when: always
@@ -111,7 +111,7 @@ MobileBERT Codegen Accuracy (FP32 Gold Model and Pytorch):
     - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/mobilebert_full.onnx --frontend zigzag --rram_banks 6 --samples 128)
     - python3 run_tests.py --model mobilebert_full_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --rram_banks 6 --test_type accuracy --accuracy_tolerance 0.90
 
-MobileBERT Codegen Accuracy (Accel and Posit Gold Model):
+MobileBERT Full Codegen Accuracy (Accel and Posit Gold Model):
   stage: test
   artifacts:
     when: always
