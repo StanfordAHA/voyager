@@ -10,7 +10,7 @@ ResNet Codegen Layers (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
     - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type layerbylayer
 
 ResNet Codegen Layers (Accel vs. Posit Gold Model):
@@ -21,7 +21,7 @@ ResNet Codegen Layers (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
     - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --test_type layerbylayer
 
 ################################
@@ -36,7 +36,7 @@ ResNet Codegen End2End (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
     - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type end2end
 
 ResNet Codegen End2End (Accel vs. Posit Gold Model):
@@ -47,7 +47,7 @@ ResNet Codegen End2End (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag)
     - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --test_type end2end
 
 ###############################
@@ -64,7 +64,7 @@ ResNet Codegen Accuracy (FP32 Gold Model and Pytorch):
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag --samples 256)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag --samples 256)
     - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type accuracy --accuracy_tolerance 0.64
 
 ResNet Codegen Accuracy (Accel and Posit Gold Model):
@@ -77,5 +77,5 @@ ResNet Codegen Accuracy (Accel and Posit Gold Model):
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag --samples 128)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/imagenet --model_path zagzig/models/onnx/resnet18.onnx --frontend zigzag --samples 128)
     - python3 run_tests.py --model resnet18_codegen --data_dir test/resnet/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --test_type accuracy --accuracy_tolerance 0.63
