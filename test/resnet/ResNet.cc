@@ -22,7 +22,7 @@ ResNet::ResNet(const std::string modelName, const std::string dataDir)
   if (modelNameLower.find("codegen") != std::string::npos) {
     if (paramsCodeGen.empty() || filesCodeGen.empty() || orderCodeGen.empty()) {
       throw std::runtime_error(
-          "Codegen files not found. Did you run the codegen script?");
+          "Codegen files for ResNet not found. Did you run the codegen script?");
     }
     this->order = ::orderCodeGen;
     this->params = ::paramsCodeGen;
