@@ -62,8 +62,8 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="resnet",
-        help="Model to run (simple, resnet, mobilebert) [NETWORK].",
+        default="resnet18",
+        help="Model to run (simple, resnet18, mobilebert) [NETWORK].",
     )
     parser.add_argument(
         "--task",
@@ -149,7 +149,7 @@ def main():
     )
 
     if args.data_dir is None:
-        if args.model == "resnet":
+        if args.model == "resnet18":
             args.data_dir = "./models/resnet/binary_data/"
             # Check if there are files in the binary_data dir, or whether we
             # need to step deeper in the hierarchy
@@ -169,7 +169,7 @@ def main():
     # Check if data_dir exists
     assert os.path.isdir(
         args.data_dir
-    ), f"Data dir {args.data_dir} does not exist. Please provide a valid data and/or run ZagZig first."
+    ), f"Data dir {args.data_dir} does not exist. Please provide a valid data directory and/or run ZagZig first."
 
     assert args.num_tests == -1 or args.num_tests > 0, "num_tests must be -1 (all) or > 0."
 
@@ -179,7 +179,7 @@ def main():
     # Prepare all tests/layers to be simultaneously run as individual processes
     args.all_tests = None
     # Default models (with handwritten config)
-    if args.model == "resnet":
+    if args.model == "resnet18":
         args.all_tests = resnet_networks.NETWORKS[args.model]
     elif args.model == "mobilebert":
         if args.task == "forward_with_weight_splitting":
