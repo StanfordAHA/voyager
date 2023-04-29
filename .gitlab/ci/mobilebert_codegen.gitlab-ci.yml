@@ -33,7 +33,7 @@ MobileBERT Single Encoder Codegen Layers (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx)
-    - python3 run_tests.py --model mobilebert --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type layerbylayer
+    - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type layerbylayer
 
 MobileBERT Single Encoder Codegen Layers (Accel vs. Posit Gold Model):
   stage: test
@@ -44,7 +44,7 @@ MobileBERT Single Encoder Codegen Layers (Accel vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx)
-    - python3 run_tests.py --model mobilebert --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --test_type layerbylayer
+    - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --test_type layerbylayer
 
 ####################################
 ### MobileBERT Codegen End 2 End ###
@@ -81,7 +81,7 @@ MobileBERT Single Encoder Codegen End2End (FP32 Gold Model vs. Pytorch):
     expire_in: 1 week
   script:
     - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx)
-    - python3 run_tests.py --model mobilebert --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type end2end
+    - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type end2end
 
 MobileBERT Single Encoder Codegen End2End (Accel vs. Posit Gold Model):
   stage: test
@@ -92,7 +92,7 @@ MobileBERT Single Encoder Codegen End2End (Accel vs. Posit Gold Model):
     expire_in: 1 week
   script:
     - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx)
-    - python3 run_tests.py --model mobilebert --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --test_type end2end
+    - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --test_type end2end
 
 ###################################
 ### MobileBERT Codegen Accuracy ###
