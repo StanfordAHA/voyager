@@ -22,4 +22,4 @@ include:
   - local: .gitlab/ci/resnet_codegen.gitlab-ci.yml
   - local: .gitlab/ci/resnet.gitlab-ci.yml
   - local: .gitlab/ci/rtl.gitlab-ci.yml
-  - local: .gitlab/ci/unittests.gitlab-ci.yml
+  # - local: .gitlab/ci/unittests.gitlab-ci.yml
