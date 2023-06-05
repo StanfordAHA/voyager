@@ -10,7 +10,7 @@ MobileBERT Full Codegen Layers (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --rram_banks 6)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --frontend naive --rram_banks 6)
     - python3 run_tests.py --model mobilebert_full_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --rram_banks 6 --test_type layerbylayer
 
 MobileBERT Full Codegen Layers (Accel vs. Posit Gold Model):
@@ -21,7 +21,7 @@ MobileBERT Full Codegen Layers (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --rram_banks 6)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --frontend naive --rram_banks 6)
     - python3 run_tests.py --model mobilebert_full_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --rram_banks 6 --test_type layerbylayer
 
 MobileBERT Codegen Layers (FP32 Gold Model vs. Pytorch):
@@ -32,7 +32,7 @@ MobileBERT Codegen Layers (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx --frontend naive)
     - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type layerbylayer
 
 MobileBERT Codegen Layers (Accel vs. Posit Gold Model):
@@ -43,7 +43,7 @@ MobileBERT Codegen Layers (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx --frontend naive)
     - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --test_type layerbylayer
 
 MobileBERT Tiny Codegen Layers (FP32 Gold Model vs. Pytorch):
@@ -54,7 +54,7 @@ MobileBERT Tiny Codegen Layers (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_tiny.onnx)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_tiny.onnx --frontend naive)
     - python3 run_tests.py --model mobilebert_tiny_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type layerbylayer
 
 MobileBERT Tiny Codegen Layers (Accel vs. Posit Gold Model):
@@ -65,7 +65,7 @@ MobileBERT Tiny Codegen Layers (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_tiny.onnx)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_tiny.onnx --frontend naive)
     - python3 run_tests.py --model mobilebert_tiny_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --test_type layerbylayer
 
 ####################################
@@ -80,7 +80,7 @@ MobileBERT Full Codegen End2End (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --rram_banks 6)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --frontend naive --rram_banks 6)
     - python3 run_tests.py --model mobilebert_full_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --rram_banks 6 --test_type end2end
 
 MobileBERT Full Codegen End2End (Accel vs. Posit Gold Model):
@@ -91,7 +91,7 @@ MobileBERT Full Codegen End2End (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --rram_banks 6)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --frontend naive --rram_banks 6)
     - python3 run_tests.py --model mobilebert_full_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --rram_banks 6 --test_type end2end
 
 MobileBERT Codegen End2End (FP32 Gold Model vs. Pytorch):
@@ -102,7 +102,7 @@ MobileBERT Codegen End2End (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx --frontend naive)
     - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type end2end
 
 MobileBERT Codegen End2End (Accel vs. Posit Gold Model):
@@ -113,7 +113,7 @@ MobileBERT Codegen End2End (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert.onnx --frontend naive)
     - python3 run_tests.py --model mobilebert_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --test_type end2end
 
 MobileBERT Tiny Codegen End2End (FP32 Gold Model vs. Pytorch):
@@ -124,7 +124,7 @@ MobileBERT Tiny Codegen End2End (FP32 Gold Model vs. Pytorch):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_tiny.onnx)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_tiny.onnx --frontend naive)
     - python3 run_tests.py --model mobilebert_tiny_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --test_type end2end
 
 MobileBERT Tiny Codegen End2End (Accel vs. Posit Gold Model):
@@ -135,7 +135,7 @@ MobileBERT Tiny Codegen End2End (Accel vs. Posit Gold Model):
       - ./test_outputs
     expire_in: 1 week
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_tiny.onnx)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_tiny.onnx --frontend naive)
     - python3 run_tests.py --model mobilebert_tiny_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --test_type end2end
 
 ###################################
@@ -152,7 +152,7 @@ MobileBERT Full Codegen Accuracy (FP32 Gold Model and Pytorch):
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --rram_banks 6 --samples 128)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --frontend naive --rram_banks 6 --samples 128)
     - python3 run_tests.py --model mobilebert_full_codegen --data_dir test/mobilebert/gen_data/ --simulators fp32,file --tolerance 0.01 --rram_banks 6 --test_type accuracy --accuracy_tolerance 0.90
 
 MobileBERT Full Codegen Accuracy (Accel and Posit Gold Model):
@@ -165,6 +165,6 @@ MobileBERT Full Codegen Accuracy (Accel and Posit Gold Model):
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
   script:
-    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --rram_banks 6 --samples 64)
+    - (cd zagzig && python3 run_zagzig.py --data_dir ../data/glue/sst2 --model_path zagzig/models/onnx/mobilebert_full.onnx --frontend naive --rram_banks 6 --samples 64)
     - python3 run_tests.py --model mobilebert_full_codegen --data_dir test/mobilebert/gen_data/ --simulators accelerator,customposit --tolerance 0.01 --rram_banks 6 --test_type accuracy --accuracy_tolerance 0.89
 # TODO(fpedd): Add MobileBERT Tiny Codegen Accuracy
