@@ -17,7 +17,7 @@ class MemoryModel {
   void loadReferenceOutput(const SimplifiedParams& params, const Files& files,
                            bool doublePrecision);
 
- private:
+ protected:
   void loadInputs(const SimplifiedParams& params, const MemorySource& mem,
                   const std::string& filename, bool useDataFile);
   void loadResiduals(const SimplifiedParams& params, const MemorySource& mem,
@@ -32,6 +32,7 @@ class MemoryModel {
   virtual void writeToReference(int address, double val,
                                 bool doublePrecision) = 0;
 
+ private:
   // special addressing is sometimes needed for DUT memory (ex. replication)
   bool isDut;
 };
