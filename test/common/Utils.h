@@ -31,3 +31,5 @@ float compare_arrays(float *matrixA, std::string matrixA_name, float *matrixB,
                      std::string filename, bool accType);
 
 int validateMapping(SimplifiedParams params);
+
+void validateMemoryMapping(std::vector<Workload>);
