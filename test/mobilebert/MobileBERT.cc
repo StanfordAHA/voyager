@@ -2,31 +2,26 @@
 
 #include <algorithm>
 
-#include "test/mobilebert/mobilebert_tiny2/backprop.h"
-#include "test/mobilebert/mobilebert_tiny2/gradient.h"
-#include "test/mobilebert/mobilebert_tiny2/inference.h"
-#include "test/mobilebert/mobilebert_tiny2/weight.h"
-
-#if __has_include("test/mobilebert/paramsCodeGen.h")
-#include "test/mobilebert/paramsCodeGen.h"
-#else
-const std::map<std::string, SimplifiedParams> paramsCodeGen;
-const std::map<std::string, Files> filesCodeGen;
-const std::vector<std::string> orderCodeGen;
-#endif
-
 MobileBERT::MobileBERT(const std::string modelName, const std::string task,
                        const std::string dataDir)
     : Network(modelName, dataDir), task(task) {
   if (codegen) {
+#if __has_include("test/mobilebert/paramsCodeGen.h")
+#include "test/mobilebert/paramsCodeGen.h"
+#else
+    const std::map<std::string, SimplifiedParams> paramsCodeGen;
+    const std::map<std::string, Files> filesCodeGen;
+    const std::vector<std::string> orderCodeGen;
+#endif
+
     if (paramsCodeGen.empty() || filesCodeGen.empty() || orderCodeGen.empty()) {
       throw std::runtime_error(
           "Codegen files for MobileBERT not found. Did you run the codegen "
           "script?");
     }
-    this->order = ::orderCodeGen;
-    this->params = ::paramsCodeGen;
-    this->files = ::filesCodeGen;
+    this->order = orderCodeGen;
+    this->params = paramsCodeGen;
+    this->files = filesCodeGen;
 
     // Prepend dataDir to all files
     for (auto& it : files) {
@@ -42,6 +37,11 @@ MobileBERT::MobileBERT(const std::string modelName, const std::string task,
 }
 
 void MobileBERT::setTask(std::string task) {
+#include "test/mobilebert/mobilebert_tiny2/backprop.h"
+#include "test/mobilebert/mobilebert_tiny2/gradient.h"
+#include "test/mobilebert/mobilebert_tiny2/inference.h"
+#include "test/mobilebert/mobilebert_tiny2/weight.h"
+
   this->task = task;
   if (task == "inference" || task == "forward_with_weight_splitting") {
     order = inferenceOrder;
@@ -436,8 +436,7 @@ std::vector<Workload> MobileBERT::getForwardWorkloads() {
   int inputOffset;
   int weightOffset;
 
-  auto encoderOrder = std::vector<std::string>(inferenceOrder.begin(),
-                                               inferenceOrder.end() - 1);
+  auto encoderOrder = std::vector<std::string>(order.begin(), order.end() - 1);
 
   for (int layer = 0; layer < 21; layer++) {
     std::vector<Workload> workloads = getWorkloads(encoderOrder, false, layer);
@@ -483,8 +482,7 @@ std::vector<Workload> MobileBERT::getFullForwardPass() {
   int inputOffset;
   int weightOffset;
 
-  auto encoderOrder = std::vector<std::string>(inferenceOrder.begin(),
-                                               inferenceOrder.end() - 1);
+  auto encoderOrder = std::vector<std::string>(order.begin(), order.end() - 1);
 
   for (int encoderIndex = 0; encoderIndex < 21; encoderIndex++) {
     std::vector<Workload> encoderLayerWorkloads =
@@ -524,8 +522,7 @@ std::vector<Workload> MobileBERT::getBackwardWorkloads() {
   workload.loadWeight = false;
   backwardWorkloads.push_back(workload);
 
-  auto encoderOrder =
-      std::vector<std::string>(backpropOrder.begin() + 2, backpropOrder.end());
+  auto encoderOrder = std::vector<std::string>(order.begin() + 2, order.end());
 
   for (int layer = 20; layer >= 0; layer--) {
     std::vector<Workload> workloads = getWorkloads(encoderOrder, false, layer);
