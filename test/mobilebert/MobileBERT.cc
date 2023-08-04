@@ -318,6 +318,9 @@ std::vector<Workload> MobileBERT::getWorkloads(
       workload.files.weight_grad_file.insert(
           0, dataDir + gradientDataDir + encoderPrefix);
 
+      const size_t rramOffsets =
+          WEIGHT_OFFSET + encoderIndex * ENCODER_WEIGHT_SIZE;
+
       MemoryOffsets offsets = memOffsets.at(layer);
       workload.params.INPUT_OFFSET = offsets.INPUT_OFFSET;
       workload.params.WEIGHT_OFFSET = offsets.WEIGHT_OFFSET;
@@ -326,22 +329,33 @@ std::vector<Workload> MobileBERT::getWorkloads(
       workload.params.RESIDUAL_OFFSET = offsets.RESIDUAL_OFFSET;
 
       if (useOffsets) {
-        if (!workload.memoryMap.inputs) {
-          workload.params.INPUT_OFFSET += STACK_SIZE + inputOffset;
+        workload.params.INPUT_OFFSET += ACTIVATION_OFFSET + inputOffset;
+
+        if (workload.memoryMap.weights == RRAM) {
+          workload.params.WEIGHT_OFFSET += rramOffsets;
+        } else {
+          workload.params.WEIGHT_OFFSET += ACTIVATION_OFFSET;
         }
-        if (!workload.memoryMap.weights) {
-          workload.params.WEIGHT_OFFSET += STACK_SIZE + weightOffset;
+
+        workload.params.OUTPUT_OFFSET += ACTIVATION_OFFSET + outputOffset;
+
+        if (workload.memoryMap.residual == SRAM) {
+          workload.params.RESIDUAL_OFFSET += ACTIVATION_OFFSET + residualOffset;
         }
-        if (!workload.memoryMap.outputs) {
-          workload.params.OUTPUT_OFFSET += STACK_SIZE + outputOffset;
-        }
-        if (!workload.memoryMap.residual) {
-          workload.params.RESIDUAL_OFFSET += STACK_SIZE + residualOffset;
-        }
-        workload.params.WEIGHT_RESIDUAL_OFFSET += STACK_SIZE + activationSize;
+        workload.params.WEIGHT_RESIDUAL_OFFSET +=
+            ACTIVATION_OFFSET + activationSize;
 
         if (workload.params.WEIGHT_UPDATE) {
           workload.params.OUTPUT_OFFSET = workload.params.WEIGHT_OFFSET;
+        }
+
+        if (workload.params.BIAS) {
+          if (workload.files.bias_file.find("mobilebert_attention_mask") ==
+              std::string::npos) {
+            workload.params.BIAS_OFFSET += rramOffsets;
+          } else {  // attention_mask is being used as bias
+            workload.params.BIAS_OFFSET += ATTENTION_MASK_OFFSET;
+          }
         }
       }
     }
