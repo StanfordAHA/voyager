@@ -28,6 +28,8 @@ class MobileBERT : public Network {
 
   void setTask(std::string);
 
+  std::vector<Workload> getFullForwardPass();
+
  private:
   std::string task;
 

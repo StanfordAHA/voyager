@@ -476,6 +476,32 @@ std::vector<Workload> MobileBERT::getForwardWorkloads() {
   return inferenceWorkloads;
 }
 
+std::vector<Workload> MobileBERT::getFullForwardPass() {
+  setTask("inference");
+  std::vector<Workload> inferenceWorkloads;
+
+  int inputOffset;
+  int weightOffset;
+
+  auto encoderOrder = std::vector<std::string>(inferenceOrder.begin(),
+                                               inferenceOrder.end() - 1);
+
+  for (int encoderIndex = 0; encoderIndex < 21; encoderIndex++) {
+    std::vector<Workload> encoderLayerWorkloads =
+        getWorkloads(encoderOrder, true, encoderIndex, true);
+
+    inferenceWorkloads.insert(inferenceWorkloads.end(),
+                              encoderLayerWorkloads.begin(),
+                              encoderLayerWorkloads.end());
+  }
+
+  // add final classifier
+  Workload classifier = getWorkloads({"classifier"}, true, 20, true).front();
+  inferenceWorkloads.push_back(classifier);
+
+  return inferenceWorkloads;
+}
+
 std::vector<Workload> MobileBERT::getBackwardWorkloads() {
   setTask("backward");
   std::vector<Workload> backwardWorkloads;
