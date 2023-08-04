@@ -159,6 +159,13 @@ TestRunner: build/TestRunner
 build/TestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/MemoryModel.o build/SimpleMemoryModel.o build/Simulation.o build/networks.a build/toolchain.a
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
+.PHONY: MobileBERTAccuracy
+MobileBERTAccuracy: build/AccuracyTester 
+	./build/AccuracyTester mobilebert models/mobilebert/binary_data/tiny_truncated_sst2/
+
+build/AccuracyTester: build/AccuracyTester.o build/GoldModel.o build/Utils.o build/MemoryModel.o build/SimpleMemoryModel.o build/networks.a
+	$(CC) -o $@ $^ -lstdc++fs
+
 # Unit tests for custom Posit implementation
 .PHONY: PositTest
 PositTest: build/PositTest
@@ -188,6 +195,9 @@ build/Simulation.o: test/common/Simulation.cc test/common/Simulation.h src/Archi
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 build/TestRunner.o: test/common/TestRunner.cc
+	$(CC) $(C17FLAGS) -c -o $@ $<
+
+build/AccuracyTester.o: test/common/AccuracyTester.cc
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 ###########################################################
