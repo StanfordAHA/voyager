@@ -506,7 +506,7 @@ const SimplifiedParams classifier = {
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = true,
+    .ACC_T_OUTPUT = false,
 };
 
 std::map<std::string, SimplifiedParams> inferenceParams{
