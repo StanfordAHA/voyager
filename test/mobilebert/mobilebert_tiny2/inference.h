@@ -509,40 +509,39 @@ const SimplifiedParams classifier = {
     .ACC_T_OUTPUT = false,
 };
 
-std::map<std::string, SimplifiedParams> inferenceParams{
-    {"bottleneck_input_dense", input_bottleneck},
-    {"bottleneck_input_LayerNorm", input_bottleneck_LayerNorm},
-    {"bottleneck_attention_dense", input_bottleneck},
-    {"bottleneck_attention_LayerNorm", input_bottleneck_LayerNorm},
-    {"attention_self_query_layer", query_key_projection},
-    {"attention_self_key_layer", query_key_projection},
-    {"attention_self_value_layer", value_projection},
-    {"attention_self_attention_scores_0", attention_score},
-    {"attention_self_attention_scores_1", attention_score},
-    {"attention_self_attention_scores_2", attention_score},
-    {"attention_self_attention_scores_3", attention_score},
-    {"attention_self_attention_probs_0", softmax},
-    {"attention_self_attention_probs_1", softmax},
-    {"attention_self_attention_probs_2", softmax},
-    {"attention_self_attention_probs_3", softmax},
-    {"attention_self_context_layer_0", context_layer},
-    {"attention_self_context_layer_1", context_layer},
-    {"attention_self_context_layer_2", context_layer},
-    {"attention_self_context_layer_3", context_layer},
-    {"attention_output_dense", attention_output_dense},
-    {"attention_output_LayerNorm", input_bottleneck_LayerNorm},
-    {"ffn_0_intermediate_dense", intermediate_dense},
-    {"ffn_0_output_dense", output_dense},
-    {"ffn_0_output_LayerNorm", input_bottleneck_LayerNorm},
-    {"intermediate_dense", intermediate_dense},
-    {"output_dense", output_dense},
-    {"output_LayerNorm", input_bottleneck_LayerNorm},
-    {"output_bottleneck_dense", output_bottleneck_dense},
-    {"output_bottleneck_LayerNorm", output_bottleneck_LayerNorm},
-    {"classifier", classifier},
-};
+std::map<std::string, SimplifiedParams> inferenceParams;
+inferenceParams["bottleneck_input_dense"] = input_bottleneck;
+inferenceParams["bottleneck_input_LayerNorm"] = input_bottleneck_LayerNorm;
+inferenceParams["bottleneck_attention_dense"] = input_bottleneck;
+inferenceParams["bottleneck_attention_LayerNorm"] = input_bottleneck_LayerNorm;
+inferenceParams["attention_self_query_layer"] = query_key_projection;
+inferenceParams["attention_self_key_layer"] = query_key_projection;
+inferenceParams["attention_self_value_layer"] = value_projection;
+inferenceParams["attention_self_attention_scores_0"] = attention_score;
+inferenceParams["attention_self_attention_scores_1"] = attention_score;
+inferenceParams["attention_self_attention_scores_2"] = attention_score;
+inferenceParams["attention_self_attention_scores_3"] = attention_score;
+inferenceParams["attention_self_attention_probs_0"] = softmax;
+inferenceParams["attention_self_attention_probs_1"] = softmax;
+inferenceParams["attention_self_attention_probs_2"] = softmax;
+inferenceParams["attention_self_attention_probs_3"] = softmax;
+inferenceParams["attention_self_context_layer_0"] = context_layer;
+inferenceParams["attention_self_context_layer_1"] = context_layer;
+inferenceParams["attention_self_context_layer_2"] = context_layer;
+inferenceParams["attention_self_context_layer_3"] = context_layer;
+inferenceParams["attention_output_dense"] = attention_output_dense;
+inferenceParams["attention_output_LayerNorm"] = input_bottleneck_LayerNorm;
+inferenceParams["ffn_0_intermediate_dense"] = intermediate_dense;
+inferenceParams["ffn_0_output_dense"] = output_dense;
+inferenceParams["ffn_0_output_LayerNorm"] = input_bottleneck_LayerNorm;
+inferenceParams["intermediate_dense"] = intermediate_dense;
+inferenceParams["output_dense"] = output_dense;
+inferenceParams["output_LayerNorm"] = input_bottleneck_LayerNorm;
+inferenceParams["output_bottleneck_dense"] = output_bottleneck_dense;
+inferenceParams["output_bottleneck_LayerNorm"] = output_bottleneck_LayerNorm;
+inferenceParams["classifier"] = classifier;
 
-std::map<std::string, MemoryOffsets> inferenceMemOffsets{
+const std::map<std::string, MemoryOffsets> inferenceMemOffsets{
     {"bottleneck_input_dense",
      {
          0,
@@ -786,7 +785,7 @@ std::map<std::string, MemoryOffsets> inferenceMemOffsets{
      }},
 };
 
-std::map<std::string, Files> inferenceTestFiles{
+const std::map<std::string, Files> inferenceTestFiles{
     // Input Bottleneck
     {"bottleneck_input_dense",
      {

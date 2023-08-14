@@ -624,46 +624,65 @@ const SimplifiedParams inter_bottleneck_bias_gradient = {
     .ACC_T_RESIDUAL = true,
 };
 
-std::map<std::string, SimplifiedParams> gradientParams{
-    {"classifier_weight", classifier_weight_gradient},
-    {"classifier_bias", classifier_bias_gradient},
-    {"output_bottleneck_LayerNorm_weight",
-     output_bottleneck_LayerNorm_gradient},
-    {"output_bottleneck_LayerNorm_bias", inter_bottleneck_bias_gradient},
-    {"output_bottleneck_dense_weight", intermediate_dense_weight_gradient},
-    {"output_bottleneck_dense_bias", inter_bottleneck_bias_gradient},
-    {"output_LayerNorm_weight", input_bottleneck_LayerNorm_gradient},
-    {"output_LayerNorm_bias", intra_bottleneck_bias_gradient},
-    {"output_dense_weight", output_dense_weight_gradient},
-    {"output_dense_bias", intra_bottleneck_bias_gradient},
-    {"intermediate_dense_weight", intermediate_dense_weight_gradient},
-    {"intermediate_dense_bias", inter_bottleneck_bias_gradient},
-    {"ffn_0_output_LayerNorm_weight", input_bottleneck_LayerNorm_gradient},
-    {"ffn_0_output_LayerNorm_bias", intra_bottleneck_bias_gradient},
-    {"ffn_0_output_dense_weight", output_dense_weight_gradient},
-    {"ffn_0_output_dense_bias", intra_bottleneck_bias_gradient},
-    {"ffn_0_intermediate_dense_weight", intermediate_dense_weight_gradient},
-    {"ffn_0_intermediate_dense_bias", inter_bottleneck_bias_gradient},
-    {"attention_output_LayerNorm_weight", input_bottleneck_LayerNorm_gradient},
-    {"attention_output_LayerNorm_bias", intra_bottleneck_bias_gradient},
-    {"attention_output_dense_weight", attention_output_dense_weight_gradient},
-    {"attention_output_dense_bias", intra_bottleneck_bias_gradient},
-    {"attention_self_value_weight", value_projection_weight_gradient},
-    {"attention_self_value_bias", intra_bottleneck_bias_with_head_concat},
-    {"attention_self_query_weight", query_key_projection_weight},
-    {"attention_self_query_bias", intra_bottleneck_bias_with_head_concat},
-    {"attention_self_key_weight", query_key_projection_weight},
-    {"attention_self_key_bias", intra_bottleneck_bias_with_head_concat},
-    {"bottleneck_attention_LayerNorm_weight",
-     input_bottleneck_LayerNorm_gradient},
-    {"bottleneck_attention_LayerNorm_bias", intra_bottleneck_bias_gradient},
-    {"bottleneck_attention_dense_weight", input_bottleneck_weight_gradient},
-    {"bottleneck_attention_dense_bias", intra_bottleneck_bias_gradient},
-    {"bottleneck_input_LayerNorm_weight", input_bottleneck_LayerNorm_gradient},
-    {"bottleneck_input_LayerNorm_bias", intra_bottleneck_bias_gradient},
-    {"bottleneck_input_dense_weight", input_bottleneck_weight_gradient},
-    {"bottleneck_input_dense_bias", intra_bottleneck_bias_gradient},
-};
+std::map<std::string, SimplifiedParams> gradientParams;
+
+gradientParams["classifier_weight"] = classifier_weight_gradient;
+gradientParams["classifier_bias"] = classifier_bias_gradient;
+gradientParams["output_bottleneck_LayerNorm_weight"] =
+    output_bottleneck_LayerNorm_gradient;
+gradientParams["output_bottleneck_LayerNorm_bias"] =
+    inter_bottleneck_bias_gradient;
+gradientParams["output_bottleneck_dense_weight"] =
+    intermediate_dense_weight_gradient;
+gradientParams["output_bottleneck_dense_bias"] = inter_bottleneck_bias_gradient;
+gradientParams["output_LayerNorm_weight"] = input_bottleneck_LayerNorm_gradient;
+gradientParams["output_LayerNorm_bias"] = intra_bottleneck_bias_gradient;
+gradientParams["output_dense_weight"] = output_dense_weight_gradient;
+gradientParams["output_dense_bias"] = intra_bottleneck_bias_gradient;
+gradientParams["intermediate_dense_weight"] =
+    intermediate_dense_weight_gradient;
+gradientParams["intermediate_dense_bias"] = inter_bottleneck_bias_gradient;
+gradientParams["ffn_0_output_LayerNorm_weight"] =
+    input_bottleneck_LayerNorm_gradient;
+gradientParams["ffn_0_output_LayerNorm_bias"] = intra_bottleneck_bias_gradient;
+gradientParams["ffn_0_output_dense_weight"] = output_dense_weight_gradient;
+gradientParams["ffn_0_output_dense_bias"] = intra_bottleneck_bias_gradient;
+gradientParams["ffn_0_intermediate_dense_weight"] =
+    intermediate_dense_weight_gradient;
+gradientParams["ffn_0_intermediate_dense_bias"] =
+    inter_bottleneck_bias_gradient;
+gradientParams["attention_output_LayerNorm_weight"] =
+    input_bottleneck_LayerNorm_gradient;
+gradientParams["attention_output_LayerNorm_bias"] =
+    intra_bottleneck_bias_gradient;
+gradientParams["attention_output_dense_weight"] =
+    attention_output_dense_weight_gradient;
+gradientParams["attention_output_dense_bias"] = intra_bottleneck_bias_gradient;
+gradientParams["attention_self_value_weight"] =
+    value_projection_weight_gradient;
+gradientParams["attention_self_value_bias"] =
+    intra_bottleneck_bias_with_head_concat;
+gradientParams["attention_self_query_weight"] = query_key_projection_weight;
+gradientParams["attention_self_query_bias"] =
+    intra_bottleneck_bias_with_head_concat;
+gradientParams["attention_self_key_weight"] = query_key_projection_weight;
+gradientParams["attention_self_key_bias"] =
+    intra_bottleneck_bias_with_head_concat;
+gradientParams["bottleneck_attention_LayerNorm_weight"] =
+    input_bottleneck_LayerNorm_gradient;
+gradientParams["bottleneck_attention_LayerNorm_bias"] =
+    intra_bottleneck_bias_gradient;
+gradientParams["bottleneck_attention_dense_weight"] =
+    input_bottleneck_weight_gradient;
+gradientParams["bottleneck_attention_dense_bias"] =
+    intra_bottleneck_bias_gradient;
+gradientParams["bottleneck_input_LayerNorm_weight"] =
+    input_bottleneck_LayerNorm_gradient;
+gradientParams["bottleneck_input_LayerNorm_bias"] =
+    intra_bottleneck_bias_gradient;
+gradientParams["bottleneck_input_dense_weight"] =
+    input_bottleneck_weight_gradient;
+gradientParams["bottleneck_input_dense_bias"] = intra_bottleneck_bias_gradient;
 
 std::map<std::string, MemoryOffsets> gradientMemOffsets{
     {"classifier_weight",

@@ -82,6 +82,7 @@ std::vector<Workload> MobileBERT::getWorkloads(
     const std::vector<std::string>& layers, bool useOffsets,
     int encoderIndex = 0, bool useCustomDataDir = false) const {
   std::vector<Workload> workloads;
+  workloads.reserve(10000);
 
   for (const std::string& layer : layers) {
     // Setup workload

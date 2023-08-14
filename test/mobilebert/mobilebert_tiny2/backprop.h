@@ -6,7 +6,7 @@
 
 #include "test/common/VerificationTypes.h"
 
-std::vector<std::string> backpropOrder{
+const std::vector<std::string> backpropOrder{
     "classifier",
     "output_bottleneck_LayerNorm",
     "output_bottleneck_dense",
@@ -660,49 +660,53 @@ const SimplifiedParams input_bottleneck_backward = {
     .WEIGHT = true,
 };
 
-std::map<std::string, SimplifiedParams> backpropParams{
-    {"classifier", cross_entropy_gradient},
-    {"output_bottleneck_LayerNorm", classifier_backward},
-    {"output_bottleneck_dense", output_bottleneck_LayerNorm_backward},
-    {"output_LayerNorm", output_bottleneck_dense_backward},
-    {"output_dense", bottleneck_LayerNorm_backward},
-    {"intermediate_dense", output_dense_backward},
-    {"ffn_0_output_LayerNorm", intermediate_dense_backward},
-    {"ffn_0_output_dense", bottleneck_LayerNorm_backward},
-    {"ffn_0_intermediate_dense", output_dense_backward},
-    {"attention_output_LayerNorm", intermediate_dense_backward},
-    {"attention_output_dense", bottleneck_LayerNorm_backward},
-    {"bottleneck_input_dense", bottleneck_LayerNorm_backward},
-    {"attention_self_context_layer", attention_output_dense_backward},
-    {"attention_self_value_layer_0", context_to_value},
-    {"attention_self_value_layer_1", context_to_value},
-    {"attention_self_value_layer_2", context_to_value},
-    {"attention_self_value_layer_3", context_to_value},
-    {"attention_self_attention_probs_0", context_to_attention_probs},
-    {"attention_self_attention_probs_1", context_to_attention_probs},
-    {"attention_self_attention_probs_2", context_to_attention_probs},
-    {"attention_self_attention_probs_3", context_to_attention_probs},
-    {"attention_self_attention_scores_0", softmax_gradient},
-    {"attention_self_attention_scores_1", softmax_gradient},
-    {"attention_self_attention_scores_2", softmax_gradient},
-    {"attention_self_attention_scores_3", softmax_gradient},
-    {"attention_self_query_layer_0", attention_score_to_query},
-    {"attention_self_query_layer_1", attention_score_to_query},
-    {"attention_self_query_layer_2", attention_score_to_query},
-    {"attention_self_query_layer_3", attention_score_to_query},
-    {"attention_self_key_layer_0", attention_score_to_key},
-    {"attention_self_key_layer_1", attention_score_to_key},
-    {"attention_self_key_layer_2", attention_score_to_key},
-    {"attention_self_key_layer_3", attention_score_to_key},
-    {"query_to_bottleneck_attention_LayerNorm", query_projection_backward},
-    {"key_to_bottleneck_attention_LayerNorm", key_projection_backward},
-    {"bottleneck_attention_dense", bottleneck_LayerNorm_backward},
-    {"shared_attention_input_to_hidden_states", input_bottleneck_backward},
-    {"bottlenecked_hidden_states", input_bottleneck_backward},
-    {"value_to_hidden_states", value_projection_backward},
-};
+std::map<std::string, SimplifiedParams> backpropParams;
+backpropParams["classifier"] = cross_entropy_gradient;
+backpropParams["output_bottleneck_LayerNorm"] = classifier_backward;
+backpropParams["output_bottleneck_dense"] =
+    output_bottleneck_LayerNorm_backward;
+backpropParams["output_LayerNorm"] = output_bottleneck_dense_backward;
+backpropParams["output_dense"] = bottleneck_LayerNorm_backward;
+backpropParams["intermediate_dense"] = output_dense_backward;
+backpropParams["ffn_0_output_LayerNorm"] = intermediate_dense_backward;
+backpropParams["ffn_0_output_dense"] = bottleneck_LayerNorm_backward;
+backpropParams["ffn_0_intermediate_dense"] = output_dense_backward;
+backpropParams["attention_output_LayerNorm"] = intermediate_dense_backward;
+backpropParams["attention_output_dense"] = bottleneck_LayerNorm_backward;
+backpropParams["bottleneck_input_dense"] = bottleneck_LayerNorm_backward;
+backpropParams["attention_self_context_layer"] =
+    attention_output_dense_backward;
+backpropParams["attention_self_value_layer_0"] = context_to_value;
+backpropParams["attention_self_value_layer_1"] = context_to_value;
+backpropParams["attention_self_value_layer_2"] = context_to_value;
+backpropParams["attention_self_value_layer_3"] = context_to_value;
+backpropParams["attention_self_attention_probs_0"] = context_to_attention_probs;
+backpropParams["attention_self_attention_probs_1"] = context_to_attention_probs;
+backpropParams["attention_self_attention_probs_2"] = context_to_attention_probs;
+backpropParams["attention_self_attention_probs_3"] = context_to_attention_probs;
+backpropParams["attention_self_attention_scores_0"] = softmax_gradient;
+backpropParams["attention_self_attention_scores_1"] = softmax_gradient;
+backpropParams["attention_self_attention_scores_2"] = softmax_gradient;
+backpropParams["attention_self_attention_scores_3"] = softmax_gradient;
+backpropParams["attention_self_query_layer_0"] = attention_score_to_query;
+backpropParams["attention_self_query_layer_1"] = attention_score_to_query;
+backpropParams["attention_self_query_layer_2"] = attention_score_to_query;
+backpropParams["attention_self_query_layer_3"] = attention_score_to_query;
+backpropParams["attention_self_key_layer_0"] = attention_score_to_key;
+backpropParams["attention_self_key_layer_1"] = attention_score_to_key;
+backpropParams["attention_self_key_layer_2"] = attention_score_to_key;
+backpropParams["attention_self_key_layer_3"] = attention_score_to_key;
+backpropParams["query_to_bottleneck_attention_LayerNorm"] =
+    query_projection_backward;
+backpropParams["key_to_bottleneck_attention_LayerNorm"] =
+    key_projection_backward;
+backpropParams["bottleneck_attention_dense"] = bottleneck_LayerNorm_backward;
+backpropParams["shared_attention_input_to_hidden_states"] =
+    input_bottleneck_backward;
+backpropParams["bottlenecked_hidden_states"] = input_bottleneck_backward;
+backpropParams["value_to_hidden_states"] = value_projection_backward;
 
-std::map<std::string, MemoryOffsets> backpropMemOffsets{
+const std::map<std::string, MemoryOffsets> backpropMemOffsets{
     {"classifier",
      {
          5 * INTERMEDIATE_SIZE + 18 * INTRA_BOTTLENECK_SIZE,
@@ -993,7 +997,7 @@ std::map<std::string, MemoryOffsets> backpropMemOffsets{
      }},
 };
 
-std::map<std::string, Files> backpropTestFiles{
+const std::map<std::string, Files> backpropTestFiles{
     {"classifier",
      {
          "classifier",
