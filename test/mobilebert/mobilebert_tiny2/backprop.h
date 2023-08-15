@@ -536,7 +536,7 @@ const SimplifiedParams query_projection_backward = {
     .learningRate = 0.0,
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
-    .ACC_T_OUTPUT = true,
+    .ACC_T_OUTPUT = false,
 };
 
 // (4 x 128 x 32) x (128 x 128)
@@ -589,7 +589,7 @@ const SimplifiedParams key_projection_backward = {
     .ACC_T_INPUT = false,
     .ACC_T_WEIGHT = false,
     .ACC_T_OUTPUT = false,
-    .ACC_T_RESIDUAL = true,
+    .ACC_T_RESIDUAL = false,
 };
 
 // (128 x 128) x (128 x 512)
@@ -808,54 +808,54 @@ const std::map<std::string, MemoryOffsets> backpropMemOffsets{
      {
          INTERMEDIATE_SIZE + 7 * INTRA_BOTTLENECK_SIZE,
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
-         INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+         INTERMEDIATE_SIZE + 11 * INTRA_BOTTLENECK_SIZE,
      }},
     {"attention_self_value_layer_1",
      {
          INTERMEDIATE_SIZE + 8 * INTRA_BOTTLENECK_SIZE,
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
+         INTERMEDIATE_SIZE + 11 * INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
      }},
     {"attention_self_value_layer_2",
      {
          INTERMEDIATE_SIZE + 9 * INTRA_BOTTLENECK_SIZE,
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
              2 * ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE + 2 * ATTENTION_HEAD_SIZE,
+         INTERMEDIATE_SIZE + 11 * INTRA_BOTTLENECK_SIZE +
+             2 * ATTENTION_HEAD_SIZE,
      }},
     {"attention_self_value_layer_3",
      {
          INTERMEDIATE_SIZE + 10 * INTRA_BOTTLENECK_SIZE,
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
              3 * ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE + 3 * ATTENTION_HEAD_SIZE,
+         INTERMEDIATE_SIZE + 11 * INTRA_BOTTLENECK_SIZE +
+             3 * ATTENTION_HEAD_SIZE,
      }},
     {"attention_self_attention_probs_0",
      {
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
-         INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
+         INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
          INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
      }},
     {"attention_self_attention_probs_1",
      {
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
+         INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
          INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE,
      }},
     {"attention_self_attention_probs_2",
      {
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
              2 * ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
-             2 * ATTENTION_HEAD_SIZE,
+         INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE + 2 * ATTENTION_HEAD_SIZE,
          INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE,
      }},
     {"attention_self_attention_probs_3",
      {
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
              3 * ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
-             3 * ATTENTION_HEAD_SIZE,
+         INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE + 3 * ATTENTION_HEAD_SIZE,
          INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE,
      }},
 
@@ -896,20 +896,20 @@ const std::map<std::string, MemoryOffsets> backpropMemOffsets{
      {
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
          INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE,
-         INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE,
+         INTERMEDIATE_SIZE + 7 * INTRA_BOTTLENECK_SIZE,
      }},
     {"attention_self_query_layer_1",
      {
          INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
          INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
+         INTERMEDIATE_SIZE + 7 * INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
      }},
     {"attention_self_query_layer_2",
      {
          INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE,
          INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE +
              2 * ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE +
+         INTERMEDIATE_SIZE + 7 * INTRA_BOTTLENECK_SIZE +
              2 * ATTENTION_HEAD_SIZE,
      }},
     {"attention_self_query_layer_3",
@@ -917,47 +917,47 @@ const std::map<std::string, MemoryOffsets> backpropMemOffsets{
          INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE,
          INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE +
              3 * ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE +
+         INTERMEDIATE_SIZE + 7 * INTRA_BOTTLENECK_SIZE +
              3 * ATTENTION_HEAD_SIZE,
      }},
     {"attention_self_key_layer_0",
      {
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
-         INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE,
-         INTERMEDIATE_SIZE + 7 * INTRA_BOTTLENECK_SIZE,
+         INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE,
+         INTERMEDIATE_SIZE + 8 * INTRA_BOTTLENECK_SIZE,
      }},
     {"attention_self_key_layer_1",
      {
          INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
-         INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + 7 * INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
+         INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
+         INTERMEDIATE_SIZE + 8 * INTRA_BOTTLENECK_SIZE + ATTENTION_HEAD_SIZE,
      }},
     {"attention_self_key_layer_2",
      {
          INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE,
-         INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE +
+         INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE +
              2 * ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + 7 * INTRA_BOTTLENECK_SIZE +
+         INTERMEDIATE_SIZE + 8 * INTRA_BOTTLENECK_SIZE +
              2 * ATTENTION_HEAD_SIZE,
      }},
     {"attention_self_key_layer_3",
      {
          INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE,
-         INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE +
+         INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE +
              3 * ATTENTION_HEAD_SIZE,
-         INTERMEDIATE_SIZE + 7 * INTRA_BOTTLENECK_SIZE +
+         INTERMEDIATE_SIZE + 8 * INTRA_BOTTLENECK_SIZE +
              3 * ATTENTION_HEAD_SIZE,
      }},
 
     {"query_to_bottleneck_attention_LayerNorm",
      {
-         INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE,
+         INTERMEDIATE_SIZE + 7 * INTRA_BOTTLENECK_SIZE,
          2 * INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_BIAS_SIZE,
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
      }},
     {"key_to_bottleneck_attention_LayerNorm",
      {
-         INTERMEDIATE_SIZE + 7 * INTRA_BOTTLENECK_SIZE,
+         INTERMEDIATE_SIZE + 8 * INTRA_BOTTLENECK_SIZE,
          2 * INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
              7 * INTRA_BOTTLENECK_BIAS_SIZE,
          INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
@@ -980,7 +980,7 @@ const std::map<std::string, MemoryOffsets> backpropMemOffsets{
      }},
     {"value_to_hidden_states",
      {
-         INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+         INTERMEDIATE_SIZE + 11 * INTRA_BOTTLENECK_SIZE,
          2 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
              8 * INTRA_BOTTLENECK_BIAS_SIZE,
          0,
