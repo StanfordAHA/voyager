@@ -19,6 +19,7 @@ void getMobileBERTParams(std::string layerName, std::string taskName,
     }
   } else if (taskName == "backward") {
     params = backpropParams.at(layerName);
+    memoryMap = {SRAM, params.WEIGHT ? RRAM : SRAM, RRAM, SRAM, SRAM};
   } else {
     assert(false);
   }

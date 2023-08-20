@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -44,6 +45,9 @@
 #define CHECKPOINT (MASK + MASK_SIZE)
 #define CHECKPOINT_SIZE (128 * 512 * 4)  // 4 checkpoints
 #define ENCODER_SCRATCH (CHECKPOINT + CHECKPOINT_SIZE)
+#define ENCODER_SCRATCH_SIZE (128 * 512 + 128 * 128 * 7)
+#define BACKPROP_SCRATCH (ENCODER_SCRATCH + ENCODER_SCRATCH_SIZE)
+#define BACKPROP_SCRATCH_SIZE (128 * 512 + 128 * 128 * 7)
 
 void getMobileBERTParams(std::string layerName, std::string taskName,
                          SimplifiedParams &params, MemoryMap &memoryMap);
@@ -74,23 +78,31 @@ void runWorkload(SimplifiedParams params, MemoryMap memoryMap) {
        memory->sram + params.WEIGHT_RESIDUAL_OFFSET);
 }
 
-void run_layer(const std::string &layerName, int inputOffset, int weightOffset,
-               int outputOffset, int biasOffset, int residualOffset) {
+void run_layer(const std::string &layerName, const std::string &task,
+               int inputOffset, int weightOffset, int outputOffset,
+               int biasOffset, int residualOffset) {
   SimplifiedParams params;
   MemoryMap memoryMap;
-  getMobileBERTParams(layerName, "inference", params, memoryMap);
+  getMobileBERTParams(layerName, task, params, memoryMap);
   adjustMemoryOffsets(params, inputOffset, weightOffset, outputOffset,
                       biasOffset, residualOffset);
 
   runWorkload(params, memoryMap);
-  // std::cout << layerName << std::endl;
-  // for (int i = 0; i < 10; i++) {
-  //   std::cout << memory->sram[outputOffset + i] << std::endl;
-  // }
-  // std::cout << "----------------" << std::endl;
 }
 
-void encoder_forward_pass(int encoderLayer) {
+// define enum with 7 values
+enum ForwardPassVariant {
+  COMPLETE_FORWARD_PASS,
+  FORWARD_PASS_FFN_1_INTERMEDIATE,  // from start to FFN 1 Intermediate
+  FORWARD_PASS_FFN_0_INTERMEDIATE,  // only FFN 0 Intermediate
+  FORWARD_PASS_MHA_0,               // from start to attention_probs 0
+  FORWARD_PASS_MHA_1,               // only scores 1, probs 1
+  FORWARD_PASS_MHA_2,               // only scores 2, probs 2
+  FORWARD_PASS_MHA_3,               // only scores 3, probs 3
+};
+
+void encoder_forward_pass(int encoderLayer,
+                          ForwardPassVariant variant = COMPLETE_FORWARD_PASS) {
   int activationBase = ENCODER_SCRATCH;
   int weightBase = encoderLayer * ENCODER_WEIGHT_SIZE;
 
@@ -111,132 +123,170 @@ void encoder_forward_pass(int encoderLayer) {
     encoderLayerInput = activationBase;
   }
 
-  // bottleneck_input_dense
-  run_layer("bottleneck_attention_dense", encoderLayerInput,
-            weightBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_BIAS_SIZE,
-            activationBase + INTERMEDIATE_SIZE,
-            weightBase + 2 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_BIAS_SIZE,
-            0);
-  // bottleneck_input_LayerNorm
-  run_layer(
-      "bottleneck_attention_LayerNorm", activationBase + INTERMEDIATE_SIZE,
-      weightBase + 2 * INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_BIAS_SIZE,
-      activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
-      weightBase + 2 * INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_BIAS_SIZE, 0);
+  if (variant == COMPLETE_FORWARD_PASS ||
+      variant == FORWARD_PASS_FFN_1_INTERMEDIATE ||
+      variant == FORWARD_PASS_MHA_0) {
+    // bottleneck_input_dense
+    run_layer(
+        "bottleneck_attention_dense", "inference", encoderLayerInput,
+        weightBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_BIAS_SIZE,
+        activationBase + INTERMEDIATE_SIZE,
+        weightBase + 2 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_BIAS_SIZE, 0);
+    // bottleneck_input_LayerNorm
+    run_layer(
+        "bottleneck_attention_LayerNorm", "inference",
+        activationBase + INTERMEDIATE_SIZE,
+        weightBase + 2 * INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_BIAS_SIZE,
+        activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+        weightBase + 2 * INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_BIAS_SIZE, 0);
 
-  // query projection
-  run_layer("attention_self_query_layer",
-            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
-            weightBase + 2 * INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_BIAS_SIZE,
-            activationBase + INTERMEDIATE_SIZE,
-            weightBase + 2 * INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
-                6 * INTRA_BOTTLENECK_BIAS_SIZE,
-            0);
-  // key projection
-  run_layer("attention_self_key_layer",
-            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
-            weightBase + 2 * INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
-                7 * INTRA_BOTTLENECK_BIAS_SIZE,
-            activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
-            weightBase + 2 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
-                7 * INTRA_BOTTLENECK_BIAS_SIZE,
-            0);
-  // value projection
-  run_layer("attention_self_value_layer", encoderLayerInput,
-            weightBase + 2 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
-                8 * INTRA_BOTTLENECK_BIAS_SIZE,
-            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
-            weightBase + 3 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
-                8 * INTRA_BOTTLENECK_BIAS_SIZE,
-            0);
-
-  for (int head = 0; head < NUM_HEADS; head++) {
-    // scores
-    run_layer("attention_self_attention_scores_0",
-              activationBase + INTERMEDIATE_SIZE + head * ATTENTION_HEAD_SIZE,
-              activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
-                  head * ATTENTION_HEAD_SIZE,
-              activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
-              MASK, 0);
-    // probs
-    run_layer("attention_self_attention_probs_0",
-              activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE, 0,
-              activationBase + INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE, 0,
+    // query projection
+    run_layer(
+        "attention_self_query_layer", "inference",
+        activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+        weightBase + 2 * INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_BIAS_SIZE,
+        activationBase + INTERMEDIATE_SIZE,
+        weightBase + 2 * INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
+            6 * INTRA_BOTTLENECK_BIAS_SIZE,
+        0);
+    // key projection
+    run_layer("attention_self_key_layer", "inference",
+              activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+              weightBase + 2 * INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
+                  7 * INTRA_BOTTLENECK_BIAS_SIZE,
+              activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
+              weightBase + 2 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+                  7 * INTRA_BOTTLENECK_BIAS_SIZE,
               0);
-    // context
-    run_layer("attention_self_context_layer_0",
-              activationBase + INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE,
-              activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
-                  head * ATTENTION_HEAD_SIZE,
-              activationBase + INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE +
-                  head * ATTENTION_HEAD_SIZE,
-              0, 0);
+    // value projection
+    run_layer("attention_self_value_layer", "inference", encoderLayerInput,
+              weightBase + 2 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+                  8 * INTRA_BOTTLENECK_BIAS_SIZE,
+              activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+              weightBase + 3 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+                  8 * INTRA_BOTTLENECK_BIAS_SIZE,
+              0);
   }
 
-  // bottleneck_attention_dense
-  run_layer("bottleneck_input_dense", encoderLayerInput, weightBase,
-            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
-            weightBase + INTERMEDIATE_SIZE, 0);
-  // bottleneck_attention_LayerNorm
-  run_layer("bottleneck_input_LayerNorm",
-            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
-            weightBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_BIAS_SIZE,
-            activationBase + INTERMEDIATE_SIZE,
-            weightBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_BIAS_SIZE, 0);
+  int startingHead = 0;
+  if (variant == FORWARD_PASS_MHA_1) {
+    startingHead = 1;
+  } else if (variant == FORWARD_PASS_MHA_2) {
+    startingHead = 2;
+  } else if (variant == FORWARD_PASS_MHA_3) {
+    startingHead = 3;
+  }
 
-  // attention_output_dense
-  run_layer("attention_output_dense",
-            activationBase + INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE,
-            weightBase + 3 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
-                9 * INTRA_BOTTLENECK_BIAS_SIZE,
-            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
-            weightBase + 3 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE +
-                9 * INTRA_BOTTLENECK_BIAS_SIZE,
-            activationBase + INTERMEDIATE_SIZE);
-  // attention_output_LayerNorm
-  run_layer("attention_output_LayerNorm",
-            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
-            weightBase + 3 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE +
-                10 * INTRA_BOTTLENECK_BIAS_SIZE,
-            activationBase + INTERMEDIATE_SIZE,
-            weightBase + 3 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE +
-                11 * INTRA_BOTTLENECK_BIAS_SIZE,
-            0);
+  if (variant == COMPLETE_FORWARD_PASS ||
+      variant == FORWARD_PASS_FFN_1_INTERMEDIATE ||
+      variant == FORWARD_PASS_MHA_0 || variant == FORWARD_PASS_MHA_1 ||
+      variant == FORWARD_PASS_MHA_2 || variant == FORWARD_PASS_MHA_3) {
+    for (int head = startingHead; head < NUM_HEADS; head++) {
+      // scores
+      run_layer("attention_self_attention_scores_0", "inference",
+                activationBase + INTERMEDIATE_SIZE + head * ATTENTION_HEAD_SIZE,
+                activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+                    head * ATTENTION_HEAD_SIZE,
+                activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
+                MASK, 0);
+      // probs
+      run_layer(
+          "attention_self_attention_probs_0", "inference",
+          activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE, 0,
+          activationBase + INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE, 0, 0);
+
+      if (variant == FORWARD_PASS_MHA_0 || variant == FORWARD_PASS_MHA_1 ||
+          variant == FORWARD_PASS_MHA_2 || variant == FORWARD_PASS_MHA_3) {
+        return;
+      }
+
+      // context
+      run_layer("attention_self_context_layer_0", "inference",
+                activationBase + INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE,
+                activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
+                    head * ATTENTION_HEAD_SIZE,
+                activationBase + INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE +
+                    head * ATTENTION_HEAD_SIZE,
+                0, 0);
+    }
+
+    // bottleneck_attention_dense
+    run_layer("bottleneck_input_dense", "inference", encoderLayerInput,
+              weightBase,
+              activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+              weightBase + INTERMEDIATE_SIZE, 0);
+    // bottleneck_attention_LayerNorm
+    run_layer("bottleneck_input_LayerNorm", "inference",
+              activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+              weightBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_BIAS_SIZE,
+              activationBase + INTERMEDIATE_SIZE,
+              weightBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_BIAS_SIZE,
+              0);
+
+    // attention_output_dense
+    run_layer("attention_output_dense", "inference",
+              activationBase + INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE,
+              weightBase + 3 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+                  9 * INTRA_BOTTLENECK_BIAS_SIZE,
+              activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+              weightBase + 3 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE +
+                  9 * INTRA_BOTTLENECK_BIAS_SIZE,
+              activationBase + INTERMEDIATE_SIZE);
+    // attention_output_LayerNorm
+    run_layer("attention_output_LayerNorm", "inference",
+              activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+              weightBase + 3 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE +
+                  10 * INTRA_BOTTLENECK_BIAS_SIZE,
+              activationBase + INTERMEDIATE_SIZE,
+              weightBase + 3 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE +
+                  11 * INTRA_BOTTLENECK_BIAS_SIZE,
+              0);
+  }
 
   for (int ffn = 0; ffn < NUM_FFN; ffn++) {
     // ffn_intermediate_dense
-    run_layer("ffn_0_intermediate_dense", activationBase + INTERMEDIATE_SIZE,
+    run_layer("ffn_0_intermediate_dense", "inference",
+              activationBase + INTERMEDIATE_SIZE + ffn * INTRA_BOTTLENECK_SIZE,
               weightBase + 3 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE +
                   12 * INTRA_BOTTLENECK_BIAS_SIZE +
                   ffn * (2 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
                          3 * INTRA_BOTTLENECK_BIAS_SIZE),
-              activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
+              activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
               weightBase + 4 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE +
                   12 * INTRA_BOTTLENECK_BIAS_SIZE +
                   ffn * (2 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
                          3 * INTRA_BOTTLENECK_BIAS_SIZE),
               0);
+
+    if (ffn == 0 && variant == FORWARD_PASS_FFN_0_INTERMEDIATE) {
+      return;
+    }
+    if (ffn == 1 && variant == FORWARD_PASS_FFN_1_INTERMEDIATE) {
+      return;
+    }
     // ffn_output_dense
-    run_layer("ffn_0_output_dense",
-              activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
+    run_layer("ffn_0_output_dense", "inference",
+              activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
               weightBase + 4 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
                   3 * INTRA_BOTTLENECK_SIZE + 12 * INTRA_BOTTLENECK_BIAS_SIZE +
                   ffn * (2 * INTERMEDIATE_SIZE + +INTERMEDIATE_BIAS_SIZE +
                          3 * INTRA_BOTTLENECK_BIAS_SIZE),
-              activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+              activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
               weightBase + 5 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
                   3 * INTRA_BOTTLENECK_SIZE + 12 * INTRA_BOTTLENECK_BIAS_SIZE +
                   ffn * (2 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
                          3 * INTRA_BOTTLENECK_BIAS_SIZE),
-              activationBase + INTERMEDIATE_SIZE);
+              activationBase + INTERMEDIATE_SIZE + ffn * INTRA_BOTTLENECK_SIZE);
+
     // ffn_output_LayerNorm
-    run_layer("ffn_0_output_LayerNorm",
-              activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+    run_layer("ffn_0_output_LayerNorm", "inference",
+              activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
               weightBase + 5 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
                   3 * INTRA_BOTTLENECK_SIZE + 13 * INTRA_BOTTLENECK_BIAS_SIZE +
                   ffn * (2 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
                          3 * INTRA_BOTTLENECK_BIAS_SIZE),
-              activationBase + INTERMEDIATE_SIZE,
+              activationBase + INTERMEDIATE_SIZE +
+                  (NUM_FFN - 1 - ffn) * INTRA_BOTTLENECK_SIZE,
               weightBase + 5 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
                   3 * INTRA_BOTTLENECK_SIZE + 14 * INTRA_BOTTLENECK_BIAS_SIZE +
                   ffn * (2 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
@@ -245,17 +295,18 @@ void encoder_forward_pass(int encoderLayer) {
   }
 
   // output_bottleneck_dense
-  run_layer("output_bottleneck_dense", activationBase + INTERMEDIATE_SIZE,
+  run_layer("output_bottleneck_dense", "inference",
+            activationBase + INTERMEDIATE_SIZE,
             weightBase + 7 * INTERMEDIATE_SIZE + 2 * INTERMEDIATE_BIAS_SIZE +
                 3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE,
-            activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
+            activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
             weightBase + 8 * INTERMEDIATE_SIZE + 2 * INTERMEDIATE_BIAS_SIZE +
                 3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE,
             encoderLayerInput);
 
   // output_bottleneck_LayerNorm
-  run_layer("output_bottleneck_LayerNorm",
-            activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
+  run_layer("output_bottleneck_LayerNorm", "inference",
+            activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
             weightBase + 8 * INTERMEDIATE_SIZE + 3 * INTERMEDIATE_BIAS_SIZE +
                 3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE,
             encoderLayerOutput,
@@ -275,7 +326,7 @@ void full_forward_pass() {
   forward_pass(0, NUM_ENCODER_LAYERS);
 
   // classifier
-  run_layer("classifier", ENCODER_SCRATCH,
+  run_layer("classifier", "inference", ENCODER_SCRATCH,
             (NUM_ENCODER_LAYERS - 1) * ENCODER_WEIGHT_SIZE +
                 8 * INTERMEDIATE_SIZE + 5 * INTERMEDIATE_BIAS_SIZE +
                 3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE,
@@ -292,14 +343,193 @@ void full_forward_pass() {
   }
 }
 
-void encoder_backward_pass(int encoderLayer) {
-  for (int head = 0; head < NUM_HEADS; head++) {
-    // multi-headed attention
+void forward_pass_from_checkpoint(int endEncoderLayer,
+                                  ForwardPassVariant variant) {
+  // the other variants run from a partial scratch space, so no need to start at
+  // the checkpoint
+  if (variant == FORWARD_PASS_FFN_1_INTERMEDIATE ||
+      variant == FORWARD_PASS_MHA_0) {
+    // start from checkpoint and go to endEncoderLayer
+    // checkpointed layer is 5, 10, 15, 20
+    int closestCheckpoint = endEncoderLayer / 5 * 5;
+    for (int encoderLayer = closestCheckpoint; encoderLayer < endEncoderLayer;
+         encoderLayer++) {
+      encoder_forward_pass(encoderLayer);
+    }
   }
+  encoder_forward_pass(endEncoderLayer, variant);
+}
+
+void encoder_backward_pass(int encoderLayer) {
+  int activationBase = ENCODER_SCRATCH;
+  int activationGradientBase = BACKPROP_SCRATCH;
+  int weightBase = encoderLayer * ENCODER_WEIGHT_SIZE;
+
+  // These namings are weird, they actually refer to the layer before
+
+  run_layer(
+      "output_bottleneck_dense", "backward",
+      activationGradientBase + (encoderLayer == 20 ? INTERMEDIATE_SIZE : 0),
+      weightBase + 8 * INTERMEDIATE_SIZE + 3 * INTERMEDIATE_BIAS_SIZE +
+          3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE,
+      activationGradientBase, 0, 0);
+
+  run_layer("output_LayerNorm", "backward", activationGradientBase,
+            weightBase + 7 * INTERMEDIATE_SIZE + 2 * INTERMEDIATE_BIAS_SIZE +
+                3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE,
+            activationGradientBase + INTERMEDIATE_SIZE, 0, 0);
+
+  for (int ffn = NUM_FFN - 1; ffn >= 0; ffn--) {
+    run_layer(
+        "output_dense", "backward", activationGradientBase + INTERMEDIATE_SIZE,
+        weightBase + 5 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
+            3 * INTRA_BOTTLENECK_SIZE + 13 * INTRA_BOTTLENECK_BIAS_SIZE +
+            ffn * (2 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
+                   3 * INTRA_BOTTLENECK_BIAS_SIZE),
+        activationGradientBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE, 0,
+        0);
+
+    forward_pass_from_checkpoint(
+        encoderLayer, ffn == NUM_FFN - 1 ? FORWARD_PASS_FFN_1_INTERMEDIATE
+                                         : FORWARD_PASS_FFN_0_INTERMEDIATE);
+
+    run_layer(
+        "intermediate_dense", "backward",
+        activationGradientBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+        weightBase + 4 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
+            3 * INTRA_BOTTLENECK_SIZE + 12 * INTRA_BOTTLENECK_BIAS_SIZE +
+            ffn * (2 * INTERMEDIATE_SIZE + +INTERMEDIATE_BIAS_SIZE +
+                   3 * INTRA_BOTTLENECK_BIAS_SIZE),
+        activationGradientBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
+        0, activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE);
+
+    run_layer(
+        "ffn_0_output_LayerNorm", "backward",
+        activationGradientBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
+        weightBase + 3 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE +
+            12 * INTRA_BOTTLENECK_BIAS_SIZE +
+            ffn * (2 * INTERMEDIATE_SIZE + INTERMEDIATE_BIAS_SIZE +
+                   3 * INTRA_BOTTLENECK_BIAS_SIZE),
+        activationGradientBase + INTERMEDIATE_SIZE, 0,
+        activationGradientBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE);
+  }
+
+  run_layer("attention_output_dense", "backward",
+            activationGradientBase + INTERMEDIATE_SIZE,
+            weightBase + 3 * INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE +
+                10 * INTRA_BOTTLENECK_BIAS_SIZE,
+            activationGradientBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+            0, 0);
+
+  run_layer(
+      "attention_self_context_layer", "backward",
+      activationGradientBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+      weightBase + 3 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+          9 * INTRA_BOTTLENECK_BIAS_SIZE,
+      activationGradientBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE, 0,
+      0);
+
+  run_layer("bottleneck_input_dense", "backward",
+            activationGradientBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+            weightBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_BIAS_SIZE,
+            activationGradientBase + INTERMEDIATE_SIZE, 0, 0);
+
+  for (int head = 0; head < NUM_HEADS; head++) {
+    forward_pass_from_checkpoint(encoderLayer, head == 0   ? FORWARD_PASS_MHA_0
+                                               : head == 1 ? FORWARD_PASS_MHA_1
+                                               : head == 2
+                                                   ? FORWARD_PASS_MHA_2
+                                                   : FORWARD_PASS_MHA_3);
+    run_layer("attention_self_value_layer_0", "backward",
+              activationBase + INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE,
+              activationGradientBase + INTERMEDIATE_SIZE +
+                  2 * INTRA_BOTTLENECK_SIZE + head * ATTENTION_HEAD_SIZE,
+              activationGradientBase + INTERMEDIATE_SIZE +
+                  INTRA_BOTTLENECK_SIZE + head * ATTENTION_HEAD_SIZE,
+              0, 0);
+
+    run_layer(
+        "attention_self_attention_probs_0", "backward",
+        activationGradientBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+            head * ATTENTION_HEAD_SIZE,
+        activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
+            head * ATTENTION_HEAD_SIZE,
+        activationGradientBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
+        0, 0);
+
+    run_layer(
+        "attention_self_attention_scores_0", "backward",
+        activationGradientBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
+        0,
+        activationGradientBase + INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE,
+        0, activationBase + INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE);
+
+    run_layer(
+        "attention_self_query_layer_0", "backward",
+        activationGradientBase + INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE,
+        activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+            head * ATTENTION_HEAD_SIZE,
+        activationGradientBase + INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE +
+            head * ATTENTION_HEAD_SIZE,
+        0, 0);
+
+    run_layer(
+        "attention_self_key_layer_0", "backward",
+        activationGradientBase + INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE,
+        activationBase + INTERMEDIATE_SIZE + head * ATTENTION_HEAD_SIZE,
+        activationGradientBase + INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE +
+            head * ATTENTION_HEAD_SIZE,
+        0, 0);
+  }
+
+  run_layer(
+      "query_to_bottleneck_attention_LayerNorm", "backward",
+      activationGradientBase + INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE,
+      weightBase + 2 * INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_BIAS_SIZE,
+      activationGradientBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE, 0,
+      0);
+
+  run_layer(
+      "key_to_bottleneck_attention_LayerNorm", "backward",
+      activationGradientBase + INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE,
+      weightBase + 2 * INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
+          7 * INTRA_BOTTLENECK_BIAS_SIZE,
+      activationGradientBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE, 0,
+      activationGradientBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE);
+
+  run_layer(
+      "bottleneck_attention_dense", "backward",
+      activationGradientBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
+      weightBase + 2 * INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_BIAS_SIZE,
+      activationGradientBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE, 0,
+      0);
+
+  run_layer("shared_attention_input_to_hidden_states", "backward",
+            activationGradientBase + INTERMEDIATE_SIZE, weightBase,
+            activationGradientBase, 0, activationGradientBase);
+  run_layer("value_to_hidden_states", "backward",
+            activationGradientBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+            weightBase + 2 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+                8 * INTRA_BOTTLENECK_BIAS_SIZE,
+            activationGradientBase, 0, activationGradientBase);
+  run_layer(
+      "bottlenecked_hidden_states", "backward",
+      activationGradientBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
+      weightBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_BIAS_SIZE,
+      activationGradientBase, 0, activationGradientBase);
 }
 
 void full_backward_pass() {
-  // classifier
+  // cross-entropy gradient
+  run_layer("classifier", "backward", ENCODER_SCRATCH + INTERMEDIATE_SIZE, 0,
+            BACKPROP_SCRATCH, 0, 0);
+
+  // classifier gradient
+  run_layer("output_bottleneck_LayerNorm", "backward", BACKPROP_SCRATCH,
+            (NUM_ENCODER_LAYERS - 1) * ENCODER_WEIGHT_SIZE +
+                8 * INTERMEDIATE_SIZE + 5 * INTERMEDIATE_BIAS_SIZE +
+                3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE,
+            BACKPROP_SCRATCH + INTERMEDIATE_SIZE, 0, 0);
 
   for (int encoderLayer = NUM_ENCODER_LAYERS - 1; encoderLayer >= 0;
        encoderLayer--) {
@@ -340,6 +570,20 @@ void load_sample(DatasetIterator &dataset) {
                                dummyAttentionMaskWorkload.files,
                                dummyAttentionMaskWorkload.memoryMap, true);
 
+  // open file
+  std::ifstream labelFile(sampleFolder + "/activations/mobilebert_labels",
+                          std::ios::binary);
+  double *tmpValuesArray = new double[1024];
+  labelFile.read((char *)tmpValuesArray, 1024 * sizeof(double));
+  for (int i = 0; i < 2; i++) {
+    memory->sram[LABEL + i] = tmpValuesArray[i];
+    std::cout << memory->sram[LABEL + i] << std::endl;
+  }
+  for (int i = 2; i < 16; i++) {
+    memory->sram[LABEL + i] = 0;
+  }
+  // load correct label
+
   std::cout << "Loaded sample from " << sampleFolder << std::endl;
 }
 
@@ -362,7 +606,10 @@ int main(int argc, char **argv) {
   memory = new SimpleMemoryModel<DTYPE>(false);
   initialize_model("models/mobilebert/binary_data/tiny_pretrained/");
   DatasetIterator dataset("models/mobilebert/binary_data/tiny_pretrained/");
-  load_sample(dataset);
+  for (int i = 0; i < 100; i++) {
+    load_sample(dataset);
 
-  full_forward_pass();
+    full_forward_pass();
+    full_backward_pass();
+  }
 }
