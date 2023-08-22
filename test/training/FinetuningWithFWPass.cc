@@ -24,6 +24,8 @@
 
 #include "memory_plan.h"
 
+#define OPERATION(layer, task) #layer, #task
+
 void getMobileBERTParams(std::string layerName, std::string taskName,
                          SimplifiedParams &params, MemoryMap &memoryMap);
 
@@ -53,9 +55,9 @@ void runWorkload(SimplifiedParams params, MemoryMap memoryMap) {
        memory->sram + params.WEIGHT_RESIDUAL_OFFSET);
 }
 
-void run_layer(const std::string &layerName, const std::string &task,
-               int inputOffset, int weightOffset, int outputOffset,
-               int biasOffset, int residualOffset) {
+void run_op(const std::string &layerName, const std::string &task,
+            int inputOffset, int weightOffset, int outputOffset, int biasOffset,
+            int residualOffset) {
   SimplifiedParams params;
   MemoryMap memoryMap;
   getMobileBERTParams(layerName, task, params, memoryMap);
