@@ -9,12 +9,14 @@ typedef enum
 enum ForwardPassVariant
 #endif
 { COMPLETE_FORWARD_PASS,
-  FORWARD_PASS_FFN_1_INTERMEDIATE,  // from start to FFN 1 Intermediate
-  FORWARD_PASS_FFN_0_INTERMEDIATE,  // only FFN 0 Intermediate
-  FORWARD_PASS_MHA_0,               // from start to attention_probs 0
-  FORWARD_PASS_MHA_1,               // only scores 1, probs 1
-  FORWARD_PASS_MHA_2,               // only scores 2, probs 2
-  FORWARD_PASS_MHA_3,               // only scores 3, probs 3
+  FORWARD_PASS_FFN_1_INTERMEDIATE,    // from start to FFN 1 Intermediate
+  FORWARD_PASS_FFN_0_INTERMEDIATE,    // only FFN 0 Intermediate
+  FORWARD_PASS_MHA_0,                 // from start to attention_probs 0
+  FORWARD_PASS_MHA_1,                 // only scores 1, probs 1
+  FORWARD_PASS_MHA_2,                 // only scores 2, probs 2
+  FORWARD_PASS_MHA_3,                 // only scores 3, probs 3
+  FORWARD_PASS_BOTTLENECK_ATTENTION,  // from start to bottleneck attention
+                                      // layernorm
 #ifdef SOC
 } ForwardPassVariant;
 #else
@@ -24,6 +26,7 @@ enum ForwardPassVariant
 void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
   int activationBase = ENCODER_SCRATCH;
   int weightBase = encoderLayer * ENCODER_WEIGHT_SIZE;
+  int loraWeightBase = LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE;
 
   // Handle checkpointing
   // outputs of encoder layers 4, 9, 14, 19 are checkpointed
@@ -44,7 +47,8 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
 
   if (variant == COMPLETE_FORWARD_PASS ||
       variant == FORWARD_PASS_FFN_1_INTERMEDIATE ||
-      variant == FORWARD_PASS_MHA_0) {
+      variant == FORWARD_PASS_MHA_0 ||
+      variant == FORWARD_PASS_BOTTLENECK_ATTENTION) {
     // bottleneck_input_dense
     run_op(OPERATION(bottleneck_attention_dense, inference), encoderLayerInput,
            weightBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_BIAS_SIZE,
@@ -59,6 +63,27 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
            weightBase + 2 * INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_BIAS_SIZE,
            0);
 
+    if (variant == FORWARD_PASS_BOTTLENECK_ATTENTION) {
+      return;
+    }
+
+#ifdef LORA
+
+    // LoRA query weight (A * B) + W
+    run_op(OPERATION(attention_self_query_weight, inference), loraWeightBase,
+           loraWeightBase + LORA_WQ_A_SIZE,
+           activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE, 0,
+           weightBase + 2 * INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_BIAS_SIZE);
+
+    // query projection
+    run_op(OPERATION(attention_self_query_layer, inference),
+           activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+           activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
+           activationBase + INTERMEDIATE_SIZE,
+           weightBase + 2 * INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
+               6 * INTRA_BOTTLENECK_BIAS_SIZE,
+           0);
+#else
     // query projection
     run_op(OPERATION(attention_self_query_layer, inference),
            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
@@ -67,6 +92,7 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
            weightBase + 2 * INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
                6 * INTRA_BOTTLENECK_BIAS_SIZE,
            0);
+#endif
     // key projection
     run_op(OPERATION(attention_self_key_layer, inference),
            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
@@ -76,6 +102,23 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
            weightBase + 2 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
                7 * INTRA_BOTTLENECK_BIAS_SIZE,
            0);
+#ifdef LORA
+    // LoRA value weight (A * B) + W
+    run_op(OPERATION(attention_self_value_weight, inference),
+           loraWeightBase + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE,
+           loraWeightBase + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE,
+           activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE, 0,
+           weightBase + 2 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+               8 * INTRA_BOTTLENECK_BIAS_SIZE);
+    // value projection
+    run_op(OPERATION(attention_self_value_layer, inference), encoderLayerInput,
+           weightBase + 2 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+               8 * INTRA_BOTTLENECK_BIAS_SIZE,
+           activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
+           weightBase + 3 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
+               8 * INTRA_BOTTLENECK_BIAS_SIZE,
+           0);
+#else
     // value projection
     run_op(OPERATION(attention_self_value_layer, inference), encoderLayerInput,
            weightBase + 2 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
@@ -84,6 +127,7 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
            weightBase + 3 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
                8 * INTRA_BOTTLENECK_BIAS_SIZE,
            0);
+#endif
   }
 
   int startingHead = 0;

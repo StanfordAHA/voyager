@@ -128,13 +128,60 @@ void initialize_model(const std::string &modelPath) {
   std::vector<Workload> forwardPass = mobilebert.getFullForwardPass();
   for (Workload &workload : forwardPass) {
     if (workload.loadWeight) {
-      workload.files.weights_file.insert(0, modelPath + "/params/");
-      workload.files.bias_file.insert(0, modelPath + "/params/");
+      workload.files.weights_file.insert(0, modelPath + "step_0/weights/");
+      workload.files.bias_file.insert(0, modelPath + "step_0/weights/");
       memory->loadModelParams(workload.params, workload.files,
                               workload.memoryMap, true);
     }
   }
   std::cout << "Loaded pretrained model parameters." << std::endl;
+
+  // Load LoRA weights for each encoder layer
+  for (int encoderLayer = 0; encoderLayer < 21; encoderLayer++) {
+    // load query LoRA weight
+    std::string w_q_lora_file =
+        "models/mobilebert/binary_data/tiny_pretrained/step_0/weights/"
+        "mobilebert_encoder_layer_" +
+        std::to_string(encoderLayer) +
+        "_attention_self_query_lora_A_default_weight";
+    double *w_q_lora_weights =
+        readFileAsDouble(w_q_lora_file, LORA_WQ_A_SIZE / 2, true);
+
+    for (int i = 0; i < LORA_WQ_A_SIZE / 2; i++) {
+      // double precision
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE + i * 2] =
+          w_q_lora_weights[i];
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE + i * 2 + 1] = 0;
+    }
+
+    for (int i = 0; i < LORA_WQ_B_SIZE; i++) {
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   LORA_WQ_A_SIZE + i] = 0;
+    }
+
+    // load value LoRA weight
+    std::string w_v_lora_file =
+        "models/mobilebert/binary_data/tiny_pretrained/step_0/weights/"
+        "mobilebert_encoder_layer_" +
+        std::to_string(encoderLayer) +
+        "_attention_self_value_lora_A_default_weight";
+    double *w_v_lora_weights =
+        readFileAsDouble(w_v_lora_file, LORA_WV_A_SIZE / 2, true);
+
+    for (int i = 0; i < LORA_WV_A_SIZE / 2; i++) {
+      // double precision
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + i * 2] =
+          w_v_lora_weights[i];
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + i * 2 + 1] = 0;
+    }
+
+    for (int i = 0; i < LORA_WV_B_SIZE; i++) {
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE + i] = 0;
+    }
+  }
 }
 
 int main(int argc, char **argv) {

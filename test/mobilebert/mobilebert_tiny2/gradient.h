@@ -49,6 +49,13 @@ const SimplifiedParams classifier_weight_gradient = {
     .CONCAT_WEIGHT = false,
     .SPLIT_OUTPUT = false,
     .GRAD_CLIPPING = true,
+    .GRAD_CLIPPING_UNIT_TEST = false,
+    .WEIGHT_SPLITTING = false,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
+    .learningRate = 0.0,
+    .ACC_T_INPUT = false,
+    .ACC_T_WEIGHT = false,
+    .ACC_T_OUTPUT = true,
 };
 
 // (16 x 1)
@@ -95,6 +102,12 @@ const SimplifiedParams classifier_bias_gradient = {
     .SPLIT_OUTPUT = false,
     .GRAD_CLIPPING = false,
     .GRAD_CLIPPING_UNIT_TEST = true,
+    .WEIGHT_SPLITTING = false,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
+    .learningRate = 0.0,
+    .ACC_T_INPUT = false,
+    .ACC_T_WEIGHT = false,
+    .ACC_T_OUTPUT = true,
 };
 
 // (128 x 512) * (128 x 512)
@@ -458,11 +471,11 @@ const SimplifiedParams query_key_projection_weight = {
 };
 
 // (128 x 128) x (128 x 16)
-const SimplifiedParams query_lora_B = {
+const SimplifiedParams query_lora_A = {
     .INPUT_OFFSET = 0,
     .WEIGHT_OFFSET = 0,
     .OUTPUT_OFFSET = 0,
-    .WEIGHT_TRANSPOSE = false,
+    .WEIGHT_TRANSPOSE = false, // lora_B is stored transposed
     .loops = {{2, 1, 1, 1, 1, 1}, {8, 1, 1, 1, 1, 64}},
     .inputXLoopIndex = {0, 5},
     .inputYLoopIndex = {1, 4},
@@ -495,15 +508,23 @@ const SimplifiedParams query_lora_B = {
     .CROSS_ENTROPY_GRAD = false,
     .MSE_GRAD = false,
     .BCE_WITH_LOGITS_GRAD = false,
-    .INPUT_TRANSPOSE = true,
+    .INPUT_TRANSPOSE = false,
     .CONCAT_INPUT = false,
-    .CONCAT_WEIGHT = true,
+    .CONCAT_WEIGHT = false,
     .SPLIT_OUTPUT = false,
     .GRAD_CLIPPING = true,
+    .GRAD_CLIPPING_UNIT_TEST = false,
+    .WEIGHT_SPLITTING = false,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
+    .learningRate = 0.0,
+    .ACC_T_INPUT = false,
+    .ACC_T_WEIGHT = true,
+    .ACC_T_OUTPUT = true,
+    .ACC_T_RESIDUAL = false,
 };
 
 // (16 x 128) x (128 x 128)
-const SimplifiedParams query_lora_A = {
+const SimplifiedParams query_lora_B = {
     .INPUT_OFFSET = 0,
     .WEIGHT_OFFSET = 0,
     .OUTPUT_OFFSET = 0,
@@ -542,7 +563,7 @@ const SimplifiedParams query_lora_A = {
     .BCE_WITH_LOGITS_GRAD = false,
     .INPUT_TRANSPOSE = true,
     .CONCAT_INPUT = false,
-    .CONCAT_WEIGHT = true,
+    .CONCAT_WEIGHT = false,
     .SPLIT_OUTPUT = false,
     .GRAD_CLIPPING = true,
 };
