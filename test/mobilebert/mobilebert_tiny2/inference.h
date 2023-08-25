@@ -142,7 +142,7 @@ const SimplifiedParams merged_query_weight = {
     .MERGE_LORA_WEIGHT = true,
 };
 
-// (512 x 16) x (16 x 128) + (128 x 128)
+// (512 x 16) x (16 x 128) + (512 x 128)
 const SimplifiedParams value_weight = {
     .INPUT_OFFSET = 0,
     .WEIGHT_OFFSET = 0,
@@ -910,6 +910,10 @@ const std::map<std::string, Files> inferenceTestFiles{
          "bottleneck_input_LayerNorm_bias",
          "bottleneck_input_LayerNorm",
      }},
+    // TODO: query lora weights
+    {"attention_self_query_weight", {"", "", "", ""}},
+    // TODO: value lora weights
+    {"attention_self_value_weight", {"", "", "", ""}},
     {"bottleneck_attention_dense",
      {
          "hidden_states",
