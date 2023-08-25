@@ -2,6 +2,8 @@
 
 #include "memory_plan.h"
 
+#define LORA
+
 #ifdef SOC
 typedef enum
 #else
@@ -86,6 +88,14 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
            activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE, 0,
            weightBase + 2 * INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_BIAS_SIZE);
 
+    std::cout << "Query weight: " << std::endl;
+    for (int i = 0; i < 10; i++) {
+      std::cout << memory->sram[activationBase + INTERMEDIATE_SIZE +
+                                2 * INTRA_BOTTLENECK_SIZE + i]
+                << std::endl;
+    }
+    std::abort();
+
     // query projection
     run_op(OPERATION(attention_self_query_layer, inference),
            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
@@ -165,7 +175,7 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
       // probs
       run_op(OPERATION(attention_self_attention_probs_0, inference),
              activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE, 0,
-             activationBase + INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE, 0,
+             activationBase + INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE, 0,
              0);
 
       if (variant == FORWARD_PASS_MHA_0 || variant == FORWARD_PASS_MHA_1 ||
@@ -175,10 +185,10 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
 
       // context
       run_op(OPERATION(attention_self_context_layer_0, inference),
-             activationBase + INTERMEDIATE_SIZE + 4 * INTRA_BOTTLENECK_SIZE,
+             activationBase + INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE,
              activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
                  head * ATTENTION_HEAD_SIZE,
-             activationBase + INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE +
+             activationBase + INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE +
                  head * ATTENTION_HEAD_SIZE,
              0, 0);
     }
@@ -197,7 +207,7 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
 
     // attention_output_dense
     run_op(OPERATION(attention_output_dense, inference),
-           activationBase + INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE,
+           activationBase + INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_SIZE,
            weightBase + 3 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
                9 * INTRA_BOTTLENECK_BIAS_SIZE,
            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
