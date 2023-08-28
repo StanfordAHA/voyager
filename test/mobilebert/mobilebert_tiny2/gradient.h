@@ -444,7 +444,7 @@ const SimplifiedParams value_lora_B_quant = {
 };
 
 // (128 x 512) x (512 x 16)
-const SimplifiedParams value_lora_B_weight = {
+const SimplifiedParams value_lora_B_weight_gradient = {
     .INPUT_OFFSET = 0,
     .WEIGHT_OFFSET = 0,
     .OUTPUT_OFFSET = 0,
@@ -497,7 +497,7 @@ const SimplifiedParams value_lora_B_weight = {
 };
 
 // (16 x 128) x (128 x 128)
-const SimplifiedParams value_lora_A_weight = {
+const SimplifiedParams value_lora_A_weight_gradient = {
     .INPUT_OFFSET = 0,
     .WEIGHT_OFFSET = 0,
     .OUTPUT_OFFSET = 0,
@@ -703,7 +703,7 @@ const SimplifiedParams query_lora_B_quant = {
 };
 
 // (128 x 128) x (128 x 16)
-const SimplifiedParams query_lora_A_weight = {
+const SimplifiedParams query_lora_A_weight_gradient = {
     .INPUT_OFFSET = 0,
     .WEIGHT_OFFSET = 0,
     .OUTPUT_OFFSET = 0,
@@ -756,7 +756,7 @@ const SimplifiedParams query_lora_A_weight = {
 };
 
 // (128 x 128) x (128 x 16)
-const SimplifiedParams query_lora_B_weight = {
+const SimplifiedParams query_lora_B_weight_gradient = {
     .INPUT_OFFSET = 0,
     .WEIGHT_OFFSET = 0,
     .OUTPUT_OFFSET = 0,
@@ -1106,16 +1106,16 @@ gradientParams["attention_self_value_bias"] =
     intra_bottleneck_bias_with_head_concat;
 gradientParams["attention_self_value_lora_A_quant"] = value_lora_A_quant;
 gradientParams["attention_self_value_lora_B_quant"] = value_lora_B_quant;
-gradientParams["attention_self_value_lora_A_weight"] = value_lora_A_weight;
-gradientParams["attention_self_value_lora_B_weight"] = value_lora_B_weight;
+gradientParams["attention_self_value_lora_A_weight"] = value_lora_A_weight_gradient;
+gradientParams["attention_self_value_lora_B_weight"] = value_lora_B_weight_gradient;
 
 gradientParams["attention_self_query_weight"] = query_key_projection_weight;
 gradientParams["attention_self_query_bias"] =
     intra_bottleneck_bias_with_head_concat;
 gradientParams["attention_self_query_lora_A_quant"] = query_lora_A_quant;
 gradientParams["attention_self_query_lora_B_quant"] = query_lora_B_quant;
-gradientParams["attention_self_query_lora_A_weight"] = query_lora_A_weight;
-gradientParams["attention_self_query_lora_B_weight"] = query_lora_B_weight;
+gradientParams["attention_self_query_lora_A_weight"] = query_lora_A_weight_gradient;
+gradientParams["attention_self_query_lora_B_weight"] = query_lora_B_weight_gradient;
 
 gradientParams["attention_self_key_weight"] = query_key_projection_weight;
 gradientParams["attention_self_key_bias"] =

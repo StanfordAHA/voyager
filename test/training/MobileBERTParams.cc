@@ -8,6 +8,7 @@ void getMobileBERTParams(std::string layerName, std::string taskName,
 #include "test/mobilebert/mobilebert_tiny2/backprop.h"
 #include "test/mobilebert/mobilebert_tiny2/inference.h"
 #include "test/mobilebert/mobilebert_tiny2/gradient.h"
+#include "test/mobilebert/mobilebert_tiny2/weight.h"
 
   if (taskName == "inference") {
     params = inferenceParams.at(layerName);
@@ -23,6 +24,9 @@ void getMobileBERTParams(std::string layerName, std::string taskName,
     memoryMap = {SRAM, params.WEIGHT ? RRAM : SRAM, RRAM, SRAM, SRAM};
   } else if (taskName == "gradient") {
     params = gradientParams.at(layerName);
+    memoryMap = {SRAM, SRAM, RRAM, SRAM, SRAM};
+  } else if (taskName == "weight") {
+    params = weightParams.at(layerName);
     memoryMap = {SRAM, SRAM, RRAM, SRAM, SRAM};
   } else {
     assert(false);

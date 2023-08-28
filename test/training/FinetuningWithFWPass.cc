@@ -269,6 +269,28 @@ void initialize_model(const std::string &modelPath) {
     // }
     // std::cout << "------" << std::endl;
   }
+
+  // Initialize LoRA weight gradient
+  for (int i = 0; i < NUM_ENCODER_LAYERS * LORA_W_PER_ENC_SIZE; i++) {
+    memory->sram[LORA_G + i] = 0;
+  }
+
+  // Copy classifier weight to SRAM
+  for (int i = 0; i < 16 * 512; i++) {
+    int rramOffset = (NUM_ENCODER_LAYERS - 1) * ENCODER_WEIGHT_SIZE +
+                     8 * INTERMEDIATE_SIZE + 5 * INTERMEDIATE_BIAS_SIZE +
+                     3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE;
+    memory->sram[CLASSIFIER_W + 2 * i] = memory->rram[rramOffset + i];
+    memory->sram[CLASSIFIER_W + 2 * i + 1] = 0;
+  }
+
+  for (int i = 0; i < 16; i++) {
+    int rramOffset = (NUM_ENCODER_LAYERS - 1) * ENCODER_WEIGHT_SIZE +
+                     8 * INTERMEDIATE_SIZE + 21 * INTERMEDIATE_BIAS_SIZE +
+                     3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE;
+    memory->sram[CLASSIFIER_W + CLASSIFIER_W_SIZE + 2 * i] = memory->rram[rramOffset + 2 * i];
+    memory->sram[CLASSIFIER_W + CLASSIFIER_W_SIZE + 2 * i + 1] = 0;
+  }
 }
 
 int main(int argc, char **argv) {

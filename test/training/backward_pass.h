@@ -122,7 +122,7 @@ void encoder_backward_pass(int encoderLayer) {
         0, 0);
   }
 
-  /* ========================== query lora gradient ========================== */
+  /* ========================== query lora ========================== */
 
   // recompute bottleneck attention LayerNorm
   forward_pass_from_checkpoint(encoderLayer,
@@ -194,18 +194,16 @@ void encoder_backward_pass(int encoderLayer) {
           0,
           LORA_G + loraWeightOffset + LORA_WQ_A_SIZE);
 
-  // if (encoderLayer == 0) {
-  //   std::cerr << "query lora_B gradient" << std::endl;
-  //   output_loc = LORA_G + loraWeightOffset + LORA_WQ_A_SIZE;
-  //   for (int i = 0; i < 128; i++) {
-  //     for (int j = 0; j < 16; j++) {
-  //       int offset = i * 16 + j;
-  //       std::cerr << memory->sram[output_loc + 2 * offset] << '\t';
-  //     }
-  //     std::cerr << std::endl;
+  // std::cerr << "query lora_B gradient" << std::endl;
+  // output_loc = LORA_G + loraWeightOffset + LORA_WQ_A_SIZE;
+  // for (int i = 0; i < 128; i++) {
+  //   for (int j = 0; j < 16; j++) {
+  //     int offset = i * 16 + j;
+  //     std::cerr << memory->sram[output_loc + 2 * offset] << '\t';
   //   }
   //   std::cerr << std::endl;
   // }
+  // std::cerr << std::endl;
 
   // quantize lora_B weight
   run_op(OPERATION(attention_self_query_lora_B_quant, gradient),
@@ -231,7 +229,39 @@ void encoder_backward_pass(int encoderLayer) {
   // }
   // std::cerr << std::endl << std::endl;
 
-  /* ========================== query lora gradient ========================== */
+  // query lora_A weight update
+  run_op(OPERATION(attention_self_query_lora_A_weight, weight),
+          LORA_G + loraWeightOffset,
+          LORA_W + loraWeightOffset, 0, 0, 0);
+
+  // query lora_B weight update
+  run_op(OPERATION(attention_self_query_lora_B_weight, weight),
+          LORA_G + loraWeightOffset + LORA_WQ_A_SIZE,
+          LORA_W + loraWeightOffset + LORA_WQ_A_SIZE, 0, 0, 0);
+
+  // std::cerr << "query lora_A weight" << std::endl;
+  // output_loc = LORA_W + loraWeightOffset;
+  // for (int i = 0; i < 128; i++) {
+  //   for (int j = 0; j < 16; j++) {
+  //     int offset = i * 16 + j;
+  //     std::cerr << memory->sram[output_loc + 2 * offset] << '\t';
+  //   }
+  //   std::cerr << std::endl;
+  // }
+  // std::cerr << std::endl << std::endl;
+
+  // std::cerr << "query lora_B weight" << std::endl;
+  // output_loc = LORA_W + loraWeightOffset + LORA_WQ_A_SIZE;
+  // for (int i = 0; i < 128; i++) {
+  //   for (int j = 0; j < 16; j++) {
+  //     int offset = i * 16 + j;
+  //     std::cerr << memory->sram[output_loc + 2 * offset] << '\t';
+  //   }
+  //   std::cerr << std::endl;
+  // }
+  // std::cerr << std::endl << std::endl;
+
+  /* ========================== query lora ========================== */
 
   run_op(OPERATION(query_to_bottleneck_attention_LayerNorm, backward),
          activationGradientBase + INTERMEDIATE_SIZE + 5 * INTRA_BOTTLENECK_SIZE,
@@ -330,18 +360,16 @@ void encoder_backward_pass(int encoderLayer) {
           0,
           LORA_G + loraWeightOffset + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE);
 
-  // if (encoderLayer == 0) {
-  //   std::cerr << "value lora_B gradient" << std::endl;
-  //   output_loc = LORA_G + loraWeightOffset + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE;
-  //   for (int i = 0; i < 128; i++) {
-  //     for (int j = 0; j < 16; j++) {
-  //       int offset = i * 16 + j;
-  //       std::cerr << memory->sram[output_loc + 2 * offset] << '\t';
-  //     }
-  //     std::cerr << std::endl;
+  // std::cerr << "value lora_B gradient" << std::endl;
+  // output_loc = LORA_G + loraWeightOffset + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE;
+  // for (int i = 0; i < 128; i++) {
+  //   for (int j = 0; j < 16; j++) {
+  //     int offset = i * 16 + j;
+  //     std::cerr << memory->sram[output_loc + 2 * offset] << '\t';
   //   }
   //   std::cerr << std::endl;
   // }
+  // std::cerr << std::endl;
 
   // quantize lora_B weight
   run_op(OPERATION(attention_self_value_lora_B_quant, gradient),
@@ -356,8 +384,40 @@ void encoder_backward_pass(int encoderLayer) {
           0,
           LORA_G + loraWeightOffset + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE);
 
-  // std::cerr << "query lora_A gradient" << std::endl;
+  // std::cerr << "value lora_A gradient" << std::endl;
   // output_loc = LORA_G + loraWeightOffset;
+  // for (int i = 0; i < 128; i++) {
+  //   for (int j = 0; j < 16; j++) {
+  //     int offset = i * 16 + j;
+  //     std::cerr << memory->sram[output_loc + 2 * offset] << '\t';
+  //   }
+  //   std::cerr << std::endl;
+  // }
+  // std::cerr << std::endl << std::endl;
+
+  // value lora_A weight update
+  run_op(OPERATION(attention_self_value_lora_A_weight, weight),
+          LORA_G + loraWeightOffset + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE,
+          LORA_W + loraWeightOffset + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE, 0, 0, 0);
+
+  // value lora_B weight update
+  run_op(OPERATION(attention_self_value_lora_B_weight, weight),
+          LORA_G + loraWeightOffset + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE,
+          LORA_W + loraWeightOffset + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE, 0, 0, 0);
+
+  // std::cerr << "value lora_A weight" << std::endl;
+  // output_loc = LORA_W + loraWeightOffset + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE;
+  // for (int i = 0; i < 512; i++) {
+  //   for (int j = 0; j < 16; j++) {
+  //     int offset = i * 16 + j;
+  //     std::cerr << memory->sram[output_loc + 2 * offset] << '\t';
+  //   }
+  //   std::cerr << std::endl;
+  // }
+  // std::cerr << std::endl << std::endl;
+
+  // std::cerr << "value lora_B weight" << std::endl;
+  // output_loc = LORA_W + loraWeightOffset + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE;
   // for (int i = 0; i < 128; i++) {
   //   for (int j = 0; j < 16; j++) {
   //     int offset = i * 16 + j;
@@ -380,7 +440,7 @@ void full_backward_pass() {
   // }
   // std::cerr << std::endl << std::endl;
 
-  // classifier weight
+  // classifier weight gradient
   run_op(OPERATION(classifier_weight, gradient), BACKPROP_SCRATCH,
          ENCODER_SCRATCH, CLASSIFIER_G, 0, 0);
 
@@ -393,13 +453,41 @@ void full_backward_pass() {
   //   std::cerr << std::endl;
   // }
 
+  // std::cerr << "classifier orig weight" << std::endl;
+  // for (int i = 0; i < 16; i++) {
+  //   for (int j = 0; j < 512; j++) {
+  //     int offset = i * 512 + j;
+  //     std::cerr << memory->sram[CLASSIFIER_W + 2 * offset] << '\t';
+  //   }
+  //   std::cerr << std::endl;
+  // }
+
+  // classifier weight update
+  run_op(OPERATION(classifier_weight, weight),
+         CLASSIFIER_G, CLASSIFIER_W, 0, 0, 0);
+
+  // std::cerr << "classifier weight update" << std::endl;
+  // for (int i = 0; i < 16; i++) {
+  //   for (int j = 0; j < 512; j++) {
+  //     int offset = i * 512 + j;
+  //     std::cerr << memory->sram[CLASSIFIER_W + 2 * offset] << '\t';
+  //   }
+  //   std::cerr << std::endl;
+  // }
+
   // classifier bias
   run_op(OPERATION(classifier_bias, gradient), BACKPROP_SCRATCH, 0,
          CLASSIFIER_G + CLASSIFIER_W_SIZE, 0, 0);
 
-  // std::cerr << "classifier bias gradient" << std::endl;
+  // classifier weight update
+  run_op(OPERATION(classifier_bias, weight),
+         CLASSIFIER_G + CLASSIFIER_W_SIZE,
+         CLASSIFIER_W + CLASSIFIER_W_SIZE,
+         0, 0, 0);
+
+  // std::cerr << "classifier bias update" << std::endl;
   // for (int i = 0; i < 16; i++) {
-  //   std::cerr << memory->sram[CLASSIFIER_G + CLASSIFIER_W_SIZE + 2 * i] << '\t';
+  //   std::cerr << memory->sram[CLASSIFIER_W + CLASSIFIER_W_SIZE + 2 * i] << '\t';
   // }
   // std::cerr << std::endl;
 
@@ -409,8 +497,6 @@ void full_backward_pass() {
              8 * INTERMEDIATE_SIZE + 5 * INTERMEDIATE_BIAS_SIZE +
              3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE,
          BACKPROP_SCRATCH + INTERMEDIATE_SIZE, 0, 0);
-
-  // TODO: pad gradient with 0
 
   for (int encoderLayer = NUM_ENCODER_LAYERS - 1; encoderLayer >= 0;
        encoderLayer--) {

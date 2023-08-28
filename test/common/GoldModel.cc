@@ -557,15 +557,15 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       // save 8-bit quantized weight to RRAM
       saveOutput(matrixB, i, weights[i], params.ACC_T_OUTPUT);
 
-      if (!params.ACC_T_OUTPUT && params.ERROR_FEEDBACK) {
-        INT_T lr = learningRate;
-        gradients[i] =
-            static_cast<ACC_T>(static_cast<ACC_T>(matrixA[i]) - weights[i]);
-        gradients[i] *= static_cast<ACC_T>(1 / lr);
-        // float feedback = ((float)matrixA[i] - val) / learningRate;
-        // Save 8-bit weight residual to SRAM
-        saveOutput(matrixA, i, gradients[i], params.ACC_T_OUTPUT);
-      }
+      // if (!params.ACC_T_OUTPUT && params.ERROR_FEEDBACK) {
+      //   INT_T lr = learningRate;
+      //   gradients[i] =
+      //       static_cast<ACC_T>(static_cast<ACC_T>(matrixA[i]) - weights[i]);
+      //   gradients[i] *= static_cast<ACC_T>(1 / lr);
+      //   // float feedback = ((float)matrixA[i] - val) / learningRate;
+      //   // Save 8-bit weight residual to SRAM
+      //   saveOutput(matrixA, i, gradients[i], params.ACC_T_OUTPUT);
+      // }
     }
   } else {
     // Large arrays need to go on the heap
