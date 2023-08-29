@@ -4,6 +4,10 @@
 #define NUM_HEADS 4
 #define NUM_FFN 2
 
+#define START_LR 2e-2
+#define GRADIENT_ACCUMULATION_STEPS 8
+#define MAX_TRAININING_STEPS (7000 * GRADIENT_ACCUMULATION_STEPS)
+
 #define ATTENTION_HEAD_SIZE (128 * 32)
 #define INTRA_BOTTLENECK_SIZE (128 * 128)
 #define INTRA_BOTTLENECK_BIAS_SIZE (128 * 2)
@@ -13,7 +17,7 @@
   (8 * INTERMEDIATE_SIZE + 5 * INTERMEDIATE_BIAS_SIZE + \
    3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE)
 #define LORA_WQ_B_SIZE (128 * 16 * 2)     // 16b precision
-#define LORA_WQ_A_SIZE (16 * 128 * 2)     // 16b precision
-#define LORA_WV_B_SIZE (512 * 16 * 2)     // 16b precision
-#define LORA_WV_A_SIZE (16 * 128 * 2)     // 16b precision
+#define LORA_WQ_A_SIZE (128 * 16 * 2)     // 16b precision
+#define LORA_WV_B_SIZE (128 * 16 * 2)     // 16b precision
+#define LORA_WV_A_SIZE (512 * 16 * 2)     // 16b precision
 #define CLASSIFIER_W_SIZE (512 * 16 * 2)  // 16b precision

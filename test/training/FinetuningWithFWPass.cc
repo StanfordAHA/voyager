@@ -51,18 +51,27 @@ void runWorkload(SimplifiedParams params, MemoryMap memoryMap) {
        (memoryMap.weights ? memory->rram : memory->sram) + params.WEIGHT_OFFSET,
        memory->sram + params.OUTPUT_OFFSET,
        (memoryMap.bias ? memory->rram : memory->sram) + params.BIAS_OFFSET,
-       memory->sram + params.RESIDUAL_OFFSET,
+       (params.MERGE_LORA_WEIGHT ? memory->rram + params.RESIDUAL_OFFSET
+                                 : memory->sram + params.RESIDUAL_OFFSET),
        memory->sram + params.WEIGHT_RESIDUAL_OFFSET);
 }
 
 void run_op(const std::string &layerName, const std::string &task,
             int inputOffset, int weightOffset, int outputOffset, int biasOffset,
-            int residualOffset) {
+            int residualOffset, float step = -1) {
   SimplifiedParams params;
   MemoryMap memoryMap;
   getMobileBERTParams(layerName, task, params, memoryMap);
   adjustMemoryOffsets(params, inputOffset, weightOffset, outputOffset,
                       biasOffset, residualOffset);
+
+  if (params.WEIGHT_UPDATE) {
+    if (step == -1) {
+      std::cout << "ERROR: step not specified for weight update" << std::endl;
+      exit(1);
+    }
+    params.learningRate = START_LR - START_LR * (step / MAX_TRAININING_STEPS);
+  }
 
   runWorkload(params, memoryMap);
 }
@@ -72,7 +81,7 @@ void run_op(const std::string &layerName, const std::string &task,
 #include "backward_pass.h"
 // clang-format on
 
-void load_sample(DatasetIterator &dataset) {
+void load_sample(DatasetIterator &dataset, bool useStepFolder, int step) {
   std::string sampleFolder = dataset.getSample();
 
   MobileBERT mobilebert("mobilebert", "inference", "");
@@ -80,8 +89,12 @@ void load_sample(DatasetIterator &dataset) {
 
   // load the model inputs for this sample
   Workload firstWorkload = workloads[0];
+
   firstWorkload.files.inputs_file =
-      sampleFolder + "/activations/mobilebert_embeddings";
+      useStepFolder
+          ? "models/mobilebert/binary_data/tiny_pretrained/step_" +
+                std::to_string(step) + "/activations/mobilebert_embeddings"
+          : sampleFolder + "/activations/embedding_output";
   firstWorkload.params.INPUT_OFFSET = INPUT;
   memory->loadModelActivations(firstWorkload.params, firstWorkload.files,
                                firstWorkload.memoryMap, true);
@@ -92,7 +105,10 @@ void load_sample(DatasetIterator &dataset) {
   dummyAttentionMaskWorkload.files.inputs_file = "";
   dummyAttentionMaskWorkload.files.weights_file = "";
   dummyAttentionMaskWorkload.files.bias_file =
-      sampleFolder + "/activations/mobilebert_attention_mask";
+      useStepFolder
+          ? "models/mobilebert/binary_data/tiny_pretrained/step_" +
+                std::to_string(step) + "/activations/mobilebert_attention_mask"
+          : sampleFolder + "/activations/embedding_output";
 
   dummyAttentionMaskWorkload.params.ATTENTION_MASK = true;
   dummyAttentionMaskWorkload.params.RESIDUAL = false;
@@ -106,8 +122,12 @@ void load_sample(DatasetIterator &dataset) {
                                dummyAttentionMaskWorkload.memoryMap, true);
 
   // open file
-  std::ifstream labelFile(sampleFolder + "/activations/mobilebert_labels",
-                          std::ios::binary);
+  std::ifstream labelFile(
+      useStepFolder
+          ? "models/mobilebert/binary_data/tiny_pretrained/step_" +
+                std::to_string(step) + "/activations/mobilebert_labels"
+          : sampleFolder + "/activations/mobilebert_labels",
+      std::ios::binary);
   double *tmpValuesArray = new double[1024];
   labelFile.read((char *)tmpValuesArray, 1024 * sizeof(double));
   for (int i = 0; i < 2; i++) {
@@ -123,18 +143,142 @@ void load_sample(DatasetIterator &dataset) {
 }
 
 void initialize_model(const std::string &modelPath) {
+  int stepNum = 0;
+
   // Load weights
   MobileBERT mobilebert("mobilebert", "inference", "");
   std::vector<Workload> forwardPass = mobilebert.getFullForwardPass();
   for (Workload &workload : forwardPass) {
     if (workload.loadWeight) {
-      workload.files.weights_file.insert(0, modelPath + "/params/");
-      workload.files.bias_file.insert(0, modelPath + "/params/");
+      workload.files.weights_file.insert(
+          0, modelPath + "step_" + std::to_string(stepNum) + "/weights/");
+      workload.files.bias_file.insert(
+          0, modelPath + "step_" + std::to_string(stepNum) + "/weights/");
+      if (workload.params.ATTENTION_MASK) {
+        workload.files.bias_file = "";
+      }
       memory->loadModelParams(workload.params, workload.files,
                               workload.memoryMap, true);
     }
   }
   std::cout << "Loaded pretrained model parameters." << std::endl;
+
+  // Load LoRA weights for each encoder layer
+  for (int encoderLayer = 0; encoderLayer < 21; encoderLayer++) {
+    // load query LoRA weight
+    std::string w_q_lora_file =
+        "models/mobilebert/binary_data/tiny_pretrained/step_" +
+        std::to_string(stepNum) +
+        "/weights/"
+        "mobilebert_encoder_layer_" +
+        std::to_string(encoderLayer) +
+        "_attention_self_query_lora_A_default_weight";
+    double *w_q_lora_weights =
+        readFileAsDouble(w_q_lora_file, LORA_WQ_A_SIZE / 2, true);
+
+    for (int i = 0; i < LORA_WQ_A_SIZE / 2; i++) {
+      // double precision
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE + i * 2] =
+          w_q_lora_weights[i];
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE + i * 2 + 1] = 0;
+    }
+
+    std::string w_qb_lora_file =
+        "models/mobilebert/binary_data/tiny_pretrained/step_" +
+        std::to_string(stepNum) +
+        "/weights/"
+        "mobilebert_encoder_layer_" +
+        std::to_string(encoderLayer) +
+        "_attention_self_query_lora_B_default_weight";
+    double *w_qb_lora_weights =
+        readFileAsDouble(w_qb_lora_file, LORA_WQ_B_SIZE / 2, true);
+
+    // B is stored as a transposed matrix
+    for (int row = 0; row < 16; row++) {
+      for (int col = 0; col < 128; col++) {
+        memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                     LORA_WQ_A_SIZE + row * 128 * 2 + col * 2] =
+            w_qb_lora_weights[col * 16 + row];
+        memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                     LORA_WQ_A_SIZE + row * 128 * 2 + col * 2 + 1] = 0;
+      }
+    }
+
+    for (int i = 0; i < LORA_WQ_B_SIZE / 2; i++) {
+      // double precision
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   LORA_WQ_A_SIZE + i * 2] = w_qb_lora_weights[i];
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   +LORA_WQ_A_SIZE + i * 2 + 1] = 0;
+    }
+
+    // load value LoRA weight
+    std::string w_v_lora_file =
+        "models/mobilebert/binary_data/tiny_pretrained/step_" +
+        std::to_string(stepNum) +
+        "/weights/"
+        "mobilebert_encoder_layer_" +
+        std::to_string(encoderLayer) +
+        "_attention_self_value_lora_A_default_weight";
+    double *w_v_lora_weights =
+        readFileAsDouble(w_v_lora_file, LORA_WV_A_SIZE / 2, true);
+
+    for (int i = 0; i < LORA_WV_A_SIZE / 2; i++) {
+      // double precision
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + i * 2] =
+          w_v_lora_weights[i];
+
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + i * 2 + 1] = 0;
+    }
+
+    std::string w_vb_lora_file =
+        "models/mobilebert/binary_data/tiny_pretrained/step_" +
+        std::to_string(stepNum) + "/weights/mobilebert_encoder_layer_" +
+        std::to_string(encoderLayer) +
+        "_attention_self_value_lora_B_default_weight";
+    double *w_vb_lora_weights =
+        readFileAsDouble(w_vb_lora_file, LORA_WV_B_SIZE / 2, true);
+
+    // B is stored as a transposed matrix
+    for (int row = 0; row < 16; row++) {
+      for (int col = 0; col < 128; col++) {
+        memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                     LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE +
+                     row * 128 * 2 + col * 2] =
+            w_vb_lora_weights[col * 16 + row];
+        memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                     LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE +
+                     +row * 128 * 2 + col * 2 + 1] = 0;
+      }
+    }
+  }
+
+  // Initialize LoRA weight gradient
+  for (int i = 0; i < NUM_ENCODER_LAYERS * LORA_W_PER_ENC_SIZE; i++) {
+    memory->sram[LORA_G + i] = 0;
+  }
+
+  // Copy classifier weight to SRAM
+  for (int i = 0; i < 16 * 512; i++) {
+    int rramOffset = (NUM_ENCODER_LAYERS - 1) * ENCODER_WEIGHT_SIZE +
+                     8 * INTERMEDIATE_SIZE + 5 * INTERMEDIATE_BIAS_SIZE +
+                     3 * INTRA_BOTTLENECK_SIZE +
+                     18 * INTRA_BOTTLENECK_BIAS_SIZE;
+    memory->sram[CLASSIFIER_W + 2 * i] = memory->rram[rramOffset + i];
+    memory->sram[CLASSIFIER_W + 2 * i + 1] = 0;
+  }
+
+  for (int i = 0; i < 16; i++) {
+    int rramOffset = (NUM_ENCODER_LAYERS - 1) * ENCODER_WEIGHT_SIZE +
+                     8 * INTERMEDIATE_SIZE + 21 * INTERMEDIATE_BIAS_SIZE +
+                     3 * INTRA_BOTTLENECK_SIZE +
+                     18 * INTRA_BOTTLENECK_BIAS_SIZE;
+    memory->sram[CLASSIFIER_W + CLASSIFIER_W_SIZE + 2 * i] =
+        memory->rram[rramOffset + 2 * i];
+    memory->sram[CLASSIFIER_W + CLASSIFIER_W_SIZE + 2 * i + 1] = 0;
+  }
 }
 
 int main(int argc, char **argv) {
@@ -142,7 +286,7 @@ int main(int argc, char **argv) {
   initialize_model("models/mobilebert/binary_data/tiny_pretrained/");
   DatasetIterator dataset("models/mobilebert/binary_data/tiny_pretrained/");
   for (int i = 0; i < 100; i++) {
-    load_sample(dataset);
+    load_sample(dataset, true, i);
 
     full_forward_pass();
     full_backward_pass();
