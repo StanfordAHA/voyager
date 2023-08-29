@@ -163,6 +163,7 @@ struct SimplifiedParams {
 
   bool ATTENTION_MASK;
   bool LORA_WEIGHT;
+  bool NOP;
 };
 
 struct MemoryOffsets {

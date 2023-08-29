@@ -39,6 +39,8 @@ void MapOperation(const SimplifiedParams &params, const MemoryMap &memoryMap,
     MapCrossEntropyGrad(params, memoryMap, mappedParams, opMemoryMaps);
   } else if (params.WEIGHT_UPDATE) {
     MapWeightUpdate(params, memoryMap, mappedParams, opMemoryMaps);
+  } else if (params.NOP) {
+    MapNop(params, memoryMap, mappedParams, opMemoryMaps);
   } else {
     MapMatrixOp(params, memoryMap, mappedParams, opMemoryMaps);
   }
