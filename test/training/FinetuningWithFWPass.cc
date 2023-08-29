@@ -58,12 +58,20 @@ void runWorkload(SimplifiedParams params, MemoryMap memoryMap) {
 
 void run_op(const std::string &layerName, const std::string &task,
             int inputOffset, int weightOffset, int outputOffset, int biasOffset,
-            int residualOffset) {
+            int residualOffset, float step = -1) {
   SimplifiedParams params;
   MemoryMap memoryMap;
   getMobileBERTParams(layerName, task, params, memoryMap);
   adjustMemoryOffsets(params, inputOffset, weightOffset, outputOffset,
                       biasOffset, residualOffset);
+
+  if (params.WEIGHT_UPDATE) {
+    if (step == -1) {
+      std::cout << "ERROR: step not specified for weight update" << std::endl;
+      exit(1);
+    }
+    params.learningRate = START_LR - START_LR * (step / MAX_TRAININING_STEPS);
+  }
 
   runWorkload(params, memoryMap);
 }
