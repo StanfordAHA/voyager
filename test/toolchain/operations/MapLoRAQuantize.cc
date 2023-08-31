@@ -14,7 +14,8 @@ void MapLoRAQuantize(const SimplifiedParams &params, const MemoryMap &memoryMap,
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
-  int size = X * Y * C * K * FX * FY;
+  int size = X * Y * C * K * FX * FY / DIMENSION / DIMENSION;
+  std::cout << "size: " << size << std::endl;
 
   VectorParams *vectorParams = new VectorParams;
   VectorInstructionConfig *vectorInstructionConfig =
@@ -30,8 +31,14 @@ void MapLoRAQuantize(const SimplifiedParams &params, const MemoryMap &memoryMap,
   }
   vectorParams->addressGen0Loop[0][1] = 1;
   vectorParams->addressGen0Loop[1][0] = 1;
-  vectorParams->addressGen0Loop[1][1] = size / 512;
-  vectorParams->addressGen0Loop[1][2] = 512;
+  if (size > 512) {
+    vectorParams->addressGen0Loop[1][1] = size / 512;
+    vectorParams->addressGen0Loop[1][2] = 512;
+  } else {
+    vectorParams->addressGen0Loop[1][1] = 16;
+    vectorParams->addressGen0Loop[1][2] = size / 16;
+  }
+
   vectorParams->addressGen0Broadcast = false;
   vectorParams->DP_VEC0 = true;
 
@@ -83,8 +90,13 @@ void MapLoRAQuantize(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->outputWeightLoopIndex[0] = 2;
 
   vectorParams->outputLoops[1][0] = 1;
-  vectorParams->outputLoops[1][1] = size / 512;
-  vectorParams->outputLoops[1][2] = 512;
+  if (size > 512) {
+    vectorParams->outputLoops[1][1] = size / 512;
+    vectorParams->outputLoops[1][2] = 512;
+  } else {
+    vectorParams->outputLoops[1][1] = 16;
+    vectorParams->outputLoops[1][2] = size / 16;
+  }
   vectorParams->outputXLoopIndex[1] = 0;
   vectorParams->outputYLoopIndex[1] = 1;
   vectorParams->outputWeightLoopIndex[1] = 2;
@@ -102,7 +114,7 @@ void MapLoRAQuantize(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vInst0.instType = VectorInstructions::vector;
   vInst0.vInput = VectorInstructions::readFromVectorFetch;
   vInst0.vAccumulatePush = VectorInstructions::nop;
-  vInst0.vOp0Src1 = VectorInstructions::readInterface;
+  vInst0.vOp0Src1 = VectorInstructions::nop;
   vInst0.vOp0 = VectorInstructions::nop;
   vInst0.vOp1 = VectorInstructions::nop;
   vInst0.vOp2 = VectorInstructions::nop;
@@ -111,10 +123,10 @@ void MapLoRAQuantize(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vInst0.vOp4 = VectorInstructions::nop;
   vInst0.vDest = VectorInstructions::vWriteOut;
   vectorInstructionConfig->inst[0] = vInst0;
-  vectorInstructionConfig->instCount[0] = size;
+  vectorInstructionConfig->instCount[0] = size / 16;
 
   vectorInstructionConfig->instLen = 1;
-  vectorInstructionConfig->instLoopCount = 1;
+  vectorInstructionConfig->instLoopCount = 16;
 
   mappedParams.push_back(vectorParams);
   mappedParams.push_back(vectorInstructionConfig);
