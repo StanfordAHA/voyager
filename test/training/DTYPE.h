@@ -1,6 +1,6 @@
 #pragma once
 
-#define FP32
+// #define FP32
 
 #ifdef FP32
 #define DTYPE float

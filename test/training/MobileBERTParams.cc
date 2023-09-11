@@ -7,9 +7,9 @@
 
 void getMobileBERTParams(std::string layerName, std::string taskName,
                          SimplifiedParams &params, MemoryMap &memoryMap) {
-#include "test/mobilebert/mobilebert_tiny2/inference.h"
 #include "test/mobilebert/mobilebert_tiny2/backprop.h"
 #include "test/mobilebert/mobilebert_tiny2/gradient.h"
+#include "test/mobilebert/mobilebert_tiny2/inference.h"
 #include "test/mobilebert/mobilebert_tiny2/weight.h"
 
   if (taskName == "inference") {

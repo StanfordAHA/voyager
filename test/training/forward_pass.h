@@ -50,6 +50,42 @@ void checkFWDLayerOutput(int memoryOffset, int size, std::string file) {
 }
 #endif
 
+void debug_print(char *str) {
+#ifdef SOC
+  gdb_print(str);
+#else
+  std::cout << str << std::endl;
+#endif
+}
+
+void print_memory(int address, bool SRAM) {
+#ifdef SOC
+  if (SRAM) {
+    gdb_print_memory(SRAM_BASE + address, 16, P8);
+  } else {
+    gdb_print_memory(RRAM_BASE + address, 16, P8);
+  }
+
+  gdb_sw_breakpoint();
+#else
+  if (SRAM) {
+    for (int i = 0; i < 16; i++) {
+      std::cout << memory->sram[address + i] << " ";
+    }
+  } else {
+    for (int i = 0; i < 16; i++) {
+      std::cout << memory->rram[address + i] << " ";
+    }
+  }
+  std::cout << std::endl;
+  // wait for user to press enter
+  std::string line;
+  std::getline(std::cin, line);
+  std::cout << "next" << std::endl;
+
+#endif
+}
+
 void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
   int activationBase = ENCODER_SCRATCH;
   int weightBase = encoderLayer * ENCODER_WEIGHT_SIZE;
@@ -112,13 +148,26 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
 
 #ifdef LORA
 
+    // gdb_sw_breakpoint();
+
     // LoRA query weight (A * B) + W
     run_op(OPERATION(attention_self_query_weight, inference), loraWeightBase,
            loraWeightBase + LORA_WQ_A_SIZE,
            activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE, 0,
            weightBase + 2 * INTERMEDIATE_SIZE + 6 * INTRA_BOTTLENECK_BIAS_SIZE);
 
-    // query projection
+    // debug_print("lora_A");
+    // print_memory(loraWeightBase, true);
+
+    // debug_print("lora_B");
+    // print_memory(loraWeightBase + LORA_WQ_A_SIZE, true);
+
+    // debug_print("lora_query_weight");
+    // print_memory(activationBase + INTERMEDIATE_SIZE + 2 *
+    // INTRA_BOTTLENECK_SIZE,
+    //              true);
+
+    // query_projection
     run_op(OPERATION(attention_self_query_layer, inference),
            activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
            activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
@@ -126,6 +175,9 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
            weightBase + 2 * INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE +
                6 * INTRA_BOTTLENECK_BIAS_SIZE,
            0);
+
+    // debug_print("query_projection");
+    // print_memory(activationBase + INTERMEDIATE_SIZE, true);
 
 #ifdef CHECK_OUTPUT
     checkFWDLayerOutput(activationBase + INTERMEDIATE_SIZE, 128 * 128,
@@ -160,6 +212,11 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
                7 * INTRA_BOTTLENECK_BIAS_SIZE,
            0);
 
+    // debug_print("key_projection");
+    // print_memory(activationBase + INTERMEDIATE_SIZE + 2 *
+    // INTRA_BOTTLENECK_SIZE,
+    //              true);
+
 #ifdef CHECK_OUTPUT
     checkFWDLayerOutput(
         activationBase + INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE,
@@ -178,6 +235,34 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
            weightBase + 2 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
                8 * INTRA_BOTTLENECK_BIAS_SIZE);
 
+    // debug_print("lora_A");
+    // print_memory(loraWeightBase + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE, true);
+
+    // debug_print("lora_B");
+    // print_memory(
+    //     loraWeightBase + LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE,
+    //     true);
+
+    // debug_print("lora_value_weight tile 0");
+    // print_memory(activationBase + INTERMEDIATE_SIZE + 3 *
+    // INTRA_BOTTLENECK_SIZE,
+    //              true);
+
+    // debug_print("lora_value_weight tile 1");
+    // print_memory(activationBase + INTERMEDIATE_SIZE +
+    //                  3 * INTRA_BOTTLENECK_SIZE + 128 * 16,
+    //              true);
+
+    // debug_print("lora_value_weight tile 2");
+    // print_memory(activationBase + INTERMEDIATE_SIZE +
+    //                  3 * INTRA_BOTTLENECK_SIZE + 128 * 2 * 16,
+    //              true);
+
+    // debug_print("lora_value_weight tile 3");
+    // print_memory(activationBase + INTERMEDIATE_SIZE +
+    //                  3 * INTRA_BOTTLENECK_SIZE + 128 * 3 * 16,
+    //              true);
+
     // value projection
     run_op(OPERATION(attention_self_value_layer, inference), encoderLayerInput,
            activationBase + INTERMEDIATE_SIZE + 3 * INTRA_BOTTLENECK_SIZE,
@@ -185,6 +270,10 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
            weightBase + 3 * INTERMEDIATE_SIZE + 2 * INTRA_BOTTLENECK_SIZE +
                8 * INTRA_BOTTLENECK_BIAS_SIZE,
            0);
+
+    // debug_print("value_projection");
+    // print_memory(activationBase + INTERMEDIATE_SIZE + INTRA_BOTTLENECK_SIZE,
+    //              true);
 
 #ifdef CHECK_OUTPUT
     checkFWDLayerOutput(
@@ -403,6 +492,9 @@ void encoder_forward_pass(int encoderLayer, ForwardPassVariant variant) {
              3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE,
          0);
 
+  // debug_print("encoder_layer_output");
+  // print_memory(encoderLayerOutput, true);
+
 #ifdef CHECK_OUTPUT
   checkFWDLayerOutput(encoderLayerOutput, 128 * 512,
                       "mobilebert_encoder_layer_" +
@@ -419,18 +511,27 @@ void forward_pass(int startingEncoder, int endingEncoder) {
 }
 
 void full_forward_pass() {
-  forward_pass(0, NUM_ENCODER_LAYERS);
+  // forward_pass(0, NUM_ENCODER_LAYERS);
+
+  // for (int i = 0; i < 128 / 10; i++) {
+  //   debug_print("encoder_layer_output");
+  //   print_memory(ENCODER_SCRATCH + i * 10, true);
+  // }
+  // debug_print("encoder_layer_output");
+  // print_memory(ENCODER_SCRATCH + i * 10, true);
+#ifdef SOC
+  gdb_print_memory(SRAM_BASE + ENCODER_SCRATCH, 16, P8);
+  gdb_print_memory(SRAM_BASE + CLASSIFIER_W, 16, P16);
+  gdb_print_memory(SRAM_BASE + CLASSIFIER_B, 16, P16);
+
+#endif
 
   // classifier
-  run_op(OPERATION(classifier, inference), ENCODER_SCRATCH,
-         (NUM_ENCODER_LAYERS - 1) * ENCODER_WEIGHT_SIZE +
-             8 * INTERMEDIATE_SIZE + 5 * INTERMEDIATE_BIAS_SIZE +
-             3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE,
-         ENCODER_SCRATCH + INTERMEDIATE_SIZE,
-         (NUM_ENCODER_LAYERS - 1) * ENCODER_WEIGHT_SIZE +
-             8 * INTERMEDIATE_SIZE + 21 * INTERMEDIATE_BIAS_SIZE +
-             3 * INTRA_BOTTLENECK_SIZE + 18 * INTRA_BOTTLENECK_BIAS_SIZE,
-         0);
+  run_op(OPERATION(classifier, inference), ENCODER_SCRATCH, CLASSIFIER_W,
+         ENCODER_SCRATCH + INTERMEDIATE_SIZE, CLASSIFIER_B, 0);
+
+  debug_print("classifier_output");
+  print_memory(ENCODER_SCRATCH + INTERMEDIATE_SIZE, true);
 
 #ifndef SOC
   std::cout << "Classifier Output: " << std::endl;
