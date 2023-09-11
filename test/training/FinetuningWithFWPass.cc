@@ -18,6 +18,8 @@
 #include "test/training/DTYPE.h"
 #include "test/training/DatasetIterator.h"
 
+#define MRPC
+
 // Milestone 2- forward pass with checkpoints saved, backward pass with
 // activations recomputed from checkpoint
 // In addition, we will set the memory offsets ourselves
@@ -94,7 +96,7 @@ void load_sample(DatasetIterator &dataset, bool useStepFolder, int step) {
       useStepFolder
           ? "models/mobilebert/binary_data/tiny_pretrained/step_" +
                 std::to_string(step) + "/activations/mobilebert_embeddings"
-          : sampleFolder + "/activations/embedding_output";
+          : sampleFolder + "/embedding_output";
   firstWorkload.params.INPUT_OFFSET = INPUT;
   memory->loadModelActivations(firstWorkload.params, firstWorkload.files,
                                firstWorkload.memoryMap, true);
@@ -108,7 +110,7 @@ void load_sample(DatasetIterator &dataset, bool useStepFolder, int step) {
       useStepFolder
           ? "models/mobilebert/binary_data/tiny_pretrained/step_" +
                 std::to_string(step) + "/activations/mobilebert_attention_mask"
-          : sampleFolder + "/activations/embedding_output";
+          : sampleFolder + "/attention_mask";
 
   dummyAttentionMaskWorkload.params.ATTENTION_MASK = true;
   dummyAttentionMaskWorkload.params.RESIDUAL = false;
@@ -121,23 +123,36 @@ void load_sample(DatasetIterator &dataset, bool useStepFolder, int step) {
                                dummyAttentionMaskWorkload.files,
                                dummyAttentionMaskWorkload.memoryMap, true);
 
-  // open file
-  std::ifstream labelFile(
-      useStepFolder
-          ? "models/mobilebert/binary_data/tiny_pretrained/step_" +
-                std::to_string(step) + "/activations/mobilebert_labels"
-          : sampleFolder + "/activations/mobilebert_labels",
-      std::ios::binary);
-  double *tmpValuesArray = new double[1024];
-  labelFile.read((char *)tmpValuesArray, 1024 * sizeof(double));
-  for (int i = 0; i < 2; i++) {
-    memory->sram[LABEL + i] = tmpValuesArray[i];
-    std::cout << memory->sram[LABEL + i] << std::endl;
+  if (useStepFolder) {
+    // open file
+    std::ifstream labelFile(
+        "models/mobilebert/binary_data/tiny_pretrained/step_" +
+            std::to_string(step) + "/activations/mobilebert_labels",
+        std::ios::binary);
+    double *tmpValuesArray = new double[1024];
+    labelFile.read((char *)tmpValuesArray, 1024 * sizeof(double));
+    for (int i = 0; i < 2; i++) {
+      memory->sram[LABEL + i] = tmpValuesArray[i];
+      std::cout << memory->sram[LABEL + i] << std::endl;
+    }
+    for (int i = 2; i < 16; i++) {
+      memory->sram[LABEL + i] = 0;
+    }
+  } else {
+    // write label, using name of folder as label
+    int label = sampleFolder[sampleFolder.size() - 1] - '0';
+    std::cout << "label: " << label << std::endl;
+    for (int i = 0; i < 2; i++) {
+      memory->sram[LABEL + i] = i == label ? 1 : 0;
+    }
+    for (int i = 2; i < 16; i++) {
+      memory->sram[LABEL + i] = 0;
+    }
+    std::cout << "labels: " << std::endl;
+    for (int i = 0; i < 16; i++) {
+      std::cout << memory->sram[LABEL + i] << std::endl;
+    }
   }
-  for (int i = 2; i < 16; i++) {
-    memory->sram[LABEL + i] = 0;
-  }
-  // load correct label
 
   std::cout << "Loaded sample from " << sampleFolder << std::endl;
 }
@@ -283,9 +298,22 @@ void initialize_model(const std::string &modelPath) {
 int main(int argc, char **argv) {
   memory = new SimpleMemoryModel<DTYPE>(false);
   initialize_model("models/mobilebert/binary_data/tiny_pretrained/");
+
+#ifdef MRPC
+  DatasetIterator trainingSet(
+      "models/mobilebert/binary_data/tiny_mrpc_finetuning/train/");
+  DatasetIterator validationSet(
+      "models/mobilebert/binary_data/tiny_mrpc_finetuning/validation/");
+#else
   DatasetIterator dataset("models/mobilebert/binary_data/tiny_pretrained/");
+#endif
+
   for (int i = 0; i < 100; i++) {
+#ifdef MRPC
+    load_sample(trainingSet, false, i);
+#else
     load_sample(dataset, true, i);
+#endif
 
     full_forward_pass();
     full_backward_pass();
