@@ -23,6 +23,12 @@ void getMobileBERTParams(std::string layerName, std::string taskName,
     }
 #endif
 
+    if (layerName == "classifier") {
+      memoryMap.weights = SRAM;
+      memoryMap.bias = SRAM;
+      params.ACC_T_WEIGHT = true;
+    }
+
     // if operation involves attention mask, use SRAM as bias
     if (inferenceTestFiles.at(layerName).bias_file.find(
             "mobilebert_attention_mask") != std::string::npos) {

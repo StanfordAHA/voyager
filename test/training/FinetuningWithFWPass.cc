@@ -261,23 +261,22 @@ void initialize_model(const std::string &modelPath) {
   }
 
   // Copy classifier weight to SRAM
-  for (int i = 0; i < 16 * 512; i++) {
+  for (int i = 0; i < 16 * 512 * 2; i++) {
     int rramOffset = (NUM_ENCODER_LAYERS - 1) * ENCODER_WEIGHT_SIZE +
                      8 * INTERMEDIATE_SIZE + 5 * INTERMEDIATE_BIAS_SIZE +
                      3 * INTRA_BOTTLENECK_SIZE +
                      18 * INTRA_BOTTLENECK_BIAS_SIZE;
-    memory->sram[CLASSIFIER_W + 2 * i] = memory->rram[rramOffset + i];
-    memory->sram[CLASSIFIER_W + 2 * i + 1] = 0;
+    memory->sram[CLASSIFIER_W + i] = memory->rram[rramOffset + i];
   }
 
-  for (int i = 0; i < 16; i++) {
+  // Copy classifier bias to SRAM
+  for (int i = 0; i < 16 * 2; i++) {
     int rramOffset = (NUM_ENCODER_LAYERS - 1) * ENCODER_WEIGHT_SIZE +
                      8 * INTERMEDIATE_SIZE + 21 * INTERMEDIATE_BIAS_SIZE +
                      3 * INTRA_BOTTLENECK_SIZE +
                      18 * INTRA_BOTTLENECK_BIAS_SIZE;
-    memory->sram[CLASSIFIER_W + CLASSIFIER_W_SIZE + 2 * i] =
-        memory->rram[rramOffset + 2 * i];
-    memory->sram[CLASSIFIER_W + CLASSIFIER_W_SIZE + 2 * i + 1] = 0;
+
+    memory->sram[CLASSIFIER_B + i] = memory->rram[rramOffset + i];
   }
 }
 
