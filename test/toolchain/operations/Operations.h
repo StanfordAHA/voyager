@@ -77,3 +77,7 @@ void MapLoRACombination(const SimplifiedParams &params,
 void MapLoRAQuantize(const SimplifiedParams &params, const MemoryMap &memoryMap,
                      std::deque<BaseParams *> &mappedParams,
                      std::deque<AcceleratorMemoryMap> &opMemoryMaps);
+
+void MapAddition(const SimplifiedParams &params, const MemoryMap &memoryMap,
+                 std::deque<BaseParams *> &mappedParams,
+                 std::deque<AcceleratorMemoryMap> &opMemoryMaps);
