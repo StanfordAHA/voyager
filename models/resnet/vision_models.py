@@ -96,6 +96,7 @@ class BasicBlock(nn.Module):
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = norm_layer(planes)
         self.downsample = downsample
+        self.relu2 = nn.ReLU(inplace=True)
         self.stride = stride
 
     def forward(self, x: Tensor) -> Tensor:
@@ -142,7 +143,7 @@ class BasicBlock(nn.Module):
             str(_block_num)+".conv"+str(_conv_num)
 
         out += identity
-        out = self.relu(out)
+        out = self.relu2(out)
 
         if _export and not _no_intermediates:
             _buffer[_layer_name +
