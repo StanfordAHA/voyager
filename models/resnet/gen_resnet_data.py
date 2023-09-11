@@ -9,6 +9,7 @@ import struct
 import numpy as np
 import onnx
 import torch
+import torch.nn as nn
 import torchvision
 from PIL import Image
 from tqdm import tqdm
@@ -35,7 +36,6 @@ from vision_models import arrange_data
 
 
 def prepare_data(args: argparse.Namespace):
-
     # Walk the category directories and collect the image paths
     image_paths = []
     for dir, _, files in os.walk(args.data_dir):
@@ -60,6 +60,112 @@ def prepare_data(args: argparse.Namespace):
     return image_paths, image_labels, ref_labels
 
 
+def dump_model_data(args: argparse.Namespace, image_paths: str, image_labels: str, ref_labels: str):
+    model = vision_models.ResNet(block=vision_models.BasicBlock, layers=[2, 2, 2, 2])
+
+    # Load default model
+    model_path = os.path.join(args.model_dir, 'resnet18_mp2.pth')
+    state_dict = torch.load(model_path).state_dict()
+    model.load_state_dict(state_dict)
+
+    model.eval()
+    model = bn_folding.bn_folding_model(model)
+
+    # Load QAT model
+    ckpt_file = os.path.join(args.model_dir, args.model_file)
+    if os.path.isfile(ckpt_file):
+        print("=> loading checkpoint '{}'".format(ckpt_file))
+        checkpoint = torch.load(ckpt_file, map_location=torch.device('cpu'))
+        model.load_state_dict(checkpoint)
+
+    activations = {}
+
+    def get_forward_pre_hook(name):
+        def hook_fn(m, inputs):
+            # print(f"{name}.input")
+            activations[f"{name}.input"] = arrange_data(name, inputs[0])
+        return hook_fn
+    
+    def get_forward_hook(name):
+        def hook_fn(m, inputs, output):
+            # print(f"{name}.comp", type(m).__name__)
+            activations[f"{name}.comp"] = arrange_data(name, output)
+        return hook_fn
+
+    conv_layer = None
+    handle = None
+    for name, mod in model.named_modules():
+        if isinstance(mod, torch.nn.Conv2d):
+            mod.register_forward_pre_hook(get_forward_pre_hook(name))
+            if "downsample" in name:
+                mod.register_forward_hook(get_forward_hook(name))
+            else:
+                conv_layer = name
+                handle = mod.register_forward_hook(get_forward_hook(name))
+
+        if isinstance(mod, (nn.MaxPool2d, nn.ReLU, nn.AdaptiveAvgPool2d)):
+            if handle:
+                handle.remove()
+            handle = mod.register_forward_hook(get_forward_hook(conv_layer))
+
+        if isinstance(mod, torch.nn.Linear):
+            mod.register_forward_pre_hook(get_forward_pre_hook(name))
+            mod.register_forward_hook(get_forward_hook(name))
+
+    for name, param in model.named_parameters():
+        activations[name] = arrange_data(name, param.data)
+
+    preprocess = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225]),
+    ])
+
+    model_ref_corr = 0
+    pkl_file_paths = []
+
+    # Loop over all images and verify results
+    for i in tqdm(range(args.samples)):
+
+        image_path = image_paths[i]
+        print(image_path)
+
+        # Load and prepare input image
+        input_image = Image.open(image_path).convert('RGB')
+        input = preprocess(input_image).unsqueeze(0)
+
+        # Run inference
+        with torch.no_grad():
+            output = model(input)
+
+        # Get output probabilities
+        output_probs = torch.nn.functional.softmax(output.squeeze(), dim=0)
+        top_prob_ref, top_catid_ref = torch.topk(output_probs, 5)
+
+        if image_labels[i] == ref_labels[top_catid_ref[0]][0]:
+            model_ref_corr += 1
+
+        # Get unique name from image path
+        path_components = os.path.normpath(image_path).split(os.path.sep)
+        model_id = path_components[-2] + '_' + \
+            re.findall('000[0-9]+', path_components[-1])[-1]
+        dataset_name = path_components[-3]
+
+        os.makedirs(os.path.join(args.model_dir, dataset_name), exist_ok=True)
+        pkl_file_path = os.path.join(args.model_dir, dataset_name, model_id + ".pkl")
+        with open(pkl_file_path, "wb") as f:
+            pickle.dump(activations, f)
+        pkl_file_paths.append(pkl_file_path)
+
+    model_ref_acc = model_ref_corr / args.samples
+
+    print(f"\nRan through {args.samples} samples from {len(set(image_labels[:args.samples]))} categories. \nAccuracy: ref {model_ref_acc}.")
+
+    return pkl_file_paths
+
+
 def run_model(args: argparse.Namespace, image_paths: str, image_labels: str, ref_labels: str):
     # Force PyTorch to CPU
     torch.device("cpu")
@@ -70,7 +176,6 @@ def run_model(args: argparse.Namespace, image_paths: str, image_labels: str, ref
     # ref_state_dict = load_state_dict_from_url(
     #     "https://download.pytorch.org/models/resnet18-5c106cde.pth")
     # model_ref.load_state_dict(ref_state_dict)
-    model_ref.eval()
 
     # Create bn folded + maxpool 2x2 model (bn folded into conv)
     model_bnfold = vision_models.ResNet(
@@ -217,7 +322,7 @@ def write_binary(args: argparse.Namespace, pkl_file_paths):
     # Create output_dir if it does not already exists
     os.makedirs(args.binary_dir, exist_ok=True)
 
-    for pkl_file_path in tqdm.tqdm(pkl_file_paths):
+    for pkl_file_path in tqdm(pkl_file_paths):
 
         instance = os.path.splitext(os.path.basename(pkl_file_path))[0]
         output_dir = os.path.join(args.binary_dir, instance)
@@ -246,15 +351,14 @@ def write_binary(args: argparse.Namespace, pkl_file_paths):
 
 def dump_model_weights(args):
     model = models.__dict__['resnet18']()
+    model.eval()
+    model = bn_folding.bn_folding_model(model)
 
-    ckpt_file = os.path.join(args.model_dir, 'model_best.pth.tar')
+    ckpt_file = os.path.join(args.model_dir, args.model_file)
     if os.path.isfile(ckpt_file):
         print("=> loading checkpoint '{}'".format(ckpt_file))
         checkpoint = torch.load(ckpt_file, map_location=torch.device('cpu'))
-        model.load_state_dict(checkpoint['state_dict'])
-
-    model.eval()
-    model = bn_folding.bn_folding_model(model)
+        model.load_state_dict(checkpoint)
 
     weights = {}
     for name, param in model.named_parameters():
@@ -279,6 +383,10 @@ def main():
                         type=str,
                         default='models/resnet/model_data',
                         help='Path to model directory the .pkl intermediate files will be written to.')
+    parser.add_argument('--model_file',
+                        type=str,
+                        default='model_best.pth.tar',
+                        help='Path to model file the .pkl intermediate files will be written to.')
     parser.add_argument('--binary_dir',
                         type=str,
                         default='models/resnet/binary_data',
@@ -308,9 +416,10 @@ def main():
     args = parser.parse_args()
 
     image_paths, image_labels, ref_labels = prepare_data(args)
-    assert len(
-        image_paths) >= args.samples, f'Can not generate {args.samples}, only {len(image_paths)} samples available.'
-    pkl_file_paths = run_model(args, image_paths, image_labels, ref_labels)
+    assert len(image_paths) >= args.samples, f'Can not generate {args.samples}, only {len(image_paths)} samples available.'
+    # pkl_file_paths = run_model(args, image_paths, image_labels, ref_labels)
+    pkl_file_paths = dump_model_data(args, image_paths, image_labels, ref_labels)
+    # pkl_file_paths = dump_model_weights(args)
     write_binary(args, pkl_file_paths)
 
     print("ResNet data generator done!")
