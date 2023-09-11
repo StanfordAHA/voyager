@@ -496,7 +496,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       outputMatrix[i] = readInput(matrixA, i, params.ACC_T_INPUT);
     }
 
-    for (int i = 0; i < X * K; i++) {
+    for (int i = 0; i < X * C; i++) {
       adjustExp(outputMatrix[i], params.outputExpBias);
     }
 
