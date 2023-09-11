@@ -192,10 +192,20 @@ void initialize_model(const std::string &modelPath) {
         readFileAsDouble(w_q_lora_file, LORA_WQ_A_SIZE / 2, true);
 
     for (int i = 0; i < LORA_WQ_A_SIZE / 2; i++) {
+#ifdef FP32
       // double precision
       memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE + i * 2] =
           w_q_lora_weights[i];
       memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE + i * 2 + 1] = 0;
+#else
+      Posit<16, 1> p16(w_q_lora_weights[i]);
+      // double precision
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE + i * 2].setbits(
+          p16.bits & 0xFF);
+      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE + i * 2 + 1]
+          .setbits((p16.bits >> 8) & 0xFF);
+
+#endif
     }
 
     std::string w_qb_lora_file =
@@ -211,20 +221,24 @@ void initialize_model(const std::string &modelPath) {
     // B is stored as a transposed matrix
     for (int row = 0; row < 16; row++) {
       for (int col = 0; col < 128; col++) {
+#ifdef FP32
         memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
                      LORA_WQ_A_SIZE + row * 128 * 2 + col * 2] =
             w_qb_lora_weights[col * 16 + row];
         memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
                      LORA_WQ_A_SIZE + row * 128 * 2 + col * 2 + 1] = 0;
+#else
+        Posit<16, 1> p16(w_qb_lora_weights[col * 16 + row]);
+        memory
+            ->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   LORA_WQ_A_SIZE + row * 128 * 2 + col * 2]
+            .setbits(p16.bits & 0xFF);
+        memory
+            ->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   LORA_WQ_A_SIZE + row * 128 * 2 + col * 2 + 1]
+            .setbits((p16.bits >> 8) & 0xFF);
+#endif
       }
-    }
-
-    for (int i = 0; i < LORA_WQ_B_SIZE / 2; i++) {
-      // double precision
-      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
-                   LORA_WQ_A_SIZE + i * 2] = w_qb_lora_weights[i];
-      memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
-                   +LORA_WQ_A_SIZE + i * 2 + 1] = 0;
     }
 
     // load value LoRA weight
@@ -239,6 +253,7 @@ void initialize_model(const std::string &modelPath) {
         readFileAsDouble(w_v_lora_file, LORA_WV_A_SIZE / 2, true);
 
     for (int i = 0; i < LORA_WV_A_SIZE / 2; i++) {
+#ifdef FP32
       // double precision
       memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
                    LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + i * 2] =
@@ -246,6 +261,18 @@ void initialize_model(const std::string &modelPath) {
 
       memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
                    LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + i * 2 + 1] = 0;
+#else
+      Posit<16, 1> p16(w_v_lora_weights[i]);
+      // double precision
+      memory
+          ->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE + LORA_WQ_A_SIZE +
+                 LORA_WQ_B_SIZE + i * 2]
+          .setbits(p16.bits & 0xFF);
+      memory
+          ->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE + LORA_WQ_A_SIZE +
+                 LORA_WQ_B_SIZE + i * 2 + 1]
+          .setbits((p16.bits >> 8) & 0xFF);
+#endif
     }
 
     std::string w_vb_lora_file =
@@ -259,6 +286,7 @@ void initialize_model(const std::string &modelPath) {
     // B is stored as a transposed matrix
     for (int row = 0; row < 16; row++) {
       for (int col = 0; col < 128; col++) {
+#ifdef FP32
         memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
                      LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE +
                      row * 128 * 2 + col * 2] =
@@ -266,11 +294,24 @@ void initialize_model(const std::string &modelPath) {
         memory->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
                      LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE +
                      +row * 128 * 2 + col * 2 + 1] = 0;
+#else
+        Posit<16, 1> p16(w_vb_lora_weights[col * 16 + row]);
+        memory
+            ->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE +
+                   row * 128 * 2 + col * 2]
+            .setbits(p16.bits & 0xFF);
+        memory
+            ->sram[LORA_W + encoderLayer * LORA_W_PER_ENC_SIZE +
+                   LORA_WQ_A_SIZE + LORA_WQ_B_SIZE + LORA_WV_A_SIZE +
+                   row * 128 * 2 + col * 2 + 1]
+            .setbits((p16.bits >> 8) & 0xFF);
+#endif
       }
     }
   }
 
-  // Initialize LoRA weight gradient
+  // Initialize all LoRA weight gradients to 0
   for (int i = 0; i < NUM_ENCODER_LAYERS * LORA_W_PER_ENC_SIZE; i++) {
     memory->sram[LORA_G + i] = 0;
   }
@@ -292,6 +333,16 @@ void initialize_model(const std::string &modelPath) {
                      18 * INTRA_BOTTLENECK_BIAS_SIZE;
 
     memory->sram[CLASSIFIER_B + i] = memory->rram[rramOffset + i];
+  }
+
+  // initialize classifier weight gradient to 0
+  for (int i = 0; i < CLASSIFIER_G_SIZE; i++) {
+    memory->sram[CLASSIFIER_G + i] = 0;
+  }
+
+  // initialize classifier bias gradient to 0
+  for (int i = 0; i < CLASSIFIER_B_SIZE; i++) {
+    memory->sram[CLASSIFIER_B_G + i] = 0;
   }
 }
 
@@ -316,6 +367,6 @@ int main(int argc, char **argv) {
 #endif
 
     full_forward_pass();
-    full_backward_pass();
+    full_backward_pass(i);
   }
 }
