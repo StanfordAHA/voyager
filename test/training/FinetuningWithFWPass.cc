@@ -72,7 +72,7 @@ void run_op(const std::string &layerName, const std::string &task,
       std::cout << "ERROR: step not specified for weight update" << std::endl;
       exit(1);
     }
-    params.learningRate = START_LR - START_LR * (step / MAX_TRAININING_STEPS);
+    params.learningRate = START_LR - START_LR * (step / MAX_TRAINING_STEPS);
   }
 
   runWorkload(params, memoryMap);
