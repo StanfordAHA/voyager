@@ -256,10 +256,10 @@ def run_model(args: argparse.Namespace, image_paths: str, image_labels: str, ref
             model_bnfold_corr += 1
 
         # Get unique name from image path
-            path_components = os.path.normpath(image_path).split(os.path.sep)
-            model_id = path_components[-2] + '_' + \
-                re.findall('000[0-9]+', path_components[-1])[-1]
-            dataset_name = path_components[-3]
+        path_components = os.path.normpath(image_path).split(os.path.sep)
+        model_id = path_components[-2] + '_' + \
+            re.findall('000[0-9]+', path_components[-1])[-1]
+        dataset_name = path_components[-3]
 
         # Write inputs to NN to disk
         if args.write_dataset:
