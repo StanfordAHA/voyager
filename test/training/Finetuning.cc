@@ -172,6 +172,11 @@ void initialize_model(const std::string &modelPath) {
       if (workload.params.ATTENTION_MASK) {
         workload.files.bias_file = "";
       }
+
+      if (workload.name == "mobilebert_encoder_layer_20_classifier") {
+        workload.params.ACC_T_WEIGHT = true;
+      }
+
       memory->loadModelParams(workload.params, workload.files,
                               workload.memoryMap, true);
     }
