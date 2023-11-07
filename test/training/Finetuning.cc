@@ -78,6 +78,15 @@ void run_op(const std::string &layerName, const std::string &task,
   runWorkload(params, memoryMap);
 }
 
+void dumpToFile(int address, int size, std::string file) {
+  // dump bytes output to file
+  std::ofstream myfile(file, std::ios::out | std::ios::binary);
+  for (int i = 0; i < size; i++) {
+    myfile << (uint8_t)memory->sram[address + i].bits;
+  }
+  myfile.close();
+}
+
 // clang-format off
 #include "forward_pass.h"
 #include "backward_pass.h"
@@ -172,6 +181,11 @@ void initialize_model(const std::string &modelPath) {
       if (workload.params.ATTENTION_MASK) {
         workload.files.bias_file = "";
       }
+
+      if (workload.name == "mobilebert_encoder_layer_20_classifier") {
+        workload.params.ACC_T_WEIGHT = true;
+      }
+
       memory->loadModelParams(workload.params, workload.files,
                               workload.memoryMap, true);
     }

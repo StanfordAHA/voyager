@@ -78,11 +78,18 @@ void print_memory(int address, bool SRAM) {
     }
   }
   std::cout << std::endl;
-  // wait for user to press enter
-  std::string line;
-  std::getline(std::cin, line);
-  std::cout << "next" << std::endl;
+#endif
+}
 
+void dump_memory(int address, int size, char *file) {
+#ifdef SOC
+  gdb_dump_memory(address, size, file);
+#else
+  std::ofstream myfile(std::string(file));
+  for (int i = 0; i < size; i++) {
+    myfile << memory->sram[address + i].bits << std::endl;
+  }
+  myfile.close();
 #endif
 }
 
@@ -511,31 +518,15 @@ void forward_pass(int startingEncoder, int endingEncoder) {
 }
 
 void full_forward_pass() {
-  // forward_pass(0, NUM_ENCODER_LAYERS);
-
-  // for (int i = 0; i < 128 / 10; i++) {
-  //   debug_print("encoder_layer_output");
-  //   print_memory(ENCODER_SCRATCH + i * 10, true);
-  // }
-  // debug_print("encoder_layer_output");
-  // print_memory(ENCODER_SCRATCH + i * 10, true);
-#ifdef SOC
-  gdb_print_memory(SRAM_BASE + ENCODER_SCRATCH, 16, P8);
-  gdb_print_memory(SRAM_BASE + CLASSIFIER_W, 16, P16);
-  gdb_print_memory(SRAM_BASE + CLASSIFIER_B, 16, P16);
-
-#endif
+  forward_pass(0, NUM_ENCODER_LAYERS);
 
   // classifier
   run_op(OPERATION(classifier, inference), ENCODER_SCRATCH, CLASSIFIER_W,
          ENCODER_SCRATCH + INTERMEDIATE_SIZE, CLASSIFIER_B, 0);
 
-  debug_print("classifier_output");
-  print_memory(ENCODER_SCRATCH + INTERMEDIATE_SIZE, true);
-
 #ifndef SOC
   std::cout << "Classifier Output: " << std::endl;
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 2; i++) {
     std::cout << memory->sram[ENCODER_SCRATCH + INTERMEDIATE_SIZE + i]
               << std::endl;
   }

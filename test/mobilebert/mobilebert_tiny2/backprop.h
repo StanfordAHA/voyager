@@ -102,6 +102,70 @@ const SimplifiedParams cross_entropy_gradient = {
     .outputExpBias = 8,
 };
 
+const SimplifiedParams classifier_weight_quant = {
+    .INPUT_OFFSET = 0,
+    .WEIGHT_OFFSET = 0,
+    .OUTPUT_OFFSET = 0,
+    .WEIGHT_TRANSPOSE = false,
+    .loops = {{8, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 1, 64}},
+    .inputXLoopIndex = {0, 5},
+    .inputYLoopIndex = {1, 4},
+    .reductionLoopIndex = {3, 0},
+    .weightLoopIndex = {2, 1},
+    .fxIndex = 3,
+    .fyIndex = 2,
+    .weightReuseIndex = {4, 5},
+    .STRIDE = 1,
+    .REPLICATION = false,
+    .RELU = false,
+    .BIAS = false,
+    .BIAS_OFFSET = 0,
+    .RESIDUAL = false,
+    .RESIDUAL_OFFSET = 0,
+    .MAXPOOL = false,
+    .AVGPOOL = false,
+    .WEIGHT = false,
+    .STORE_IN_ACC = false,
+    .ACC_FROM_ACC = false,
+    .SOFTMAX = false,
+    .ATTENTION_SCALING = false,
+    .FC = false,
+    .NO_NORM = false,
+    .SOFTMAX_GRAD = false,
+    .FC_GRAD = false,
+    .NO_NORM_GRAD = false,
+    .RELU_GRAD = false,
+    .BIAS_GRAD = false,
+    .CROSS_ENTROPY_GRAD = false,
+    .MSE_GRAD = false,
+    .BCE_WITH_LOGITS_GRAD = false,
+    .INPUT_TRANSPOSE = false,
+    .CONCAT_INPUT = false,
+    .CONCAT_WEIGHT = false,
+    .SPLIT_OUTPUT = false,
+    .GRAD_CLIPPING = false,
+    .GRAD_CLIPPING_UNIT_TEST = false,
+    .WEIGHT_SPLITTING = false,
+    .WEIGHT_RESIDUAL_OFFSET = 0,
+    .learningRate = 0.0,
+    .ACC_T_INPUT = false,
+    .ACC_T_WEIGHT = false,
+    .ACC_T_OUTPUT = false,
+    .ACC_T_RESIDUAL = false,
+    .outputExpBias = 0,
+    .WEIGHT_UPDATE = false,
+    .ERROR_FEEDBACK = false,
+    .depthwise = false,
+    .sram_banks = {ON},
+    .rram_banks = {ON},
+    .bandwidth_mode = QUAD,
+    .bank_offsets = {0},
+    .name = "",
+    .ATTENTION_MASK = false,
+    .MERGE_LORA_WEIGHT = false,
+    .QUANTIZE_TO_P8 = true,
+};
+
 // (128 x 16) x (16 x 512)
 const SimplifiedParams classifier_backward = {
     .INPUT_OFFSET = 0,
@@ -662,6 +726,7 @@ const SimplifiedParams input_bottleneck_backward = {
 
 std::map<std::string, SimplifiedParams> backpropParams;
 backpropParams["classifier"] = cross_entropy_gradient;
+backpropParams["classifier_weight_quant"] = classifier_weight_quant;
 backpropParams["output_bottleneck_LayerNorm"] = classifier_backward;
 backpropParams["output_bottleneck_dense"] =
     output_bottleneck_LayerNorm_backward;
@@ -713,6 +778,7 @@ const std::map<std::string, MemoryOffsets> backpropMemOffsets{
          0,
          0,
      }},
+    {"classifier_weight_quant", {0, 0, 0}},
     {"output_bottleneck_LayerNorm",
      {
          0,
@@ -1005,6 +1071,7 @@ const std::map<std::string, Files> backpropTestFiles{
          "",
          "classifier",
      }},
+    {"classifier_weight_quant", {"", "", "", ""}},
     {"output_bottleneck_LayerNorm",
      {
          "classifier",
