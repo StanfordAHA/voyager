@@ -206,8 +206,10 @@ class Posit {
   void negate() { twos_complement(bits); }
 
   void reciprocal() {
-    ac_int<nbits, false> sub = (1 << (nbits - 1));
-    bits = sub - bits;
+    // ac_int<nbits, false> sub = (1 << (nbits - 1));
+    // bits = sub - bits;
+    ac_int<nbits, false> signmask = 1 << (nbits - 1);
+    bits = bits ^ ~signmask;
   }
 
   void sigmoid() {
