@@ -46,13 +46,18 @@ template <int nbits, int es, int fbits>
 void convert_(const bool sign, const int scale,
               const ac_int<fbits, false> fraction_in,
               ac_int<nbits, false> &bits) {
-  // if (nbits == 8 && es == 1 && scale < -13) {
+  // if ((es > 0 && scale < -(nbits - 1) * (1 << es) + (1 << max(es - 1, 0))) ||
+  //     (es == 0 && scale < -(nbits - 1))) {
   //   bits = 0;
   //   return;
   // }
 
-  if ((es > 0 && scale < -(nbits - 1) * (1 << es) + (1 << max(es - 1, 0))) ||
-      (es == 0 && scale < -(nbits - 1))) {
+  if (nbits == 8 && es == 1 && scale < -13) {
+    bits = 0;
+    return;
+  }
+
+  if (nbits == 16 && es == 1 && scale < -29) {
     bits = 0;
     return;
   }
@@ -462,7 +467,8 @@ class PositFP {
     posit16_0.reciprocal();
     *this = posit16_0;
 
-    *this -= 1.10925;
+    PositFP diff = -1.10925;
+    *this -= diff;
     this->relu();
   }
 
