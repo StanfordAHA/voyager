@@ -467,8 +467,12 @@ class PositFP {
     posit16_0.reciprocal();
     *this = posit16_0;
 
-    PositFP diff = -1.10925;
-    *this -= diff;
+    PositFP<8, 23> diff;
+    diff.sign = 1;
+    diff.scale = 0;
+    diff.fraction = 0xdfbe7;
+    *this -= static_cast<PositFP>(diff);
+
     this->relu();
   }
 
