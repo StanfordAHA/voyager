@@ -13,23 +13,23 @@ SC_MODULE(MatrixProcessor) {
   Connections::SyncChannel CCS_INIT_S1(weightLoadDone);
   Connections::SyncChannel CCS_INIT_S1(weightSwapDone);
 
-  MultiInputSerializedSkewer<IDTYPE, P8D, NROWS> CCS_INIT_S1(inputSkewer);
+  MultiInputSerializedSkewer<IDTYPE, typename IDTYPE::AccumulationDatatype, NROWS> CCS_INIT_S1(inputSkewer);
   Connections::Combinational<Pack1D<PEInput<IDTYPE>, NROWS> > CCS_INIT_S1(
       inputSkewerDin);
 
-  WeightSerializedSkewer<P8D, P8D, NROWS> CCS_INIT_S1(weightSkewer);
-  Connections::Combinational<Pack1D<PEWeight<P8D>, NROWS> > CCS_INIT_S1(
+  WeightSerializedSkewer<typename IDTYPE::AccumulationDatatype, typename IDTYPE::AccumulationDatatype, NROWS> CCS_INIT_S1(weightSkewer);
+  Connections::Combinational<Pack1D<PEWeight<typename IDTYPE::AccumulationDatatype>, NROWS> > CCS_INIT_S1(
       weightSkewerDin);
 
-  SerializedSkewer<ODTYPE, P16D, NROWS> CCS_INIT_S1(psumInSkewer);
+  SerializedSkewer<ODTYPE, typename ODTYPE::AccumulationDatatype, NROWS> CCS_INIT_S1(psumInSkewer);
   Connections::Combinational<Pack1D<ODTYPE, NROWS> > CCS_INIT_S1(
       psumInSkewerDin);
 
-  DeserializedSkewer<P16D, ODTYPE, NROWS> CCS_INIT_S1(psumOutSkewer);
+  DeserializedSkewer<typename ODTYPE::AccumulationDatatype, ODTYPE, NROWS> CCS_INIT_S1(psumOutSkewer);
   Connections::Combinational<Pack1D<ODTYPE, NROWS> > CCS_INIT_S1(
       psumOutSkewerDout);
 
-  SystolicArray<P8D, P8D, P16D, NROWS, NCOLS> CCS_INIT_S1(systolicArray);
+  SystolicArray<typename IDTYPE::AccumulationDatatype, typename IDTYPE::AccumulationDatatype, typename ODTYPE::AccumulationDatatype, NROWS, NCOLS> CCS_INIT_S1(systolicArray);
 
   MatrixParamsDeserializer<1> CCS_INIT_S1(paramsDeserializer);
 
@@ -38,18 +38,18 @@ SC_MODULE(MatrixProcessor) {
   sc_in<bool> CCS_INIT_S1(rstn);
 
   Connections::In<Pack1D<IDTYPE, NROWS> > CCS_INIT_S1(inputsChannel);
-  Connections::In<Pack1D<P8D, NROWS> > CCS_INIT_S1(weightsChannel);
+  Connections::In<Pack1D<typename IDTYPE::AccumulationDatatype, NROWS> > CCS_INIT_S1(weightsChannel);
   Connections::Out<Pack1D<ODTYPE, NROWS> > CCS_INIT_S1(outputsChannel);
 
   Connections::In<int> CCS_INIT_S1(serialParamsIn);
 
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
-  Connections::Combinational<PEInput<P8D> > inputsToSystolicArray[NROWS];
+  Connections::Combinational<PEInput<typename IDTYPE::AccumulationDatatype> > inputsToSystolicArray[NROWS];
   // Connections::Combinational<ac_int<1, false> >
   //     weightSwapToSystolicArray[NROWS];
-  Connections::Combinational<P16D> psumsToSystolicArray[NCOLS];
-  Connections::Combinational<P16D> outputsFromSystolicArray[NCOLS];
-  Connections::Combinational<PEWeight<P8D> > weightsToSystolicArray[NCOLS];
+  Connections::Combinational<typename ODTYPE::AccumulationDatatype> psumsToSystolicArray[NCOLS];
+  Connections::Combinational<typename ODTYPE::AccumulationDatatype> outputsFromSystolicArray[NCOLS];
+  Connections::Combinational<PEWeight<typename IDTYPE::AccumulationDatatype> > weightsToSystolicArray[NCOLS];
 
   Connections::SyncOut CCS_INIT_S1(startSignal);
   Connections::SyncOut CCS_INIT_S1(doneSignal);
@@ -121,9 +121,9 @@ SC_MODULE(MatrixProcessor) {
     while (true) {
 #pragma hls_pipeline_init_interval 1
       for (int weight_count = 0; weight_count < NROWS; weight_count++) {
-        Pack1D<P8D, NCOLS> arrayWeights = weightsChannel.Pop();
+        Pack1D<typename IDTYPE::AccumulationDatatype, NCOLS> arrayWeights = weightsChannel.Pop();
         // std::cout << "Weights: " << arrayWeights << std::endl;
-        Pack1D<PEWeight<P8D>, NCOLS> weights;
+        Pack1D<PEWeight<typename IDTYPE::AccumulationDatatype>, NCOLS> weights;
 #pragma hls_unroll yes
         for (int i = 0; i < NCOLS; i++) {
           weights[i].data = arrayWeights[i];

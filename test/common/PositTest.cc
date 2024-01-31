@@ -61,7 +61,7 @@ int testPositEncoding(const float f) {
   }
 
   // Decoding test
-  typename Posit<nbits, es>::DecomposedPosit positfp(p);
+  typename Posit<nbits, es>::AccumulationDatatype positfp(p);
   if ((float)positfp != (float)ref) {
     std::cerr << "ERROR: incorrect decoded value produced!" << std::endl
               << "Input:     " << f << std::endl
@@ -132,8 +132,8 @@ int main(int argc, char* argv[]) {
           pB.setbits(j);
           pC.setbits(k);
 
-          Posit<8, 1>::DecomposedPosit positfpA(pA);
-          Posit<8, 1>::DecomposedPosit positfpB(pB);
+          Posit<8, 1>::AccumulationDatatype positfpA(pA);
+          Posit<8, 1>::AccumulationDatatype positfpB(pB);
           PositFP<8, 15> positfpC(pC);
           positfpC = fma(positfpA, positfpB, positfpC);
           double hls = (float)positfpC;
@@ -188,9 +188,9 @@ int main(int argc, char* argv[]) {
           pB.setbits(j);
           pC.setbits(k);
 
-          Posit<8, 1>::DecomposedPosit positfpA(pA);
-          Posit<8, 1>::DecomposedPosit positfpB(pB);
-          Posit<16, 1>::DecomposedPosit positfpC(pC);
+          Posit<8, 1>::AccumulationDatatype positfpA(pA);
+          Posit<8, 1>::AccumulationDatatype positfpB(pB);
+          Posit<16, 1>::AccumulationDatatype positfpC(pC);
           positfpC = fma(positfpA, positfpB, positfpC);
           double hls = (float)positfpC;
 
@@ -269,8 +269,8 @@ int main(int argc, char* argv[]) {
         pA.setbits(i);
         pB.setbits(j);
 
-        Posit<16, 1>::DecomposedPosit positfpA(pA);
-        Posit<16, 1>::DecomposedPosit positfpB(pB);
+        Posit<16, 1>::AccumulationDatatype positfpA(pA);
+        Posit<16, 1>::AccumulationDatatype positfpB(pB);
         bool hls = positfpA < positfpB;
 
         Posit16E1 universalA, universalB;

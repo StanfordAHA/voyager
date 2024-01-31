@@ -28,7 +28,7 @@ SC_MODULE(WeightController) {
   Connections::In<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(gradDataResponse);
 
   Connections::In<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(weightsFromBuffer);
-  Connections::Out<Pack1D<typename DTYPE::DecomposedPosit, NROWS> > CCS_INIT_S1(
+  Connections::Out<Pack1D<typename DTYPE::AccumulationDatatype, NROWS> > CCS_INIT_S1(
       weightsToSystolicArray);
 
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
@@ -969,8 +969,8 @@ SC_MODULE(WeightController) {
 
       DTYPE learningRatePosit;
       learningRatePosit.setbits(params.learningRate);
-      typename DTYPE::DecomposedPosit learningRate =
-          static_cast<typename DTYPE::DecomposedPosit>(learningRatePosit);
+      typename DTYPE::AccumulationDatatype learningRate =
+          static_cast<typename DTYPE::AccumulationDatatype>(learningRatePosit);
 
       ac_int<32, false> total_count =
           loop_bounds[0][0] * loop_bounds[0][1] * loop_bounds[0][2] *
@@ -981,40 +981,40 @@ SC_MODULE(WeightController) {
 #pragma hls_pipeline_stall_mode flush
       for (int i = 0; i < total_count; i++) {
         Pack1D<DTYPE, NROWS> weights = weightsFromBuffer.Pop();
-        Pack1D<typename DTYPE::DecomposedPosit, NROWS> weightsDecomposed;
+        Pack1D<typename DTYPE::AccumulationDatatype, NROWS> weightsDecomposed;
 
 #pragma hls_unroll yes
         for (int i = 0; i < NROWS; i++) {
           weightsDecomposed[i] =
-              static_cast<typename DTYPE::DecomposedPosit>(weights[i]);
+              static_cast<typename DTYPE::AccumulationDatatype>(weights[i]);
         }
 
         if (params.COMBINE_GRADS) {
           Pack1D<DTYPE, NROWS> gradients = gradTransposeOut.Pop();
-          Pack1D<typename ACC_DTYPE::DecomposedPosit, NROWS>
+          Pack1D<typename ACC_DTYPE::AccumulationDatatype, NROWS>
               gradientsDecomposed;
 
-#pragma hls_unroll yes
-          for (int i = 0; i < NROWS; i++) {
-            gradientsDecomposed[i] =
-                static_cast<typename ACC_DTYPE::DecomposedPosit>(
-                    static_cast<typename ACC_DTYPE::DecomposedPosit>(
-                        learningRate) *
-                    static_cast<typename ACC_DTYPE::DecomposedPosit>(
-                        gradients[i]));
-          }
+// #pragma hls_unroll yes
+//           for (int i = 0; i < NROWS; i++) {
+//             gradientsDecomposed[i] =
+//                 static_cast<typename ACC_DTYPE::AccumulationDatatype>(
+//                     static_cast<typename ACC_DTYPE::AccumulationDatatype>(
+//                         learningRate) *
+//                     static_cast<typename ACC_DTYPE::AccumulationDatatype>(
+//                         gradients[i]));
+//           }
 
           // CCS_LOG("gradients:\t" << gradients << std::endl
           //  << "--->\t" << gradientsDecomposed);
 
           // CCS_LOG("weights\t " << weightsDecomposed);
-#pragma hls_unroll yes
-          for (int i = 0; i < NROWS; i++) {
-            weightsDecomposed[i] = static_cast<typename DTYPE::DecomposedPosit>(
-                static_cast<typename ACC_DTYPE::DecomposedPosit>(
-                    weightsDecomposed[i]) -
-                gradientsDecomposed[i]);
-          }
+// #pragma hls_unroll yes
+//           for (int i = 0; i < NROWS; i++) {
+//             weightsDecomposed[i] = static_cast<typename DTYPE::AccumulationDatatype>(
+//                 static_cast<typename ACC_DTYPE::AccumulationDatatype>(
+//                     weightsDecomposed[i]) -
+//                 gradientsDecomposed[i]);
+//           }
           // CCS_LOG("--->\t" << weightsDecomposed);
         }
 

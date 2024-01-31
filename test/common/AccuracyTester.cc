@@ -132,9 +132,9 @@ int main(int argc, char* argv[]) {
       // run every workload in the forward pass
       for (Workload& workload : workloads) {
 #ifdef USE_POSIT
-        run_custom_posit_gold_model
+        run_gold_model
 #else
-        run_fp_gold_model
+        run_gold_model
 #endif
             (workload.params, memory.sram + workload.params.INPUT_OFFSET,
              (workload.memoryMap.weights ? memory.rram : memory.sram) +

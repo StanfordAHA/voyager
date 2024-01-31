@@ -15,9 +15,9 @@ inline void gold_fma(UniversalPosit a, UniversalPosit b,
 #endif
 
 inline void gold_fma(INPUT_DATATYPE a, INPUT_DATATYPE b,
-                     ACCUM_DATATYPE::DecomposedPosit &c) {
-  INPUT_DATATYPE::DecomposedPosit v1 = a;
-  INPUT_DATATYPE::DecomposedPosit v2 = b;
+                     ACCUM_DATATYPE::AccumulationDatatype &c) {
+  INPUT_DATATYPE::AccumulationDatatype v1 = a;
+  INPUT_DATATYPE::AccumulationDatatype v2 = b;
   c = decomposed_fma<8, 1, 16, 1>(v1, v2, c);
 }
 
@@ -26,14 +26,14 @@ inline void gold_fma(float a, float b, float &c) { c += a * b; }
 #ifndef NO_UNIVERSAL
 inline void gold_relu(UniversalPositAccum &a) { a = a < 0 ? 0 : a; }
 #endif
-inline void gold_relu(ACCUM_DATATYPE::DecomposedPosit &a) { a.relu(); }
+inline void gold_relu(ACCUM_DATATYPE::AccumulationDatatype &a) { a.relu(); }
 inline void gold_relu(float &a) { a = a < 0 ? 0 : a; }
 
 #ifndef NO_UNIVERSAL
 inline void gold_exp(UniversalPositAccum &a) { a = sw::universal::exp(a); }
 #endif
-inline void gold_exp(ACCUM_DATATYPE::DecomposedPosit &a) {
-  a = static_cast<ACCUM_DATATYPE::DecomposedPosit>(
+inline void gold_exp(ACCUM_DATATYPE::AccumulationDatatype &a) {
+  a = static_cast<ACCUM_DATATYPE::AccumulationDatatype>(
       posit_exp(static_cast<ACCUM_DATATYPE>(a)));
 }
 inline void gold_exp(float &a) { a = exp(a); }
@@ -41,10 +41,10 @@ inline void gold_exp(float &a) { a = exp(a); }
 #ifndef NO_UNIVERSAL
 inline void gold_reciprocal(UniversalPositAccum &a) { a = a.reciprocate(); }
 #endif
-inline void gold_reciprocal(ACCUM_DATATYPE::DecomposedPosit &a) {
+inline void gold_reciprocal(ACCUM_DATATYPE::AccumulationDatatype &a) {
   ACCUM_DATATYPE tmp = static_cast<ACCUM_DATATYPE>(a);
   tmp.reciprocal();
-  a = static_cast<ACCUM_DATATYPE::DecomposedPosit>(tmp);
+  a = static_cast<ACCUM_DATATYPE::AccumulationDatatype>(tmp);
 }
 inline void gold_reciprocal(float &a) { a = 1.0f / a; }
 
@@ -53,7 +53,7 @@ inline void gold_inv_sqrt(UniversalPositAccum &a) {
   a = sw::universal::rsqrt(a);
 }
 #endif
-inline void gold_inv_sqrt(ACCUM_DATATYPE::DecomposedPosit &a) {
+inline void gold_inv_sqrt(ACCUM_DATATYPE::AccumulationDatatype &a) {
   a = a.inv_sqrt();
 }
 inline void gold_inv_sqrt(float &a) { a = 1.0f / std::sqrt(a); }
@@ -104,7 +104,7 @@ inline void saveOutput(UniversalPosit *matrix, int index,
 #endif
 
 inline void saveOutput(INPUT_DATATYPE *matrix, int index,
-                       ACCUM_DATATYPE::DecomposedPosit value,
+                       ACCUM_DATATYPE::AccumulationDatatype value,
                        bool doublePrecision) {
   if (!doublePrecision) {
     matrix[index] = static_cast<INPUT_DATATYPE>(value);
@@ -131,7 +131,7 @@ inline void adjustExp(UniversalPositAccum &value, int expBias) {
   value *= pow(2, expBias);
 }
 #endif
-inline void adjustExp(ACCUM_DATATYPE::DecomposedPosit &value, int expBias) {
+inline void adjustExp(ACCUM_DATATYPE::AccumulationDatatype &value, int expBias) {
   value.scale += expBias;
 }
 inline void adjustExp(float &value, int expBias) { value *= pow(2, expBias); }
@@ -853,19 +853,19 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
   }
 }
 
-void run_custom_posit_gold_model(const SimplifiedParams params,
+void run_gold_model(const SimplifiedParams params,
                                  INPUT_DATATYPE *matrixA,
                                  INPUT_DATATYPE *matrixB,
                                  INPUT_DATATYPE *matrixC,
                                  INPUT_DATATYPE *biasMatrix,
                                  INPUT_DATATYPE *residualMatrix,
                                  INPUT_DATATYPE *weightResidualMatrix) {
-  run_gold_op<INPUT_DATATYPE, ACCUM_DATATYPE::DecomposedPosit, ACCUM_DATATYPE>(
+  run_gold_op<INPUT_DATATYPE, ACCUM_DATATYPE::AccumulationDatatype, ACCUM_DATATYPE>(
       params, matrixA, matrixB, matrixC, biasMatrix, residualMatrix,
       weightResidualMatrix);
 }
 
-void run_universal_posit_gold_model(const SimplifiedParams params,
+void run_gold_model(const SimplifiedParams params,
                                     UniversalPosit *matrixA,
                                     UniversalPosit *matrixB,
                                     UniversalPosit *matrixC,
@@ -877,7 +877,7 @@ void run_universal_posit_gold_model(const SimplifiedParams params,
       weightResidualMatrix);
 }
 
-void run_fp_gold_model(const SimplifiedParams params, float *matrixA,
+void run_gold_model(const SimplifiedParams params, float *matrixA,
                        float *matrixB, float *matrixC, float *biasMatrix,
                        float *residualMatrix, float *weightResidualMatrix) {
   run_gold_op<float, float, float>(params, matrixA, matrixB, matrixC,

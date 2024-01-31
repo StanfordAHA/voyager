@@ -37,6 +37,7 @@ class Simulation {
 
   SimpleMemoryModel<INPUT_DATATYPE> *acceleratorMemory;
   SimpleMemoryModel<INPUT_DATATYPE> *positMemory;
+  SimpleMemoryModel<INPUT_DATATYPE> *customFloatMemory;
   SimpleMemoryModel<float> *floatMemory;
   SimpleMemoryModel<UniversalPosit> *universalPositMemory;
 

@@ -29,7 +29,7 @@ Simulation::Simulation() {
   if (tests.empty()) tests = "fc";
 
   std::string simsEnv(get_env_var("SIMS"));
-  if (simsEnv.empty()) simsEnv = "accelerator,customposit";
+  if (simsEnv.empty()) simsEnv = "accelerator,customposit,customfloat";
 
   // Only applicable when NETWORK=mobilebert
   task = get_env_var("TASK");
@@ -126,6 +126,10 @@ void Simulation::loadMemory() {
     positMemory = new SimpleMemoryModel<INPUT_DATATYPE>(false);
     memories.push_back(positMemory);
   }
+  if (std::find(sims.begin(), sims.end(), "customfloat") != sims.end()) {
+    customFloatMemory = new SimpleMemoryModel<INPUT_DATATYPE>(false);
+    memories.push_back(customFloatMemory);
+  }
   if (std::find(sims.begin(), sims.end(), "universal") != sims.end()) {
     universalPositMemory = new SimpleMemoryModel<UniversalPosit>(false);
     memories.push_back(universalPositMemory);
@@ -206,7 +210,7 @@ void Simulation::run() {
 
     // Run gold models
     if (std::find(sims.begin(), sims.end(), "customposit") != sims.end()) {
-      run_custom_posit_gold_model(
+      run_gold_model(
           params, positMemory->sram + params.INPUT_OFFSET,
           (memoryMap.weights ? positMemory->rram : positMemory->sram) +
               params.WEIGHT_OFFSET,
@@ -216,8 +220,19 @@ void Simulation::run() {
           positMemory->sram + params.RESIDUAL_OFFSET,
           positMemory->sram + params.WEIGHT_RESIDUAL_OFFSET);
     }
+    if (std::find(sims.begin(), sims.end(), "customfloat") != sims.end()) {
+      run_gold_model(
+          params, customFloatMemory->sram + params.INPUT_OFFSET,
+          (memoryMap.weights ? customFloatMemory->rram : customFloatMemory->sram) +
+              params.WEIGHT_OFFSET,
+          customFloatMemory->sram + params.OUTPUT_OFFSET,
+          (params.ATTENTION_MASK ? customFloatMemory->sram : customFloatMemory->rram) +
+              params.BIAS_OFFSET,
+          customFloatMemory->sram + params.RESIDUAL_OFFSET,
+          customFloatMemory->sram + params.WEIGHT_RESIDUAL_OFFSET);
+    }
     if (std::find(sims.begin(), sims.end(), "universal") != sims.end()) {
-      run_universal_posit_gold_model(
+      run_gold_model(
           params, universalPositMemory->sram + params.INPUT_OFFSET,
           (memoryMap.weights ? universalPositMemory->rram
                              : universalPositMemory->sram) +
@@ -230,7 +245,7 @@ void Simulation::run() {
           universalPositMemory->sram + params.WEIGHT_RESIDUAL_OFFSET);
     }
     if (std::find(sims.begin(), sims.end(), "fp32") != sims.end()) {
-      run_fp_gold_model(
+      run_gold_model(
           params, floatMemory->sram + params.INPUT_OFFSET,
           (memoryMap.weights ? floatMemory->rram : floatMemory->sram) +
               params.WEIGHT_OFFSET,
@@ -304,6 +319,8 @@ int Simulation::checkOutput() {
       std::find(sims.begin(), sims.end(), "accelerator") != sims.end();
   bool customposit =
       std::find(sims.begin(), sims.end(), "customposit") != sims.end();
+  bool customfloat =
+      std::find(sims.begin(), sims.end(), "customfloat") != sims.end();
   bool universal =
       std::find(sims.begin(), sims.end(), "universal") != sims.end();
   bool fp32 = std::find(sims.begin(), sims.end(), "fp32") != sims.end();
@@ -323,6 +340,7 @@ int Simulation::checkOutput() {
   float* floatOutput;
   UniversalPosit* universalOutput;
   INPUT_DATATYPE* positOutput;
+  INPUT_DATATYPE* customFloatOutput;
   INPUT_DATATYPE* acceleratorOutput;
 
   std::cerr << "Input: " << memoryMaps.inputs << std::endl;
@@ -335,6 +353,9 @@ int Simulation::checkOutput() {
   }
   if (std::find(sims.begin(), sims.end(), "customposit") != sims.end()) {
     positOutput = memoryMaps.outputs ? positMemory->rram : positMemory->sram;
+  }
+  if (std::find(sims.begin(), sims.end(), "customfloat") != sims.end()) {
+    customFloatOutput = memoryMaps.outputs ? customFloatMemory->rram : customFloatMemory->sram;
   }
   if (std::find(sims.begin(), sims.end(), "universal") != sims.end()) {
     universalOutput = memoryMaps.outputs ? universalPositMemory->rram
@@ -399,6 +420,20 @@ int Simulation::checkOutput() {
     rel_err +=
         compare_arrays(acceleratorOutput + params.OUTPUT_OFFSET, "accelerator",
                        positOutput + params.OUTPUT_OFFSET, "customposit", size,
+                       diffFile, params.ACC_T_OUTPUT);
+    any_comparison = true;
+  }
+
+
+  if (customfloat && accelerator) {
+    std::cout << "Accelerator vs. HLS custom Float Gold Model" << std::endl;
+    std::cout << "(reveals bugs in accelerator or memory placement)"
+              << std::endl;
+    std::string diffFile = outFilePrefix + "accel_vs_hlsgold.txt";
+
+    rel_err +=
+        compare_arrays(acceleratorOutput + params.OUTPUT_OFFSET, "accelerator",
+                       positOutput + params.OUTPUT_OFFSET, "customfloat", size,
                        diffFile, params.ACC_T_OUTPUT);
     any_comparison = true;
   }

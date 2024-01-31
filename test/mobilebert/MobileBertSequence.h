@@ -295,6 +295,8 @@ int runOperation(const SimplifiedParams params,
 
   bool customposit =
       std::find(groups.begin(), groups.end(), "customposit") != groups.end();
+  bool customfloat =
+      std::find(groups.begin(), groups.end(), "customfloat") != groups.end();
   bool universal =
       std::find(groups.begin(), groups.end(), "universal") != groups.end();
   bool fp32 = std::find(groups.begin(), groups.end(), "fp32") != groups.end();
@@ -302,7 +304,19 @@ int runOperation(const SimplifiedParams params,
       std::find(groups.begin(), groups.end(), "pytorch") != groups.end();
 
   if (customposit) {
-    run_custom_posit_gold_model(
+    run_gold_model(
+        params, hls_sram_memory + params.INPUT_OFFSET,
+        (params.WEIGHT ? hls_rram_memory : hls_sram_memory) +
+            params.WEIGHT_OFFSET,
+        hls_sram_memory + params.OUTPUT_OFFSET,
+        hls_rram_memory + params.BIAS_OFFSET,
+        hls_sram_memory + params.RESIDUAL_OFFSET,
+        hls_sram_memory + params.WEIGHT_GRADIENT_OFFSET,
+        hls_sram_memory + params.BIAS_GRADIENT_OFFSET);
+  }
+
+  if (customfloat) {
+    run_gold_model(
         params, hls_sram_memory + params.INPUT_OFFSET,
         (params.WEIGHT ? hls_rram_memory : hls_sram_memory) +
             params.WEIGHT_OFFSET,
@@ -314,7 +328,7 @@ int runOperation(const SimplifiedParams params,
   }
 
   if (universal) {
-    run_universal_posit_gold_model(
+    run_gold_model(
         params, uni_sram_memory + params.INPUT_OFFSET,
         (params.WEIGHT ? uni_rram_memory : uni_sram_memory) +
             params.WEIGHT_OFFSET,
@@ -326,7 +340,7 @@ int runOperation(const SimplifiedParams params,
   }
 
   if (fp32) {
-    run_fp_gold_model(params, float_sram_memory + params.INPUT_OFFSET,
+    run_gold_model(params, float_sram_memory + params.INPUT_OFFSET,
                       (params.WEIGHT ? float_rram_memory : float_sram_memory) +
                           params.WEIGHT_OFFSET,
                       float_sram_memory + params.OUTPUT_OFFSET,

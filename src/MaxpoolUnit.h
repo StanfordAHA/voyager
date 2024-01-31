@@ -9,7 +9,7 @@ SC_MODULE(MaxpoolUnit) {
   sc_in<bool> CCS_INIT_S1(rstn);
 
   Connections::In<VectorParams> CCS_INIT_S1(paramsIn);
-  Connections::In<Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+  Connections::In<Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(tensorIn);
   Connections::Out<Pack1D<DTYPE, WIDTH> > CCS_INIT_S1(tensorOut);
 
@@ -102,7 +102,7 @@ SC_MODULE(MaxpoolUnit) {
                     ac_int<16, false> y = y0 + y1 * Y0;
                     ac_int<16, false> Y = Y0 * Y1;
 
-                    Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH>
+                    Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH>
                         uncastedOutputPixel = tensorIn.Pop();
                     Pack1D<DTYPE, WIDTH> outputPixel;
 
@@ -204,7 +204,7 @@ SC_MODULE(MaxpoolUnit) {
                     ac_int<16, false> y = y0 + y1 * Y0;
                     ac_int<16, false> Y = Y0 * Y1;
 
-                    Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH>
+                    Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH>
                         uncastedOutputPixel = tensorIn.Pop();
                     Pack1D<DTYPE, WIDTH> outputPixel;
 

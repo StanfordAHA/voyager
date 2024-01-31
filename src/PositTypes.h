@@ -7,7 +7,7 @@
 // but with more emphasis on a lightweight implementation.
 // This implementation mainly consists of two classes: Posit and PositFP
 // PositFP is a decoded version of Posit used for the internal calculations
-// also referred to as DecomposedPosit.
+// also referred to as AccumulationDatatype.
 
 // TODO(fpedd): Maybe clean this up a little according to
 // https://stackoverflow.com/questions/4421706/what-are-the-basic-rules-and-idioms-for-operator-overloading
@@ -17,7 +17,6 @@
 #include <ac_float.h>
 #include <ac_int.h>
 #include <ac_math/ac_inverse_sqrt_pwl.h>
-
 inline int max(int a, int b) { return a > b ? a : b; }
 
 template <class T>
@@ -195,7 +194,7 @@ class Posit {
   static constexpr int esbits = es;
   static constexpr int sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
   static constexpr int fbits = nbits - 3 - es;
-  typedef PositFP<8, fbits> DecomposedPosit;
+  typedef PositFP<8, fbits> AccumulationDatatype;
 
   ac_int<nbits, false> bits;
 
@@ -262,7 +261,7 @@ class Posit {
 template <int nbits, int es>
 template <int nbits2, int es2>
 Posit<nbits, es>::Posit(const Posit<nbits2, es2> &input) {
-  typename Posit<nbits2, es2>::DecomposedPosit tmp(input);
+  typename Posit<nbits2, es2>::AccumulationDatatype tmp(input);
   *this = tmp;
 }
 
@@ -321,16 +320,16 @@ Posit<nbits, es> posit_exp(Posit<nbits, es> val) {
 template <int nbits, int es>
 inline Posit<nbits, es> Posit<nbits, es>::operator+(
     const Posit<nbits, es> &rhs) {
-  DecomposedPosit op1 = *this;
-  DecomposedPosit op2 = rhs;
+  AccumulationDatatype op1 = *this;
+  AccumulationDatatype op2 = rhs;
   return op1 + op2;
 }
 
 template <int nbits, int es>
 inline Posit<nbits, es> Posit<nbits, es>::operator*(
     const Posit<nbits, es> &rhs) {
-  DecomposedPosit op1 = *this;
-  DecomposedPosit op2 = rhs;
+  AccumulationDatatype op1 = *this;
+  AccumulationDatatype op2 = rhs;
   return op1 * op2;
 }
 
@@ -346,8 +345,8 @@ inline Posit<nbits, es> Posit<nbits, es>::operator/(
 template <int nbits, int es>
 inline Posit<nbits, es> Posit<nbits, es>::log_mult(
     const Posit<nbits, es> &rhs) {
-  DecomposedPosit op1 = *this;
-  DecomposedPosit op2 = rhs;
+  AccumulationDatatype op1 = *this;
+  AccumulationDatatype op2 = rhs;
   return op1.log_mult(op2);
 }
 
@@ -457,6 +456,16 @@ class PositFP {
 
   void masked_relu(const PositFP &mask) {
     if (mask.isZero()) setZero();
+  }
+
+
+  void custom_converted_reciprocal(){
+    // convert to Posit Larger bitwidth
+    // TODO ACC_DTYPE width likely doesnot evaluate to 16
+    Posit<width, 1> posit_rep;    
+    posit_rep = *this;
+    posit_rep.reciprocal();
+    *this = posit_rep;  
   }
 
   void posit_exp() {
@@ -855,10 +864,10 @@ PositFP<sbits, fbits>::operator float() const {
 #endif
 
 template <int nbits, int es, int nbits2, int es2>
-typename Posit<nbits2, es2>::DecomposedPosit decomposed_fma(
-    const typename Posit<nbits, es>::DecomposedPosit &a,
-    const typename Posit<nbits, es>::DecomposedPosit &b,
-    const typename Posit<nbits2, es2>::DecomposedPosit &c) {
+typename Posit<nbits2, es2>::AccumulationDatatype decomposed_fma(
+    const typename Posit<nbits, es>::AccumulationDatatype &a,
+    const typename Posit<nbits, es>::AccumulationDatatype &b,
+    const typename Posit<nbits2, es2>::AccumulationDatatype &c) {
   constexpr size_t fbits = nbits - 3 - es;
   constexpr size_t fhbits = fbits + 1;  // size of fraction + hidden bit
   constexpr size_t mbits = 2 * fhbits;  // size of the multiplier output
@@ -872,10 +881,10 @@ typename Posit<nbits2, es2>::DecomposedPosit decomposed_fma(
 
   PositFP<8, mbits> product = a * b;
   if (c.isZero()) {
-    return typename Posit<nbits2, es2>::DecomposedPosit(product);
+    return typename Posit<nbits2, es2>::AccumulationDatatype(product);
   } else {
     PositFP<8, abits + 1> sum = PositFP<8, fbits2>(product) + c;
-    return typename Posit<nbits2, es2>::DecomposedPosit(sum);
+    return typename Posit<nbits2, es2>::AccumulationDatatype(sum);
   }
 }
 

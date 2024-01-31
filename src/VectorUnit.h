@@ -26,48 +26,48 @@ SC_MODULE(VectorOpUnit) {
   Connections::In<Pack1D<ACC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch1Output);
   Connections::In<Pack1D<ACC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch2Output);
 
-  Connections::Out<Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+  Connections::Out<Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(vectorOpUnitOutput);
 
   Connections::Combinational<
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(accumulationOpInput);
   Connections::Combinational<
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(accumulationOpOutput);
 
   Connections::Combinational<
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(reductionOpInput);
   Connections::Combinational<
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(reductionOpOutputOp0Src0);
   Connections::Combinational<
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(reductionOpOutputOp0Src1);
   Connections::Combinational<
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(reductionOpOutputOp3Src1);
 
-  Broadcaster<Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> > CCS_INIT_S1(
+  Broadcaster<Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> > CCS_INIT_S1(
       broadcastReduction0);
   Connections::Combinational<ac_int<16, false> > broadcastReduction0Count;
   Connections::Combinational<
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(broadcastReductionOpOutputOp0Src0);
 
-  Broadcaster<Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> > CCS_INIT_S1(
+  Broadcaster<Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> > CCS_INIT_S1(
       broadcastReduction1);
   Connections::Combinational<ac_int<16, false> > broadcastReduction1Count;
   Connections::Combinational<
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(broadcastReductionOpOutputOp0Src1);
 
-  Broadcaster<Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> > CCS_INIT_S1(
+  Broadcaster<Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> > CCS_INIT_S1(
       broadcastReduction2);
   Connections::Combinational<ac_int<16, false> > broadcastReduction2Count;
   Connections::Combinational<
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(broadcastReductionOpOutputOp3Src1);
 
   SC_CTOR(VectorOpUnit) {
@@ -125,21 +125,21 @@ SC_MODULE(VectorOpUnit) {
     while (true) {
       VectorInstructions inst = vectorOpUnitInstructions.Pop();
 
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op0;
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op1;
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op2;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> op0;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> op1;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> op2;
 
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res0;
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res1;
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res2;
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res3;
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res4;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> res0;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> res1;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> res2;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> res3;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> res4;
 
       /*
        * Stage 0: add, sub, mult
        */
       // Read from interfaces
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op0Src0;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> op0Src0;
       if (inst.vInput == VectorInstructions::readFromSystolicArray) {
         Pack1D<ACC_DTYPE, WIDTH> tmp = systolicArrayOutput.Pop();
 #pragma hls_unroll yes
@@ -158,7 +158,7 @@ SC_MODULE(VectorOpUnit) {
         op0Src0 = broadcastReductionOpOutputOp0Src0.Pop();
       }
 
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op0Src1;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> op0Src1;
       if (inst.vOp0Src1 == VectorInstructions::readInterface) {
         Pack1D<ACC_DTYPE, WIDTH> tmp = vectorFetch1Output.Pop();
 #pragma hls_unroll yes
@@ -192,10 +192,10 @@ SC_MODULE(VectorOpUnit) {
             op0Src1[i].negate();
           }
         }
-        vadd<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op0Src0, op0Src1,
+        vadd<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(op0Src0, op0Src1,
                                                          res0);
       } else if (inst.vOp0 == VectorInstructions::vmult) {
-        vmult<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op0Src0, op0Src1,
+        vmult<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(op0Src0, op0Src1,
                                                           res0);
         DLOG(op0Src0 << std::endl
                      << " * " << std::endl
@@ -212,7 +212,7 @@ SC_MODULE(VectorOpUnit) {
        * Stage 1: exp
        */
       if (inst.vOp1 == VectorInstructions::vexp) {
-        vexp<typename ACC_DTYPE::DecomposedPosit, WIDTH>(res0, res1);
+        vexp<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(res0, res1);
       } else if (inst.vOp1 == VectorInstructions::vscaleexp) {
         ac_int<8, true> scaleVal;
         if (inst.vOp1Src1 == VectorInstructions::op1immediate0) {
@@ -220,7 +220,7 @@ SC_MODULE(VectorOpUnit) {
         } else {
           scaleVal = inst.immediate1;
         }
-        vscaleexp<typename ACC_DTYPE::DecomposedPosit, WIDTH>(res0, scaleVal,
+        vscaleexp<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(res0, scaleVal,
                                                               res1);
       } else {
         res1 = res0;
@@ -239,10 +239,10 @@ SC_MODULE(VectorOpUnit) {
       /*
        * Stage 3: add, div
        */
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op3Src0;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> op3Src0;
       op3Src0 = res2;
 
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op3Src1;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> op3Src1;
       if (inst.vOp3Src1 == VectorInstructions::readReduceInterface) {
         op3Src1 = broadcastReductionOpOutputOp3Src1.Pop();
       } else if (inst.vOp3Src1 == VectorInstructions::readNormalInterface) {
@@ -268,7 +268,7 @@ SC_MODULE(VectorOpUnit) {
       }
 
       if (inst.vOp3 == VectorInstructions::vadd) {
-        vadd<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op3Src0, op3Src1,
+        vadd<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(op3Src0, op3Src1,
                                                          res3);
 
         // DLOG(op3Src0 << std::endl
@@ -279,7 +279,7 @@ SC_MODULE(VectorOpUnit) {
       } else if (inst.vOp3 == VectorInstructions::vmult ||
                  inst.vOp3 == VectorInstructions::vdiv ||
                  inst.vOp3 == VectorInstructions::vsquare) {
-        vmultdiv<typename ACC_DTYPE::DecomposedPosit, WIDTH>(
+        vmultdiv<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(
             op3Src0, op3Src1, res3, inst.vOp3 == VectorInstructions::vdiv,
             inst.vOp3 == VectorInstructions::vsquare);
       } else if (inst.vOp3 == VectorInstructions::vscaleexp) {
@@ -289,7 +289,7 @@ SC_MODULE(VectorOpUnit) {
         } else {
           scaleVal = inst.immediate1;
         }
-        vscaleexp<typename ACC_DTYPE::DecomposedPosit, WIDTH>(op3Src0, scaleVal,
+        vscaleexp<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(op3Src0, scaleVal,
                                                               res3);
       } else {
         res3 = op3Src0;
@@ -303,7 +303,7 @@ SC_MODULE(VectorOpUnit) {
       if (inst.vOp4 == VectorInstructions::vrelu ||
           inst.vOp4 == VectorInstructions::vrelumask) {
         bool useMask = inst.vOp4 == VectorInstructions::vrelumask;
-        vrelu<typename ACC_DTYPE::DecomposedPosit, WIDTH>(res3, op0Src1,
+        vrelu<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(res3, op0Src1,
                                                           useMask, res4);
       } else {
         res4 = res3;
@@ -334,7 +334,7 @@ SC_MODULE(VectorOpUnit) {
     while (true) {
       VectorInstructions inst = accumulationOpUnitInstructions.Pop();
 
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> accum;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> accum;
 
 #pragma hls_unroll yes
       for (int i = 0; i < WIDTH; i++) {
@@ -345,7 +345,7 @@ SC_MODULE(VectorOpUnit) {
 #pragma hls_pipeline_stall_mode flush
       for (int count = 0; count < inst.rCount; count++) {
         DLOG("accumulation " << count << " / " << inst.rCount);
-        Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op =
+        Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> op =
             accumulationOpInput.Pop();
 
 #pragma hls_unroll yes
@@ -374,27 +374,27 @@ SC_MODULE(VectorOpUnit) {
     while (true) {
       VectorInstructions inst = reductionOpUnitInstructions.Pop();
 
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> res;
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> res;
 
       int iterationCount = inst.rDuplicate ? 1 : WIDTH;
 
-      typename ACC_DTYPE::DecomposedPosit scalarResult;
+      typename ACC_DTYPE::AccumulationDatatype scalarResult;
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
       for (int index = 0; index < iterationCount; index++) {
-        typename ACC_DTYPE::DecomposedPosit prevResult;
+        typename ACC_DTYPE::AccumulationDatatype prevResult;
 
         if (inst.rOp == VectorInstructions::radd) {
           for (int i = 0; i < inst.rCount; i++) {
-            Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op =
+            Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> op =
                 reductionOpInput.Pop();
-            typename ACC_DTYPE::DecomposedPosit result = treeadd16(op);
-            // TreeOps<typename ACC_DTYPE::DecomposedPosit, WIDTH>().treeadd(
+            typename ACC_DTYPE::AccumulationDatatype result = treeadd16(op);
+            // TreeOps<typename ACC_DTYPE::AccumulationDatatype, WIDTH>().treeadd(
             //     op);
             DLOG("reduction: " << op << " = " << result);
             if (i != 0) {
-              // result = (typename ACC_DTYPE::DecomposedPosit)(result +
+              // result = (typename ACC_DTYPE::AccumulationDatatype)(result +
               // prevResult);
               result += prevResult;
             }
@@ -403,10 +403,10 @@ SC_MODULE(VectorOpUnit) {
           }
         } else if (inst.rOp == VectorInstructions::rmax) {
           for (int i = 0; i < inst.rCount; i++) {
-            Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> op =
+            Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> op =
                 reductionOpInput.Pop();
-            typename ACC_DTYPE::DecomposedPosit result = treemax16(op);
-            // TreeOps<typename ACC_DTYPE::DecomposedPosit, WIDTH>().treemax(
+            typename ACC_DTYPE::AccumulationDatatype result = treemax16(op);
+            // TreeOps<typename ACC_DTYPE::AccumulationDatatype, WIDTH>().treemax(
             //     op);
             if (i != 0) {
               result = result < prevResult ? prevResult : result;
@@ -430,7 +430,7 @@ SC_MODULE(VectorOpUnit) {
       }
 
       if (inst.rMax1) {
-        typename ACC_DTYPE::DecomposedPosit one;
+        typename ACC_DTYPE::AccumulationDatatype one;
         one._zero = false;
         one.fraction = 0;
         one.scale = 0;
@@ -508,7 +508,7 @@ SC_MODULE(VectorUnit) {
   Connections::Out<int> CCS_INIT_S1(vectorOutputAddress);
   Connections::Out<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(finalVectorOutput);
   Connections::Combinational<
-      Pack1D<typename ACC_DTYPE::DecomposedPosit, WIDTH> >
+      Pack1D<typename ACC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(vectorOpUnitOutput);
 
   Connections::SyncOut CCS_INIT_S1(start);

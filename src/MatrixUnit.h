@@ -60,7 +60,7 @@ SC_MODULE(MatrixUnit) {
   Connections::Combinational<int> weightBufferWriteControl[2];
   Connections::Combinational<int> weightBufferReadAddress[2];
   Connections::Combinational<int> weightBufferReadControl[2];
-  Connections::Combinational<Pack1D<P8, DIMENSION> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       weightsFromBuffer);
 
 #ifdef SIM_MatrixProcessor
@@ -74,7 +74,7 @@ SC_MODULE(MatrixUnit) {
 #endif
   Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       inputsToSystolicArray);
-  Connections::Combinational<Pack1D<P8D, DIMENSION> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<INPUT_DATATYPE::AccumulationDatatype, DIMENSION> > CCS_INIT_S1(
       weightsToSystolicArray);
   Connections::Out<Pack1D<ACCUM_DATATYPE, DIMENSION> > CCS_INIT_S1(
       outputsFromSystolicArray);

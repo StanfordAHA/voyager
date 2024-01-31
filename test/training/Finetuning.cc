@@ -47,7 +47,7 @@ void runWorkload(SimplifiedParams params, MemoryMap memoryMap) {
 #ifdef FP32
   run_fp_gold_model
 #else
-  run_custom_posit_gold_model
+  run_gold_model
 #endif
       (params, memory->sram + params.INPUT_OFFSET,
        (memoryMap.weights ? memory->rram : memory->sram) + params.WEIGHT_OFFSET,
