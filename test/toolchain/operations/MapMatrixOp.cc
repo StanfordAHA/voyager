@@ -135,8 +135,8 @@ void MapMatrixOp(const SimplifiedParams &params, const MemoryMap &memoryMap,
 
   acceleratorMemoryMap["grad"] = memoryMap.inputs;
 
-  P8 learningRate = static_cast<P8>(params.learningRate);
-  matrixParams->learningRate = learningRate.bits;
+  // P8 learningRate = static_cast<P8>(params.learningRate);
+  // matrixParams->learningRate = learningRate.bits;
 
   // sendSerializedParams<MatrixParams, 32>(matrixParams,
   // &serialMatrixParamsIn);

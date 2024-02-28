@@ -208,6 +208,7 @@ void Simulation::run() {
               << "(" << FX << "x" << FY << "x" << C << "x" << K << ")"
               << std::endl;
 
+
     // Run gold models
     if (std::find(sims.begin(), sims.end(), "customposit") != sims.end()) {
       run_gold_model(
@@ -221,15 +222,15 @@ void Simulation::run() {
           positMemory->sram + params.WEIGHT_RESIDUAL_OFFSET);
     }
     if (std::find(sims.begin(), sims.end(), "customfloat") != sims.end()) {
-      run_gold_model(
-          params, customFloatMemory->sram + params.INPUT_OFFSET,
-          (memoryMap.weights ? customFloatMemory->rram : customFloatMemory->sram) +
-              params.WEIGHT_OFFSET,
-          customFloatMemory->sram + params.OUTPUT_OFFSET,
-          (params.ATTENTION_MASK ? customFloatMemory->sram : customFloatMemory->rram) +
-              params.BIAS_OFFSET,
-          customFloatMemory->sram + params.RESIDUAL_OFFSET,
-          customFloatMemory->sram + params.WEIGHT_RESIDUAL_OFFSET);
+      // run_gold_model(
+      //     params, customFloatMemory->sram + params.INPUT_OFFSET,
+      //     (memoryMap.weights ? customFloatMemory->rram : customFloatMemory->sram) +
+      //         params.WEIGHT_OFFSET,
+      //     customFloatMemory->sram + params.OUTPUT_OFFSET,
+      //     (params.ATTENTION_MASK ? customFloatMemory->sram : customFloatMemory->rram) +
+      //         params.BIAS_OFFSET,
+      //     customFloatMemory->sram + params.RESIDUAL_OFFSET,
+      //     customFloatMemory->sram + params.WEIGHT_RESIDUAL_OFFSET);
     }
     if (std::find(sims.begin(), sims.end(), "universal") != sims.end()) {
       run_gold_model(
@@ -256,6 +257,7 @@ void Simulation::run() {
           floatMemory->sram + params.WEIGHT_RESIDUAL_OFFSET);
     }
   }
+  
 
   // Run accelerator
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {

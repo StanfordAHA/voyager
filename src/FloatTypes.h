@@ -8,6 +8,7 @@
 #include <ac_math/ac_inverse_sqrt_pwl.h>
 #include <ac_math/ac_sigmoid_pwl.h>
 #include <ac_math/ac_pow_pwl.h>
+// #include <TypeToBits.h>
 // #include <connections/marshaller.h>
 
 // For Floating point number there is always 1 implicit hidden bit 
@@ -38,6 +39,19 @@ class Float{
     // ac_int<mantissa+exp+hidden_bits,true> bits(){
     //     return float_val.data_ac_int();
     // }
+
+    ac_int<mantissa + exp + hidden_bits, false> bits() const { 
+      ac_int<mantissa + exp + hidden_bits, false> bit_expression;
+      // bit_expression = BitsToType<ac_int<mantissa + exp + hidden_bits, false> >
+      //                   (TypeToBits<ac_float_rep>(float_val));
+      // bit_expression = static_cast<ac_int<mantissa + exp + hidden_bits, false> >
+      //                   (static_cast<sc_lv<mantissa + exp + hidden_bits> >(float_val));
+      // <exp> <mantissa>
+      //  E    W  
+      bit_expression.set_slc(0, float_val.mantissa().to_ac_int());
+      bit_expression.set_slc(mantissa + hidden_bits, float_val.exp());
+      return bit_expression;
+    }   
 
     void negate(){
         float_val = -float_val;
@@ -117,12 +131,15 @@ class Float{
 
   bool operator<(const Float &rhs) const;
 
-  operator float() const;
+  operator float() const{
+    return float_val.to_float();
+  }
 
 // SystemC is not compatible with C++17
 #ifndef NO_SYSC
     template <unsigned int Size>
     void Marshall(Marshaller<Size> &m) {
+      std::cout << "called marshall" << std::endl;
         // m &float_val;
         // float_val.Marshall(m);
         Wrapped<ac_float_rep> wrapped_float_val(float_val);
@@ -141,11 +158,7 @@ class Float{
 
 template <int mantissa, int exp>
 inline std::ostream &operator<<(std::ostream &os, const Float<mantissa, exp> &val) {
-#ifndef __SYNTHESIS__
-  os << static_cast<float>(val) << " ";
-#else
-  os << val.bits << " ";
-#endif
+  os << val.bits() << " ";
   return os;
 }
 
@@ -186,7 +199,7 @@ inline Float<mantissa, exp> Float<mantissa, exp>::operator+(
     const Float<mantissa, exp> &rhs) {
   AccumulationDatatype op1 = *this;
   AccumulationDatatype op2 = rhs;
-  return op1 + op2;
+  return op1.float_val.add(op1.float_val, op2.float_val);
 }
 
 template<int mantissa, int exp>
@@ -194,7 +207,7 @@ inline Float<mantissa, exp> Float<mantissa, exp>::operator*(
     const Float<mantissa, exp> &rhs) {
   AccumulationDatatype op1 = *this;
   AccumulationDatatype op2 = rhs;
-  return op1 * op2;
+  return static_cast<ac_float_rep>(op1.float_val * op2.float_val);
 }
 
 template<int mantissa, int exp>
@@ -202,7 +215,7 @@ inline Float<mantissa, exp> Float<mantissa, exp>::operator/(
     const Float<mantissa, exp> &rhs) {
   AccumulationDatatype op1 = *this;
   AccumulationDatatype op2 = rhs;
-  return op1 / op2;
+  return op1.float_val / op2.float_val;
 }
 
 template<int mantissa, int exp>
@@ -214,8 +227,8 @@ inline Float<mantissa, exp> &Float<mantissa, exp>::operator+=(
 
 template<int mantissa, int exp>
 inline Float<mantissa, exp> &Float<mantissa, exp>::operator-=(
-    const Float<mantissa, exp> &rhs) {
-  *this = *this - rhs;
+    const Float<mantissa, exp> &rhs) { 
+  *this = static_cast<Float<mantissa, exp>>(*this - rhs);
   return *this;
 }
 

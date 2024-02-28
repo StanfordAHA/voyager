@@ -42,12 +42,12 @@ void SimpleMemoryModel<INPUT_DATATYPE>::writeToReference(int address,
                                                          double val,
                                                          bool doublePrecision) {
   if (doublePrecision) {
-    ACCUM_DATATYPE p16 = val;
-    int bits = p16.bits;
+    ACCUM_DATATYPE p16 = static_cast<ACCUM_DATATYPE>(val);
+    int bits = p16.bits();
     reference[2 * address].setbits(bits & 0xFF);
     reference[2 * address + 1].setbits((bits >> 8) & 0xFF);
   } else {
-    reference[address] = val;
+    reference[address] =static_cast<ACCUM_DATATYPE>(val);
   }
 }
 
@@ -74,12 +74,12 @@ void SimpleMemoryModel<INPUT_DATATYPE>::writeToMemory(int address, double val,
   INPUT_DATATYPE* memArray = (mem == SRAM) ? sram : rram;
 
   if (doublePrecision) {
-    ACCUM_DATATYPE p16 = val;
-    int bits = p16.bits;
+    ACCUM_DATATYPE p16 = static_cast<ACCUM_DATATYPE>(val);
+    int bits = p16.bits();
     memArray[address].setbits(bits & 0xFF);
     memArray[address + 1].setbits((bits >> 8) & 0xFF);
   } else {
-    memArray[address] = val;
+    memArray[address] = static_cast<INPUT_DATATYPE>(val);
   }
 }
 

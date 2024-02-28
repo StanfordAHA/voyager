@@ -34,7 +34,7 @@ inline void gold_exp(UniversalPositAccum &a) { a = sw::universal::exp(a); }
 #endif
 inline void gold_exp(ACCUM_DATATYPE::AccumulationDatatype &a) {
   a = static_cast<ACCUM_DATATYPE::AccumulationDatatype>(
-      posit_exp(static_cast<ACCUM_DATATYPE>(a)));
+      exponent(static_cast<ACCUM_DATATYPE>(a)));
 }
 inline void gold_exp(float &a) { a = exp(a); }
 
@@ -79,8 +79,8 @@ inline ACCUM_DATATYPE readInput(INPUT_DATATYPE *matrix, int index,
     return static_cast<ACCUM_DATATYPE>(matrix[index]);
   }
 
-  int encoding1 = matrix[2 * index].bits;
-  int encoding2 = matrix[2 * index + 1].bits;
+  int encoding1 = matrix[2 * index].bits();
+  int encoding2 = matrix[2 * index + 1].bits();
   ACCUM_DATATYPE p16;
   p16.setbits((encoding2 << 8) + encoding1);
   return p16;
@@ -110,7 +110,7 @@ inline void saveOutput(INPUT_DATATYPE *matrix, int index,
     matrix[index] = static_cast<INPUT_DATATYPE>(value);
   } else {
     ACCUM_DATATYPE p16 = value;
-    int bits = p16.bits;
+    int bits = p16.bits();
     matrix[2 * index].setbits(bits & 0xFF);
     matrix[2 * index + 1].setbits((bits >> 8) & 0xFF);
   }
@@ -132,14 +132,14 @@ inline void adjustExp(UniversalPositAccum &value, int expBias) {
 }
 #endif
 inline void adjustExp(ACCUM_DATATYPE::AccumulationDatatype &value, int expBias) {
-  value.scale += expBias;
+  value.expScale(expBias);
 }
 inline void adjustExp(float &value, int expBias) { value *= pow(2, expBias); }
 
 template <typename ACC_T>
 void grad_clip_norm(ACC_T *matrix, int size) {
   // tree add
-  ACC_T norm = 0;
+  ACC_T norm = static_cast<ACC_T>(0);
   for (int reductionCount = 0; reductionCount < size;
        reductionCount += DIMENSION) {
     // perform a tree addition
@@ -198,12 +198,12 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
         outputMatrix[y] = readInput(matrixA, x * Y + y, params.ACC_T_INPUT);
       }
 
-      ACC_T max = -9999;
+      ACC_T max = static_cast<ACC_T>(-9999);
       for (int y = 0; y < Y; y++) {
         max = outputMatrix[y] > max ? outputMatrix[y] : max;
       }
 
-      ACC_T sum = 0;
+      ACC_T sum = static_cast<ACC_T>(0);
       for (int y = 0; y < Y; y++) {
         ACC_T exp = static_cast<ACC_T>(outputMatrix[y] - max);
         gold_exp(exp);
@@ -238,7 +238,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
   } else if (params.FC) {
     // fully connected layer (matrix-vector)
     for (int k = 0; k < K; k++) {
-      ACC_T acc = 0;
+      ACC_T acc = static_cast<ACC_T>(0);
 
       ACC_T flattened_mult[C];
       for (int c = 0; c < C; c++) {
@@ -298,7 +298,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     ACC_T attentionProbs[X * Y];
     ACC_T sums[X];
     for (int i = 0; i < X; i++) {
-      sums[i] = 0;
+      sums[i] = static_cast<ACC_T>(0);
     }
 
     for (int i = 0; i < X * Y; i++) {
@@ -370,7 +370,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
   } else if (params.NO_NORM_GRAD) {
     ACC_T outputMatrix[K];
     for (int i = 0; i < K; i++) {
-      outputMatrix[i] = 0;
+      outputMatrix[i] = static_cast<ACC_T>(0);
     }
 
     for (int i = 0; i < X; i++) {
@@ -420,7 +420,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
     ACC_T outputMatrix[K];
     for (int i = 0; i < K; i++) {
-      outputMatrix[i] = 0;
+      outputMatrix[i] = static_cast<ACC_T>(0);
     }
 
     for (int i = 0; i < C; i++) {
@@ -457,12 +457,12 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       labels[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
     }
 
-    ACC_T max = 0;
+    ACC_T max = static_cast<ACC_T>(0);
     for (int i = 0; i < X; i++) {
       max = logits[i] > max ? logits[i] : max;
     }
 
-    ACC_T sum = 0;
+    ACC_T sum = static_cast<ACC_T>(0);
     for (int i = 0; i < X; i++) {
       ACC_T exp = static_cast<ACC_T>(logits[i] - max);
       gold_exp(exp);
@@ -481,12 +481,12 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       saveOutput(matrixC, i, outputs[i], params.ACC_T_OUTPUT);
     }
   } else if (params.MSE_GRAD) {
-    INT_T divisor = 2 / X;
+    INT_T divisor = static_cast<INT_T>(2 / X);
     for (int i = 0; i < X; i++) {
       matrixC[i] = static_cast<INT_T>(matrixA[i] - matrixB[i]) * divisor;
     }
   } else if (params.BCE_WITH_LOGITS_GRAD) {
-    INT_T divisor = 1 / X;
+    INT_T divisor = static_cast<INT_T>(1 / X);
     for (int i = 0; i < X; i++) {
       matrixC[i] = static_cast<INT_T>(matrixA[i] - matrixB[i]) * divisor;
     }
@@ -515,7 +515,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
   } else if (params.MERGE_LORA_WEIGHT) {
     ACC_T outputMatrix[X * K];
     for (int i = 0; i < X * K; i++) {
-      outputMatrix[i] = 0;
+      outputMatrix[i] = static_cast<ACC_T>(0);
     }
 
     for (int x = 0; x < X; x++) {
@@ -575,7 +575,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     ACC_T *outputMatrix = new ACC_T[X * Y * K];
 
     for (int i = 0; i < X * Y * K; i++) {
-      outputMatrix[i] = 0;
+      outputMatrix[i] = static_cast<ACC_T>(0);
     }
 
     for (int i = 0; i < (STRIDE * X) * (STRIDE * Y) * C; i++) {
@@ -752,7 +752,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
                   int outputAddress = y * X * K + x * K + k;
 
                   if (params.ATTENTION_SCALING) {
-                    T scale = 1.0f / sqrt(32);
+                    T scale = static_cast<T>(1.0f / sqrt(32));
                     outputMatrix[outputAddress] *= static_cast<ACC_T>(scale);
                   }
 
@@ -774,7 +774,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
                   if (params.RELU_GRAD &&
                       inputResidualMatrix[outputAddress] == 0) {
-                    outputMatrix[outputAddress] = 0;
+                    outputMatrix[outputAddress] = static_cast<ACC_T>(0);
                   }
                 }
               }
@@ -829,7 +829,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       memcpy(tmpMatrixC, outputMatrix, sizeof(ACC_T) * X * Y * K);
 
       for (int k = 0; k < K; k++) {
-        ACC_T acc = 0;
+        ACC_T acc = static_cast<ACC_T>(0);
         for (int y = 0; y < Y; y++) {
           for (int x = 0; x < X; x++) {
             acc += tmpMatrixC[y * X * K + x * K + k];

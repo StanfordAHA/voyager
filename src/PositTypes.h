@@ -207,6 +207,8 @@ class Posit {
   template <int fp_sbits, int fp_fbits>
   Posit(const PositFP<fp_sbits, fp_fbits> &input);
 
+  // ac_int<nbits, false> bits(){ return bits;} 
+
   bool isZero() const { return bits == 0; }
 
   void setbits(int i) { bits = i; }
