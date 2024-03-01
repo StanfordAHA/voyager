@@ -13,10 +13,16 @@ using P16D = Posit<16, 1>::AccumulationDatatype;
 #define OUTPUT_DATATYPE P8
 
 #elif defined(CUSTOM_FLOAT)
-#include "src/FloatTypes.h"
+// #include "src/FloatTypes.h"
 
-using F8 = Float<3,4>;
-using F16 = Float<7,8>;
+// using F8 = Float<3, 4>;
+// using F16 = Float<7, 8>;
+
+#include "src/StdFloatTypes.h"
+
+using F8 = StdFloat<3, 4>;
+using F16 = StdFloat<7, 8>;
+
 #define INPUT_DATATYPE F8
 #define WEIGHT_DATATYPE F8
 #define ACCUM_DATATYPE F16
