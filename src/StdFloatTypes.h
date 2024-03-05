@@ -44,7 +44,7 @@ class StdFloat {
   }
 
   void masked_relu(const StdFloat &mask) {
-    if (mask == 0) float_val = float_val.zero();
+    if (mask.float_val.d == 0) float_val = float_val.zero();
   }
 
   void setbits(int i) { float_val.d = i; }
