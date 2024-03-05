@@ -47,7 +47,7 @@ void SimpleMemoryModel<INPUT_DATATYPE>::writeToReference(int address,
     reference[2 * address].setbits(bits & 0xFF);
     reference[2 * address + 1].setbits((bits >> 8) & 0xFF);
   } else {
-    reference[address] =static_cast<ACCUM_DATATYPE>(val);
+    reference[address] = static_cast<ACCUM_DATATYPE>(val);
   }
 }
 

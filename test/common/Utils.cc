@@ -1,10 +1,10 @@
 #include "test/common/Utils.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 // #include "matplotlib-cpp/matplotlibcpp.h"
 // namespace plt = matplotlibcpp;
