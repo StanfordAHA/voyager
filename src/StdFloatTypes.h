@@ -8,7 +8,7 @@
 template <int mantissa, int exp>
 class StdFloat {
  public:
-  typedef ac_std_float<mantissa + exp, exp> ac_float_rep;
+  typedef ac_std_float<mantissa + exp + 1, exp> ac_float_rep;
   static constexpr unsigned int width = ac_float_rep::width;
 
   // TODO: make this a template parameter
@@ -153,7 +153,7 @@ StdFloat<mantissa, exp>::StdFloat(const ac_int<W, S> &rhs) {
 template <int mantissa, int exp>
 StdFloat<mantissa, exp> exponent(StdFloat<mantissa, exp> element) {
   // TODO: clean this up
-  typedef ac_std_float<mantissa + exp, exp> ac_float_rep;
+  typedef ac_std_float<mantissa + exp + 1, exp> ac_float_rep;
 
   typedef ac_fixed<2 * mantissa, mantissa, true, AC_TRN, AC_WRAP>
       ac_float_to_fixed_rep;
