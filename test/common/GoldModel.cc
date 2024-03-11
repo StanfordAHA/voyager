@@ -860,6 +860,7 @@ void run_gold_model(const SimplifiedParams params, INPUT_DATATYPE *matrixA,
                               residualMatrix, weightResidualMatrix);
 }
 
+#ifndef NO_UNIVERSAL
 void run_gold_model(const SimplifiedParams params, UniversalPosit *matrixA,
                     UniversalPosit *matrixB, UniversalPosit *matrixC,
                     UniversalPosit *biasMatrix, UniversalPosit *residualMatrix,
@@ -868,6 +869,7 @@ void run_gold_model(const SimplifiedParams params, UniversalPosit *matrixA,
       params, matrixA, matrixB, matrixC, biasMatrix, residualMatrix,
       weightResidualMatrix);
 }
+#endif NO_UNIVERSAL
 
 void run_gold_model(const SimplifiedParams params, float *matrixA,
                     float *matrixB, float *matrixC, float *biasMatrix,

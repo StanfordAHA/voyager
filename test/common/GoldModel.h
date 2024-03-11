@@ -12,10 +12,12 @@ void run_gold_model(const SimplifiedParams params, INPUT_DATATYPE *matrixA,
                     INPUT_DATATYPE *biasMatrix, INPUT_DATATYPE *residualMatrix,
                     INPUT_DATATYPE *weightResidualMatrix);
 
+#ifndef NO_UNIVERSAL
 void run_gold_model(const SimplifiedParams params, UniversalPosit *matrixA,
                     UniversalPosit *matrixB, UniversalPosit *matrixC,
                     UniversalPosit *biasMatrix, UniversalPosit *residualMatrix,
                     UniversalPosit *weightResidualMatrix);
+                    #endif
 
 void run_gold_model(const SimplifiedParams params, float *matrixA,
                     float *matrixB, float *matrixC, float *biasMatrix,
