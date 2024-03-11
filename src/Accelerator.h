@@ -89,5 +89,11 @@ SC_MODULE(Accelerator) {
     async_reset_signal_is(rstn, false);
   }
 
-  void run();
+  void run() {
+    wait();
+
+    while (true) {
+      wait();
+    }
+  }
 };

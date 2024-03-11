@@ -28,6 +28,7 @@ options set Flows/Enable-SCVerify yes
 options set Flows/VCS/SYSC_VERSION 2.3.2
 options set Flows/VCS/VLOGAN_OPTS {+v2k -timescale=1ns/10ps +notimingcheck +define+UNIT_DELAY}
 options set Flows/VCS/COMP_FLAGS "-g -Wall -Wno-unknown-pragmas -I../../../lib/ -I../../../src/ -I../../../ -DNO_UNIVERSAL -DSIM_$block"
+options set Flows/VCS/VCSELAB_OPTS "-timescale=1ns/1ps -sysc=blocksync -lstdc++fs"
 flow package require /SCVerify
 flow package option set /SCVerify/USE_VCS true
 
@@ -35,15 +36,24 @@ set clocks {clk {-CLOCK_PERIOD 5 -CLOCK_EDGE rising -CLOCK_HIGH_TIME 2.5 -CLOCK_
 directive set -CLOCK_OVERHEAD 0
 go new
 
-solution file add ./src/Accelerator.cc
-solution file add ./test/common/TestRunner.cc -exclude true
-solution file add ./test/common/Harness.cc -exclude true
-solution file add ./test/common/Utils.cc -exclude true
-solution file add ./test/common/GoldModel.cc -exclude true
-solution file add ./test/common/MemoryModel.cc -exclude true
-solution file add ./test/common/SimpleMemoryModel.cc -exclude true
-solution file add ./test/common/Simulation.cc -exclude true
-solution file add ./test/toolchain/MapOperation.cc -exclude true
+solution file add ./src/Accelerator.h -type CHEADER
+solution file add ./test/common/TestRunner.cc -type C++ -exclude true
+solution file add ./test/common/Harness.cc -type C++ -exclude true
+solution file add ./test/common/Utils.cc -type C++ -exclude true
+solution file add ./test/common/GoldModel.cc -type C++ -exclude true
+solution file add ./test/common/MemoryModel.cc -type C++ -exclude true
+solution file add ./test/common/SimpleMemoryModel.cc -type C++ -exclude true
+solution file add ./test/common/Simulation.cc -type C++ -exclude true
+solution file add ./test/toolchain/MapOperation.cc -type C++ -exclude true
+
+# iterate through all files in ./test/toolchain/operations and add them to the solution
+foreach file [glob -nocomplain -directory ./test/toolchain/operations *.cc] {
+  solution file add $file -type C++ -exclude true
+}
+
+solution file add ./test/resnet/ResNet.cc -type C++ -exclude true
+solution file add ./test/mobilebert/MobileBERT.cc -type C++ -exclude true
+
 
 go analyze
 
