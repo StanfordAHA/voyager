@@ -157,7 +157,7 @@ sim: build/TestRunner
 .PHONY: TestRunner
 TestRunner: build/TestRunner
 
-build/TestRunner: build/Accelerator.o build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/MemoryModel.o build/SimpleMemoryModel.o build/Simulation.o build/networks.a build/toolchain.a
+build/TestRunner: build/Harness.o build/TestRunner.o build/GoldModel.o build/Utils.o build/MemoryModel.o build/SimpleMemoryModel.o build/Simulation.o build/networks.a build/toolchain.a
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
 .PHONY: MobileBERTAccuracy
@@ -184,9 +184,6 @@ PositTest: build/PositTest
 
 build/PositTest: test/common/PositTest.cc src/PositTypes.h
 	$(CC) $(C17FLAGS) -fopenmp -DNO_SYSC $< -o $@
-
-build/Accelerator.o: src/Accelerator.cc $(wildcard src/*.h)
-	$(CC) $(C11FLAGS) -c -o $@ $<
 
 build/Harness.o: test/common/Harness.cc test/common/Harness.h $(wildcard src/*.h)
 	$(CC) $(C11FLAGS) -c -o $@ $<
