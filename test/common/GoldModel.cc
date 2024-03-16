@@ -137,7 +137,7 @@ inline void adjustExp(float &value, int expBias) { value *= pow(2, expBias); }
 template <typename ACC_T>
 void grad_clip_norm(ACC_T *matrix, int size) {
   // tree add
-  ACC_T norm = static_cast<ACC_T>(0);
+  ACC_T norm = static_cast<ACC_T>(0.0);
   for (int reductionCount = 0; reductionCount < size;
        reductionCount += DIMENSION) {
     // perform a tree addition
@@ -201,7 +201,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
         max = outputMatrix[y] > max ? outputMatrix[y] : max;
       }
 
-      ACC_T sum = static_cast<ACC_T>(0);
+      ACC_T sum = static_cast<ACC_T>(0.0);
       for (int y = 0; y < Y; y++) {
         ACC_T exp = static_cast<ACC_T>(outputMatrix[y] - max);
         gold_exp(exp);
@@ -236,7 +236,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
   } else if (params.FC) {
     // fully connected layer (matrix-vector)
     for (int k = 0; k < K; k++) {
-      ACC_T acc = static_cast<ACC_T>(0);
+      ACC_T acc = static_cast<ACC_T>(0.0);
 
       ACC_T flattened_mult[C];
       for (int c = 0; c < C; c++) {
@@ -296,7 +296,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     ACC_T attentionProbs[X * Y];
     ACC_T sums[X];
     for (int i = 0; i < X; i++) {
-      sums[i] = static_cast<ACC_T>(0);
+      sums[i] = static_cast<ACC_T>(0.0);
     }
 
     for (int i = 0; i < X * Y; i++) {
@@ -368,7 +368,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
   } else if (params.NO_NORM_GRAD) {
     ACC_T outputMatrix[K];
     for (int i = 0; i < K; i++) {
-      outputMatrix[i] = static_cast<ACC_T>(0);
+      outputMatrix[i] = static_cast<ACC_T>(0.0);
     }
 
     for (int i = 0; i < X; i++) {
@@ -418,7 +418,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
     ACC_T outputMatrix[K];
     for (int i = 0; i < K; i++) {
-      outputMatrix[i] = static_cast<ACC_T>(0);
+      outputMatrix[i] = static_cast<ACC_T>(0.0);
     }
 
     for (int i = 0; i < C; i++) {
@@ -455,12 +455,12 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       labels[i] = readInput(matrixB, i, params.ACC_T_WEIGHT);
     }
 
-    ACC_T max = static_cast<ACC_T>(0);
+    ACC_T max = static_cast<ACC_T>(0.0);
     for (int i = 0; i < X; i++) {
       max = logits[i] > max ? logits[i] : max;
     }
 
-    ACC_T sum = static_cast<ACC_T>(0);
+    ACC_T sum = static_cast<ACC_T>(0.0);
     for (int i = 0; i < X; i++) {
       ACC_T exp = static_cast<ACC_T>(logits[i] - max);
       gold_exp(exp);
@@ -513,7 +513,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
   } else if (params.MERGE_LORA_WEIGHT) {
     ACC_T outputMatrix[X * K];
     for (int i = 0; i < X * K; i++) {
-      outputMatrix[i] = static_cast<ACC_T>(0);
+      outputMatrix[i] = static_cast<ACC_T>(0.0);
     }
 
     for (int x = 0; x < X; x++) {
@@ -573,7 +573,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     ACC_T *outputMatrix = new ACC_T[X * Y * K];
 
     for (int i = 0; i < X * Y * K; i++) {
-      outputMatrix[i] = static_cast<ACC_T>(0);
+      outputMatrix[i] = static_cast<ACC_T>(0.0);
     }
 
     for (int i = 0; i < (STRIDE * X) * (STRIDE * Y) * C; i++) {
@@ -772,7 +772,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
                   if (params.RELU_GRAD &&
                       inputResidualMatrix[outputAddress] == 0) {
-                    outputMatrix[outputAddress] = static_cast<ACC_T>(0);
+                    outputMatrix[outputAddress] = static_cast<ACC_T>(0.0);
                   }
                 }
               }
@@ -827,7 +827,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       memcpy(tmpMatrixC, outputMatrix, sizeof(ACC_T) * X * Y * K);
 
       for (int k = 0; k < K; k++) {
-        ACC_T acc = static_cast<ACC_T>(0);
+        ACC_T acc = static_cast<ACC_T>(0.0);
         for (int y = 0; y < Y; y++) {
           for (int x = 0; x < X; x++) {
             acc += tmpMatrixC[y * X * K + x * K + k];
