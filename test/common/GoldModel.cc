@@ -643,6 +643,16 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       }
     }
 
+    // adjust loop counters for dimension != 16
+    if(DIMENSION < 16){
+      params.loops[0][params.weightLoopIndex[0]] *= (16/DIMENSION);
+      params.loops[1][params.reductionLoopIndex[1]] *= (16/DIMENSION);
+    } else if(DIMENSION > 16){
+      params.loops[1][params.weightLoopIndex[1]] /= (DIMENSION/16);
+      params.loops[1][params.reductionLoopIndex[1]] /= (DIMENSION/16);
+    }
+
+
     int loop_counters[2][6] = {0};
 
     int X0 = params.loops[1][params.inputXLoopIndex[1]];
