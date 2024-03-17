@@ -22,7 +22,12 @@ SC_MODULE(InputController) {
   Connections::Out<int> readControl[2];
 
   Connections::In<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(windowBufferIn);
+
+#ifdef HYBRID_FP8
+  Connections::Out<Pack1D<HYBRID_TYPE, NROWS> > CCS_INIT_S1(windowBufferOut);
+#else
   Connections::Out<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(windowBufferOut);
+#endif
 
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(fetcherParams);
@@ -945,7 +950,36 @@ SC_MODULE(InputController) {
                              loop_counters[1][5] < loop_bounds[1][5] / 2;
                              loop_counters[1][5]++) {
                           data = buffer;
+
+#ifdef HYBRID_FP8
+                          Pack1D<HYBRID_TYPE, NROWS> dataOut;
+                          if (params.COMBINE_GRADS) {
+                            Pack1D<StdFloat<2, 5>, NROWS> castedData;
+
+#pragma hls_unroll yes
+                            for (int i = 0; i < NROWS; i++) {
+                              castedData[i].float_val.d = data[i].float_val.d;
+                            }
+
+#pragma hls_unroll yes
+                            for (int i = 0; i < NROWS; i++) {
+                              dataOut[i].float_val =
+                                  static_cast<HYBRID_TYPE::ac_float_rep>(
+                                      castedData[i].float_val);
+                            }
+                          } else {
+#pragma hls_unroll yes
+                            for (int i = 0; i < NROWS; i++) {
+                              dataOut[i].float_val =
+                                  static_cast<HYBRID_TYPE::ac_float_rep>(
+                                      data[i].float_val);
+                            }
+                          }
+                          windowBufferOut.Push(dataOut);
+
+#else
                           windowBufferOut.Push(data);
+#endif
 
                           buffer = windowBufferIn.Pop();
 
@@ -967,7 +1001,33 @@ SC_MODULE(InputController) {
                             }
                           }
 
+#ifdef HYBRID_FP8
+                          if (params.COMBINE_GRADS) {
+                            Pack1D<StdFloat<2, 5>, NROWS> castedData;
+
+#pragma hls_unroll yes
+                            for (int i = 0; i < NROWS; i++) {
+                              castedData[i].float_val.d = data[i].float_val.d;
+                            }
+
+#pragma hls_unroll yes
+                            for (int i = 0; i < NROWS; i++) {
+                              dataOut[i].float_val =
+                                  static_cast<HYBRID_TYPE::ac_float_rep>(
+                                      castedData[i].float_val);
+                            }
+                          } else {
+#pragma hls_unroll yes
+                            for (int i = 0; i < NROWS; i++) {
+                              dataOut[i].float_val =
+                                  static_cast<HYBRID_TYPE::ac_float_rep>(
+                                      data[i].float_val);
+                            }
+                          }
+                          windowBufferOut.Push(dataOut);
+#else
                           windowBufferOut.Push(data);
+#endif
                         }
                       }
                     }
@@ -986,7 +1046,34 @@ SC_MODULE(InputController) {
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
         for (int i = 0; i < total_count; i++) {
+#ifdef HYBRID_FP8
+          Pack1D<DTYPE, NROWS> data = windowBufferIn.Pop();
+          Pack1D<HYBRID_TYPE, NROWS> dataOut;
+
+          if (params.COMBINE_GRADS) {  // using this to signal that it's E5M2
+            Pack1D<StdFloat<2, 5>, NROWS> castedData;
+
+#pragma hls_unroll yes
+            for (int i = 0; i < NROWS; i++) {
+              castedData[i].float_val.d = data[i].float_val.d;
+            }
+
+#pragma hls_unroll yes
+            for (int i = 0; i < NROWS; i++) {
+              dataOut[i].float_val = static_cast<HYBRID_TYPE::ac_float_rep>(
+                  castedData[i].float_val);
+            }
+          } else {
+#pragma hls_unroll yes
+            for (int i = 0; i < NROWS; i++) {
+              dataOut[i].float_val =
+                  static_cast<HYBRID_TYPE::ac_float_rep>(data[i].float_val);
+            }
+          }
+          windowBufferOut.Push(dataOut);
+#else
           windowBufferOut.Push(windowBufferIn.Pop());
+#endif
         }
       }
     }

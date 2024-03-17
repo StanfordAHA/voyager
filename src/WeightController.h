@@ -26,8 +26,14 @@ SC_MODULE(WeightController) {
   Connections::In<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(gradDataResponse);
 
   Connections::In<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(weightsFromBuffer);
-  Connections::Out<Pack1D<typename DTYPE::AccumulationDatatype, NROWS> > CCS_INIT_S1(
+
+#ifdef HYBRID_FP8
+  Connections::Out<Pack1D<HYBRID_TYPE, NROWS> > CCS_INIT_S1(
       weightsToSystolicArray);
+#else
+  Connections::Out<Pack1D<typename DTYPE::AccumulationDatatype, NROWS> >
+      CCS_INIT_S1(weightsToSystolicArray);
+#endif
 
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(fetcherParams);
@@ -979,6 +985,31 @@ SC_MODULE(WeightController) {
 #pragma hls_pipeline_stall_mode flush
       for (int i = 0; i < total_count; i++) {
         Pack1D<DTYPE, NROWS> weights = weightsFromBuffer.Pop();
+#ifdef HYBRID_FP8
+        Pack1D<HYBRID_TYPE, NROWS> weightsDecomposed;
+
+        if (params.COMBINE_GRADS) {  // using this to signal that it's E5M2
+          Pack1D<StdFloat<2, 5>, NROWS> castedData;
+
+#pragma hls_unroll yes
+          for (int i = 0; i < NROWS; i++) {
+            castedData[i].float_val.d = weights[i].float_val.d;
+          }
+
+#pragma hls_unroll yes
+          for (int i = 0; i < NROWS; i++) {
+            weightsDecomposed[i].float_val =
+                static_cast<HYBRID_TYPE::ac_float_rep>(castedData[i].float_val);
+          }
+        } else {
+#pragma hls_unroll yes
+          for (int i = 0; i < NROWS; i++) {
+            weightsDecomposed[i].float_val =
+                static_cast<HYBRID_TYPE::ac_float_rep>(weights[i].float_val);
+          }
+        }
+
+#else
         Pack1D<typename DTYPE::AccumulationDatatype, NROWS> weightsDecomposed;
 
 #pragma hls_unroll yes
@@ -986,6 +1017,7 @@ SC_MODULE(WeightController) {
           weightsDecomposed[i] =
               static_cast<typename DTYPE::AccumulationDatatype>(weights[i]);
         }
+#endif
 
         if (params.COMBINE_GRADS) {
           Pack1D<DTYPE, NROWS> gradients = gradTransposeOut.Pop();

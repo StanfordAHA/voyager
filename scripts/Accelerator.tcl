@@ -2,8 +2,11 @@ source scripts/architecture.tcl
 
 set block "Accelerator"
 set full_block_name "Accelerator"
-
-set MatrixProcessorBlock "MatrixProcessor<$IO_DATATYPE, $ACCUM_DATATYPE, $DIMENSION, $DIMENSION, 1024>"
+set MP_IO_DATATYPE $IO_DATATYPE
+if {$datatype == "HYBRID_FP8"} {
+  set MP_IO_DATATYPE "F9"
+}
+set MatrixProcessorBlock "MatrixProcessor<$MP_IO_DATATYPE, $ACCUM_DATATYPE, $DIMENSION, $DIMENSION, 1024>"
 set MatrixProcessorBlock_stripped [string map {" " ""} $MatrixProcessorBlock]
 
 set InputControllerBlock "InputController<$IO_DATATYPE, $DIMENSION>"

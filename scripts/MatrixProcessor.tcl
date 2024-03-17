@@ -1,6 +1,9 @@
 source scripts/architecture.tcl
 
 set block "MatrixProcessor"
+if {$datatype == "HYBRID_FP8"} {
+  set IO_DATATYPE "F9"
+}
 set full_block_name "MatrixProcessor<$IO_DATATYPE, $ACCUM_DATATYPE, $DIMENSION, $DIMENSION, 1024>"
 set full_block_name_stripped [string map {" " ""} $full_block_name]
 

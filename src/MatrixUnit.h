@@ -18,7 +18,7 @@ SC_MODULE(MatrixUnit) {
   Connections::Combinational<int> serialMatrixParams[3];
 
   // clang-format off
-  #ifdef SIM_InputController  
+  #ifdef SIM_InputController
   CCS_DESIGN((InputController<INPUT_DATATYPE, DIMENSION>)) CCS_INIT_S1(inputController);
   #else
   InputController<INPUT_DATATYPE, DIMENSION> CCS_INIT_S1(inputController);
@@ -68,14 +68,30 @@ SC_MODULE(MatrixUnit) {
   CCS_DESIGN( (MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE, DIMENSION, DIMENSION, ACCUMULATION_BUFFER_SIZE>) ) CCS_INIT_S1(matrixProcessor);
 // clang-format on
 #else
+#ifdef HYBRID_FP8
+  MatrixProcessor<HYBRID_TYPE, ACCUM_DATATYPE, DIMENSION, DIMENSION,
+                  ACCUMULATION_BUFFER_SIZE>
+      CCS_INIT_S1(matrixProcessor);
+#else
   MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE, DIMENSION, DIMENSION,
                   ACCUMULATION_BUFFER_SIZE>
       CCS_INIT_S1(matrixProcessor);
 #endif
+#endif
+
+#ifdef HYBRID_FP8
+  Connections::Combinational<Pack1D<HYBRID_TYPE, DIMENSION> > CCS_INIT_S1(
+      inputsToSystolicArray);
+  Connections::Combinational<Pack1D<HYBRID_TYPE, DIMENSION> > CCS_INIT_S1(
+      weightsToSystolicArray);
+#else
   Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
       inputsToSystolicArray);
-  Connections::Combinational<Pack1D<INPUT_DATATYPE::AccumulationDatatype, DIMENSION> > CCS_INIT_S1(
-      weightsToSystolicArray);
+
+  Connections::Combinational<
+      Pack1D<INPUT_DATATYPE::AccumulationDatatype, DIMENSION> >
+      CCS_INIT_S1(weightsToSystolicArray);
+#endif
   Connections::Out<Pack1D<ACCUM_DATATYPE, DIMENSION> > CCS_INIT_S1(
       outputsFromSystolicArray);
 

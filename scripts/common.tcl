@@ -66,7 +66,11 @@ go analyze
 solution design set $full_block_name -top
 
 if {$block == "Accelerator"} {
-  foreach mapped_block [list "InputController<$IO_DATATYPE, $DIMENSION>" "MatrixProcessor<$IO_DATATYPE, $ACCUM_DATATYPE, $DIMENSION, $DIMENSION, 1024>" "VectorUnit<$IO_DATATYPE, $ACCUM_DATATYPE, $DIMENSION>" "WeightController<$IO_DATATYPE, $DIMENSION, $DIMENSION>"] {
+  set MP_IO_DATATYPE $IO_DATATYPE
+  if {$datatype == "HYBRID_FP8"} {
+    set MP_IO_DATATYPE "F9"
+  }
+  foreach mapped_block [list "InputController<$IO_DATATYPE, $DIMENSION>" "MatrixProcessor<$MP_IO_DATATYPE, $ACCUM_DATATYPE, $DIMENSION, $DIMENSION, 1024>" "VectorUnit<$IO_DATATYPE, $ACCUM_DATATYPE, $DIMENSION>" "WeightController<$IO_DATATYPE, $ACCUM_DATATYPE, $DIMENSION, $DIMENSION>"] {
     solution design set $mapped_block -mapped
   }
 } elseif {$block == "SystolicArrayChunk"} {

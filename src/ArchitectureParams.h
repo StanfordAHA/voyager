@@ -35,11 +35,13 @@ using F16 = StdFloat<7, 8>;
 
 using F8 = StdFloat<3, 4>;
 using F16 = StdFloat<7, 8>;
+using F9 = StdFloat<3, 5>;
 
 #define INPUT_DATATYPE F8
 #define WEIGHT_DATATYPE F8
 #define ACCUM_DATATYPE F16
 #define OUTPUT_DATATYPE F8
+#define HYBRID_TYPE F9
 
 #elif defined(BF16)
 
