@@ -477,7 +477,7 @@ StdFloat<7, 8>::StdFloat(const ac_int<W, S> &rhs) {
 //       b_higherprecision.float_val, c.float_val);
 // }
 
-StdFloat<7, 8>::StdFloat(const StdFloat<7, 8> input[2]) { *this = input[0]; }
+inline StdFloat<7, 8>::StdFloat(const StdFloat<7, 8> input[2]) { *this = input[0]; }
 
 template <int mantissa2, int exp2>
 StdFloat<7, 8>::StdFloat(const StdFloat<mantissa2, exp2> input[2]) {
