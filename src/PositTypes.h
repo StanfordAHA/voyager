@@ -403,10 +403,9 @@ inline std::ostream &operator<<(std::ostream &os, const Posit<nbits, es> &val) {
 template <int sbits, int fbits>
 class PositFP {
  public:
+  static constexpr int width = sbits + fbits + 1;
+  typedef ac_std_float<width, sbits> ac_float_t;
   typedef PositFP<sbits, fbits> AccumulationDatatype;
-
-  typedef ac_std_float<sbits + fbits + 1, sbits> ac_float_t;
-  static constexpr unsigned int width = ac_float_t::width;
 
   ac_float_t float_val;
 
