@@ -454,7 +454,7 @@ class PositFP {
   void negate() { float_val.set_signbit(!float_val.signbit()); }
 
   void relu() {
-    if (float_val.signbit() == 1) setZero();
+    if (float_val.signbit()) setZero();
   }
 
   void masked_relu(const PositFP &mask) {
@@ -477,8 +477,8 @@ class PositFP {
     posit16_0.reciprocal();
 
     *this = posit16_0;
-    float_val -= 1.10925;
-    if (float_val.signbit() == 1) {
+    float_val -= ac_float_t(1.10925f);
+    if (float_val.signbit()) {
       float_val.d = 0;
     }
   }
@@ -570,8 +570,8 @@ PositFP<sbits, fbits> exponent(const PositFP<sbits, fbits> &val) {
   posit.reciprocal();
 
   PositFP<sbits, fbits> result(posit);
-  result.float_val -= PositFP<sbits, fbits>::ac_float_t(1.10925f);
-  if (result.float_val.signbit() == 1) {
+  result.float_val -= typename PositFP<sbits, fbits>::ac_float_t(1.10925f);
+  if (result.float_val.signbit()) {
     result.float_val.d = 0;
   }
   return result;
