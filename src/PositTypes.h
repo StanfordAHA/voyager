@@ -547,6 +547,10 @@ class PositFP {
     return *this;
   }
 
+  bool operator<(const PositFP &rhs) const {
+    return float_val < rhs.float_val;
+  }
+
 // SystemC is not compatible with C++17
 #ifndef NO_SYSC
   template <unsigned int Size>
@@ -561,12 +565,12 @@ class PositFP {
 
 template <int sbits, int fbits>
 PositFP<sbits, fbits> exponent(const PositFP<sbits, fbits> &val) {
-  Posit<16, 0> posit = static_cast<PositFP<sbits, fbits>>(-val);
+  Posit<16, 0> posit = static_cast<PositFP<sbits, fbits>>(-val.float_val);
   posit.sigmoid();
   posit.reciprocal();
 
   PositFP<sbits, fbits> result(posit);
-  result -= 1.10925;
+  result.float_val -= PositFP<sbits, fbits>::ac_float_t(1.10925f);
   if (result.float_val.signbit() == 1) {
     result.float_val.d = 0;
   }
