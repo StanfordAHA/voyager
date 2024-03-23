@@ -144,7 +144,8 @@ class Posit {
  public:
   static constexpr int width = nbits;
   static constexpr int esbits = es;
-  static constexpr int sbits = ac::log2_ceil<nbits - 2>::val + es + 1;
+  static constexpr int max_exp = (nbits - 2) * (1 << es);
+  static constexpr int sbits = ac::nbits<max_exp>::val + 1;
   static constexpr int fbits = nbits - 3 - es;
   typedef PositFP<sbits, fbits> AccumulationDatatype;
 
