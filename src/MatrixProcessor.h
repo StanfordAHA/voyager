@@ -172,7 +172,12 @@ SC_MODULE(MatrixProcessor) {
           params.loops[1][0] * params.loops[1][1] * params.loops[1][2] *
           params.loops[1][3] * params.loops[1][4] * params.loops[1][5];
 
+#ifdef __SYNTHESIS__
       Pack1D<ODTYPE, NCOLS> accumulation_buffer[BUFFER_SIZE];
+#else
+      Pack1D<ODTYPE, NCOLS> *accumulation_buffer =
+          new Pack1D<ODTYPE, NCOLS>[BUFFER_SIZE];
+#endif
 
       ac_int<32, false> step = 0;
       ac_int<32, false> outputStep = 0;
