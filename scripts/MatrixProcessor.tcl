@@ -22,6 +22,10 @@ directive set -CLOCKS $clocks
 
 go assembly
 
+if {$datatype == "P8_1"} {
+  set C_DATA_REP_NAME "float_val.d"
+}
+
 directive set /$full_block_name_stripped/$full_block_name_stripped:run/run/while:accumulation_buffer.value.$C_DATA_REP_NAME -WORD_WIDTH [expr $ACCUM_DATATYPE_WIDTH * $DIMENSION]
 if {[info exists env(DEBUG)] == 0} {
   if {[expr $ACCUM_DATATYPE_WIDTH * $DIMENSION] == 128} {

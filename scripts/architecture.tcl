@@ -6,11 +6,11 @@ set DIMENSION $env(DIMENSION)
 if { $datatype == "P8_1" } {
   set IO_DATATYPE "P8"
   set IO_DATATYPE_DEC "P8D"
-  set ACCUM_DATATYPE "P16"
+  set ACCUM_DATATYPE "PositFP<8, 7>"
   set INTERMEDIATE_DATATYPE "P16D"
   set PE_INPUT_DATATYPE "Posit<8, 1>::AccumulationDatatype"
   set PE_WEIGHT_DATATYPE "Posit<8, 1>::AccumulationDatatype"
-  set PE_PSUM_DATATYPE "Posit<16, 1>::AccumulationDatatype"
+  set PE_PSUM_DATATYPE "PositFP<8, 7>::AccumulationDatatype"
   set C_DATA_REP_NAME "bits"
 
   set IO_DATATYPE_WIDTH 8
