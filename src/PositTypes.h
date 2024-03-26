@@ -513,7 +513,7 @@ class PositFP {
                               const PositFP<sbits2, fbits2> &c) {
     typename PositFP<sbits2, fbits2>::ac_float_t op1(float_val);
     typename PositFP<sbits2, fbits2>::ac_float_t op2(b.float_val);
-    return op1.template fma<AC_RND_CONV, true>(op2, c.float_val);
+    return op1.template fma<AC_TRN_ZERO, true>(op2, c.float_val);
   }
 
   template <int sbits2, int fbits2>
