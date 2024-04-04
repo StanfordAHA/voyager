@@ -7,15 +7,18 @@
 #include <ac_math/ac_pow_pwl.h>
 #include <ac_math/ac_reciprocal_pwl.h>
 #include <ac_math/ac_sigmoid_pwl.h>
+#include <ccs_dw_lib.h>
 
-template <int mantissa, int exp>
+template <int mantissa, int exp, bool useDWImpl = false,
+          bool ieee_compliance = true, ac_q_mode Q = AC_RND_CONV>
 class StdFloat {
  public:
   typedef ac_std_float<mantissa + exp + 1, exp> ac_float_rep;
   static constexpr unsigned int width = ac_float_rep::width;
 
   // TODO: make this a template parameter
-  typedef StdFloat<mantissa, exp> AccumulationDatatype;
+  typedef StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>
+      AccumulationDatatype;
 
   // TODO Set Float to Fixed type
   typedef ac_fixed<2 * mantissa, mantissa, true> ac_float_to_fixed_rep;
@@ -32,13 +35,17 @@ class StdFloat {
   StdFloat(const float val);
 #endif
 
-  template <int mantissa2, int exp2>
-  StdFloat(const StdFloat<mantissa2, exp2> input[2]);
+  template <int mantissa2, int exp2, bool useDWImpl2, bool ieee_compliance2,
+            ac_q_mode Q2>
+  StdFloat(const StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2>
+               input[2]);
 
-  StdFloat(const StdFloat<7, 8> input[2]);
+  StdFloat(const StdFloat input[2]);
 
-  template <int mantissa2, int exp2>
-  StdFloat(const StdFloat<mantissa2, exp2> &input);
+  template <int mantissa2, int exp2, bool useDWImpl2, bool ieee_compliance2,
+            ac_q_mode Q2>
+  StdFloat(
+      const StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> &input);
 
   template <int W, bool S>
   StdFloat(const ac_int<W, S> &rhs);
@@ -105,8 +112,11 @@ class StdFloat {
     float_val.d += offset;
   }
 
-  template <int mantissa2, int exp2>
-  StdFloat<mantissa2, exp2> fma(StdFloat &b, StdFloat<mantissa2, exp2> &c);
+  template <int mantissa2, int exp2, bool useDWImpl2, bool ieee_compliance2,
+            ac_q_mode Q2>
+  StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> fma(
+      StdFloat &b,
+      StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> &c);
 
   StdFloat operator+(const StdFloat &rhs);
   StdFloat operator*(const StdFloat &rhs);
@@ -128,15 +138,22 @@ class StdFloat {
 };
 
 #ifndef __SYNTHESIS__
-template <int mantissa, int exp>
-StdFloat<mantissa, exp>::StdFloat(const float val) {
-  float_val = StdFloat<mantissa, exp>::ac_float_rep(val);
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
+    const float val) {
+  float_val =
+      StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::ac_float_rep(val);
 }
 #endif
 
-template <int mantissa, int exp>
-template <int mantissa2, int exp2>
-StdFloat<mantissa, exp>::StdFloat(const StdFloat<mantissa2, exp2> input[2]) {
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+template <int mantissa2, int exp2, bool useDWImpl2, bool ieee_compliance2,
+          ac_q_mode Q2>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
+    const StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2>
+        input[2]) {
   static_assert(
       (mantissa + exp + 1) == 2 * (mantissa2 + exp2 + 1),
       "Lower precision type must be half the width of higher precision.");
@@ -146,25 +163,41 @@ StdFloat<mantissa, exp>::StdFloat(const StdFloat<mantissa2, exp2> input[2]) {
   }
 }
 
-template <int mantissa, int exp>
-StdFloat<mantissa, exp>::StdFloat(const ac_float_rep &input_float_rep) {
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
+    const StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> input[2]) {
+  *this = input[0];
+}
+
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
+    const ac_float_rep &input_float_rep) {
   float_val = input_float_rep;
 }
 
-template <int mantissa, int exp>
-template <int mantissa2, int exp2>
-StdFloat<mantissa, exp>::StdFloat(const StdFloat<mantissa2, exp2> &input) {
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+template <int mantissa2, int exp2, bool useDWImpl2, bool ieee_compliance2,
+          ac_q_mode Q2>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
+    const StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> &input) {
   float_val = static_cast<ac_float_rep>(input);
 }
 
-template <int mantissa, int exp>
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
 template <int W, bool S>
-StdFloat<mantissa, exp>::StdFloat(const ac_int<W, S> &rhs) {
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
+    const ac_int<W, S> &rhs) {
   float_val = ac_float_rep(rhs);
 }
 
-template <int mantissa, int exp>
-StdFloat<mantissa, exp> exponent(StdFloat<mantissa, exp> element) {
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> exponent(
+    StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> element) {
   // TODO: clean this up
   typedef ac_std_float<mantissa + exp + 1, exp> ac_float_rep;
 
@@ -183,69 +216,96 @@ StdFloat<mantissa, exp> exponent(StdFloat<mantissa, exp> element) {
   // convert back to float
   ac_float_rep exponent_in_float = ac_float_rep(exponent_in_fixed);
 
-  return static_cast<StdFloat<mantissa, exp> >(exponent_in_float);
+  return static_cast<StdFloat<mantissa, exp, useDWImpl> >(exponent_in_float);
 }
 
-template <int mantissa, int exp>
-inline StdFloat<mantissa, exp> StdFloat<mantissa, exp>::operator+(
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+inline StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator+(
     const StdFloat &rhs) {
   return float_val + rhs.float_val;
 }
 
-template <int mantissa, int exp>
-inline StdFloat<mantissa, exp> StdFloat<mantissa, exp>::operator*(
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+inline StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator*(
     const StdFloat &rhs) {
   return float_val * rhs.float_val;
 }
 
-template <int mantissa, int exp>
-inline StdFloat<mantissa, exp> StdFloat<mantissa, exp>::operator/(
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+inline StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator/(
     const StdFloat &rhs) {
   return float_val / rhs.float_val;
 }
 
-template <int mantissa, int exp>
-inline StdFloat<mantissa, exp> &StdFloat<mantissa, exp>::operator+=(
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+inline StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator+=(
     const StdFloat &rhs) {
   float_val += rhs.float_val;
   return *this;
 }
 
-template <int mantissa, int exp>
-inline StdFloat<mantissa, exp> &StdFloat<mantissa, exp>::operator-=(
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+inline StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator-=(
     const StdFloat &rhs) {
   float_val -= rhs.float_val;
   return *this;
 }
 
-template <int mantissa, int exp>
-inline StdFloat<mantissa, exp> &StdFloat<mantissa, exp>::operator*=(
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+inline StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator*=(
     const StdFloat &rhs) {
   float_val *= rhs.float_val;
   return *this;
 }
 
-template <int mantissa, int exp>
-inline StdFloat<mantissa, exp> &StdFloat<mantissa, exp>::operator/=(
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+inline StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator/=(
     const StdFloat &rhs) {
   float_val /= rhs.float_val;
   return *this;
 }
 
-template <int mantissa, int exp>
-inline bool StdFloat<mantissa, exp>::operator<(const StdFloat &rhs) const {
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+inline bool StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator<(
+    const StdFloat &rhs) const {
   return float_val < rhs.float_val;
 }
 
-template <int mantissa, int exp>
-template <int mantissa2, int exp2>
-StdFloat<mantissa2, exp2> StdFloat<mantissa, exp>::fma(
-    StdFloat<mantissa, exp> &b, StdFloat<mantissa2, exp2> &c) {
-  StdFloat<mantissa2, exp2> a_higherprecision(*this);
-  StdFloat<mantissa2, exp2> b_higherprecision(b);
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+template <int mantissa2, int exp2, bool useDWImpl2, bool ieee_compliance2,
+          ac_q_mode Q2>
+StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::fma(
+    StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &b,
+    StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> &c) {
+  StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> a_higherprecision(
+      *this);
+  StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> b_higherprecision(
+      b);
 
-  return a_higherprecision.float_val.template fma<AC_TRN_ZERO, true>(
-      b_higherprecision.float_val, c.float_val);
+  if (useDWImpl) {
+    return fp_mac<AC_TRN_ZERO, ieee_compliance, mantissa2 + exp2 + 1, exp2>(
+        a_higherprecision.float_val, b_higherprecision.float_val, c.float_val);
+  } else {
+    return a_higherprecision.float_val.template fma<AC_TRN_ZERO, true>(
+        b_higherprecision.float_val, c.float_val);
+  }
 }
 
 template <int mantissa_i, int exp_i, int mantissa_o, int exp_o>
@@ -259,7 +319,7 @@ typename StdFloat<mantissa_o, exp_o>::AccumulationDatatype decomposed_fma(
   return a_higherprecision.float_val.template fma<AC_TRN_ZERO, true>(
       b_higherprecision.float_val, c.float_val);
 }
-
+/*
 template <>
 class StdFloat<7, 8> {
  public:
@@ -269,7 +329,7 @@ class StdFloat<7, 8> {
   static constexpr unsigned int exp = 8;
 
   // TODO: make this a template parameter
-  typedef StdFloat<mantissa, exp> AccumulationDatatype;
+  typedef StdFloat<mantissa, exp, useDWImpl> AccumulationDatatype;
 
   // TODO Set Float to Fixed type
   typedef ac_fixed<2 * mantissa, mantissa, true> ac_float_to_fixed_rep;
@@ -367,7 +427,7 @@ class StdFloat<7, 8> {
     // ac_std_float_rep output;
     // ac_math::ac_sigmoid_pwl<AC_TRN, ac_std_float_rep,
     // ac_std_float_rep>(input,
-    //                                                                     output);
+    // output);
     // float_val = ac::bfloat16(output);
   }
 
@@ -398,41 +458,34 @@ class StdFloat<7, 8> {
 #endif
 };
 
-inline StdFloat<7, 8> StdFloat<7, 8>::operator+(
-    const StdFloat &rhs) {
+inline StdFloat<7, 8> StdFloat<7, 8>::operator+(const StdFloat &rhs) {
   return float_val + rhs.float_val;
 }
 
-inline StdFloat<7, 8> StdFloat<7, 8>::operator*(
-    const StdFloat &rhs) {
+inline StdFloat<7, 8> StdFloat<7, 8>::operator*(const StdFloat &rhs) {
   return float_val * rhs.float_val;
 }
 
-inline StdFloat<7, 8> StdFloat<7, 8>::operator/(
-    const StdFloat &rhs) {
+inline StdFloat<7, 8> StdFloat<7, 8>::operator/(const StdFloat &rhs) {
   return float_val / rhs.float_val;
 }
 
-inline StdFloat<7, 8> &StdFloat<7, 8>::operator+=(
-    const StdFloat &rhs) {
+inline StdFloat<7, 8> &StdFloat<7, 8>::operator+=(const StdFloat &rhs) {
   float_val += rhs.float_val;
   return *this;
 }
 
-inline StdFloat<7, 8> &StdFloat<7, 8>::operator-=(
-    const StdFloat &rhs) {
+inline StdFloat<7, 8> &StdFloat<7, 8>::operator-=(const StdFloat &rhs) {
   float_val -= rhs.float_val;
   return *this;
 }
 
-inline StdFloat<7, 8> &StdFloat<7, 8>::operator*=(
-    const StdFloat &rhs) {
+inline StdFloat<7, 8> &StdFloat<7, 8>::operator*=(const StdFloat &rhs) {
   float_val *= rhs.float_val;
   return *this;
 }
 
-inline StdFloat<7, 8> &StdFloat<7, 8>::operator/=(
-    const StdFloat &rhs) {
+inline StdFloat<7, 8> &StdFloat<7, 8>::operator/=(const StdFloat &rhs) {
   float_val /= rhs.float_val;
   return *this;
 }
@@ -455,8 +508,8 @@ StdFloat<7, 8>::StdFloat(const ac_int<W, S> &rhs) {
 
 // template <int mantissa, int exp>
 // template <int mantissa2, int exp2>
-// StdFloat<mantissa2, exp2> StdFloat<mantissa, exp>::fma(
-//     StdFloat<mantissa, exp> &b, StdFloat<mantissa2, exp2> &c) {
+// StdFloat<mantissa2, exp2> StdFloat<mantissa, exp, useDWImpl>::fma(
+//     StdFloat<mantissa, exp, useDWImpl> &b, StdFloat<mantissa2, exp2> &c) {
 //   StdFloat<mantissa2, exp2> a_higherprecision(*this);
 //   StdFloat<mantissa2, exp2> b_higherprecision(b);
 
@@ -477,7 +530,9 @@ StdFloat<7, 8>::StdFloat(const ac_int<W, S> &rhs) {
 //       b_higherprecision.float_val, c.float_val);
 // }
 
-inline StdFloat<7, 8>::StdFloat(const StdFloat<7, 8> input[2]) { *this = input[0]; }
+inline StdFloat<7, 8>::StdFloat(const StdFloat<7, 8> input[2]) {
+  *this = input[0];
+}
 
 template <int mantissa2, int exp2>
 StdFloat<7, 8>::StdFloat(const StdFloat<mantissa2, exp2> input[2]) {
@@ -495,8 +550,10 @@ StdFloat<7, 8>::StdFloat(const StdFloat<mantissa2, exp2> input[2]) {
   float_val = ac::bfloat16(temp);
 }
 
-template <int mantissa, int exp>
-StdFloat<mantissa, exp>::StdFloat(const StdFloat<7, 8> input[2]) {
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
+    const StdFloat<7, 8> input[2]) {
   static_assert(
       (mantissa + exp + 1) == 2 * (7 + 8 + 1),
       "Lower precision type must be half the width of higher precision.");
@@ -508,3 +565,4 @@ StdFloat<mantissa, exp>::StdFloat(const StdFloat<7, 8> input[2]) {
     float_val.d.set_slc(0 + i * (7 + 8 + 1), temp.d);
   }
 }
+*/
