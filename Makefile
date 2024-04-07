@@ -289,7 +289,7 @@ clean-test:
 	rm -rf test_outputs/*
 
 clean-catapult:
-	rm -rf build/Catapult_*
+	rm -rf $(CATAPULT_BUILD_DIR)
 
 clean-rtl-sim:
 	rm -rf build/Catapult_debug/Accelerator.v1/scverify/concat_sim_rtl_v_vcs
