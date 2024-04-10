@@ -1,0 +1,56 @@
+# Create project folder
+set project_folder "$root/build/${DATATYPE}_${DIMENSION}x${DIMENSION}/Catapult/clock_${CLOCK_PERIOD}/$BLOCK"
+if { [file exists $project_folder] } {
+  file delete -force -- $project_folder
+}
+
+project new -dir $project_folder
+project save
+
+# Set log file
+logfile move "$root/build/${DATATYPE}_${DIMENSION}x${DIMENSION}/Catapult/clock_${CLOCK_PERIOD}/$BLOCK.log"
+
+# Configure options
+solution options set Project/SolutionName $BLOCK
+solution options set Message/ErrorOverride ASSERT-1 -remove
+solution options set Input/TargetPlatform x86_64
+solution options set /Input/CppStandard c++11
+solution options set Input/CompilerFlags "-D$DATATYPE -DDIMENSION=$DIMENSION"
+solution options set Input/SearchPath "$root/lib"
+solution options set Output/OutputVHDL false
+solution options set Architectural/DefaultMemMapThreshold 256
+solution options set Architectural/DefaultRegisterThreshold 4096
+solution options set Flows/Enable-SCVerify yes
+solution options set Flows/VCS/SYSC_VERSION 2.3.2
+solution options set Flows/VCS/VLOGAN_OPTS {+v2k -timescale=1ns/10ps +notimingcheck +define+UNIT_DELAY}
+solution options set Flows/VCS/VCSSIM_OPTS {+fsdbfile+dump.fsdb +fsdb+all=on +fsdb+dumpon+0}
+solution options set Flows/VCS/VCS_DOFILE dump.do
+solution options set Flows/VCS/COMP_FLAGS "-O3 -Wall -Wno-unknown-pragmas -I$root/lib/ -I$root/src/ -I$root/ -DNO_UNIVERSAL -DSIM_$BLOCK -D$DATATYPE -DDIMENSION=$DIMENSION"
+solution options set Flows/VCS/VCSELAB_OPTS "-timescale=1ns/1ps -sysc=blocksync -lstdc++fs"
+
+flow package require /SCVerify
+flow package option set /SCVerify/USE_VCS true
+
+go new
+
+# Add source files
+solution file add $root/src/Accelerator.h -type CHEADER
+
+# Add testbench files
+solution file add $root/test/common/TestRunner.cc -type C++ -exclude true
+solution file add $root/test/common/Harness.cc -type C++ -exclude true
+solution file add $root/test/common/Utils.cc -type C++ -exclude true
+solution file add $root/test/common/GoldModel.cc -type C++ -exclude true
+solution file add $root/test/common/MemoryModel.cc -type C++ -exclude true
+solution file add $root/test/common/SimpleMemoryModel.cc -type C++ -exclude true
+solution file add $root/test/common/Simulation.cc -type C++ -exclude true
+
+# Add toolchain files
+solution file add $root/test/toolchain/MapOperation.cc -type C++ -exclude true
+foreach file [glob -nocomplain -directory $root/test/toolchain/operations *.cc] {
+  solution file add $file -type C++ -exclude true
+}
+
+# Add network files
+solution file add $root/test/resnet/ResNet.cc -type C++ -exclude true
+solution file add $root/test/mobilebert/MobileBERT.cc -type C++ -exclude true

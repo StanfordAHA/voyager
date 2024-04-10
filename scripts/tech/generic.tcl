@@ -1,0 +1,1 @@
+solution library add ccs_sample_mem

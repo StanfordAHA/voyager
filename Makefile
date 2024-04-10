@@ -72,7 +72,7 @@ LDLIBS += -L/cad/mentor/2021.1/Mgc_home/shared/lib/
 ###########################################################
 # Catapult Synthesis
 ###########################################################
-CATAPULT_BUILD_DIR = build/$(DATATYPE)_$(DIMENSION)x$(DIMENSION)/Catapult/clock_$(clock_period)/
+CATAPULT_BUILD_DIR = build/$(DATATYPE)_$(DIMENSION)x$(DIMENSION)/Catapult/clock_$(CLOCK_PERIOD)/
 
 # Main target to run HLS and build RTL (Verilog)
 rtl: $(CATAPULT_BUILD_DIR)Accelerator/Accelerator.v1/concat_rtl.v
@@ -93,31 +93,31 @@ VectorFetchUnit: $(CATAPULT_BUILD_DIR)VectorFetchUnit/VectorFetchUnit.v1/concat_
 VectorOpUnit: $(CATAPULT_BUILD_DIR)VectorOpUnit/VectorOpUnit.v1/concat_rtl.v
 
 $(CATAPULT_BUILD_DIR)InputController/InputController.v1/concat_rtl.v: src/InputController.h
-	catapult -shell -file scripts/InputController.tcl
+	BLOCK=InputController catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)WeightController/WeightController.v1/concat_rtl.v: src/WeightController.h
-	catapult -shell -file scripts/WeightController.tcl
+	BLOCK=WeightController catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)ProcessingElement/ProcessingElement.v1/concat_rtl.v: src/ProcessingElement.h
-	catapult -shell -file scripts/ProcessingElement.tcl
+	BLOCK=ProcessingElement catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)SystolicArrayRow/SystolicArrayRow.v1/concat_rtl.v: src/SystolicArray.h $(CATAPULT_BUILD_DIR)ProcessingElement/ProcessingElement.v1/concat_rtl.v
-	catapult -shell -file scripts/SystolicArrayRow.tcl
+	BLOCK=SystolicArrayRow catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)SystolicArrayChunk/SystolicArrayChunk.v1/concat_rtl.v: src/SystolicArray.h $(CATAPULT_BUILD_DIR)SystolicArrayRow/SystolicArrayRow.v1/concat_rtl.v
-	catapult -shell -file scripts/SystolicArrayChunk.tcl
+	BLOCK=SystolicArrayChunk catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)SystolicArray/SystolicArray.v1/concat_rtl.v: src/SystolicArray.h $(CATAPULT_BUILD_DIR)SystolicArrayChunk/SystolicArrayChunk.v1/concat_rtl.v
-	catapult -shell -file scripts/SystolicArray.tcl
+	BLOCK=SystolicArray catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)MatrixProcessor/MatrixProcessor.v1/concat_rtl.v: src/MatrixProcessor.h src/SystolicArray.h src/Skewer.h $(CATAPULT_BUILD_DIR)SystolicArray/SystolicArray.v1/concat_rtl.v
-	catapult -shell -file scripts/MatrixProcessor.tcl
+	BLOCK=MatrixProcessor catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)VectorUnit/VectorUnit.v1/concat_rtl.v: $(CATAPULT_BUILD_DIR)MaxpoolUnit/MaxpoolUnit.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)OutputAddressGenerator/OutputAddressGenerator.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)VectorFetchUnit/VectorFetchUnit.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)VectorOpUnit/VectorOpUnit.v1/concat_rtl.v
-	catapult -shell -file scripts/VectorUnit.tcl
+	BLOCK=VectorUnit catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)MaxpoolUnit/MaxpoolUnit.v1/concat_rtl.v: src/MaxpoolUnit.h
-	catapult -shell -file scripts/MaxpoolUnit.tcl
+	BLOCK=MaxpoolUnit catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)OutputAddressGenerator/OutputAddressGenerator.v1/concat_rtl.v: src/OutputAddressGenerator.h
-	catapult -shell -file scripts/OutputAddressGenerator.tcl
+	BLOCK=OutputAddressGenerator catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)VectorFetchUnit/VectorFetchUnit.v1/concat_rtl.v: src/VectorFetch.h
-	catapult -shell -file scripts/VectorFetchUnit.tcl
+	BLOCK=VectorFetchUnit catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)VectorOpUnit/VectorOpUnit.v1/concat_rtl.v: src/VectorUnit.h
-	catapult -shell -file scripts/VectorOpUnit.tcl
+	BLOCK=VectorOpUnit catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)Accelerator/Accelerator.v1/concat_rtl.v: $(CATAPULT_BUILD_DIR)InputController/InputController.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)WeightController/WeightController.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)MatrixProcessor/MatrixProcessor.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)VectorUnit/VectorUnit.v1/concat_rtl.v
-	catapult -shell -file scripts/Accelerator.tcl
+	BLOCK=Accelerator catapult -shell -file scripts/main.tcl
 	sed -i '/^`include/d' $(CATAPULT_BUILD_DIR)Accelerator/Accelerator.v1/concat_sim_rtl.v
 	sed '/module CGHpart/,/endmodule/d;/module TSDN/,/endmodule/d;/module TS1N40LPB1024X128M4FWBA /,/endmodule/d;/module TS1N40LPB1024X64M4FW /,/endmodule/d;/^`include/d;s/module Accelerator_rtl/module Accelerator/g;s/VectorUnit_rtl/VectorUnit/g' $(CATAPULT_BUILD_DIR)Accelerator/Accelerator.v1/concat_rtl.v > release/concat_rtl.v
 

@@ -1,9 +1,4 @@
-# read environment variable "DATATYPE"
-global env
-set datatype $env(DATATYPE)
-set DIMENSION $env(DIMENSION)
-
-if { $datatype == "P8_1" } {
+if { $DATATYPE == "P8_1" } {
   set IO_DATATYPE "P8"
   set IO_DATATYPE_DEC "P8D"
   set ACCUM_DATATYPE "PositFP<8, 7>"
@@ -15,7 +10,7 @@ if { $datatype == "P8_1" } {
 
   set IO_DATATYPE_WIDTH 8
   set ACCUM_DATATYPE_WIDTH 16
-} elseif { $datatype == "E4M3" } {
+} elseif { $DATATYPE == "E4M3" } {
   set IO_DATATYPE "F8"
   set ACCUM_DATATYPE "F16"
   set INTERMEDIATE_DATATYPE "F16"
@@ -26,7 +21,7 @@ if { $datatype == "P8_1" } {
 
   set IO_DATATYPE_WIDTH 8
   set ACCUM_DATATYPE_WIDTH 16
-} elseif { $datatype == "E5M2" } {
+} elseif { $DATATYPE == "E5M2" } {
   set IO_DATATYPE "F8"
   set ACCUM_DATATYPE "F16"
   set INTERMEDIATE_DATATYPE "F16"
@@ -37,7 +32,7 @@ if { $datatype == "P8_1" } {
 
   set IO_DATATYPE_WIDTH 8
   set ACCUM_DATATYPE_WIDTH 16
-} elseif { $datatype == "HYBRID_FP8" } {
+} elseif { $DATATYPE == "HYBRID_FP8" } {
   set IO_DATATYPE "F8"
   set ACCUM_DATATYPE "F16"
   set INTERMEDIATE_DATATYPE "F16"
@@ -48,7 +43,7 @@ if { $datatype == "P8_1" } {
 
   set IO_DATATYPE_WIDTH 8
   set ACCUM_DATATYPE_WIDTH 16
-} elseif { $datatype == "BF16" } {
+} elseif { $DATATYPE == "BF16" } {
   set IO_DATATYPE "F16"
   set ACCUM_DATATYPE "F32"
   set INTERMEDIATE_DATATYPE "F32"
@@ -59,7 +54,7 @@ if { $datatype == "P8_1" } {
 
   set IO_DATATYPE_WIDTH 16
   set ACCUM_DATATYPE_WIDTH 32
-} elseif { $datatype == "BF16_ONLY" } {
+} elseif { $DATATYPE == "BF16_ONLY" } {
   set IO_DATATYPE "F16"
   set ACCUM_DATATYPE "F16"
   set INTERMEDIATE_DATATYPE "F16"
