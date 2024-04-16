@@ -308,17 +308,6 @@ StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::fma(
   }
 }
 
-template <int mantissa_i, int exp_i, int mantissa_o, int exp_o>
-typename StdFloat<mantissa_o, exp_o>::AccumulationDatatype decomposed_fma(
-    const typename StdFloat<mantissa_i, exp_i>::AccumulationDatatype &a,
-    const typename StdFloat<mantissa_i, exp_i>::AccumulationDatatype &b,
-    const typename StdFloat<mantissa_o, exp_o>::AccumulationDatatype &c) {
-  StdFloat<mantissa_o, exp_o> a_higherprecision(a);
-  StdFloat<mantissa_o, exp_o> b_higherprecision(b);
-
-  return a_higherprecision.float_val.template fma<AC_TRN_ZERO, true>(
-      b_higherprecision.float_val, c.float_val);
-}
 /*
 template <>
 class StdFloat<7, 8> {
