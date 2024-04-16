@@ -207,25 +207,25 @@ $(CC_BUILD_DIR)/PositTest: test/common/PositTest.cc src/PositTypes.h
 $(CC_BUILD_DIR)/Harness.o: test/common/Harness.cc test/common/Harness.h $(wildcard src/*.h)
 	$(CC) $(C11FLAGS) -c -o $@ $<
 
-$(CC_BUILD_DIR)/GoldModel.o: test/common/GoldModel.cc test/common/GoldModel.h src/ArchitectureParams.h
+$(CC_BUILD_DIR)/GoldModel.o: test/common/GoldModel.cc test/common/GoldModel.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h
 	$(CC) $(C17FLAGS) -g -c -o $@ $<
 
-$(CC_BUILD_DIR)/Utils.o: test/common/Utils.cc test/common/Utils.h src/ArchitectureParams.h
+$(CC_BUILD_DIR)/Utils.o: test/common/Utils.cc test/common/Utils.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 $(CC_BUILD_DIR)/MemoryModel.o: test/common/MemoryModel.cc test/common/MemoryModel.h src/ArchitectureParams.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
-$(CC_BUILD_DIR)/SimpleMemoryModel.o: test/common/SimpleMemoryModel.cc test/common/SimpleMemoryModel.h src/ArchitectureParams.h
+$(CC_BUILD_DIR)/SimpleMemoryModel.o: test/common/SimpleMemoryModel.cc test/common/SimpleMemoryModel.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
-$(CC_BUILD_DIR)/Simulation.o: test/common/Simulation.cc test/common/Simulation.h src/ArchitectureParams.h
+$(CC_BUILD_DIR)/Simulation.o: test/common/Simulation.cc test/common/Simulation.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 $(CC_BUILD_DIR)/TestRunner.o: test/common/TestRunner.cc
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
-$(CC_BUILD_DIR)/AccuracyTester.o: test/common/AccuracyTester.cc
+$(CC_BUILD_DIR)/AccuracyTester.o: test/common/AccuracyTester.cc src/PositTypes.h src/StdFloatTypes.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 $(CC_BUILD_DIR)/Finetuning.o: test/training/Finetuning.cc test/training/forward_pass.h test/training/backward_pass.h test/training/model_arch.h test/training/memory_plan.h test/training/DTYPE.h
