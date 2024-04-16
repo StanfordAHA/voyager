@@ -75,9 +75,7 @@ void SimpleMemoryModel<INPUT_DATATYPE>::writeToMemory(int address, double val,
 
   if (doublePrecision) {
     ACCUM_DATATYPE p16 = static_cast<ACCUM_DATATYPE>(val);
-    int bits = p16.bits_rep();
-    memArray[address].setbits(bits & 0xFF);
-    memArray[address + 1].setbits((bits >> 8) & 0xFF);
+    p16.storeAsLowerPrecision(&memArray[address]);
   } else {
     memArray[address] = static_cast<INPUT_DATATYPE>(val);
   }

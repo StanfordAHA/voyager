@@ -113,9 +113,7 @@ inline void saveOutput(INPUT_DATATYPE *matrix, int index,
     matrix[index] = static_cast<INPUT_DATATYPE>(value);
   } else {
     ACCUM_DATATYPE p16 = value;
-    int bits = p16.bits_rep();
-    matrix[2 * index].setbits(bits & 0xFF);
-    matrix[2 * index + 1].setbits((bits >> 8) & 0xFF);
+    p16.storeAsLowerPrecision(&matrix[2 * index]);
   }
 }
 

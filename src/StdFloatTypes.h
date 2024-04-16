@@ -50,6 +50,13 @@ class StdFloat {
   template <int W, bool S>
   StdFloat(const ac_int<W, S> &rhs);
 
+  template <int mantissa2, int exp2, bool useDWImpl2, bool ieee_compliance2,
+            ac_q_mode Q2>
+  void storeAsLowerPrecision(
+      StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> output[2]);
+
+  void storeAsLowerPrecision(StdFloat output[2]);
+
   ac_int<mantissa + exp, false> bits_rep() { return float_val.d; }
 
   void negate() { float_val = -float_val; }
@@ -147,6 +154,8 @@ StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
 }
 #endif
 
+/* Constructor for building higher precision type from 2 lower precision types
+ */
 template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
           ac_q_mode Q>
 template <int mantissa2, int exp2, bool useDWImpl2, bool ieee_compliance2,
@@ -163,6 +172,9 @@ StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
   }
 }
 
+// TODO: this is a bit of a hack for cases where we expect a double precision
+// type, but it's actually the same type. For example, when a BF16 only design,
+// where the accumulation type is the same as the input type.
 template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
           ac_q_mode Q>
 StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
@@ -192,6 +204,33 @@ template <int W, bool S>
 StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
     const ac_int<W, S> &rhs) {
   float_val = ac_float_rep(rhs);
+}
+
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+template <int mantissa2, int exp2, bool useDWImpl2, bool ieee_compliance2,
+          ac_q_mode Q2>
+void StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::
+    storeAsLowerPrecision(
+        StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> output[2]) {
+  static_assert(
+      (mantissa + exp + 1) == 2 * (mantissa2 + exp2 + 1),
+      "Lower precision type must be half the width of higher precision.");
+#pragma hls_unroll yes
+  for (int i = 0; i < 2; i++) {
+    output[i].float_val.d = float_val.d.template slc<mantissa2 + exp2 + 1>(
+        0 + i * (mantissa2 + exp2 + 1));
+  }
+}
+
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+void StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::
+    storeAsLowerPrecision(
+        StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> output[2]) {
+  // this is called in the BF16 only case, where the accumulation type is the
+  // same as the input type. we will only store it in output[0]
+  output[0].float_val = float_val;
 }
 
 template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
