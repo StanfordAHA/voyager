@@ -169,6 +169,10 @@ gui:
 sim: $(CC_BUILD_DIR)/TestRunner
 	./$(CC_BUILD_DIR)/TestRunner
 
+.PHONY: sim-debug
+sim-debug: $(CC_BUILD_DIR)/TestRunner
+	gdb ./$(CC_BUILD_DIR)/TestRunner
+
 .PHONY: TestRunner
 TestRunner: $(CC_BUILD_DIR)/TestRunner
 
