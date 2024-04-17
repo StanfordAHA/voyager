@@ -181,14 +181,14 @@ $(CC_BUILD_DIR)/TestRunner: $(CC_BUILD_DIR)/Harness.o $(CC_BUILD_DIR)/TestRunner
 
 .PHONY: MobileBERTAccuracy
 MobileBERTAccuracy: $(CC_BUILD_DIR)/AccuracyTester
-	./$(CC_BUILD_DIR)/AccuracyTester mobilebert models/mobilebert/binary_data/tiny_truncated_sst2/
+	./$(CC_BUILD_DIR)/AccuracyTester mobilebert models/mobilebert/binary_data/tiny_truncated_sst2/ 64
 
 .PHONY: ResNetAccuracy
 ResNetAccuracy: $(CC_BUILD_DIR)/AccuracyTester
 	./$(CC_BUILD_DIR)/AccuracyTester resnet18 models/resnet/binary_data/imagenet_1000/
 
 $(CC_BUILD_DIR)/AccuracyTester: $(CC_BUILD_DIR)/AccuracyTester.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/MemoryModel.o $(CC_BUILD_DIR)/SimpleMemoryModel.o $(CC_BUILD_DIR)/networks.a
-	$(CC) -o $@ $^ -lstdc++fs
+	$(CC) -o $@ $^ -lstdc++fs -pthread
 
 .PHONY: MobileBERTFinetuning
 MobileBERTFinetuning: $(CC_BUILD_DIR)/Finetuning
