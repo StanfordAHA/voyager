@@ -61,7 +61,7 @@ void vexp(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& res) {
 
 #pragma hls_unroll yes
   for (int i = 0; i < WIDTH; i++) {
-    tmp[i] = exponential(tmp[i]);
+    tmp[i].exponential();
   }
 
 // convert back to decoded format
@@ -117,7 +117,7 @@ template <typename ACC_DTYPE, int WIDTH>
 void vmultdiv(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
               Pack1D<ACC_DTYPE, WIDTH>& res, bool div, bool square) {
   Pack1D<ACC_DTYPE, WIDTH> op1_factor;
-  if (div) {  
+  if (div) {
 #pragma hls_unroll yes
     for (int i = 0; i < WIDTH; i++) {
       // TODO Is it fine to update op1 with its reciprocal value ?
@@ -125,16 +125,16 @@ void vmultdiv(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
       op1_factor[i] = op1[i];
     }
 
-// #pragma hls_unroll yes
-//     for (int i = 0; i < WIDTH; i++) {
-//       tmp[i].reciprocal();
-//     }
+    // #pragma hls_unroll yes
+    //     for (int i = 0; i < WIDTH; i++) {
+    //       tmp[i].reciprocal();
+    //     }
 
-// // convert back to decoded format
-// #pragma hls_unroll yes
-//     for (int i = 0; i < WIDTH; i++) {
-//       op_factor[i] = tmp[i];
-//     }    
+    // // convert back to decoded format
+    // #pragma hls_unroll yes
+    //     for (int i = 0; i < WIDTH; i++) {
+    //       op_factor[i] = tmp[i];
+    //     }
 
   } else if (square) {
     op1_factor = op0;
