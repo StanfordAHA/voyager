@@ -148,12 +148,19 @@ class StdFloat {
 };
 
 #ifndef __SYNTHESIS__
+#include <float.h>
+#include <math.h>
 template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
           ac_q_mode Q>
 StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::StdFloat(
     const float val) {
-  float_val =
-      StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::ac_float_rep(val);
+  if (val == FLT_MAX) {
+    float_val = float_val.inf();
+  } else if (val == -FLT_MAX) {
+    float_val = -float_val.inf();
+  } else {
+    float_val = ac_float_rep(val);
+  }
 }
 #endif
 
