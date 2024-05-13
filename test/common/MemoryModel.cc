@@ -68,16 +68,25 @@ void MemoryModel::loadInputs(const SimplifiedParams& params,
   double* tmpValuePtr = tmpValues;
 
   if (params.REPLICATION) {
+    int packingFactor;  // number of 3-channel values packed into a single word
+
+    if (DIMENSION == 16) {
+      packingFactor = 4;
+    } else if (DIMENSION == 32) {
+      packingFactor = 8;
+    }
+
     for (int y = 0; y < STRIDE * Y; y++) {
-      for (int x_o = 0; x_o < (STRIDE * X) / 4; x_o++) {
-        for (int x_i = 0; x_i < 4; x_i++) {  // 4 packed together
+      for (int x_o = 0; x_o < (STRIDE * X) / packingFactor; x_o++) {
+        for (int x_i = 0; x_i < packingFactor; x_i++) {
           for (int c = 0; c < C; c++) {
-            int x = x_o * 4 + x_i;
+            int x = x_o * packingFactor + x_i;
             double val = *(tmpValuePtr++);
 
             int address;
             if (isDut) {
-              address = y * ((STRIDE * X) / 4) * 16 + x_o * 16 + x_i * 3 + c;
+              address = y * ((STRIDE * X) / packingFactor) * DIMENSION +
+                        x_o * DIMENSION + x_i * 3 + c;
             } else {
               address = y * (STRIDE * X) * C + x * C + c;
             }
