@@ -91,11 +91,11 @@ SC_MODULE(ProcessingElement) {
 
     // name is a string separated by '.'
     // get the last part of the string
-    bool debug = std::string(name()) ==
-                 "harness.accelerator.matrixUnit.matrixProcessor.systolicArray."
-                 "systolic_chunk_inst_0.systolic_row_inst_0.pe_inst_0";
+    // bool debug = std::string(name()) ==
+    //              "harness.accelerator.matrixUnit.matrixProcessor.systolicArray."
+    //              "systolic_chunk_inst_0.systolic_row_inst_0.pe_inst_0";
 
-    wait();
+    // wait();
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode bubble
@@ -111,7 +111,7 @@ SC_MODULE(ProcessingElement) {
       // nextWeight1 = nextWeight2;
 
       PEInput<IDTYPE> inputStruct = inputIn.Pop();
-      CCS_LOG("PE: " << inputStruct.data << " " << inputStruct.swapWeights);
+      // CCS_LOG("PE: " << inputStruct.data << " " << inputStruct.swapWeights);
 
       if (inputStruct.swapWeights) {
         weight_reg = storedWeight.Pop();
