@@ -797,6 +797,8 @@ SC_MODULE(InputController) {
 
                         windowBufferOut.Push(data);
 
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
                         for (loop_counters[1][5] = 0;
                              loop_counters[1][5] < loop_bounds[1][5] * 2 - 2;
                              loop_counters[1][5] += 2) {
