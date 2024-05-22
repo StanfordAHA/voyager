@@ -4,22 +4,17 @@ stages:
   - test
 
 before_script:
-  - export LD_LIBRARY_PATH=/cad/mentor/2021.1/Mgc_home/shared/lib/
-  # - python3 -m venv venv
-  # - . ./venv/bin/activate
-  # - pip3 install -r zagzig/requirements_ci.txt
-  # - pip3 install -r requirements.txt
-  - (cd zagzig/proto && ./gen.sh)
+  - eval `modulecmd bash load base catapult/2022.2 vcs verdi/S-2021.09-SP1`
+  - export VG_GNU_PACKAGE=/cad/synopsys/vcs_gnu_package/S-2021.09/gnu/linux
+  - source /cad/synopsys/vcs_gnu_package/S-2021.09/gnu/linux/source_me.sh
+  - export LD_LIBRARY_PATH=/cad/mentor/2024.1/Mgc_home/lib:/cad/mentor/2024.1/Mgc_home/shared/lib:$LD_LIBRARY_PATH
+  - echo $LD_LIBRARY_PATH
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   GIT_SUBMODULE_DEPTH: 3
-  GIT_CLEAN_FLAGS: -ffdx # -e build/** -e test_outputs/**
+  GIT_CLEAN_FLAGS: -ffdx
 
 include:
-  - local: .gitlab/ci/mobilebert_codegen.gitlab-ci.yml
-  - local: .gitlab/ci/mobilebert.gitlab-ci.yml
-  - local: .gitlab/ci/resnet_codegen.gitlab-ci.yml
-  - local: .gitlab/ci/resnet.gitlab-ci.yml
-  - local: .gitlab/ci/rtl.gitlab-ci.yml
-  # - local: .gitlab/ci/unittests.gitlab-ci.yml
+  - local: .gitlab/ci/sysc.yml
+  - local: .gitlab/ci/rtl.yml
