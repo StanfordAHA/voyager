@@ -1,14 +1,5 @@
 #include "test/common/MemoryModel.h"
 
-#if __has_include(<filesystem>)
-#include <filesystem>
-#else
-#include <experimental/filesystem>
-namespace std {
-namespace filesystem = experimental::filesystem;
-}
-#endif
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <random>
@@ -23,8 +14,7 @@ double* readFileAsDouble(const std::string& filename, int size,
 
   if (useDataFile) {
     std::ifstream is(filename, std::ios::binary);
-    if (!is.good() || !std::filesystem::exists(filename) ||
-        !std::filesystem::is_regular_file(filename))
+    if (!is.good())
       throw std::runtime_error("File \"" + filename + "\" does not exist");
     is.read(tmpValuesArray, size * sizeof(double));
   } else {

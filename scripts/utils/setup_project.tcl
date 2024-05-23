@@ -21,7 +21,7 @@ solution options set Output/OutputVHDL false
 solution options set Architectural/DefaultMemMapThreshold 256
 solution options set Architectural/DefaultRegisterThreshold 4096
 solution options set Flows/Enable-SCVerify yes
-solution options set Flows/VCS/SYSC_VERSION 2.3.2
+solution options set Flows/VCS/SYSC_VERSION 2.3.3
 solution options set Flows/VCS/VLOGAN_OPTS {+v2k -timescale=1ns/10ps +notimingcheck +define+UNIT_DELAY}
 solution options set Flows/VCS/VCSSIM_OPTS {+fsdbfile+dump.fsdb +fsdb+all=on +fsdb+dumpon+0}
 solution options set Flows/VCS/VCS_DOFILE dump.do
