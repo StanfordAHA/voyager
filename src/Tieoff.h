@@ -13,7 +13,14 @@ SC_MODULE(Tieoff) {
   sc_in<bool> CCS_INIT_S1(rstn);
 #endif
 
-  SC_CTOR(Tieoff) {
+#ifdef __SYNTHESIS__
+  SC_HAS_PROCESS(Tieoff);
+  Tieoff()
+      : sc_module(sc_gen_unique_name("Tieoff"))
+#else
+  SC_CTOR(Tieoff)
+#endif
+  {
 #ifdef CONNECTIONS_FAST_SIM
     SC_THREAD(drive_rdy);
     sensitive << clk.pos();

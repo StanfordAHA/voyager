@@ -9,222 +9,6 @@
 #include "Tieoff.h"
 #include "mc_scverify.h"
 
-template <typename IDTYPE, typename WDTYPE, typename ODTYPE, int NCOLS>
-SC_MODULE(SystolicArrayRow) {
- private:
-  Connections::Combinational<PEInput<IDTYPE> > inputConnection[NCOLS];
-
-  // tie off unused connection for last input
-  Tieoff<PEInput<IDTYPE> > CCS_INIT_S1(inputConnectionTieoff);
-
- public:
-  sc_in<bool> CCS_INIT_S1(clk);
-  sc_in<bool> CCS_INIT_S1(rstn);
-
-  Connections::In<PEInput<IDTYPE> > inputs;
-  Connections::In<PEWeight<WDTYPE> > weightsIn[NCOLS];
-  Connections::Out<PEWeight<WDTYPE> > weightsOut[NCOLS];
-  Connections::In<ODTYPE> psumIn[NCOLS];
-  Connections::Out<ODTYPE> psumOut[NCOLS];
-
-  SC_CTOR(SystolicArrayRow) {
-    ProcessingElement<IDTYPE, WDTYPE, ODTYPE> *pe[NCOLS];
-
-    for (int i = 0; i < NCOLS; i++) {
-      pe[i] = new ProcessingElement<IDTYPE, WDTYPE, ODTYPE>(
-          sc_gen_unique_name("pe_inst"));
-      pe[i]->clk(clk);
-      pe[i]->rstn(rstn);
-
-      if (i == 0) {
-        pe[i]->inputIn(inputs);
-      } else {
-        pe[i]->inputIn(inputConnection[i - 1]);
-      }
-
-      pe[i]->psumIn(psumIn[i]);
-      pe[i]->weightIn(weightsIn[i]);
-      pe[i]->weightOut(weightsOut[i]);
-      pe[i]->inputOut(inputConnection[i]);
-      pe[i]->psumOut(psumOut[i]);
-    }
-
-    inputConnectionTieoff.in(inputConnection[NCOLS - 1]);
-#ifdef CONNECTIONS_FAST_SIM
-    inputConnectionTieoff.clk(clk);
-    inputConnectionTieoff.rstn(rstn);
-#endif
-  };
-};
-
-template <typename IDTYPE, typename WDTYPE, typename ODTYPE, int NROWS,
-          int NCOLS>
-SC_MODULE(SystolicArrayChunk) {
- private:
-  Connections::Combinational<ODTYPE> psumConnection[NROWS - 1][NCOLS];
-  Connections::Combinational<PEWeight<WDTYPE> > weightConnection[NROWS - 1]
-                                                                [NCOLS];
-
- public:
-  sc_in<bool> CCS_INIT_S1(clk);
-  sc_in<bool> CCS_INIT_S1(rstn);
-
-  Connections::In<PEInput<IDTYPE> > inputs[NROWS];
-  Connections::In<PEWeight<WDTYPE> > weightsIn[NCOLS];
-  Connections::Out<PEWeight<WDTYPE> > weightsOut[NCOLS];
-  Connections::In<ODTYPE> psumIn[NCOLS];
-  Connections::Out<ODTYPE> psumOut[NCOLS];
-
-  SC_CTOR(SystolicArrayChunk) {
-    SystolicArrayRow<IDTYPE, WDTYPE, ODTYPE, NCOLS> *rows[NROWS];
-
-    for (int i = 0; i < NROWS; i++) {
-      rows[i] = new SystolicArrayRow<IDTYPE, WDTYPE, ODTYPE, NCOLS>(
-          sc_gen_unique_name("systolic_row_inst"));
-      rows[i]->clk(clk);
-      rows[i]->rstn(rstn);
-      rows[i]->inputs(inputs[i]);
-      for (int j = 0; j < NCOLS; j++) {
-        if (i == 0) {
-          rows[i]->psumIn[j](psumIn[j]);
-
-        } else {
-          rows[i]->psumIn[j](psumConnection[i - 1][j]);
-        }
-
-        if (i == 0) {
-          rows[i]->weightsIn[j](weightsIn[j]);
-        } else {
-          rows[i]->weightsIn[j](weightConnection[i - 1][j]);
-        }
-
-        if (i == NROWS - 1) {
-          rows[i]->weightsOut[j](weightsOut[j]);
-        } else {
-          rows[i]->weightsOut[j](weightConnection[i][j]);
-        }
-
-        if (i == NROWS - 1) {
-          rows[i]->psumOut[j](psumOut[j]);
-        } else {
-          rows[i]->psumOut[j](psumConnection[i][j]);
-        }
-      }
-    }
-  }
-};
-
-template <typename IDTYPE, typename WDTYPE, typename ODTYPE, int NROWS,
-          int NCOLS>
-SC_MODULE(SystolicArray) {
- private:
-  static constexpr int CHUNK_SIZE = 4;
-  static constexpr int NCHUNKS = NROWS / 4;
-
-  Connections::Combinational<ODTYPE> psumConnection[NCHUNKS - 1][NCOLS];
-  Connections::Combinational<PEWeight<WDTYPE> > weightConnection[NCHUNKS]
-                                                                [NCOLS];
-
- public:
-  sc_in<bool> CCS_INIT_S1(clk);
-  sc_in<bool> CCS_INIT_S1(rstn);
-
-  Connections::In<PEInput<IDTYPE> > inputs[NROWS];
-  Connections::In<PEWeight<WDTYPE> > weights[NCOLS];
-  Connections::In<ODTYPE> psums[NCOLS];
-  Connections::Out<ODTYPE> outputs[NCOLS];
-
-  SC_CTOR(SystolicArray) {
-    SystolicArrayChunk<IDTYPE, WDTYPE, ODTYPE, CHUNK_SIZE, NCOLS>
-        *chunks[NCHUNKS];
-
-    for (int i = 0; i < NCHUNKS; i++) {
-      chunks[i] =
-          new SystolicArrayChunk<IDTYPE, WDTYPE, ODTYPE, CHUNK_SIZE, NCOLS>(
-              sc_gen_unique_name("systolic_chunk_inst"));
-
-      chunks[i]->clk(clk);
-      chunks[i]->rstn(rstn);
-      for (int j = 0; j < CHUNK_SIZE; j++) {
-        chunks[i]->inputs[j](inputs[i * CHUNK_SIZE + j]);
-      }
-      for (int j = 0; j < NCOLS; j++) {
-        if (i == 0) {
-          chunks[i]->psumIn[j](psums[j]);
-        } else {
-          chunks[i]->psumIn[j](psumConnection[i - 1][j]);
-        }
-
-        if (i == 0) {
-          chunks[i]->weightsIn[j](weights[j]);
-        } else {
-          chunks[i]->weightsIn[j](weightConnection[i - 1][j]);
-        }
-
-        chunks[i]->weightsOut[j](weightConnection[i][j]);
-
-        if (i == NCHUNKS - 1) {
-          chunks[i]->psumOut[j](outputs[j]);
-        } else {
-          chunks[i]->psumOut[j](psumConnection[i][j]);
-        }
-      }
-    }
-
-    // last row for weights
-    Tieoff<PEWeight<IDTYPE> > *weightConnectionTieoff[NCOLS];
-    for (int i = 0; i < NCOLS; i++) {
-      weightConnectionTieoff[i] =
-          new Tieoff<PEWeight<IDTYPE> >(sc_gen_unique_name("tieoff"));
-      weightConnectionTieoff[i]->in(weightConnection[NCHUNKS - 1][i]);
-#ifdef CONNECTIONS_FAST_SIM
-      weightConnectionTieoff[i]->clk(clk);
-      weightConnectionTieoff[i]->rstn(rstn);
-#endif
-    }
-
-    /*
-      for (int i = 0; i < NROWS; i++) {
-        rows[i] = new SystolicArrayRow<IDTYPE, WDTYPE, ODTYPE, NROWS, NCOLS>(
-            sc_gen_unique_name("systolic_row_inst"));
-        rows[i]->clk(clk);
-        rows[i]->rstn(rstn);
-        rows[i]->inputs(inputs[i]);
-        for (int j = 0; j < NCOLS; j++) {
-          if (i == 0) {
-            rows[i]->psumIn[j](psums[j]);
-          } else {
-            rows[i]->psumIn[j](psumConnection[i - 1][j]);
-          }
-
-          if (i == 0) {
-            rows[i]->weightsIn[j](weights[j]);
-          } else {
-            rows[i]->weightsIn[j](weightConnection[i - 1][j]);
-          }
-
-          rows[i]->weightsOut[j](weightConnection[i][j]);
-
-          if (i == NROWS - 1) {
-            rows[i]->psumOut[j](outputs[j]);
-          } else {
-            rows[i]->psumOut[j](psumConnection[i][j]);
-          }
-        }
-      }
-
-      // last row for weights
-      Tieoff<PEWeight<IDTYPE> > *weightConnectionTieoff[NCOLS];
-      for (int i = 0; i < NCOLS; i++) {
-        weightConnectionTieoff[i] =
-            new Tieoff<PEWeight<IDTYPE> >(sc_gen_unique_name("tieoff"));
-        weightConnectionTieoff[i]->in(weightConnection[NROWS - 1][i]);
-      }
-      */
-  }
-};
-
-/*
 template <typename IDTYPE, typename WDTYPE, typename ODTYPE, int NROWS,
           int NCOLS>
 SC_MODULE(SystolicArray) {
@@ -233,6 +17,16 @@ SC_MODULE(SystolicArray) {
   Connections::Combinational<ODTYPE> psumConnection[NROWS - 1][NCOLS];
   Connections::Combinational<PEWeight<WDTYPE> > weightConnection[NROWS][NCOLS];
 
+// To speed up HLS synthesis, we instantiate arrays of SC_MODULE on
+// the stack. However, for simulation, we will run into stack overflow issues,
+// so we have to instantiate them on the heap.
+#ifdef __SYNTHESIS__
+  ProcessingElement<IDTYPE, WDTYPE, ODTYPE> pe[NROWS * NCOLS];
+  Tieoff<PEInput<IDTYPE> > inputConnectionTieoff[NROWS];
+  Tieoff<PEWeight<IDTYPE> > weightConnectionTieoff[NCOLS];
+
+#endif
+
  public:
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
@@ -243,54 +37,45 @@ SC_MODULE(SystolicArray) {
   Connections::Out<ODTYPE> outputs[NCOLS];
 
   SC_CTOR(SystolicArray) {
-#ifdef SIM_ProcessingElement
-    // clang-format off
-    CCS_DESIGN((ProcessingElement<IDTYPE, WDTYPE, ODTYPE>))
-    // clang-format on
-#else
-    ProcessingElement<IDTYPE, WDTYPE, ODTYPE>
-#endif
-    *pe[NROWS * NCOLS];
+    ProcessingElement<IDTYPE, WDTYPE, ODTYPE> *pe_ptr[NROWS * NCOLS];
 
     for (int i = 0; i < NROWS; i++) {
       for (int j = 0; j < NCOLS; j++) {
-        pe[i * NCOLS + j] = new
-#ifdef SIM_ProcessingElement
-            // clang-format off
-            CCS_DESIGN((ProcessingElement<IDTYPE, WDTYPE, ODTYPE>))
-        // clang-format on
+#ifdef __SYNTHESIS__
+        pe_ptr[i * NCOLS + j] = &pe[i * NCOLS + j];
 #else
-            ProcessingElement<IDTYPE, WDTYPE, ODTYPE>
+        pe_ptr[i * NCOLS + j] = new ProcessingElement<IDTYPE, WDTYPE, ODTYPE>(
+            sc_gen_unique_name("pe"));
 #endif
-                (sc_gen_unique_name("pe_inst"));
-        pe[i * NCOLS + j]->clk(clk);
-        pe[i * NCOLS + j]->rstn(rstn);
+
+        pe_ptr[i * NCOLS + j]->clk(clk);
+        pe_ptr[i * NCOLS + j]->rstn(rstn);
 
         if (j == 0) {
-          pe[i * NCOLS + j]->inputIn(inputs[i]);
+          pe_ptr[i * NCOLS + j]->inputIn(inputs[i]);
         } else {
-          pe[i * NCOLS + j]->inputIn(inputConnection[i][j - 1]);
+          pe_ptr[i * NCOLS + j]->inputIn(inputConnection[i][j - 1]);
         }
 
         if (i == 0) {
-          pe[i * NCOLS + j]->psumIn(psums[j]);
+          pe_ptr[i * NCOLS + j]->psumIn(psums[j]);
         } else {
-          pe[i * NCOLS + j]->psumIn(psumConnection[i - 1][j]);
+          pe_ptr[i * NCOLS + j]->psumIn(psumConnection[i - 1][j]);
         }
 
         if (i == 0) {
-          pe[i * NCOLS + j]->weightIn(weights[j]);
+          pe_ptr[i * NCOLS + j]->weightIn(weights[j]);
         } else {
-          pe[i * NCOLS + j]->weightIn(weightConnection[i - 1][j]);
+          pe_ptr[i * NCOLS + j]->weightIn(weightConnection[i - 1][j]);
         }
 
-        pe[i * NCOLS + j]->weightOut(weightConnection[i][j]);
-        pe[i * NCOLS + j]->inputOut(inputConnection[i][j]);
+        pe_ptr[i * NCOLS + j]->weightOut(weightConnection[i][j]);
+        pe_ptr[i * NCOLS + j]->inputOut(inputConnection[i][j]);
 
         if (i == NROWS - 1) {
-          pe[i * NCOLS + j]->psumOut(outputs[j]);
+          pe_ptr[i * NCOLS + j]->psumOut(outputs[j]);
         } else {
-          pe[i * NCOLS + j]->psumOut(psumConnection[i][j]);
+          pe_ptr[i * NCOLS + j]->psumOut(psumConnection[i][j]);
         }
       }
     }
@@ -298,20 +83,27 @@ SC_MODULE(SystolicArray) {
     // Tie off unused Connections
 
     // last column of array for inputs
-    Tieoff<PEInput<IDTYPE> > *inputConnectionTieoff[NROWS];
+    Tieoff<PEInput<IDTYPE> > *inputConnectionTieoff_ptr[NROWS];
     for (int i = 0; i < NROWS; i++) {
-      inputConnectionTieoff[i] =
+#ifdef __SYNTHESIS__
+      inputConnectionTieoff_ptr[i] = &inputConnectionTieoff[i];
+#else
+      inputConnectionTieoff_ptr[i] =
           new Tieoff<PEInput<IDTYPE> >(sc_gen_unique_name("tieoff"));
-      inputConnectionTieoff[i]->in(inputConnection[i][NCOLS - 1]);
+#endif
+      inputConnectionTieoff_ptr[i]->in(inputConnection[i][NCOLS - 1]);
     }
 
     // last row for weights
-    Tieoff<PEWeight<IDTYPE> > *weightConnectionTieoff[NCOLS];
+    Tieoff<PEWeight<IDTYPE> > *weightConnectionTieoff_ptr[NCOLS];
     for (int i = 0; i < NCOLS; i++) {
-      weightConnectionTieoff[i] =
+#ifdef __SYNTHESIS__
+      weightConnectionTieoff_ptr[i] = &weightConnectionTieoff[i];
+#else
+      weightConnectionTieoff_ptr[i] =
           new Tieoff<PEWeight<IDTYPE> >(sc_gen_unique_name("tieoff"));
-      weightConnectionTieoff[i]->in(weightConnection[NROWS - 1][i]);
+#endif
+      weightConnectionTieoff_ptr[i]->in(weightConnection[NROWS - 1][i]);
     }
   }
 };
-*/

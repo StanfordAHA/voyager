@@ -26,7 +26,14 @@ SC_MODULE(ProcessingElement) {
   Connections::Combinational<WDTYPE> CCS_INIT_S1(newWeightFifo);
   Connections::Combinational<WDTYPE> CCS_INIT_S1(storedWeight);
 
-  SC_CTOR(ProcessingElement) {
+#ifdef __SYNTHESIS__
+  SC_HAS_PROCESS(ProcessingElement);
+  ProcessingElement()
+      : sc_module(sc_gen_unique_name("ProcessingElement"))
+#else
+  SC_CTOR(ProcessingElement)
+#endif
+  {
     SC_THREAD(storeWeights);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);

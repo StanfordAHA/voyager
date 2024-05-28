@@ -74,8 +74,8 @@ rtl: $(CATAPULT_BUILD_DIR)Accelerator/Accelerator.v1/concat_rtl.v
 # have them integrate into the SystemC code
 InputController: $(CATAPULT_BUILD_DIR)InputController/InputController.v1/concat_rtl.v
 WeightController: $(CATAPULT_BUILD_DIR)WeightController/WeightController.v1/concat_rtl.v
-SystolicArrayRow: $(CATAPULT_BUILD_DIR)SystolicArrayRow/SystolicArrayRow.v1/concat_rtl.v
-SystolicArrayChunk: $(CATAPULT_BUILD_DIR)SystolicArrayChunk/SystolicArrayChunk.v1/concat_rtl.v
+# SystolicArrayRow: $(CATAPULT_BUILD_DIR)SystolicArrayRow/SystolicArrayRow.v1/concat_rtl.v
+# SystolicArrayChunk: $(CATAPULT_BUILD_DIR)SystolicArrayChunk/SystolicArrayChunk.v1/concat_rtl.v
 SystolicArray: $(CATAPULT_BUILD_DIR)SystolicArray/SystolicArray.v1/concat_rtl.v
 MatrixProcessor: $(CATAPULT_BUILD_DIR)MatrixProcessor/MatrixProcessor.v1/concat_rtl.v
 ProcessingElement: $(CATAPULT_BUILD_DIR)ProcessingElement/ProcessingElement.v1/concat_rtl.v
@@ -95,7 +95,7 @@ $(CATAPULT_BUILD_DIR)SystolicArrayRow/SystolicArrayRow.v1/concat_rtl.v: src/Syst
 	BLOCK=SystolicArrayRow catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)SystolicArrayChunk/SystolicArrayChunk.v1/concat_rtl.v: src/SystolicArray.h $(CATAPULT_BUILD_DIR)SystolicArrayRow/SystolicArrayRow.v1/concat_rtl.v
 	BLOCK=SystolicArrayChunk catapult -shell -file scripts/main.tcl
-$(CATAPULT_BUILD_DIR)SystolicArray/SystolicArray.v1/concat_rtl.v: src/SystolicArray.h $(CATAPULT_BUILD_DIR)SystolicArrayChunk/SystolicArrayChunk.v1/concat_rtl.v
+$(CATAPULT_BUILD_DIR)SystolicArray/SystolicArray.v1/concat_rtl.v: src/SystolicArray.h $(CATAPULT_BUILD_DIR)ProcessingElement/ProcessingElement.v1/concat_rtl.v
 	BLOCK=SystolicArray catapult -shell -file scripts/main.tcl
 $(CATAPULT_BUILD_DIR)MatrixProcessor/MatrixProcessor.v1/concat_rtl.v: src/MatrixProcessor.h src/SystolicArray.h src/Skewer.h $(CATAPULT_BUILD_DIR)SystolicArray/SystolicArray.v1/concat_rtl.v
 	BLOCK=MatrixProcessor catapult -shell -file scripts/main.tcl
