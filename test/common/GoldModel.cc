@@ -684,6 +684,14 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       params.loops[1][params.reductionLoopIndex[1]] = 1;
     }
 
+    // assert that none of params.loops are 0
+    for (int j = 0; j < 3; j++) {
+      assert(params.loops[0][j] != 0);
+    }
+    for (int j = 0; j < 6; j++) {
+      assert(params.loops[1][j] != 0);
+    }
+
     for (loop_counters[0][0] = 0; loop_counters[0][0] < params.loops[0][0];
          loop_counters[0][0]++) {
       for (loop_counters[0][1] = 0; loop_counters[0][1] < params.loops[0][1];
