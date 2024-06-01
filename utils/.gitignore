@@ -1,0 +1,5 @@
+# Ignore everything
+*
+
+# Except 
+!fsdb_compare.py
