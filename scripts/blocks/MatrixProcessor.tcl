@@ -21,7 +21,7 @@ proc pre_assembly {} {
 }
 
 proc pre_architect {} {
-  global full_block_name_stripped C_DATA_REP_NAME ACCUM_DATATYPE_WIDTH DIMENSION TECHNOLOGY
+  global full_block_name_stripped C_DATA_REP_NAME ACCUM_DATATYPE_WIDTH DIMENSION TECHNOLOGY memories
   directive set /$full_block_name_stripped/$full_block_name_stripped:run/run/while:accumulation_buffer.value.$C_DATA_REP_NAME -WORD_WIDTH [expr $ACCUM_DATATYPE_WIDTH * $DIMENSION]
 
   if {$TECHNOLOGY != "generic"} {
