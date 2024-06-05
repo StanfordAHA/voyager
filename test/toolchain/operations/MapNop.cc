@@ -7,9 +7,9 @@ void MapNop(const SimplifiedParams &params, const MemoryMap &memoryMap,
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
           params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int C = params.loops[1][params.reductionLoopIndex[1]] * OC_DIMENSION;
   int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+          params.loops[1][params.weightLoopIndex[1]] * OC_DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
@@ -41,7 +41,7 @@ void MapNop(const SimplifiedParams &params, const MemoryMap &memoryMap,
   }
   vectorParams->addressGen1Loops[1][0] = X;
   vectorParams->addressGen1Loops[1][1] = 1;
-  vectorParams->addressGen1Loops[1][2] = K / DIMENSION;
+  vectorParams->addressGen1Loops[1][2] = K / OC_DIMENSION;
   vectorParams->DP_VEC1 = true;
 
   acceleratorMemoryMap["vector2"] = memoryMap.bias;
@@ -50,7 +50,7 @@ void MapNop(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->addressGen2Loops[0][0] = X;
   vectorParams->addressGen2Loops[0][1] = 1;
   vectorParams->addressGen2Loops[0][2] = 1;
-  vectorParams->addressGen2Loops[1][0] = C / DIMENSION;
+  vectorParams->addressGen2Loops[1][0] = C / OC_DIMENSION;
   vectorParams->addressGen2Loops[1][1] = 1;
   vectorParams->addressGen2Loops[1][2] = 1;
   vectorParams->addressGen2InputXLoopIndex[1] = 2;
@@ -104,8 +104,8 @@ void MapNop(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vInst0.vDest = VectorInstructions::nop;
   vectorInstructionConfig->inst[0] = vInst0;
 
-  // C/DIMENSION to do the complete reduction
-  // DIMENSION to fill up the entire vector
+  // C/OC_DIMENSION to do the complete reduction
+  // OC_DIMENSION to fill up the entire vector
   vectorInstructionConfig->instCount[0] = X * Y;
 
   vectorInstructionConfig->instLen = 1;

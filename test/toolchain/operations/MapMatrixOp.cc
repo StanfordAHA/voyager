@@ -16,10 +16,17 @@ void MapMatrixOp(const SimplifiedParams &originalParams,
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
 
-  if (DIMENSION < 16) {
-    params.loops[0][params.weightLoopIndex[0]] *= (16 / DIMENSION);
-    params.loops[1][params.reductionLoopIndex[1]] *= (16 / DIMENSION);
-  } else if (DIMENSION > 16) {
+  if (IC_DIMENSION < 16) {
+    params.loops[1][params.reductionLoopIndex[1]] *= (16 / IC_DIMENSION);
+  } else if (IC_DIMENSION > 16) {
+    if (!params.REPLICATION) {
+      params.loops[1][params.reductionLoopIndex[1]] /= (IC_DIMENSION / 16);
+    }
+  }
+
+  if (OC_DIMENSION < 16) {
+    params.loops[0][params.weightLoopIndex[0]] *= (16 / OC_DIMENSION);
+  } else if (OC_DIMENSION > 16) {
     // if the inner weight loop is >=4, we should reduce the inner loop
     // (otherwise, we violate the weight buffer constraint) otherwise, we reduce
     // the outer loop
@@ -27,20 +34,9 @@ void MapMatrixOp(const SimplifiedParams &originalParams,
          params.loops[1][params.fxIndex] > 1 &&
          params.loops[1][params.fyIndex] > 1) ||
         (params.loops[0][params.weightLoopIndex[0]] == 1)) {
-      params.loops[1][params.weightLoopIndex[1]] /= (DIMENSION / 16);
+      params.loops[1][params.weightLoopIndex[1]] /= (OC_DIMENSION / 16);
     } else {
-      params.loops[0][params.weightLoopIndex[0]] /= (DIMENSION / 16);
-    }
-
-    // // try to reduce the outer weight loop, but if it's 1, reduce the inner
-    // loop if (params.loops[0][params.weightLoopIndex[0]] > 1) {
-    //   params.loops[0][params.weightLoopIndex[0]] /= (DIMENSION / 16);
-    // } else {
-    //   params.loops[1][params.weightLoopIndex[1]] /= (DIMENSION / 16);
-    // }
-
-    if (!params.REPLICATION) {
-      params.loops[1][params.reductionLoopIndex[1]] /= (DIMENSION / 16);
+      params.loops[0][params.weightLoopIndex[0]] /= (OC_DIMENSION / 16);
     }
   }
 
@@ -83,7 +79,7 @@ void MapMatrixOp(const SimplifiedParams &originalParams,
     // unrolled reduction loop
     // we can just use the following loop nest:
     // C1, K, FY, FX, C0
-    matrixParams->weightAddressGenLoops[1][4] = DIMENSION;
+    matrixParams->weightAddressGenLoops[1][4] = IC_DIMENSION;
     matrixParams->weightAddressGenReductionLoopIndex[1] = 4;
     matrixParams->weightAddressGenLoops[1][3] = params.loops[1][params.fxIndex];
     matrixParams->weightAddressGenFxIndex = 3;
@@ -144,7 +140,7 @@ void MapMatrixOp(const SimplifiedParams &originalParams,
       matrixParams->weightAddressGenLoops[1][1] = 3;
       matrixParams->weightAddressGenReductionLoopIndex[1] = 1;
     } else {
-      matrixParams->weightAddressGenLoops[1][1] = DIMENSION;
+      matrixParams->weightAddressGenLoops[1][1] = IC_DIMENSION;
       matrixParams->weightAddressGenReductionLoopIndex[1] = 1;
     }
     matrixParams->weightAddressGenLoops[1][0] =
@@ -362,7 +358,7 @@ void MapMatrixOp(const SimplifiedParams &originalParams,
     vectorInstructionConfig->instCount[2] = 1;
 
     vectorInstructionConfig->instLen = 3;
-    vectorInstructionConfig->instLoopCount = K / DIMENSION;
+    vectorInstructionConfig->instLoopCount = K / OC_DIMENSION;
   } else {
     vInst0.vDest = VectorInstructions::vWriteOut;
     vectorInstructionConfig->inst[0] = vInst0;

@@ -10,9 +10,9 @@ void MapWeightUpdate(const SimplifiedParams &params, const MemoryMap &memoryMap,
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
           params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int C = params.loops[1][params.reductionLoopIndex[1]] * OC_DIMENSION;
   int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+          params.loops[1][params.weightLoopIndex[1]] * OC_DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
@@ -21,7 +21,7 @@ void MapWeightUpdate(const SimplifiedParams &params, const MemoryMap &memoryMap,
   //           << std::endl;
 
   int factor0, factor1;
-  int totalSize = X * C / DIMENSION;
+  int totalSize = X * C / OC_DIMENSION;
   if (totalSize > 512) {  // address generator is 10 bit, so we need to split
                           // it up if it's too big
     factor0 = 512;

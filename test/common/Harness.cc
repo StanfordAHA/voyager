@@ -158,6 +158,7 @@ void Harness::reset() {
   wait();
 }
 
+template <long unsigned int DIMENSION>
 void Harness::readMemoryRequest(
     CombinationalInterface<MemoryRequest> *addressRequest,
     sc_fifo<Pack1D<INPUT_DATATYPE, DIMENSION> > *dataResponse_fifo,
@@ -200,6 +201,7 @@ void Harness::readMemoryRequest(
   }
 }
 
+template <long unsigned int DIMENSION>
 void Harness::sendMemoryResponse(
     sc_fifo<Pack1D<INPUT_DATATYPE, DIMENSION> > *dataResponse_fifo,
     CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > *dataResponse) {
@@ -371,10 +373,10 @@ void Harness::storeVectorOutputs() {
   wait();
 
   while (true) {
-    Pack1D<OUTPUT_DATATYPE, DIMENSION> data = vectorOutput.Pop();
+    Pack1D<OUTPUT_DATATYPE, OC_DIMENSION> data = vectorOutput.Pop();
     int address = vectorOutputAddress.Pop();
     DLOG("address: " << address << " data: " << data);
-    for (int i = 0; i < DIMENSION; i++) {
+    for (int i = 0; i < OC_DIMENSION; i++) {
       INPUT_DATATYPE *memory =
           currentMemoryMap.at("outputs") == SRAM ? sramMemory : rramMemory;
 

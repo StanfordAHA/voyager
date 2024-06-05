@@ -165,9 +165,15 @@ using F32 = StdFloat<23, 8, false, true, AC_RND_CONV>;
 
 #endif
 
-#if !defined(DIMENSION)
+#if !defined(IC_DIMENSION)
 
-#error "No dimension specified!"
+#error "No IC dimension specified!"
+
+#endif
+
+#if !defined(OC_DIMENSION)
+
+#error "No OC dimension specified!"
 
 #endif
 

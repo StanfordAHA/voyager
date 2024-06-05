@@ -7,9 +7,9 @@ void MapFCGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
           params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int C = params.loops[1][params.reductionLoopIndex[1]] * OC_DIMENSION;
   int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+          params.loops[1][params.weightLoopIndex[1]] * OC_DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
@@ -27,7 +27,7 @@ void MapFCGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   }
   vectorParams->addressGen0Loop[1][0] = 1;
   vectorParams->addressGen0Loop[1][1] = 1;
-  vectorParams->addressGen0Loop[1][2] = X / DIMENSION;
+  vectorParams->addressGen0Loop[1][2] = X / OC_DIMENSION;
   vectorParams->addressGen0Broadcast = true;
   vectorParams->addressGen0BroadcastCount = K;
   vectorParams->DP_VEC0 = params.ACC_T_INPUT;
@@ -41,7 +41,7 @@ void MapFCGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   }
   vectorParams->addressGen1Loops[1][0] = X;
   vectorParams->addressGen1Loops[1][1] = 1;
-  vectorParams->addressGen1Loops[1][2] = K / DIMENSION;
+  vectorParams->addressGen1Loops[1][2] = K / OC_DIMENSION;
   vectorParams->DP_VEC1 = params.ACC_T_WEIGHT;
 
   acceleratorMemoryMap["vector2"] = memoryMap.residual;
@@ -49,7 +49,7 @@ void MapFCGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->addressGen2Mode = params.RESIDUAL ? 2 : 0;
   vectorParams->addressGen2Loops[0][0] = 1;
   vectorParams->addressGen2Loops[0][1] = X;
-  vectorParams->addressGen2Loops[0][2] = K / DIMENSION;
+  vectorParams->addressGen2Loops[0][2] = K / OC_DIMENSION;
   vectorParams->DP_VEC2 = params.ACC_T_RESIDUAL;
 
   vectorParams->VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
@@ -71,7 +71,7 @@ void MapFCGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
 
   vectorParams->outputLoops[1][0] = 1;
   vectorParams->outputLoops[1][1] = X;
-  vectorParams->outputLoops[1][2] = K / DIMENSION;
+  vectorParams->outputLoops[1][2] = K / OC_DIMENSION;
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputYLoopIndex[1] = 0;
   vectorParams->outputXLoopIndex[1] = 1;
@@ -96,9 +96,9 @@ void MapFCGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vInst0.immediate0 = params.outputExpBias;
   vectorInstructionConfig->inst[0] = vInst0;
 
-  // C/DIMENSION to do the complete reduction
-  // DIMENSION to fill up the entire vector
-  vectorInstructionConfig->instCount[0] = X * K / DIMENSION;
+  // C/OC_DIMENSION to do the complete reduction
+  // OC_DIMENSION to fill up the entire vector
+  vectorInstructionConfig->instCount[0] = X * K / OC_DIMENSION;
 
   vectorInstructionConfig->instLen = 1;
   vectorInstructionConfig->instLoopCount = 1;
@@ -119,9 +119,9 @@ void MapFCGradWithNormClipping(const SimplifiedParams &params,
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
           params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int C = params.loops[1][params.reductionLoopIndex[1]] * OC_DIMENSION;
   int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+          params.loops[1][params.weightLoopIndex[1]] * OC_DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
@@ -137,7 +137,7 @@ void MapFCGradWithNormClipping(const SimplifiedParams &params,
   }
   vectorParams->addressGen0Loop[1][0] = 1;
   vectorParams->addressGen0Loop[1][1] = 1;
-  vectorParams->addressGen0Loop[1][2] = X / DIMENSION;
+  vectorParams->addressGen0Loop[1][2] = X / OC_DIMENSION;
   vectorParams->addressGen0Broadcast = true;
   vectorParams->addressGen0BroadcastCount = K;
   vectorParams->DP_VEC0 = false;
@@ -150,7 +150,7 @@ void MapFCGradWithNormClipping(const SimplifiedParams &params,
   }
   vectorParams->addressGen1Loops[1][0] = X;
   vectorParams->addressGen1Loops[1][1] = 1;
-  vectorParams->addressGen1Loops[1][2] = K / DIMENSION;
+  vectorParams->addressGen1Loops[1][2] = K / OC_DIMENSION;
   vectorParams->DP_VEC1 = false;
 
   vectorParams->ADDRESS_GEN2_OFFSET = params.BIAS_OFFSET;
@@ -174,7 +174,7 @@ void MapFCGradWithNormClipping(const SimplifiedParams &params,
 
   vectorParams->outputLoops[1][0] = 1;
   vectorParams->outputLoops[1][1] = X;
-  vectorParams->outputLoops[1][2] = K / DIMENSION;
+  vectorParams->outputLoops[1][2] = K / OC_DIMENSION;
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputYLoopIndex[1] = 0;
   vectorParams->outputXLoopIndex[1] = 1;
@@ -195,7 +195,7 @@ void MapFCGradWithNormClipping(const SimplifiedParams &params,
   vInst0.immediate0 = params.outputExpBias;
   vInst0.vDest = VectorInstructions::vWriteOut;
   vectorInstructionConfig->inst[0] = vInst0;
-  vectorInstructionConfig->instCount[0] = X * K / DIMENSION;
+  vectorInstructionConfig->instCount[0] = X * K / OC_DIMENSION;
 
   vectorInstructionConfig->instLen = 1;
   vectorInstructionConfig->instLoopCount = 1;
@@ -213,7 +213,7 @@ void MapFCGradWithNormClipping(const SimplifiedParams &params,
   }
   vectorParams_reread->addressGen0Loop[1][0] = 2;
   vectorParams_reread->addressGen0Loop[1][1] = X;
-  vectorParams_reread->addressGen0Loop[1][2] = K / DIMENSION;
+  vectorParams_reread->addressGen0Loop[1][2] = K / OC_DIMENSION;
   vectorParams_reread->addressGen0Broadcast = false;
   vectorParams_reread->DP_VEC0 = true;
 
@@ -242,7 +242,7 @@ void MapFCGradWithNormClipping(const SimplifiedParams &params,
 
   vectorParams_reread->outputLoops[1][0] = 1;
   vectorParams_reread->outputLoops[1][1] = X;
-  vectorParams_reread->outputLoops[1][2] = K / DIMENSION;
+  vectorParams_reread->outputLoops[1][2] = K / OC_DIMENSION;
   vectorParams_reread->outputWeightLoopIndex[1] = 2;
   vectorParams_reread->outputYLoopIndex[1] = 0;
   vectorParams_reread->outputXLoopIndex[1] = 1;
@@ -251,11 +251,11 @@ void MapFCGradWithNormClipping(const SimplifiedParams &params,
   VectorInstructionConfig *vectorInstructionConfig_clip =
       new VectorInstructionConfig;
 
-  ac_int<16, false> bcastCount = X * K / DIMENSION;
+  ac_int<16, false> bcastCount = X * K / OC_DIMENSION;
 
   vectorInstructionConfig_clip->inst[0].instType =
       VectorInstructions::reduction;
-  vectorInstructionConfig_clip->inst[0].rCount = X * K / DIMENSION;
+  vectorInstructionConfig_clip->inst[0].rCount = X * K / OC_DIMENSION;
   vectorInstructionConfig_clip->inst[0].rOp = VectorInstructions::radd;
   vectorInstructionConfig_clip->inst[0].rDuplicate = 1;
   vectorInstructionConfig_clip->inst[0].rSqrt = 1;
@@ -281,7 +281,7 @@ void MapFCGradWithNormClipping(const SimplifiedParams &params,
   vectorInstructionConfig_clip->inst[1].vOp3 = VectorInstructions::vsquare;
   vectorInstructionConfig_clip->inst[1].vOp4 = VectorInstructions::nop;
   vectorInstructionConfig_clip->inst[1].vDest = VectorInstructions::nop;
-  vectorInstructionConfig_clip->instCount[1] = X * K / DIMENSION;
+  vectorInstructionConfig_clip->instCount[1] = X * K / OC_DIMENSION;
 
   // divide entire tensor by sqrt
   vectorInstructionConfig_clip->inst[2].instType = VectorInstructions::vector;
@@ -298,7 +298,7 @@ void MapFCGradWithNormClipping(const SimplifiedParams &params,
   vectorInstructionConfig_clip->inst[2].vOp3 = VectorInstructions::nop;
   vectorInstructionConfig_clip->inst[2].vOp4 = VectorInstructions::nop;
   vectorInstructionConfig_clip->inst[2].vDest = VectorInstructions::vWriteOut;
-  vectorInstructionConfig_clip->instCount[2] = X * K / DIMENSION;
+  vectorInstructionConfig_clip->instCount[2] = X * K / OC_DIMENSION;
 
   vectorInstructionConfig_clip->instLen = 3;
   vectorInstructionConfig_clip->instLoopCount = 1;

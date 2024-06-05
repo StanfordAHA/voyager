@@ -28,7 +28,7 @@ void MapNoNorm(const SimplifiedParams &params, const MemoryMap &memoryMap,
   }
   vectorParams->addressGen0Loop[1][0] = 1;
   vectorParams->addressGen0Loop[1][1] = X;
-  vectorParams->addressGen0Loop[1][2] = K / (DIMENSION);
+  vectorParams->addressGen0Loop[1][2] = K / (OC_DIMENSION);
   vectorParams->DP_VEC0 = false;
 
   // address gen 1 (weights)
@@ -40,7 +40,7 @@ void MapNoNorm(const SimplifiedParams &params, const MemoryMap &memoryMap,
   }
   vectorParams->addressGen1Loops[1][0] = X;
   vectorParams->addressGen1Loops[1][1] = 1;
-  vectorParams->addressGen1Loops[1][2] = K / (DIMENSION);
+  vectorParams->addressGen1Loops[1][2] = K / (OC_DIMENSION);
   vectorParams->DP_VEC1 = true;
 
   acceleratorMemoryMap["vector2"] = memoryMap.bias;
@@ -48,8 +48,8 @@ void MapNoNorm(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->addressGen2Mode = 2;  // 2d tensor
   vectorParams->addressGen2Loops[0][0] = X;
   vectorParams->addressGen2Loops[0][1] = 1;
-  vectorParams->addressGen2Loops[0][2] = K / (DIMENSION);
-  vectorParams->addressGen2Loops[1][0] = 1;  // C / (DIMENSION);
+  vectorParams->addressGen2Loops[0][2] = K / (OC_DIMENSION);
+  vectorParams->addressGen2Loops[1][0] = 1;  // C / (OC_DIMENSION);
   vectorParams->addressGen2Loops[1][1] = 1;
   vectorParams->addressGen2Loops[1][2] = 1;
   vectorParams->addressGen2InputXLoopIndex[1] = 2;
@@ -77,7 +77,7 @@ void MapNoNorm(const SimplifiedParams &params, const MemoryMap &memoryMap,
 
   vectorParams->outputLoops[1][0] = 1;
   vectorParams->outputLoops[1][1] = X;
-  vectorParams->outputLoops[1][2] = K / (DIMENSION);
+  vectorParams->outputLoops[1][2] = K / (OC_DIMENSION);
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputYLoopIndex[1] = 0;
   vectorParams->outputXLoopIndex[1] = 1;
@@ -109,9 +109,9 @@ void MapNoNorm(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vInst0.vDest = VectorInstructions::vWriteOut;
   vectorInstructionConfig->inst[0] = vInst0;
 
-  // C/DIMENSION to do the complete reduction
-  // DIMENSION to fill up the entire vector
-  vectorInstructionConfig->instCount[0] = X * K / (DIMENSION);
+  // C/OC_DIMENSION to do the complete reduction
+  // OC_DIMENSION to fill up the entire vector
+  vectorInstructionConfig->instCount[0] = X * K / (OC_DIMENSION);
 
   vectorInstructionConfig->instLen = 1;
   vectorInstructionConfig->instLoopCount = 1;

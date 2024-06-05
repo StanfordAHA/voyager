@@ -8,9 +8,9 @@ void MapGradNormUnitTest(const SimplifiedParams &params,
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
           params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int C = params.loops[1][params.reductionLoopIndex[1]] * OC_DIMENSION;
   int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+          params.loops[1][params.weightLoopIndex[1]] * OC_DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
@@ -28,7 +28,7 @@ void MapGradNormUnitTest(const SimplifiedParams &params,
   }
   vectorParams->addressGen0Loop[1][0] = 1;
   vectorParams->addressGen0Loop[1][1] = 1;
-  vectorParams->addressGen0Loop[1][2] = X * C / DIMENSION;
+  vectorParams->addressGen0Loop[1][2] = X * C / OC_DIMENSION;
   vectorParams->addressGen0Broadcast = false;
   vectorParams->DP_VEC0 = params.ACC_T_INPUT;
 
@@ -41,7 +41,7 @@ void MapGradNormUnitTest(const SimplifiedParams &params,
   vectorParams->addressGen2Mode = params.RESIDUAL ? 2 : 0;
   vectorParams->addressGen2Loops[0][0] = 1;
   vectorParams->addressGen2Loops[0][1] = 1;
-  vectorParams->addressGen2Loops[0][2] = X * K / DIMENSION;
+  vectorParams->addressGen2Loops[0][2] = X * K / OC_DIMENSION;
   vectorParams->DP_VEC2 = params.ACC_T_RESIDUAL;
 
   vectorParams->VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
@@ -62,7 +62,7 @@ void MapGradNormUnitTest(const SimplifiedParams &params,
 
   vectorParams->outputLoops[1][0] = 1;
   vectorParams->outputLoops[1][1] = 1;
-  vectorParams->outputLoops[1][2] = X * C / DIMENSION;
+  vectorParams->outputLoops[1][2] = X * C / OC_DIMENSION;
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputYLoopIndex[1] = 0;
   vectorParams->outputXLoopIndex[1] = 1;
@@ -87,9 +87,9 @@ void MapGradNormUnitTest(const SimplifiedParams &params,
   vInst0.immediate0 = params.outputExpBias;
   vectorInstructionConfig->inst[0] = vInst0;
 
-  // C/DIMENSION to do the complete reduction
-  // DIMENSION to fill up the entire vector
-  vectorInstructionConfig->instCount[0] = X * K / DIMENSION;
+  // C/OC_DIMENSION to do the complete reduction
+  // OC_DIMENSION to fill up the entire vector
+  vectorInstructionConfig->instCount[0] = X * K / OC_DIMENSION;
 
   vectorInstructionConfig->instLen = 1;
   vectorInstructionConfig->instLoopCount = 1;
@@ -103,5 +103,5 @@ void MapGradNormUnitTest(const SimplifiedParams &params,
   opMemoryMaps.push_back(acceleratorMemoryMap);
 
   MapGradNormClipping(params, memoryMap, mappedParams, opMemoryMaps,
-                      X * C / DIMENSION);
+                      X * C / OC_DIMENSION);
 }

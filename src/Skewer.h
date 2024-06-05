@@ -6,7 +6,8 @@
 #include "AccelTypes.h"
 #include "ArchitectureParams.h"
 
-#define REPEAT(x) BOOST_PP_REPEAT(DIMENSION, x, 0)
+#define REPEAT_IC(x) BOOST_PP_REPEAT(IC_DIMENSION, x, 0)
+#define REPEAT_OC(x) BOOST_PP_REPEAT(OC_DIMENSION, x, 0)
 
 template <typename T, int NUM_REGS>
 class Fifo {
@@ -39,7 +40,7 @@ template <typename IDTYPE, typename ODTYPE, int SIZE>
 SC_MODULE(SerializedSkewer) {
  private:
 #define DECL_FIFOS(z, i, unused) sc_fifo<IDTYPE> BOOST_PP_CAT(fifo, i);
-  REPEAT(DECL_FIFOS)
+  REPEAT_OC(DECL_FIFOS)
 #undef DECL_FIFOS
   int dummy;
 
@@ -52,7 +53,7 @@ SC_MODULE(SerializedSkewer) {
 
 #define FIFO_SIZE_INIT(z, i, unused) BOOST_PP_CAT(fifo, i)(i * 1 + 1),
 
-  SC_CTOR(SerializedSkewer) : REPEAT(FIFO_SIZE_INIT) dummy(0) {
+  SC_CTOR(SerializedSkewer) : REPEAT_OC(FIFO_SIZE_INIT) dummy(0) {
 #undef FIFO_SIZE_INIT
     SC_THREAD(writeFifos);
     sensitive << clk.pos();
@@ -69,7 +70,7 @@ SC_MODULE(SerializedSkewer) {
   sensitive << clk.pos();                                                   \
   async_reset_signal_is(rstn, false);
 
-    REPEAT(DECL_THREADS)
+    REPEAT_OC(DECL_THREADS)
 #undef DECL_THREADS
   }
 
@@ -90,7 +91,7 @@ SC_MODULE(SerializedSkewer) {
       // std::cout << std::endl;
 
 #define FIFO_WRITE(z, i, unused) BOOST_PP_CAT(fifo, i).write(input[i]);
-      REPEAT(FIFO_WRITE)
+      REPEAT_OC(FIFO_WRITE)
 #undef FIFO_WRITE
     }
   }
@@ -105,7 +106,7 @@ SC_MODULE(SerializedSkewer) {
     }                                                           \
   }
 
-  REPEAT(DECL_FUNCS)
+  REPEAT_OC(DECL_FUNCS)
 #undef DECL_FUNCS
 };
 
@@ -118,7 +119,7 @@ SC_MODULE(MultiInputSerializedSkewer) {
  private:
 #define DECL_FIFOS(z, i, unused) \
   sc_fifo<PEInput<IDTYPE> > BOOST_PP_CAT(fifo, i);
-  REPEAT(DECL_FIFOS)
+  REPEAT_IC(DECL_FIFOS)
 #undef DECL_FIFOS
   int dummy;
 
@@ -131,7 +132,7 @@ SC_MODULE(MultiInputSerializedSkewer) {
 
 #define FIFO_SIZE_INIT(z, i, unused) BOOST_PP_CAT(fifo, i)(i * 3 + 1),
 
-  SC_CTOR(MultiInputSerializedSkewer) : REPEAT(FIFO_SIZE_INIT) dummy(0) {
+  SC_CTOR(MultiInputSerializedSkewer) : REPEAT_IC(FIFO_SIZE_INIT) dummy(0) {
 #undef FIFO_SIZE_INIT
     SC_THREAD(writeFifos);
     sensitive << clk.pos();
@@ -148,7 +149,7 @@ SC_MODULE(MultiInputSerializedSkewer) {
   sensitive << clk.pos();                                                   \
   async_reset_signal_is(rstn, false);
 
-    REPEAT(DECL_THREADS)
+    REPEAT_IC(DECL_THREADS)
 #undef DECL_THREADS
   }
 
@@ -163,7 +164,7 @@ SC_MODULE(MultiInputSerializedSkewer) {
       Pack1D<PEInput<IDTYPE>, SIZE> input = din.Pop();
 
 #define FIFO_WRITE(z, i, unused) BOOST_PP_CAT(fifo, i).write(input[i]);
-      REPEAT(FIFO_WRITE)
+      REPEAT_IC(FIFO_WRITE)
 #undef FIFO_WRITE
     }
   }
@@ -182,7 +183,7 @@ SC_MODULE(MultiInputSerializedSkewer) {
     }                                                           \
   }
 
-  REPEAT(DECL_FUNCS)
+  REPEAT_IC(DECL_FUNCS)
 #undef DECL_FUNCS
 };
 
@@ -195,7 +196,7 @@ SC_MODULE(WeightSerializedSkewer) {
  private:
 #define DECL_FIFOS(z, i, unused) \
   sc_fifo<PEWeight<IDTYPE> > BOOST_PP_CAT(fifo, i);
-  REPEAT(DECL_FIFOS)
+  REPEAT_OC(DECL_FIFOS)
 #undef DECL_FIFOS
   int dummy;
 
@@ -208,7 +209,7 @@ SC_MODULE(WeightSerializedSkewer) {
 
 #define FIFO_SIZE_INIT(z, i, unused) BOOST_PP_CAT(fifo, i)(i * 1 + 1),
 
-  SC_CTOR(WeightSerializedSkewer) : REPEAT(FIFO_SIZE_INIT) dummy(0) {
+  SC_CTOR(WeightSerializedSkewer) : REPEAT_OC(FIFO_SIZE_INIT) dummy(0) {
 #undef FIFO_SIZE_INIT
     SC_THREAD(writeFifos);
     sensitive << clk.pos();
@@ -225,7 +226,7 @@ SC_MODULE(WeightSerializedSkewer) {
   sensitive << clk.pos();                                                   \
   async_reset_signal_is(rstn, false);
 
-    REPEAT(DECL_THREADS)
+    REPEAT_OC(DECL_THREADS)
 #undef DECL_THREADS
   }
 
@@ -240,7 +241,7 @@ SC_MODULE(WeightSerializedSkewer) {
       Pack1D<PEWeight<IDTYPE>, SIZE> input = din.Pop();
 
 #define FIFO_WRITE(z, i, unused) BOOST_PP_CAT(fifo, i).write(input[i]);
-      REPEAT(FIFO_WRITE)
+      REPEAT_OC(FIFO_WRITE)
 #undef FIFO_WRITE
     }
   }
@@ -259,7 +260,7 @@ SC_MODULE(WeightSerializedSkewer) {
     }                                                           \
   }
 
-  REPEAT(DECL_FUNCS)
+  REPEAT_OC(DECL_FUNCS)
 #undef DECL_FUNCS
 };
 
@@ -271,7 +272,7 @@ template <typename IDTYPE, typename ODTYPE, int SIZE>
 SC_MODULE(DeserializedSkewer) {
  private:
 #define DECL_FIFOS(z, i, unused) sc_fifo<ODTYPE> BOOST_PP_CAT(fifo, i);
-  REPEAT(DECL_FIFOS)
+  REPEAT_OC(DECL_FIFOS)
 #undef DECL_FIFOS
 
   int dummy;
@@ -284,9 +285,9 @@ SC_MODULE(DeserializedSkewer) {
   Connections::Out<Pack1D<ODTYPE, SIZE> > CCS_INIT_S1(dout);
 
 #define FIFO_SIZE_INIT(z, i, unused) \
-  BOOST_PP_CAT(fifo, i)(1 * (DIMENSION - i + 1)),
+  BOOST_PP_CAT(fifo, i)(1 * (OC_DIMENSION - i + 1)),
 
-  SC_CTOR(DeserializedSkewer) : REPEAT(FIFO_SIZE_INIT) dummy(0) {
+  SC_CTOR(DeserializedSkewer) : REPEAT_OC(FIFO_SIZE_INIT) dummy(0) {
 #undef FIFO_SIZE_INIT
     SC_THREAD(readFifos);
     sensitive << clk.pos();
@@ -300,7 +301,7 @@ SC_MODULE(DeserializedSkewer) {
   sensitive << clk.pos();                                                    \
   async_reset_signal_is(rstn, false);
 
-    REPEAT(DECL_THREADS)
+    REPEAT_OC(DECL_THREADS)
 #undef DECL_THREADS
   }
 
@@ -315,7 +316,7 @@ SC_MODULE(DeserializedSkewer) {
       Pack1D<ODTYPE, SIZE> output;
 
 #define FIFO_READ(z, i, unused) output[i] = BOOST_PP_CAT(fifo, i).read();
-      REPEAT(FIFO_READ)
+      REPEAT_OC(FIFO_READ)
 #undef FIFO_READ
       // for (int i = 0; i < SIZE; i++) {
       //   std::cout << output[i].bits.to_string(AC_HEX) << " ";
@@ -335,6 +336,6 @@ SC_MODULE(DeserializedSkewer) {
     }                                                           \
   }
 
-  REPEAT(DECL_FUNCS)
+  REPEAT_OC(DECL_FUNCS)
 #undef DECL_FUNCS
 };

@@ -20,7 +20,7 @@ void MapFC(const SimplifiedParams &params, const MemoryMap &memoryMap,
   AcceleratorMemoryMap acceleratorMemoryMap;
 
   // round K up to a multiple of DIMENSION
-  K = (K + DIMENSION - 1) / DIMENSION * DIMENSION;
+  K = (K + OC_DIMENSION - 1) / OC_DIMENSION * OC_DIMENSION;
 
   // input is a vector of size C
   acceleratorMemoryMap["vector0"] = memoryMap.inputs;
@@ -31,7 +31,7 @@ void MapFC(const SimplifiedParams &params, const MemoryMap &memoryMap,
   }
   vectorParams->addressGen0Loop[1][0] = K;
   vectorParams->addressGen0Loop[1][1] = 1;
-  vectorParams->addressGen0Loop[1][2] = C / DIMENSION;
+  vectorParams->addressGen0Loop[1][2] = C / IC_DIMENSION;
   vectorParams->addressGen0Broadcast = false;
   vectorParams->DP_VEC0 = false;
 
@@ -42,7 +42,7 @@ void MapFC(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->DP_VEC1 = params.ACC_T_WEIGHT;
 
   vectorParams->addressGen1Loops[0][0] = 1;
-  vectorParams->addressGen1Loops[0][1] = K / DIMENSION;
+  vectorParams->addressGen1Loops[0][1] = K / OC_DIMENSION;
   vectorParams->addressGen1Loops[0][2] = 1;
   vectorParams->addressGen1Loops[1][0] = 1;
   vectorParams->addressGen1Loops[1][1] = 1;
@@ -59,7 +59,7 @@ void MapFC(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->addressGen2InputYLoopIndex[0] = 1;
   vectorParams->addressGen2WeightLoopIndex[0] = 2;
 
-  vectorParams->addressGen2Loops[1][0] = K / DIMENSION;
+  vectorParams->addressGen2Loops[1][0] = K / OC_DIMENSION;
   vectorParams->addressGen2Loops[1][1] = 1;
   vectorParams->addressGen2Loops[1][2] = 1;
   vectorParams->addressGen2WeightLoopIndex[1] = 0;
@@ -84,7 +84,7 @@ void MapFC(const SimplifiedParams &params, const MemoryMap &memoryMap,
 
   vectorParams->outputLoops[1][0] = 1;
   vectorParams->outputLoops[1][1] = 1;
-  vectorParams->outputLoops[1][2] = K / DIMENSION;
+  vectorParams->outputLoops[1][2] = K / OC_DIMENSION;
   vectorParams->outputXLoopIndex[1] = 0;
   vectorParams->outputYLoopIndex[1] = 1;
   vectorParams->outputWeightLoopIndex[1] = 2;
@@ -100,7 +100,7 @@ void MapFC(const SimplifiedParams &params, const MemoryMap &memoryMap,
   // inst0- start reduction engine
   VectorInstructions vInst0;
   vInst0.instType = VectorInstructions::reduction;
-  vInst0.rCount = C / DIMENSION;
+  vInst0.rCount = C / IC_DIMENSION;
   vInst0.rOp = VectorInstructions::radd;
   vInst0.rDuplicate = 0;
   vInst0.rDest = VectorInstructions::toVectorOp0Src0;
@@ -125,7 +125,7 @@ void MapFC(const SimplifiedParams &params, const MemoryMap &memoryMap,
 
   // C/DIMENSION to do the complete reduction
   // DIMENSION to fill up the entire vector (this is now K dimension)
-  vectorInstructionConfig->instCount[1] = DIMENSION * C / DIMENSION;
+  vectorInstructionConfig->instCount[1] = OC_DIMENSION * C / IC_DIMENSION;
 
   // inst2- add bias, write out
   VectorInstructions vInst2;
@@ -144,7 +144,7 @@ void MapFC(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorInstructionConfig->instCount[2] = 1;
 
   vectorInstructionConfig->instLen = 3;
-  vectorInstructionConfig->instLoopCount = K / DIMENSION;
+  vectorInstructionConfig->instLoopCount = K / OC_DIMENSION;
 
   // sendSerializedParams<VectorInstructionConfig,
   // 32>(vectorInstructionConfig,

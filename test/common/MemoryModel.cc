@@ -60,9 +60,9 @@ void MemoryModel::loadInputs(const SimplifiedParams& params,
   if (params.REPLICATION) {
     int packingFactor;  // number of 3-channel values packed into a single word
 
-    if (DIMENSION == 16) {
+    if (IC_DIMENSION == 16) {
       packingFactor = 4;
-    } else if (DIMENSION == 32) {
+    } else if (IC_DIMENSION == 32) {
       packingFactor = 8;
     }
 
@@ -75,8 +75,8 @@ void MemoryModel::loadInputs(const SimplifiedParams& params,
 
             int address;
             if (isDut) {
-              address = y * ((STRIDE * X) / packingFactor) * DIMENSION +
-                        x_o * DIMENSION + x_i * 3 + c;
+              address = y * ((STRIDE * X) / packingFactor) * IC_DIMENSION +
+                        x_o * IC_DIMENSION + x_i * 3 + c;
             } else {
               address = y * (STRIDE * X) * C + x * C + c;
             }

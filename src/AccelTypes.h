@@ -86,19 +86,19 @@ struct PEInput {
 template <typename TYPE>
 struct PEWeight {
   TYPE data;
-  #if DIMENSION == 8
+  #if IC_DIMENSION == 8
     ac_int<3, false> tag;
-  #elif DIMENSION == 16
+  #elif IC_DIMENSION == 16
     ac_int<4, false> tag;
-  #elif DIMENSION == 32
+  #elif IC_DIMENSION == 32
     ac_int<5, false> tag;
   #endif  
 
-  #if DIMENSION == 8
+  #if IC_DIMENSION == 8
   static const unsigned int width = TYPE::width + 3;
-  #elif DIMENSION == 16
+  #elif IC_DIMENSION == 16
   static const unsigned int width = TYPE::width + 4;
-  #elif DIMENSION == 32
+  #elif IC_DIMENSION == 32
   static const unsigned int width = TYPE::width + 5;
   #endif  
 

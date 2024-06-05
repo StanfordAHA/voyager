@@ -10,9 +10,9 @@ void MapLoRACombination(const SimplifiedParams &params,
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
           params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int C = params.loops[1][params.reductionLoopIndex[1]] * OC_DIMENSION;
   int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+          params.loops[1][params.weightLoopIndex[1]] * OC_DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
@@ -40,7 +40,7 @@ void MapLoRACombination(const SimplifiedParams &params,
     vectorParams->addressGen0Loop[0][1] = xTileSize;
     vectorParams->addressGen0Loop[1][0] = K;
     vectorParams->addressGen0Loop[1][1] = 1;
-    vectorParams->addressGen0Loop[1][2] = C / DIMENSION;
+    vectorParams->addressGen0Loop[1][2] = C / OC_DIMENSION;
     vectorParams->addressGen0Broadcast = false;
     vectorParams->addressGen0BroadcastCount = K;
     vectorParams->DP_VEC0 = true;
@@ -56,7 +56,7 @@ void MapLoRACombination(const SimplifiedParams &params,
     vectorParams->addressGen1Loops[0][2] = 1;
     vectorParams->addressGen1Loops[1][0] = 1;
     vectorParams->addressGen1Loops[1][1] = K;
-    vectorParams->addressGen1Loops[1][2] = C / DIMENSION;
+    vectorParams->addressGen1Loops[1][2] = C / OC_DIMENSION;
 
     // bias (used as residual here)
     acceleratorMemoryMap["vector2"] = memoryMap.residual;
@@ -72,7 +72,7 @@ void MapLoRACombination(const SimplifiedParams &params,
 
     vectorParams->addressGen2Loops[0][0] = 1;
     vectorParams->addressGen2Loops[0][1] = xTileSize;
-    vectorParams->addressGen2Loops[0][2] = K / DIMENSION;
+    vectorParams->addressGen2Loops[0][2] = K / OC_DIMENSION;
     vectorParams->addressGen2Loops[1][0] = 1;
     vectorParams->addressGen2Loops[1][1] = 1;
     vectorParams->addressGen2Loops[1][2] = 1;
@@ -99,7 +99,7 @@ void MapLoRACombination(const SimplifiedParams &params,
 
     vectorParams->outputLoops[1][0] = 1;
     vectorParams->outputLoops[1][1] = xTileSize;
-    vectorParams->outputLoops[1][2] = K / DIMENSION;
+    vectorParams->outputLoops[1][2] = K / OC_DIMENSION;
     vectorParams->outputXLoopIndex[1] = 0;
     vectorParams->outputYLoopIndex[1] = 1;
     vectorParams->outputWeightLoopIndex[1] = 2;
@@ -115,7 +115,7 @@ void MapLoRACombination(const SimplifiedParams &params,
     // inst0- start reduction engine
     VectorInstructions vInst0;
     vInst0.instType = VectorInstructions::reduction;
-    vInst0.rCount = C / DIMENSION;
+    vInst0.rCount = C / OC_DIMENSION;
     vInst0.rOp = VectorInstructions::radd;
     vInst0.rDuplicate = 0;
     vInst0.rDest = VectorInstructions::toVectorOp0Src0;
@@ -137,9 +137,9 @@ void MapLoRACombination(const SimplifiedParams &params,
     vInst1.vDest = VectorInstructions::nop;
     vectorInstructionConfig->inst[1] = vInst1;
 
-    // C/DIMENSION to do the complete reduction
-    // DIMENSION to fill up the entire vector (this is now K dimension)
-    vectorInstructionConfig->instCount[1] = DIMENSION * C / DIMENSION;
+    // C/OC_DIMENSION to do the complete reduction
+    // OC_DIMENSION to fill up the entire vector (this is now K OC_DIMENSION)
+    vectorInstructionConfig->instCount[1] = OC_DIMENSION * C / OC_DIMENSION;
 
     // inst2- add bias, write out
     VectorInstructions vInst2;
@@ -169,7 +169,7 @@ void MapLoRACombination(const SimplifiedParams &params,
         vectorInstructionConfig->instCount[2];
 
     vectorInstructionConfig->instLen = 6;
-    vectorInstructionConfig->instLoopCount = xTileSize * K / DIMENSION / 2;
+    vectorInstructionConfig->instLoopCount = xTileSize * K / OC_DIMENSION / 2;
 
     mappedParams.push_back(vectorParams);
     mappedParams.push_back(vectorInstructionConfig);

@@ -20,20 +20,20 @@ SC_MODULE(MatrixProcessor) {
       inputSkewerDin);
 
   WeightSerializedSkewer<typename IDTYPE::AccumulationDatatype,
-                         typename IDTYPE::AccumulationDatatype, NROWS>
+                         typename IDTYPE::AccumulationDatatype, NCOLS>
       CCS_INIT_S1(weightSkewer);
   Connections::Combinational<
-      Pack1D<PEWeight<typename IDTYPE::AccumulationDatatype>, NROWS> >
+      Pack1D<PEWeight<typename IDTYPE::AccumulationDatatype>, NCOLS> >
       CCS_INIT_S1(weightSkewerDin);
 
-  SerializedSkewer<ODTYPE, typename ODTYPE::AccumulationDatatype, NROWS>
+  SerializedSkewer<ODTYPE, typename ODTYPE::AccumulationDatatype, NCOLS>
       CCS_INIT_S1(psumInSkewer);
-  Connections::Combinational<Pack1D<ODTYPE, NROWS> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<ODTYPE, NCOLS> > CCS_INIT_S1(
       psumInSkewerDin);
 
-  DeserializedSkewer<typename ODTYPE::AccumulationDatatype, ODTYPE, NROWS>
+  DeserializedSkewer<typename ODTYPE::AccumulationDatatype, ODTYPE, NCOLS>
       CCS_INIT_S1(psumOutSkewer);
-  Connections::Combinational<Pack1D<ODTYPE, NROWS> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<ODTYPE, NCOLS> > CCS_INIT_S1(
       psumOutSkewerDout);
 
   SystolicArray<typename IDTYPE::AccumulationDatatype,
@@ -48,10 +48,10 @@ SC_MODULE(MatrixProcessor) {
   sc_in<bool> CCS_INIT_S1(rstn);
 
   Connections::In<Pack1D<IDTYPE, NROWS> > CCS_INIT_S1(inputsChannel);
-  Connections::In<Pack1D<typename IDTYPE::AccumulationDatatype, NROWS> >
+  Connections::In<Pack1D<typename IDTYPE::AccumulationDatatype, NCOLS> >
       CCS_INIT_S1(weightsChannel);
   Connections::In<Pack1D<ODTYPE, NCOLS> > CCS_INIT_S1(biasChannel);
-  Connections::Out<Pack1D<ODTYPE, NROWS> > CCS_INIT_S1(outputsChannel);
+  Connections::Out<Pack1D<ODTYPE, NCOLS> > CCS_INIT_S1(outputsChannel);
 
   Connections::In<int> CCS_INIT_S1(serialParamsIn);
 
@@ -86,7 +86,7 @@ SC_MODULE(MatrixProcessor) {
     weightSkewer.clk(clk);
     weightSkewer.rstn(rstn);
     weightSkewer.din(weightSkewerDin);
-    for (int i = 0; i < NROWS; i++) {
+    for (int i = 0; i < NCOLS; i++) {
       weightSkewer.dout[i](weightsToSystolicArray[i]);
     }
 

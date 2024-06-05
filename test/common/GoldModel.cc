@@ -144,15 +144,15 @@ void grad_clip_norm(ACC_T *matrix, int size) {
   // tree add
   ACC_T norm = static_cast<ACC_T>(0.0);
   for (int reductionCount = 0; reductionCount < size;
-       reductionCount += DIMENSION) {
+       reductionCount += OC_DIMENSION) {
     // perform a tree addition
-    ACC_T accum[DIMENSION];
-    for (int i = 0; i < DIMENSION; i++) {
+    ACC_T accum[OC_DIMENSION];
+    for (int i = 0; i < OC_DIMENSION; i++) {
       accum[i] = static_cast<ACC_T>(matrix[reductionCount + i] *
                                     matrix[reductionCount + i]);
     }
 
-    int depth = DIMENSION;
+    int depth = OC_DIMENSION;
     while (depth > 1) {
       for (int i = 0; i < depth; i += 2) {
         accum[i / 2] = static_cast<ACC_T>(accum[i] + accum[i + 1]);
@@ -214,14 +214,14 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       }
 
       for (int reductionCount = 0; reductionCount < Y;
-           reductionCount += DIMENSION) {
+           reductionCount += OC_DIMENSION) {
         // perform a tree addition
-        ACC_T accum[DIMENSION];
-        for (int i = 0; i < DIMENSION; i++) {
+        ACC_T accum[OC_DIMENSION];
+        for (int i = 0; i < OC_DIMENSION; i++) {
           accum[i] = outputMatrix[reductionCount + i];
         }
 
-        int depth = DIMENSION;
+        int depth = OC_DIMENSION;
         while (depth > 1) {
           for (int i = 0; i < depth; i += 2) {
             accum[i / 2] = static_cast<ACC_T>(accum[i] + accum[i + 1]);
@@ -258,14 +258,14 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
       }
 
       for (int reductionCount = 0; reductionCount < C;
-           reductionCount += DIMENSION) {
+           reductionCount += OC_DIMENSION) {
         // perform a tree addition
-        ACC_T accum[DIMENSION];
-        for (int i = 0; i < DIMENSION; i++) {
+        ACC_T accum[OC_DIMENSION];
+        for (int i = 0; i < OC_DIMENSION; i++) {
           accum[i] = flattened_mult[reductionCount + i];
         }
 
-        int depth = DIMENSION;
+        int depth = OC_DIMENSION;
         while (depth > 1) {
           for (int i = 0; i < depth; i += 2) {
             accum[i / 2] = static_cast<ACC_T>(accum[i] + accum[i + 1]);
@@ -316,14 +316,14 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
 
       // perform sum with a tree addition
       for (int reductionCount = 0; reductionCount < Y;
-           reductionCount += DIMENSION) {
+           reductionCount += OC_DIMENSION) {
         // perform a tree addition
-        ACC_T accum[DIMENSION];
-        for (int i = 0; i < DIMENSION; i++) {
+        ACC_T accum[OC_DIMENSION];
+        for (int i = 0; i < OC_DIMENSION; i++) {
           accum[i] = outputMatrix[x * Y + reductionCount + i];
         }
 
-        int depth = DIMENSION;
+        int depth = OC_DIMENSION;
         while (depth > 1) {
           for (int i = 0; i < depth; i += 2) {
             accum[i / 2] = static_cast<ACC_T>(accum[i] + accum[i + 1]);
@@ -678,10 +678,15 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     }
 
     // adjust loop counters for dimension != 16
-    if (DIMENSION < 16) {
-      params.loops[0][params.weightLoopIndex[0]] *= (16 / DIMENSION);
-      params.loops[1][params.reductionLoopIndex[1]] *= (16 / DIMENSION);
-    } else if (DIMENSION > 16) {
+    if (IC_DIMENSION < 16) {
+      params.loops[1][params.reductionLoopIndex[1]] *= (16 / IC_DIMENSION);
+    } else if (IC_DIMENSION > 16) {
+      params.loops[1][params.reductionLoopIndex[1]] /= (IC_DIMENSION / 16);
+    }
+
+    if (OC_DIMENSION < 16) {
+      params.loops[0][params.weightLoopIndex[0]] *= (16 / OC_DIMENSION);
+    } else if (OC_DIMENSION > 16) {
       // if the inner weight loop is >=4, we should reduce the inner loop
       // (otherwise, we violate the weight buffer constraint) otherwise, we
       // reduce the outer loop
@@ -689,11 +694,10 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
            params.loops[1][params.fxIndex] > 1 &&
            params.loops[1][params.fyIndex] > 1) ||
           (params.loops[0][params.weightLoopIndex[0]] == 1)) {
-        params.loops[1][params.weightLoopIndex[1]] /= (DIMENSION / 16);
+        params.loops[1][params.weightLoopIndex[1]] /= (OC_DIMENSION / 16);
       } else {
-        params.loops[0][params.weightLoopIndex[0]] /= (DIMENSION / 16);
+        params.loops[0][params.weightLoopIndex[0]] /= (OC_DIMENSION / 16);
       }
-      params.loops[1][params.reductionLoopIndex[1]] /= (DIMENSION / 16);
     }
 
     int loop_counters[2][6] = {0};
@@ -706,7 +710,7 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
     // int C1 = params.loops[0][params.reductionLoopIndex[0]];
     int K0 = params.loops[1][params.weightLoopIndex[1]];
     // int K1 = params.loops[0][params.weightLoopIndex[0]];
-    int IC_unroll = DIMENSION;
+    int IC_unroll = IC_DIMENSION;
 
     if (params.REPLICATION) {
       params.loops[1][params.fxIndex] = 7;
@@ -771,8 +775,8 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
                       int x = x1 * X0 + x0;
                       int y = y1 * Y0 + y0;
 
-                      for (int oc0 = 0; oc0 < DIMENSION; oc0++) {
-                        int k = (k1 * K0 + k0) * DIMENSION + oc0;
+                      for (int oc0 = 0; oc0 < OC_DIMENSION; oc0++) {
+                        int k = (k1 * K0 + k0) * OC_DIMENSION + oc0;
                         int outputAddress = y * X * K + x * K + k;
 
                         for (int ic0 = 0; ic0 < IC_unroll; ic0++) {
@@ -793,13 +797,13 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
                           }
                         }
                         if (params.REPLICATION) {
-                          if (DIMENSION == 16) {
+                          if (IC_DIMENSION == 16) {
                             if (loop_counters[1][params.fxIndex] == 3 ||
                                 loop_counters[1][params.fxIndex] == 6) {
                               outputMatrix[outputAddress] = static_cast<INT_T>(
                                   outputMatrix[outputAddress]);
                             }
-                          } else if (DIMENSION == 32) {
+                          } else if (IC_DIMENSION == 32) {
                             if (loop_counters[1][params.fxIndex] == 6) {
                               outputMatrix[outputAddress] = static_cast<INT_T>(
                                   outputMatrix[outputAddress]);
@@ -823,10 +827,10 @@ void run_gold_op(SimplifiedParams params, T *matrixA, T *matrixB, T *matrixC,
           for (int y0 = 0; y0 < Y0; y0++) {
             for (int x0 = 0; x0 < X0; x0++) {
               for (int k0 = 0; k0 < K0; k0++) {
-                for (int oc0 = 0; oc0 < DIMENSION; oc0++) {
+                for (int oc0 = 0; oc0 < OC_DIMENSION; oc0++) {
                   int x = x1 * X0 + x0;
                   int y = y1 * Y0 + y0;
-                  int k = (k1 * K0 + k0) * DIMENSION + oc0;
+                  int k = (k1 * K0 + k0) * OC_DIMENSION + oc0;
                   int outputAddress = y * X * K + x * K + k;
 
                   if (params.ATTENTION_SCALING) {

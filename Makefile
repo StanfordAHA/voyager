@@ -9,7 +9,7 @@ MSG := Compiling on $(OS) $(VER)
 $(info $(MSG))
 
 # Build folder format is build/DATATYPE_DIMENSIONxDIMENSION
-BUILD_DIR = build/$(DATATYPE)_$(DIMENSION)x$(DIMENSION)
+BUILD_DIR = build/$(DATATYPE)_$(IC_DIMENSION)x$(OC_DIMENSION)
 CC_BUILD_DIR = $(BUILD_DIR)/cc
 TOOLCHAIN_BUILD_DIR = $(BUILD_DIR)/cc/test/toolchain
 TOOLCHAIN_BUILD_DIRS = $(TOOLCHAIN_BUILD_DIR) $(TOOLCHAIN_BUILD_DIR)/operations
@@ -47,7 +47,8 @@ override BASE_FLAGS += \
 	-Wall \
 	-Wno-bool-compare \
 	-D$(DATATYPE) \
-	-DDIMENSION=$(DIMENSION)
+	-DIC_DIMENSION=$(IC_DIMENSION) \
+	-DOC_DIMENSION=$(OC_DIMENSION)
 
 ifeq ($(DEBUG), 1)
 	override BASE_FLAGS += -DDEBUG_LOG -g -ggdb
@@ -65,7 +66,7 @@ LDLIBS += -L/cad/mentor/2024.1/Mgc_home/shared/lib/
 ###########################################################
 # Catapult Synthesis
 ###########################################################
-CATAPULT_BUILD_DIR = build/$(DATATYPE)_$(DIMENSION)x$(DIMENSION)/Catapult/$(TECHNOLOGY)/clock_$(CLOCK_PERIOD)/
+CATAPULT_BUILD_DIR = build/$(DATATYPE)_$(IC_DIMENSION)x$(OC_DIMENSION)/Catapult/$(TECHNOLOGY)/clock_$(CLOCK_PERIOD)/
 
 # Main target to run HLS and build RTL (Verilog)
 rtl: $(CATAPULT_BUILD_DIR)Accelerator/Accelerator.v1/concat_rtl.v
@@ -113,7 +114,7 @@ $(CATAPULT_BUILD_DIR)Accelerator/Accelerator.v1/concat_rtl.v: $(CATAPULT_BUILD_D
 	BLOCK=Accelerator catapult -shell -file scripts/main.tcl
 	sed -i '/^`include/d' $(CATAPULT_BUILD_DIR)Accelerator/Accelerator.v1/concat_sim_rtl.v
 	sed '/module CGHpart/,/endmodule/d;/module TSDN/,/endmodule/d;/module TS1N40LPB1024X128M4FWBA /,/endmodule/d;/module TS1N40LPB1024X64M4FW /,/endmodule/d;/^`include/d;s/module Accelerator_rtl/module Accelerator/g;s/VectorUnit_rtl/VectorUnit/g' $(CATAPULT_BUILD_DIR)Accelerator/Accelerator.v1/concat_rtl.v \
-	> release/$(DATATYPE)_$(DIMENSION)x$(DIMENSION)_clock_$(CLOCK_PERIOD)_$(TECHNOLOGY).v
+	> release/$(DATATYPE)_$(IC_DIMENSION)x$(OC_DIMENSION)_clock_$(CLOCK_PERIOD)_$(TECHNOLOGY).v
 
 .PHONY: rtl InputController WeightController MatrixProcessor ProcessingElement VectorUnit MaxpoolUnit OutputAddressGenerator VectorFetchUnit VectorOpUnit
 

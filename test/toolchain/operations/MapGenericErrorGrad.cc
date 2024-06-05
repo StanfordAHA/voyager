@@ -8,9 +8,9 @@ void MapGenericErrorGrad(const SimplifiedParams &params,
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
           params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int C = params.loops[1][params.reductionLoopIndex[1]] * OC_DIMENSION;
   int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+          params.loops[1][params.weightLoopIndex[1]] * OC_DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
@@ -33,7 +33,7 @@ void MapGenericErrorGrad(const SimplifiedParams &params,
   }
   vectorParams->addressGen0Loop[1][0] = 1;
   vectorParams->addressGen0Loop[1][1] = 1;
-  vectorParams->addressGen0Loop[1][2] = X / DIMENSION;
+  vectorParams->addressGen0Loop[1][2] = X / OC_DIMENSION;
   vectorParams->addressGen0Broadcast = false;
 
   acceleratorMemoryMap["vector1"] = memoryMap.weights;
@@ -44,7 +44,7 @@ void MapGenericErrorGrad(const SimplifiedParams &params,
   vectorParams->addressGen1Loops[0][2] = 1;
   vectorParams->addressGen1Loops[1][0] = 1;
   vectorParams->addressGen1Loops[1][1] = 1;
-  vectorParams->addressGen1Loops[1][2] = X / DIMENSION;
+  vectorParams->addressGen1Loops[1][2] = X / OC_DIMENSION;
   vectorParams->DP_VEC1 = false;
 
   vectorParams->ADDRESS_GEN2_OFFSET = params.INPUT_OFFSET;
@@ -67,7 +67,7 @@ void MapGenericErrorGrad(const SimplifiedParams &params,
   vectorParams->outputWeightLoopIndex[0] = 2;
   vectorParams->outputLoops[1][0] = 1;
   vectorParams->outputLoops[1][1] = 1;
-  vectorParams->outputLoops[1][2] = X / DIMENSION;
+  vectorParams->outputLoops[1][2] = X / OC_DIMENSION;
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputXLoopIndex[1] = 1;
   vectorParams->outputYLoopIndex[1] = 0;
@@ -95,7 +95,7 @@ void MapGenericErrorGrad(const SimplifiedParams &params,
   vInst0.immediate0 = (Posit<8, 1>(divisor)).bits;
 
   vectorInstructionConfig->inst[0] = vInst0;
-  vectorInstructionConfig->instCount[0] = X / DIMENSION;
+  vectorInstructionConfig->instCount[0] = X / OC_DIMENSION;
 
   vectorInstructionConfig->instLen = 1;
   vectorInstructionConfig->instLoopCount = 1;

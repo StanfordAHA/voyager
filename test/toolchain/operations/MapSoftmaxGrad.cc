@@ -22,9 +22,9 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
           params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int C = params.loops[1][params.reductionLoopIndex[1]] * OC_DIMENSION;
   int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+          params.loops[1][params.weightLoopIndex[1]] * OC_DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
@@ -46,7 +46,7 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   }
   vectorParams_0->addressGen0Loop[1][0] = 1;
   vectorParams_0->addressGen0Loop[1][1] = X;
-  vectorParams_0->addressGen0Loop[1][2] = Y / DIMENSION;
+  vectorParams_0->addressGen0Loop[1][2] = Y / OC_DIMENSION;
   vectorParams_0->addressGen0Broadcast = false;
   vectorParams_0->DP_VEC0 = params.ACC_T_INPUT;
 
@@ -58,14 +58,14 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams_0->addressGen1Loops[0][2] = 1;
   vectorParams_0->addressGen1Loops[1][0] = 2;  // requires two passes
   vectorParams_0->addressGen1Loops[1][1] = 1;
-  vectorParams_0->addressGen1Loops[1][2] = Y / DIMENSION;
+  vectorParams_0->addressGen1Loops[1][2] = Y / OC_DIMENSION;
   vectorParams_0->DP_VEC1 = params.ACC_T_OUTPUT;
 
   vectorParams_0->addressGen2Mode = 0;  // disable address gen 2
 
   vectorParams_0->VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
   vectorParams_0->SCALAR_OUTPUT_OFFSET =
-      params.OUTPUT_OFFSET + X * Y / DIMENSION;
+      params.OUTPUT_OFFSET + X * Y / OC_DIMENSION;
 
   // vectorParams_0->scalarOutputCount = 0;
   vectorParams_0->MAXPOOL = false;
@@ -77,7 +77,7 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   // in order to get them placed in memory consecutively,
   // we need to mess with the output loop bounds
   // we can basically treat it as if we have a single tensor
-  // of dimension 2 * X * Y
+  // of OC_DIMENSION 2 * X * Y
   vectorParams_0->outputLoops[0][0] = 1;
   vectorParams_0->outputYLoopIndex[0] = 0;
 
@@ -93,7 +93,7 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams_0->outputLoops[1][1] = 1;
   vectorParams_0->outputXLoopIndex[1] = 1;
 
-  vectorParams_0->outputLoops[1][2] = Y / DIMENSION;
+  vectorParams_0->outputLoops[1][2] = Y / OC_DIMENSION;
   vectorParams_0->outputWeightLoopIndex[1] = 2;
   vectorParams_0->DP_OUTPUT = true;  // intermediate needs to be in dp output
   vectorParams_0->SPLIT_OUTPUT = false;
@@ -101,12 +101,12 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   // inst0- start reduction engine
   VectorInstructions vInst0;
   vInst0.instType = VectorInstructions::reduction;
-  vInst0.rCount = Y / DIMENSION;
+  vInst0.rCount = Y / OC_DIMENSION;
   vInst0.rOp = VectorInstructions::radd;
   vInst0.rDuplicate = 1;
   vInst0.rDest = VectorInstructions::toVectorOp0Src0;
   vInst0.rBroadcast = true;
-  vInst0.immediate0 = Y / DIMENSION;
+  vInst0.immediate0 = Y / OC_DIMENSION;
   vInst0.immediate1 = 0;
   vectorInstructionConfig_0->inst[0] = vInst0;
   vectorInstructionConfig_0->instCount[0] = 1;
@@ -125,7 +125,7 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vInst1.vOp4 = VectorInstructions::nop;
   vInst1.vDest = VectorInstructions::vWriteOut;
   vectorInstructionConfig_0->inst[1] = vInst1;
-  vectorInstructionConfig_0->instCount[1] = Y / DIMENSION;
+  vectorInstructionConfig_0->instCount[1] = Y / OC_DIMENSION;
 
   // inst 2- pull from reduction and multiply with attention_prob
   VectorInstructions vInst2;
@@ -140,7 +140,7 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vInst2.vOp4 = VectorInstructions::nop;
   vInst2.vDest = VectorInstructions::vWriteOut;
   vectorInstructionConfig_0->inst[2] = vInst2;
-  vectorInstructionConfig_0->instCount[2] = Y / DIMENSION;
+  vectorInstructionConfig_0->instCount[2] = Y / OC_DIMENSION;
 
   vectorInstructionConfig_0->instLen = 3;
   vectorInstructionConfig_0->instLoopCount = X;
@@ -163,7 +163,7 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   }
   vectorParams_1->addressGen0Loop[1][0] = 1;
   vectorParams_1->addressGen0Loop[1][1] = X;
-  vectorParams_1->addressGen0Loop[1][2] = Y / DIMENSION;
+  vectorParams_1->addressGen0Loop[1][2] = Y / OC_DIMENSION;
   vectorParams_1->addressGen0Broadcast = false;
   vectorParams_1->DP_VEC0 = true;
 
@@ -177,14 +177,14 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams_1->addressGen1Loops[0][2] = 1;
   vectorParams_1->addressGen1Loops[1][0] = 1;
   vectorParams_1->addressGen1Loops[1][1] = X;
-  vectorParams_1->addressGen1Loops[1][2] = Y / DIMENSION;
+  vectorParams_1->addressGen1Loops[1][2] = Y / OC_DIMENSION;
   vectorParams_1->DP_VEC1 = true;
 
   vectorParams_1->addressGen2Mode = 0;  // disable address gen 2
 
   vectorParams_1->VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
   vectorParams_1->SCALAR_OUTPUT_OFFSET =
-      params.OUTPUT_OFFSET + X * Y / DIMENSION;
+      params.OUTPUT_OFFSET + X * Y / OC_DIMENSION;
 
   // vectorParams_1->scalarOutputCount = 0;
   vectorParams_1->MAXPOOL = false;
@@ -207,7 +207,7 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams_1->outputLoops[1][1] = X;
   vectorParams_1->outputXLoopIndex[1] = 1;
 
-  vectorParams_1->outputLoops[1][2] = Y / DIMENSION;
+  vectorParams_1->outputLoops[1][2] = Y / OC_DIMENSION;
   vectorParams_1->outputWeightLoopIndex[1] = 2;
   vectorParams_1->DP_OUTPUT = params.ACC_T_OUTPUT;
   vectorParams_1->SPLIT_OUTPUT = false;
@@ -225,7 +225,7 @@ void MapSoftmaxGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   op2SubInst.vOp4 = VectorInstructions::nop;
   op2SubInst.vDest = VectorInstructions::vWriteOut;
   vectorInstructionConfig_1->inst[0] = op2SubInst;
-  vectorInstructionConfig_1->instCount[0] = X * Y / DIMENSION;
+  vectorInstructionConfig_1->instCount[0] = X * Y / OC_DIMENSION;
 
   vectorInstructionConfig_1->instLen = 1;
   vectorInstructionConfig_1->instLoopCount = 1;

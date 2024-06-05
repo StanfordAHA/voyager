@@ -89,9 +89,9 @@ SC_MODULE(InputController) {
 
       // replication packing factor
       int packingFactor;
-      if (DIMENSION == 16) {
+      if (IC_DIMENSION == 16) {
         packingFactor = 4;
-      } else if (DIMENSION == 32) {
+      } else if (IC_DIMENSION == 32) {
         packingFactor = 8;
       }
 
@@ -250,9 +250,9 @@ SC_MODULE(InputController) {
                         if (params.REPLICATION) {
                           baseAddress =
                               static_cast<ac_int<32, false> >(
-                                  y * (X / packingFactor) * DIMENSION) +
+                                  y * (X / packingFactor) * IC_DIMENSION) +
                               static_cast<ac_int<32, false> >(
-                                  (x / packingFactor) * DIMENSION) +
+                                  (x / packingFactor) * IC_DIMENSION) +
                               c;
                         }
                         if (params.CONCAT_INPUT && params.TRANPOSE_INPUTS) {
@@ -260,9 +260,9 @@ SC_MODULE(InputController) {
                               static_cast<ac_int<32, false> >((c + (x % 16)) *
                                                               32) +
                               static_cast<ac_int<32, false> >(
-                                  (((x / 16) * DIMENSION) / 32 * C * 32)) +
+                                  (((x / 16) * IC_DIMENSION) / 32 * C * 32)) +
                               static_cast<ac_int<32, false> >(
-                                  (((x / 16) * DIMENSION) % 32));
+                                  (((x / 16) * IC_DIMENSION) % 32));
                         } else {
                           if (params.CONCAT_INPUT) {
                             baseAddress =
@@ -275,7 +275,7 @@ SC_MODULE(InputController) {
                             baseAddress = static_cast<ac_int<32, false> >(
                                               (c + (x % 16)) * X) +
                                           static_cast<ac_int<32, false> >(
-                                              (x / 16) * DIMENSION);
+                                              (x / 16) * IC_DIMENSION);
                           }
                         }
                         MemoryRequest memRequest;
@@ -346,9 +346,9 @@ SC_MODULE(InputController) {
 
       // replication packing factor
       int packingFactor;
-      if (DIMENSION == 16) {
+      if (IC_DIMENSION == 16) {
         packingFactor = 4;
-      } else if (DIMENSION == 32) {
+      } else if (IC_DIMENSION == 32) {
         packingFactor = 8;
       }
 
@@ -564,9 +564,9 @@ SC_MODULE(InputController) {
 
       // replication packing factor
       int packingFactor;
-      if (DIMENSION == 16) {
+      if (IC_DIMENSION == 16) {
         packingFactor = 4;
-      } else if (DIMENSION == 32) {
+      } else if (IC_DIMENSION == 32) {
         packingFactor = 8;
       }
 
@@ -735,11 +735,11 @@ SC_MODULE(InputController) {
       int additionalUnrollingFactor;  // additional x values packed in a word
                                       // sent to the systolic array, but are
                                       // unused by the systolic array
-      if (DIMENSION == 16) {
+      if (IC_DIMENSION == 16) {
         packingFactor = 4;
         unrollingFactor = 4;
         additionalUnrollingFactor = 1;
-      } else if (DIMENSION == 32) {
+      } else if (IC_DIMENSION == 32) {
         packingFactor = 8;
         unrollingFactor = 7;
         additionalUnrollingFactor = 0;
@@ -880,9 +880,9 @@ SC_MODULE(InputController) {
 
       // replication packing factor
       int packingFactor;
-      if (DIMENSION == 16) {
+      if (IC_DIMENSION == 16) {
         packingFactor = 4;
-      } else if (DIMENSION == 32) {
+      } else if (IC_DIMENSION == 32) {
         packingFactor = 8;
       }
 

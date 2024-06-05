@@ -8,9 +8,9 @@ void MapBiasGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
           params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int C = params.loops[1][params.reductionLoopIndex[1]] * OC_DIMENSION;
   int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+          params.loops[1][params.weightLoopIndex[1]] * OC_DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
@@ -26,7 +26,7 @@ void MapBiasGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->addressGen0Broadcast = false;
   vectorParams->addressGen0Loop[0][0] = 1;
   vectorParams->addressGen0Loop[0][1] = 1;
-  vectorParams->addressGen0Loop[0][2] = K / DIMENSION;
+  vectorParams->addressGen0Loop[0][2] = K / OC_DIMENSION;
   vectorParams->addressGen0Loop[1][0] = 1;
   vectorParams->addressGen0Loop[1][1] = C;
   vectorParams->addressGen0Loop[1][2] = 1;
@@ -41,7 +41,7 @@ void MapBiasGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->addressGen2Mode = params.RESIDUAL ? 2 : 0;
   vectorParams->addressGen2Loops[0][0] = 1;
   vectorParams->addressGen2Loops[0][1] = 1;
-  vectorParams->addressGen2Loops[0][2] = K / DIMENSION;
+  vectorParams->addressGen2Loops[0][2] = K / OC_DIMENSION;
   vectorParams->DP_VEC2 = params.ACC_T_RESIDUAL;
 
   vectorParams->VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
@@ -56,7 +56,7 @@ void MapBiasGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
 
   vectorParams->outputLoops[1][0] = 1;
   vectorParams->outputLoops[1][1] = 1;
-  vectorParams->outputLoops[1][2] = K / DIMENSION;
+  vectorParams->outputLoops[1][2] = K / OC_DIMENSION;
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputYLoopIndex[1] = 0;
   vectorParams->outputXLoopIndex[1] = 1;
@@ -106,7 +106,7 @@ void MapBiasGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorInstructionConfig->instCount[2] = 1;
 
   vectorInstructionConfig->instLen = 3;
-  vectorInstructionConfig->instLoopCount = K / DIMENSION;
+  vectorInstructionConfig->instLoopCount = K / OC_DIMENSION;
 
   mappedParams.push_back(vectorParams);
   mappedParams.push_back(vectorInstructionConfig);

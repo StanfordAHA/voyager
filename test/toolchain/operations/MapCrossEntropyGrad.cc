@@ -8,9 +8,9 @@ void MapCrossEntropyGrad(const SimplifiedParams &params,
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
           params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int C = params.loops[1][params.reductionLoopIndex[1]] * OC_DIMENSION;
   int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+          params.loops[1][params.weightLoopIndex[1]] * OC_DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
@@ -18,7 +18,7 @@ void MapCrossEntropyGrad(const SimplifiedParams &params,
   // softmax, but with an additional subtraction
 
   // softmax uses a different convention for X and Y
-  // in softmax, X is the vertical dimension and Y is the horizontal
+  // in softmax, X is the vertical OC_DIMENSION and Y is the horizontal
   // in cross entropy grad, X is the horizontal
   // so to make them match up, we create a copy of the params with the
   // softmax convention for mapping the softmax part.
@@ -50,7 +50,7 @@ void MapCrossEntropyGrad(const SimplifiedParams &params,
   vectorParams->addressGen0Loop[0][2] = 1;
   vectorParams->addressGen0Loop[1][0] = 1;
   vectorParams->addressGen0Loop[1][1] = 1;
-  vectorParams->addressGen0Loop[1][2] = X / DIMENSION;
+  vectorParams->addressGen0Loop[1][2] = X / OC_DIMENSION;
   // vectorParams->DP_VEC0 = true;
 
   // address gen 1 (weights)
@@ -59,7 +59,7 @@ void MapCrossEntropyGrad(const SimplifiedParams &params,
   vectorParams->addressGen1Mode = 2;  // 2d tensor
   vectorParams->addressGen1Loops[0][0] = 1;
   vectorParams->addressGen1Loops[0][1] = 1;
-  vectorParams->addressGen1Loops[0][2] = X / DIMENSION;
+  vectorParams->addressGen1Loops[0][2] = X / OC_DIMENSION;
   vectorParams->addressGen1Loops[1][0] = 1;
   vectorParams->addressGen1Loops[1][1] = 1;
   vectorParams->addressGen1Loops[1][2] = 1;
@@ -85,7 +85,7 @@ void MapCrossEntropyGrad(const SimplifiedParams &params,
 
   vectorParams->outputLoops[1][0] = 1;
   vectorParams->outputLoops[1][1] = 1;
-  vectorParams->outputLoops[1][2] = X / DIMENSION;
+  vectorParams->outputLoops[1][2] = X / OC_DIMENSION;
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputYLoopIndex[1] = 1;
   vectorParams->outputXLoopIndex[1] = 0;
@@ -107,7 +107,7 @@ void MapCrossEntropyGrad(const SimplifiedParams &params,
   vInst0.vAccumulatePush = 0;
   vInst0.vDest = VectorInstructions::vWriteOut;
   vectorInstructionConfig->inst[0] = vInst0;
-  vectorInstructionConfig->instCount[0] = X / DIMENSION;
+  vectorInstructionConfig->instCount[0] = X / OC_DIMENSION;
 
   vectorInstructionConfig->instLen = 1;
   vectorInstructionConfig->instLoopCount = 1;

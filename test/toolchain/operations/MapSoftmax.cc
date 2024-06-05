@@ -28,7 +28,7 @@ void MapSoftmax(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->addressGen0Loop[0][2] = 1;
   vectorParams->addressGen0Loop[1][0] = 3;  // requires 3 passes
   vectorParams->addressGen0Loop[1][1] = 1;
-  vectorParams->addressGen0Loop[1][2] = Y / DIMENSION;
+  vectorParams->addressGen0Loop[1][2] = Y / OC_DIMENSION;
   vectorParams->DP_VEC0 = params.ACC_T_INPUT;
 
   // address gen 1 (weights)
@@ -56,7 +56,7 @@ void MapSoftmax(const SimplifiedParams &params, const MemoryMap &memoryMap,
 
   vectorParams->outputLoops[1][0] = 1;
   vectorParams->outputLoops[1][1] = X;
-  vectorParams->outputLoops[1][2] = Y / DIMENSION;
+  vectorParams->outputLoops[1][2] = Y / OC_DIMENSION;
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputYLoopIndex[1] = 1;
   vectorParams->outputXLoopIndex[1] = 0;
@@ -72,13 +72,13 @@ void MapSoftmax(const SimplifiedParams &params, const MemoryMap &memoryMap,
   // inst 0- start reduction engine to calculate max
   VectorInstructions vInst0;
   vInst0.instType = VectorInstructions::reduction;
-  vInst0.rCount = Y / DIMENSION;
+  vInst0.rCount = Y / OC_DIMENSION;
   vInst0.rOp = VectorInstructions::rmax;
   vInst0.rDuplicate = 1;
   vInst0.rDest = VectorInstructions::toVectorOp0Src1;
   vInst0.rBroadcast = 1;
   // broadcast max over entire array, for 2 passes
-  ac_int<16, false> vInst0_broadcastCount = 2 * Y / DIMENSION;
+  ac_int<16, false> vInst0_broadcastCount = 2 * Y / OC_DIMENSION;
   vInst0.immediate0 = vInst0_broadcastCount.slc<8>(0);
   vInst0.immediate1 = vInst0_broadcastCount.slc<8>(8);
   vInst0.rSqrt = false;
@@ -101,18 +101,18 @@ void MapSoftmax(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vInst1.vOp4 = VectorInstructions::nop;
   vInst1.vDest = VectorInstructions::nop;
   vectorInstructionConfig->inst[1] = vInst1;
-  vectorInstructionConfig->instCount[1] = Y / DIMENSION;
+  vectorInstructionConfig->instCount[1] = Y / OC_DIMENSION;
 
   // inst 2- start reduction engine to calculate sum
   VectorInstructions vInst2;
   vInst2.instType = VectorInstructions::reduction;
-  vInst2.rCount = Y / DIMENSION;
+  vInst2.rCount = Y / OC_DIMENSION;
   vInst2.rOp = VectorInstructions::radd;
   vInst2.rDuplicate = 1;
   vInst2.rDest = VectorInstructions::toVectorOp3Src1;
   vInst2.rBroadcast = 1;
   // broadcast max over entire array
-  ac_int<16, false> vInst2_broadcastCount = Y / DIMENSION;
+  ac_int<16, false> vInst2_broadcastCount = Y / OC_DIMENSION;
   vInst2.immediate0 = vInst2_broadcastCount.slc<8>(0);
   vInst2.immediate1 = vInst2_broadcastCount.slc<8>(8);
   vInst2.rSqrt = false;
@@ -135,7 +135,7 @@ void MapSoftmax(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vInst3.vOp4 = VectorInstructions::nop;
   vInst3.vDest = VectorInstructions::nop;
   vectorInstructionConfig->inst[3] = vInst3;
-  vectorInstructionConfig->instCount[3] = Y / DIMENSION;
+  vectorInstructionConfig->instCount[3] = Y / OC_DIMENSION;
 
   // inst 4- subtract max and exp, and divide by reduced value
   VectorInstructions vInst4;
@@ -151,7 +151,7 @@ void MapSoftmax(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vInst4.vOp4 = VectorInstructions::nop;
   vInst4.vDest = VectorInstructions::vWriteOut;
   vectorInstructionConfig->inst[4] = vInst4;
-  vectorInstructionConfig->instCount[4] = Y / DIMENSION;
+  vectorInstructionConfig->instCount[4] = Y / OC_DIMENSION;
 
   vectorInstructionConfig->instLen = 5;
   vectorInstructionConfig->instLoopCount = X;  // X

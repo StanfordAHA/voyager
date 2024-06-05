@@ -14,8 +14,8 @@ const SimplifiedParams conv1_params = {
     // .loops = {{7, 7, 2, 1, 1, 1}, {1, 2, 7, 2, 16, 16}},
     .loops = {{7, 7, 2, 1, 1, 1},
               {1, 2, 7,
-               (DIMENSION == 16   ? 2
-                : DIMENSION == 32 ? 1
+               (IC_DIMENSION == 16   ? 2
+                : IC_DIMENSION == 32 ? 1
                                   : 7),
                16, 16}},
     .inputXLoopIndex = {0, 5},

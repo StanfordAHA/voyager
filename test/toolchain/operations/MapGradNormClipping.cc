@@ -19,8 +19,8 @@ void MapGradNormClipping(const SimplifiedParams &params,
   vectorParams->addressGen0Loop[1][0] =
       2;  // two passes over tensor are required
   vectorParams->addressGen0Loop[1][1] = 1;
-  vectorParams->addressGen0Loop[1][2] = size / DIMENSION;
-  // std::cout << "size: " << size / DIMENSION << std::endl;
+  vectorParams->addressGen0Loop[1][2] = size / OC_DIMENSION;
+  // std::cout << "size: " << size / OC_DIMENSION << std::endl;
   vectorParams->addressGen0Broadcast = false;
   vectorParams->DP_VEC0 = true;
 
@@ -49,7 +49,7 @@ void MapGradNormClipping(const SimplifiedParams &params,
 
   vectorParams->outputLoops[1][0] = 1;
   vectorParams->outputLoops[1][1] = 1;
-  vectorParams->outputLoops[1][2] = size / DIMENSION;
+  vectorParams->outputLoops[1][2] = size / OC_DIMENSION;
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputYLoopIndex[1] = 1;
   vectorParams->outputXLoopIndex[1] = 0;
@@ -59,7 +59,7 @@ void MapGradNormClipping(const SimplifiedParams &params,
   // configure reduction unit
   VectorInstructions vInst0;
   vInst0.instType = VectorInstructions::reduction;
-  vInst0.rCount = size / DIMENSION;
+  vInst0.rCount = size / OC_DIMENSION;
   vInst0.rOp = VectorInstructions::radd;
   vInst0.rDuplicate = 1;
   vInst0.rSqrt = 1;
@@ -67,7 +67,7 @@ void MapGradNormClipping(const SimplifiedParams &params,
   vInst0.rMax1 = 1;
   vInst0.rDest = VectorInstructions::toVectorOp3Src1;
   vInst0.rBroadcast = 1;
-  ac_int<16, false> size16b = size / DIMENSION;
+  ac_int<16, false> size16b = size / OC_DIMENSION;
   vInst0.immediate0 = size16b.slc<8>(0);
   vInst0.immediate1 = size16b.slc<8>(8);
   vectorInstructionConfig->inst[0] = vInst0;
@@ -88,7 +88,7 @@ void MapGradNormClipping(const SimplifiedParams &params,
   vInst1.vOp4 = VectorInstructions::nop;
   vInst1.vDest = VectorInstructions::nop;
   vectorInstructionConfig->inst[1] = vInst1;
-  vectorInstructionConfig->instCount[1] = size / DIMENSION;
+  vectorInstructionConfig->instCount[1] = size / OC_DIMENSION;
 
   // divide entire tensor by sqrt
   VectorInstructions vInst2;
@@ -103,7 +103,7 @@ void MapGradNormClipping(const SimplifiedParams &params,
   vInst2.vOp4 = VectorInstructions::nop;
   vInst2.vDest = VectorInstructions::vWriteOut;
   vectorInstructionConfig->inst[2] = vInst2;
-  vectorInstructionConfig->instCount[2] = size / DIMENSION;
+  vectorInstructionConfig->instCount[2] = size / OC_DIMENSION;
 
   vectorInstructionConfig->instLen = 3;
   vectorInstructionConfig->instLoopCount = 1;

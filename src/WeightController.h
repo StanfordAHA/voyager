@@ -15,21 +15,21 @@ SC_MODULE(WeightController) {
   Connections::In<int> serialParamsIn;
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(addressRequest);
-  Connections::In<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(dataResponse);
+  Connections::In<Pack1D<DTYPE, NCOLS> > CCS_INIT_S1(dataResponse);
 
-  Connections::Out<BufferWriteRequest<DTYPE, NROWS> > writeRequest[2];
+  Connections::Out<BufferWriteRequest<DTYPE, NCOLS> > writeRequest[2];
   Connections::Out<int> writeControl[2];
   Connections::Out<int> readAddress[2];
   Connections::Out<int> readControl[2];
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(biasAddressRequest);
-  Connections::In<Pack1D<DTYPE, NROWS> > CCS_INIT_S1(biasDataResponse);
+  Connections::In<Pack1D<DTYPE, NCOLS> > CCS_INIT_S1(biasDataResponse);
 
 #ifdef HYBRID_FP8
-  Connections::Out<Pack1D<HYBRID_TYPE, NROWS> > CCS_INIT_S1(
+  Connections::Out<Pack1D<HYBRID_TYPE, NCOLS> > CCS_INIT_S1(
       weightsToSystolicArray);
 #else
-  Connections::Out<Pack1D<typename DTYPE::AccumulationDatatype, NROWS> >
+  Connections::Out<Pack1D<typename DTYPE::AccumulationDatatype, NCOLS> >
       CCS_INIT_S1(weightsToSystolicArray);
 #endif
 
@@ -160,13 +160,13 @@ SC_MODULE(WeightController) {
                       ac_int<16, false> c = c1 * C0 + c0;
                       ac_int<16, false> C = C1 * C0;
                       ac_int<16, false> k =
-                          k2 * K1 * DIMENSION + k1 * DIMENSION;
-                      ac_int<16, false> K = K2 * K1 * DIMENSION;
+                          k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
+                      ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
 
                       int baseAddress =
                           (fy * FX * C * K) + (fx * C * K) + (c * K) + k;
                       if (params.WEIGHT_TRANSPOSE) {
-                        baseAddress = (k + c0) * C + c1 * DIMENSION;
+                        baseAddress = (k + c0) * C + c1 * OC_DIMENSION;
                       } else if (params.CONCAT_HEAD_WEIGHTS) {
                         baseAddress =
                             static_cast<ac_int<32, false> >(
@@ -300,10 +300,10 @@ SC_MODULE(WeightController) {
 
                       ac_int<16, false> C = C0;
                       ac_int<16, false> k =
-                          k2 * K1 * DIMENSION + k1 * DIMENSION;
-                      ac_int<16, false> K = K2 * K1 * DIMENSION;
+                          k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
+                      ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
 
-                      Pack1D<DTYPE, NROWS> data = transposeOut.Pop();
+                      Pack1D<DTYPE, NCOLS> data = transposeOut.Pop();
 
                       int address =
                           (fy * FX * C * K1) + (fx * C * K1) + (c0 * K1) + k1;
@@ -317,7 +317,7 @@ SC_MODULE(WeightController) {
                       //     == loop_bounds[1][5] - 1);
 
                       // writeControl[bankSel].Push(!swapBank);
-                      BufferWriteRequest<DTYPE, NROWS> req;
+                      BufferWriteRequest<DTYPE, NCOLS> req;
                       req.address = address;
                       req.data = data;
                       writeRequest[bankSel].Push(req);
@@ -433,7 +433,7 @@ SC_MODULE(WeightController) {
                         if (params.REPLICATION) {
                           startingC = 3 - 1;
                           endingC = 3;
-                          if (DIMENSION == 16) {
+                          if (IC_DIMENSION == 16) {
                             if (loop_counters[1][params.fxIndex] == 0) {
                               numPadding = NROWS - 12;
                               replicationBound = 4;
@@ -441,7 +441,7 @@ SC_MODULE(WeightController) {
                               numPadding = NROWS - 9;
                               replicationBound = 3;
                             }
-                          } else if (DIMENSION == 32) {
+                          } else if (IC_DIMENSION == 32) {
                             replicationBound = 7;
                             numPadding = NROWS - replicationBound * 3;
                           }
@@ -472,21 +472,21 @@ SC_MODULE(WeightController) {
                             ac_int<8, false> FY =
                                 params.loops[1][params.fyIndex];
 
-                            ac_int<8, false> C = DIMENSION;
+                            ac_int<8, false> C = IC_DIMENSION;
                             if (params.REPLICATION) {
                               C = 3;
-                              if (DIMENSION == 16) {
+                              if (IC_DIMENSION == 16) {
                                 fx = loop_counters[1][params.fxIndex] * 4 +
                                      fx_repl;
-                              } else if (DIMENSION == 32) {
+                              } else if (IC_DIMENSION == 32) {
                                 fx = fx_repl;
                               }
                               FX = 7;
                             }
 
                             ac_int<16, false> k =
-                                k2 * K1 * DIMENSION + k1 * DIMENSION;
-                            ac_int<16, false> K = K2 * K1 * DIMENSION;
+                                k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
+                            ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
                             int address =
                                 static_cast<ac_int<16, false> >(
                                     (fy * FX * C * K1)) +
@@ -596,7 +596,8 @@ SC_MODULE(WeightController) {
       // }
 
       if (params.WEIGHT_TRANSPOSE) {
-        INPUT_DATATYPE transposeBuffer[NROWS][NCOLS];
+        INPUT_DATATYPE transposeBuffer[NROWS > NCOLS ? NROWS : NCOLS]
+                                      [NROWS > NCOLS ? NROWS : NCOLS];
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
@@ -738,21 +739,22 @@ SC_MODULE(WeightController) {
                       for (loop_counters[1][5] = 0;
                            loop_counters[1][5] < loop_bounds[1][5];
                            loop_counters[1][5]++) {
-                        ac_int<8, false> k2 = loop_counters
-                            [0][params.weightLoopIndex[0]];
-                        ac_int<8, false> K2 = loop_bounds
-                            [0][params.weightLoopIndex[0]];
-                        ac_int<8, false> k1 = loop_counters
-                            [1][params.weightLoopIndex[1]];
-                        ac_int<8, false> K1 = loop_bounds
-                            [1][params.weightLoopIndex[1]];
+                        ac_int<8, false> k2 =
+                            loop_counters[0][params.weightLoopIndex[0]];
+                        ac_int<8, false> K2 =
+                            loop_bounds[0][params.weightLoopIndex[0]];
+                        ac_int<8, false> k1 =
+                            loop_counters[1][params.weightLoopIndex[1]];
+                        ac_int<8, false> K1 =
+                            loop_bounds[1][params.weightLoopIndex[1]];
 
                         ac_int<16, false> k =
-                            k2 * K1 * DIMENSION + k1 * DIMENSION;
-                        ac_int<16, false> K = K2 * K1 * DIMENSION;
+                            k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
+                        ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
 
                         int baseAddress = params.BIAS_OFFSET + k * 2;
-                        MemoryRequest memRequest = {baseAddress, DIMENSION * 2};
+                        MemoryRequest memRequest = {baseAddress,
+                                                    OC_DIMENSION * 2};
 
                         biasAddressRequest.Push(memRequest);
 

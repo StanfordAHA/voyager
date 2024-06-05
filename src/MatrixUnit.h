@@ -19,82 +19,82 @@ SC_MODULE(MatrixUnit) {
 
   // clang-format off
   #ifdef SIM_InputController
-  CCS_DESIGN((InputController<INPUT_DATATYPE, DIMENSION>)) CCS_INIT_S1(inputController);
+  CCS_DESIGN((InputController<INPUT_DATATYPE, IC_DIMENSION>)) CCS_INIT_S1(inputController);
   #else
-  InputController<INPUT_DATATYPE, DIMENSION> CCS_INIT_S1(inputController);
+  InputController<INPUT_DATATYPE, IC_DIMENSION> CCS_INIT_S1(inputController);
   #endif
   // clang-format on
 
-  DoubleBuffer<INPUT_DATATYPE, DIMENSION, INPUT_BUFFER_SIZE> CCS_INIT_S1(
+  DoubleBuffer<INPUT_DATATYPE, IC_DIMENSION, INPUT_BUFFER_SIZE> CCS_INIT_S1(
       inputBuffer);
   Connections::Out<MemoryRequest> CCS_INIT_S1(inputAddressRequest);
-  Connections::In<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  Connections::In<Pack1D<INPUT_DATATYPE, IC_DIMENSION> > CCS_INIT_S1(
       inputDataResponse);
-  Connections::Combinational<BufferWriteRequest<INPUT_DATATYPE, DIMENSION> >
+  Connections::Combinational<BufferWriteRequest<INPUT_DATATYPE, IC_DIMENSION> >
       inputBufferWriteReq[2];
   Connections::Combinational<int> inputBufferWriteControl[2];
   Connections::Combinational<int> inputBufferReadAddress[2];
   Connections::Combinational<int> inputBufferReadControl[2];
-  Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<INPUT_DATATYPE, IC_DIMENSION> > CCS_INIT_S1(
       inputsToWindowBuffer);
 
 #ifdef SIM_WeightController
   // clang-format off
-  CCS_DESIGN( (WeightController<INPUT_DATATYPE, ACCUM_DATATYPE, DIMENSION, DIMENSION>) ) CCS_INIT_S1(weightController);
+  CCS_DESIGN( (WeightController<INPUT_DATATYPE, ACCUM_DATATYPE, IC_DIMENSION, OC_DIMENSION>) ) CCS_INIT_S1(weightController);
 // clang-format on
 #else
-  WeightController<INPUT_DATATYPE, ACCUM_DATATYPE, DIMENSION, DIMENSION>
+  WeightController<INPUT_DATATYPE, ACCUM_DATATYPE, IC_DIMENSION, OC_DIMENSION>
       CCS_INIT_S1(weightController);
 #endif
 
-  DoubleBuffer<INPUT_DATATYPE, DIMENSION, WEIGHT_BUFFER_SIZE> CCS_INIT_S1(
+  DoubleBuffer<INPUT_DATATYPE, OC_DIMENSION, WEIGHT_BUFFER_SIZE> CCS_INIT_S1(
       weightBuffer);
   Connections::Out<MemoryRequest> CCS_INIT_S1(weightAddressRequest);
-  Connections::In<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  Connections::In<Pack1D<INPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
       weightDataResponse);
   Connections::Out<MemoryRequest> CCS_INIT_S1(biasAddressRequest);
-  Connections::In<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  Connections::In<Pack1D<INPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
       biasDataResponse);
-  Connections::Combinational<BufferWriteRequest<INPUT_DATATYPE, DIMENSION> >
+  Connections::Combinational<BufferWriteRequest<INPUT_DATATYPE, OC_DIMENSION> >
       weightBufferWriteReq[2];
   Connections::Combinational<int> weightBufferWriteControl[2];
   Connections::Combinational<int> weightBufferReadAddress[2];
   Connections::Combinational<int> weightBufferReadControl[2];
-  Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<INPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
       weightsFromBuffer);
 
 #ifdef SIM_MatrixProcessor
   // clang-format off
-  CCS_DESIGN( (MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE, DIMENSION, DIMENSION, ACCUMULATION_BUFFER_SIZE>) ) CCS_INIT_S1(matrixProcessor);
+  CCS_DESIGN( (MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE, IC_DIMENSION, OC_DIMENSION, ACCUMULATION_BUFFER_SIZE>) ) CCS_INIT_S1(matrixProcessor);
 // clang-format on
 #else
 #ifdef HYBRID_FP8
-  MatrixProcessor<HYBRID_TYPE, ACCUM_DATATYPE, DIMENSION, DIMENSION,
+  MatrixProcessor<HYBRID_TYPE, ACCUM_DATATYPE, IC_DIMENSION, OC_DIMENSION,
                   ACCUMULATION_BUFFER_SIZE>
       CCS_INIT_S1(matrixProcessor);
 #else
-  MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE, DIMENSION, DIMENSION,
+  MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE, IC_DIMENSION, OC_DIMENSION,
                   ACCUMULATION_BUFFER_SIZE>
       CCS_INIT_S1(matrixProcessor);
 #endif
 #endif
 
 #ifdef HYBRID_FP8
-  Connections::Combinational<Pack1D<HYBRID_TYPE, DIMENSION> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<HYBRID_TYPE, IC_DIMENSION> > CCS_INIT_S1(
       inputsToSystolicArray);
-  Connections::Combinational<Pack1D<HYBRID_TYPE, DIMENSION> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<HYBRID_TYPE, OC_DIMENSION> > CCS_INIT_S1(
       weightsToSystolicArray);
 #else
-  Connections::Combinational<Pack1D<INPUT_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<INPUT_DATATYPE, IC_DIMENSION> > CCS_INIT_S1(
       inputsToSystolicArray);
 
   Connections::Combinational<
-      Pack1D<INPUT_DATATYPE::AccumulationDatatype, DIMENSION> >
+      Pack1D<INPUT_DATATYPE::AccumulationDatatype, OC_DIMENSION> >
       CCS_INIT_S1(weightsToSystolicArray);
-  Connections::Combinational<Pack1D<ACCUM_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<ACCUM_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
       biasToSystolicArray);
 #endif
-  Connections::Out<Pack1D<ACCUM_DATATYPE, DIMENSION> > CCS_INIT_S1(
+  Connections::Out<Pack1D<ACCUM_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
       outputsFromSystolicArray);
 
   Connections::SyncOut CCS_INIT_S1(startSignal);

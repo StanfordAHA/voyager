@@ -7,9 +7,9 @@ void MapNoNormGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
           params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * DIMENSION;
+  int C = params.loops[1][params.reductionLoopIndex[1]] * OC_DIMENSION;
   int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * DIMENSION;
+          params.loops[1][params.weightLoopIndex[1]] * OC_DIMENSION;
   int FX = params.loops[1][params.fxIndex];
   int FY = params.loops[1][params.fyIndex];
   int STRIDE = params.STRIDE;
@@ -25,7 +25,7 @@ void MapNoNormGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->addressGen0Broadcast = false;
   vectorParams->addressGen0Loop[0][0] = 1;
   vectorParams->addressGen0Loop[0][1] = 1;
-  vectorParams->addressGen0Loop[0][2] = K / DIMENSION;
+  vectorParams->addressGen0Loop[0][2] = K / OC_DIMENSION;
   vectorParams->addressGen0Loop[1][0] = 1;
   vectorParams->addressGen0Loop[1][1] = X;
   vectorParams->addressGen0Loop[1][2] = 1;
@@ -37,7 +37,7 @@ void MapNoNormGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->addressGen1Mode = 2;  // 2d tensor
   vectorParams->addressGen1Loops[0][0] = 1;
   vectorParams->addressGen1Loops[0][1] = 1;
-  vectorParams->addressGen1Loops[0][2] = K / DIMENSION;
+  vectorParams->addressGen1Loops[0][2] = K / OC_DIMENSION;
   vectorParams->addressGen1Loops[1][0] = 1;
   vectorParams->addressGen1Loops[1][1] = X;
   vectorParams->addressGen1Loops[1][2] = 1;
@@ -48,7 +48,7 @@ void MapNoNormGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorParams->addressGen2Mode = params.RESIDUAL ? 2 : 0;
   vectorParams->addressGen2Loops[0][0] = 1;
   vectorParams->addressGen2Loops[0][1] = 1;
-  vectorParams->addressGen2Loops[0][2] = K / DIMENSION;
+  vectorParams->addressGen2Loops[0][2] = K / OC_DIMENSION;
   vectorParams->DP_VEC2 = params.ACC_T_RESIDUAL;
 
   vectorParams->VECTOR_OUTPUT_OFFSET = params.OUTPUT_OFFSET;
@@ -70,7 +70,7 @@ void MapNoNormGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
 
   vectorParams->outputLoops[1][0] = 1;
   vectorParams->outputLoops[1][1] = 1;
-  vectorParams->outputLoops[1][2] = K / DIMENSION;
+  vectorParams->outputLoops[1][2] = K / OC_DIMENSION;
   vectorParams->outputWeightLoopIndex[1] = 2;
   vectorParams->outputYLoopIndex[1] = 0;
   vectorParams->outputXLoopIndex[1] = 1;
@@ -106,8 +106,8 @@ void MapNoNormGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vInst1.vDest = VectorInstructions::nop;
   vectorInstructionConfig->inst[1] = vInst1;
 
-  // C/DIMENSION to do the complete reduction
-  // DIMENSION to fill up the entire vector
+  // C/OC_DIMENSION to do the complete reduction
+  // OC_DIMENSION to fill up the entire vector
   vectorInstructionConfig->instCount[1] = X;
 
   // inst 2- pull from accumulator
@@ -131,7 +131,7 @@ void MapNoNormGrad(const SimplifiedParams &params, const MemoryMap &memoryMap,
   vectorInstructionConfig->instCount[2] = 1;
 
   vectorInstructionConfig->instLen = 3;
-  vectorInstructionConfig->instLoopCount = K / DIMENSION;
+  vectorInstructionConfig->instLoopCount = K / OC_DIMENSION;
 
   // sendSerializedParams<VectorInstructionConfig,
   // 32>(vectorInstructionConfig,
