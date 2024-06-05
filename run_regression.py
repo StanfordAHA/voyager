@@ -122,7 +122,7 @@ def run_systemc_test(model, layer, output_folder):
 
 
 def run_systemc_tests(models, num_processes, results_folder):
-    check_environment_vars(["DATATYPE", "DIMENSION"])
+    check_environment_vars(["DATATYPE", "IC_DIMENSION", "OC_DIMENSION"])
 
     # Build TestRunner binary
     subprocess.run(["make", "clean"], env=os.environ)
@@ -164,7 +164,7 @@ def run_rtl_test(model, layer, output_folder):
         try:
             subprocess.run(
                 ["make", "-f", "scverify/Verify_concat_sim_rtl_v_vcs.mk", "sim"],
-                cwd=f"build/{env_vars['DATATYPE']}_{env_vars['DIMENSION']}x{env_vars['DIMENSION']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
+                cwd=f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
                 env=env_vars,
                 stdout=stdout_file,
                 stderr=subprocess.STDOUT,
@@ -187,7 +187,7 @@ def run_rtl_test(model, layer, output_folder):
 
 
 def run_rtl_tests(models, num_processes, results_folder):
-    check_environment_vars(["DATATYPE", "DIMENSION", "TECHNOLOGY", "CLOCK_PERIOD"])
+    check_environment_vars(["DATATYPE", "IC_DIMENSION", "OC_DIMENSION", "TECHNOLOGY", "CLOCK_PERIOD"])
 
     # clean old build
     subprocess.run(["make", "clean-catapult"], env=os.environ)
@@ -211,7 +211,7 @@ def run_rtl_tests(models, num_processes, results_folder):
 
         subprocess.run(
             ["make", "-f", "scverify/Verify_concat_sim_rtl_v_vcs.mk", "build"],
-            cwd=f"build/{env_vars['DATATYPE']}_{env_vars['DIMENSION']}x{env_vars['DIMENSION']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
+            cwd=f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
             env=env_vars,
             stdout=stdout_file,
             stderr=subprocess.STDOUT,

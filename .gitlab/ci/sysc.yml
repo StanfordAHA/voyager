@@ -6,7 +6,17 @@ SystemC Simulation (E4M3, 16x16):
       - ./regression_results
     expire_in: 1 month
   script:
-    - DATATYPE=E4M3 DIMENSION=16 python3 run_regression.py --models resnet18,mobilebert --sims SystemC --num_processes 32
+    - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models resnet18,mobilebert --sims SystemC --num_processes 32
+  
+SystemC Simulation (E4M3, 16x32):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=32 python3 run_regression.py --models resnet18,mobilebert --sims SystemC --num_processes 32
 
 SystemC Simulation (E4M3, 32x32):
   stage: test
@@ -16,4 +26,14 @@ SystemC Simulation (E4M3, 32x32):
       - ./regression_results
     expire_in: 1 month
   script:
-    - DATATYPE=E4M3 DIMENSION=32 python3 run_regression.py --models resnet18,mobilebert --sims SystemC --num_processes 32
+    - DATATYPE=E4M3 IC_DIMENSION=32 OC_DIMENSION=32 python3 run_regression.py --models resnet18,mobilebert --sims SystemC --num_processes 32
+  
+SystemC Simulation (E4M3, 32x64):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=E4M3 IC_DIMENSION=32 OC_DIMENSION=64 python3 run_regression.py --models resnet18 --sims SystemC --num_processes 32
