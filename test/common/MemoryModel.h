@@ -2,8 +2,7 @@
 
 #include "test/common/VerificationTypes.h"
 
-double* readFileAsDouble(const std::string& filename, int size,
-                         bool useDataFile);
+float* readFileAsFloat(const std::string& filename, int size, bool useDataFile);
 
 class MemoryModel {
  public:
@@ -26,9 +25,9 @@ class MemoryModel {
   void loadBias(const SimplifiedParams& params, const MemorySource& mem,
                 const std::string& filename, bool useDataFile);
 
-  virtual void writeToMemory(int address, double val, const MemorySource& mem,
+  virtual void writeToMemory(int address, float val, const MemorySource& mem,
                              bool doublePrecision) = 0;
-  virtual void writeToReference(int address, double val,
+  virtual void writeToReference(int address, float val,
                                 bool doublePrecision) = 0;
 
  private:

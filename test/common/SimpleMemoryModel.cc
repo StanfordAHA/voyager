@@ -10,7 +10,8 @@
 #include "test/common/VerificationTypes.h"
 
 template <class T>
-SimpleMemoryModel<T>::SimpleMemoryModel(bool isDut) : MemoryModel(isDut) {
+SimpleMemoryModel<T>::SimpleMemoryModel(bool isDut)
+    : MemoryModel(isDut) {
   try {
     sram = new T[SRAM_MEMORY_SIZE]();
     rram = new T[RRAM_MEMORY_SIZE]();
@@ -28,7 +29,7 @@ SimpleMemoryModel<T>::~SimpleMemoryModel() {
 }
 
 template <>
-void SimpleMemoryModel<float>::writeToReference(int address, double val,
+void SimpleMemoryModel<float>::writeToReference(int address, float val,
                                                 bool doublePrecision) {
   if (doublePrecision) {
     reference[2 * address] = val;
@@ -38,8 +39,7 @@ void SimpleMemoryModel<float>::writeToReference(int address, double val,
 }
 
 template <>
-void SimpleMemoryModel<INPUT_DATATYPE>::writeToReference(int address,
-                                                         double val,
+void SimpleMemoryModel<INPUT_DATATYPE>::writeToReference(int address, float val,
                                                          bool doublePrecision) {
   if (doublePrecision) {
     ACCUM_DATATYPE p16 = static_cast<ACCUM_DATATYPE>(val);
@@ -53,8 +53,7 @@ void SimpleMemoryModel<INPUT_DATATYPE>::writeToReference(int address,
 
 #ifndef NO_UNIVERSAL
 template <>
-void SimpleMemoryModel<UniversalPosit>::writeToReference(int address,
-                                                         double val,
+void SimpleMemoryModel<UniversalPosit>::writeToReference(int address, float val,
                                                          bool doublePrecision) {
   if (doublePrecision) {
     UniversalPositAccum p16 = val;
@@ -68,7 +67,7 @@ void SimpleMemoryModel<UniversalPosit>::writeToReference(int address,
 #endif
 
 template <>
-void SimpleMemoryModel<INPUT_DATATYPE>::writeToMemory(int address, double val,
+void SimpleMemoryModel<INPUT_DATATYPE>::writeToMemory(int address, float val,
                                                       const MemorySource& mem,
                                                       bool doublePrecision) {
   INPUT_DATATYPE* memArray = (mem == SRAM) ? sram : rram;
@@ -82,7 +81,7 @@ void SimpleMemoryModel<INPUT_DATATYPE>::writeToMemory(int address, double val,
 }
 
 template <>
-void SimpleMemoryModel<float>::writeToMemory(int address, double val,
+void SimpleMemoryModel<float>::writeToMemory(int address, float val,
                                              const MemorySource& mem,
                                              bool doublePrecision) {
   float* memArray = (mem == SRAM) ? sram : rram;
@@ -92,7 +91,7 @@ void SimpleMemoryModel<float>::writeToMemory(int address, double val,
 
 #ifndef NO_UNIVERSAL
 template <>
-void SimpleMemoryModel<UniversalPosit>::writeToMemory(int address, double val,
+void SimpleMemoryModel<UniversalPosit>::writeToMemory(int address, float val,
                                                       const MemorySource& mem,
                                                       bool doublePrecision) {
   UniversalPosit* memArray = (mem == SRAM) ? sram : rram;

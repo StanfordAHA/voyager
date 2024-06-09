@@ -4,25 +4,28 @@
 #include <iostream>
 #include <random>
 
+#include "xtensor/xadapt.hpp"
+#include "xtensor/xarray.hpp"
+
 MemoryModel::MemoryModel(bool isDut) : isDut(isDut) {}
 
-double* readFileAsDouble(const std::string& filename, int size,
-                         bool useDataFile) {
-  // Files are written in binary format as dtype=float64 (double in c)
-  char* tmpValuesArray = new char[size * sizeof(double)];
-  double* tmpValuePtr = (double*)tmpValuesArray;
+float* readFileAsFloat(const std::string& filename, int size,
+                       bool useDataFile) {
+  // Files are written in binary format as dtype=float64 (float in c)
+  char* tmpValuesArray = new char[size * sizeof(float)];
+  float* tmpValuePtr = (float*)tmpValuesArray;
 
   if (useDataFile) {
     std::ifstream is(filename, std::ios::binary);
     if (!is.good())
       throw std::runtime_error("File \"" + filename + "\" does not exist");
-    is.read(tmpValuesArray, size * sizeof(double));
+    is.read(tmpValuesArray, size * sizeof(float));
   } else {
     static std::default_random_engine e;
     static std::uniform_real_distribution<> dis(-1, 1);
 
     for (int i = 0; i < size; i++) {
-      tmpValuePtr[i] = (double)dis(e);
+      tmpValuePtr[i] = (float)dis(e);
     }
   }
 
@@ -54,8 +57,16 @@ void MemoryModel::loadInputs(const SimplifiedParams& params,
     size = X;
   }
 
-  double* tmpValues = readFileAsDouble(filename, size, useDataFile);
-  double* tmpValuePtr = tmpValues;
+  float* tmpValues = readFileAsFloat(filename, size, useDataFile);
+  float* tmpValuePtr = tmpValues;
+
+  // Pytorch input tensors are written as (B, C, H, W)
+  // Our memory is written as (H, W, C)
+  // We need to do some reshaping to get the correct values in the correct place
+  xt::xarray<float> tensor =
+      xt::adapt(tmpValues, size, xt::no_ownership(),
+                std::vector<std::size_t>({1, C, STRIDE * Y, STRIDE * X}));
+  tensor = xt::transpose(tensor, {2, 3, 1, 0});
 
   if (params.REPLICATION) {
     int packingFactor;  // number of 3-channel values packed into a single word
@@ -66,12 +77,14 @@ void MemoryModel::loadInputs(const SimplifiedParams& params,
       packingFactor = 8;
     }
 
+    auto it = tensor.begin();
     for (int y = 0; y < STRIDE * Y; y++) {
       for (int x_o = 0; x_o < (STRIDE * X) / packingFactor; x_o++) {
         for (int x_i = 0; x_i < packingFactor; x_i++) {
           for (int c = 0; c < C; c++) {
             int x = x_o * packingFactor + x_i;
-            double val = *(tmpValuePtr++);
+
+            float val = *(it++);
 
             int address;
             if (isDut) {
@@ -91,13 +104,16 @@ void MemoryModel::loadInputs(const SimplifiedParams& params,
       }
     }
   } else {
-    for (int address = 0; address < size; address++) {
-      double val = *(tmpValuePtr++);
+    int address = 0;
+    for (auto it = tensor.begin(); it != tensor.end(); ++it) {
+      float val = *it;
+
       if (params.ACC_T_INPUT) {
         writeToMemory(params.INPUT_OFFSET + 2 * address, val, mem, true);
       } else {
         writeToMemory(params.INPUT_OFFSET + address, val, mem, false);
       }
+      address++;
     }
   }
 
@@ -133,16 +149,26 @@ void MemoryModel::loadWeights(const SimplifiedParams& params,
     size = X * C;
   }
 
-  double* tmpValues = readFileAsDouble(filename, size, useDataFile);
-  double* tmpValuePtr = tmpValues;
+  float* tmpValues = readFileAsFloat(filename, size, useDataFile);
+  float* tmpValuePtr = tmpValues;
 
-  for (int address = 0; address < size; address++) {
-    double val = *(tmpValuePtr++);
+  // Pytorch weight tensors are written as (OC, IC, KH, KW)
+  // Our memory is written as (KH, KW, IC, OC)
+  // We need to do some reshaping to get the correct values in the correct place
+  xt::xarray<float> tensor =
+      xt::adapt(tmpValues, size, xt::no_ownership(),
+                std::vector<std::size_t>({K, C, FY, FX}));
+  tensor = xt::transpose(tensor, {2, 3, 1, 0});
+
+  int address = 0;
+  for (auto it = tensor.begin(); it != tensor.end(); ++it) {
+    float val = *it;
     if (params.ACC_T_WEIGHT || params.NO_NORM) {
       writeToMemory(params.WEIGHT_OFFSET + 2 * address, val, mem, true);
     } else {
       writeToMemory(params.WEIGHT_OFFSET + address, val, mem, false);
     }
+    address++;
   }
 
   delete[] tmpValues;
@@ -162,11 +188,11 @@ void MemoryModel::loadBias(const SimplifiedParams& params,
   int FY = params.loops[1][params.fyIndex];
 
   int size = K;
-  double* tmpValues = readFileAsDouble(filename, size, useDataFile);
-  double* tmpValuePtr = tmpValues;
+  float* tmpValues = readFileAsFloat(filename, size, useDataFile);
+  float* tmpValuePtr = tmpValues;
 
   for (int address = 0; address < size; address++) {
-    double val = *(tmpValuePtr++);
+    float val = *(tmpValuePtr++);
     writeToMemory(params.BIAS_OFFSET + 2 * address, val, mem, true);
   }
 
@@ -196,24 +222,33 @@ void MemoryModel::loadResiduals(const SimplifiedParams& params,
     size = X * Y;
   }
 
-  double* tmpValues = readFileAsDouble(filename, size, useDataFile);
-  double* tmpValuePtr = tmpValues;
+  float* tmpValues = readFileAsFloat(filename, size, useDataFile);
+  float* tmpValuePtr = tmpValues;
 
-  for (int address = 0; address < size; address++) {
-    double val = *(tmpValuePtr++);
+  // Pytorch input tensors are written as (C, H, W)
+  // Our memory is written as (H, W, C)
+  // We need to do some reshaping to get the correct values in the correct place
+  xt::xarray<float> tensor = xt::adapt(tmpValues, size, xt::no_ownership(),
+                                       std::vector<std::size_t>({K, Y, X}));
+  tensor = xt::transpose(tensor, {1, 2, 0});
+
+  int address = 0;
+  for (auto it = tensor.begin(); it != tensor.end(); ++it) {
+    float val = *it;
+
     if (params.ACC_T_RESIDUAL) {
       writeToMemory(params.RESIDUAL_OFFSET + 2 * address, val, mem, true);
     } else {
       writeToMemory(params.RESIDUAL_OFFSET + address, val, mem, false);
     }
+    address++;
   }
 
   delete[] tmpValues;
 }
 
 void MemoryModel::loadReferenceOutput(const SimplifiedParams& params,
-                                      const Files& files,
-                                      bool doublePrecision) {
+                                      const Files& files, bool floatPrecision) {
   int X = params.loops[0][params.inputXLoopIndex[0]] *
           params.loops[1][params.inputXLoopIndex[1]];
   int Y = params.loops[0][params.inputYLoopIndex[0]] *
@@ -248,12 +283,22 @@ void MemoryModel::loadReferenceOutput(const SimplifiedParams& params,
     size = X * C;
   }
 
-  double* tmpValues = readFileAsDouble(files.outputs_file, size, true);
-  double* tmpValuePtr = tmpValues;
+  float* tmpValues = readFileAsFloat(files.outputs_file, size, true);
+  float* tmpValuePtr = tmpValues;
 
-  for (int i = 0; i < size; i++) {
-    double val = *(tmpValuePtr++);
-    writeToReference(i, val, params.ACC_T_OUTPUT);
+  // Pytorch input tensors are written as (C, H, W)
+  // Our memory is written as (H, W, C)
+  // We need to do some reshaping to get the correct values in the correct place
+  xt::xarray<float> tensor = xt::adapt(tmpValues, size, xt::no_ownership(),
+                                       std::vector<std::size_t>({K, Y, X}));
+  tensor = xt::transpose(tensor, {1, 2, 0});
+
+  int address = 0;
+  for (auto it = tensor.begin(); it != tensor.end(); ++it) {
+    float val = *it;
+
+    writeToReference(address, val, params.ACC_T_OUTPUT);
+    address++;
   }
 
   delete[] tmpValues;

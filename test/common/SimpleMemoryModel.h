@@ -13,7 +13,7 @@ class SimpleMemoryModel : public MemoryModel {
   T* reference;
 
  private:
-  void writeToMemory(int address, double val, const MemorySource& mem,
+  void writeToMemory(int address, float val, const MemorySource& mem,
                      bool doublePrecision) override;
-  void writeToReference(int address, double val, bool doublePrecision) override;
+  void writeToReference(int address, float val, bool doublePrecision) override;
 };
