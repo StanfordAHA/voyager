@@ -96,7 +96,7 @@ def run_systemc_test(model, layer, output_folder):
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
     env_vars["SIMS"] = "customposit,accelerator"
-    env_vars["DATA_DIR"] = f"/sim2/shared/MINOTAUR/nn_data/{model}/"
+    env_vars["DATA_DIR"] = f"/sim2/shared/MINOTAUR/nn_data/unfused_maxpool/{model}/"
 
     with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
         try:
@@ -158,7 +158,7 @@ def run_rtl_test(model, layer, output_folder):
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
     env_vars["SIMS"] = "customposit,accelerator"
-    env_vars["DATA_DIR"] = f"/sim2/shared/MINOTAUR/nn_data/{model}/"
+    env_vars["DATA_DIR"] = f"/sim2/shared/MINOTAUR/nn_data/unfused_maxpool/{model}/"
 
     with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
         try:
@@ -207,7 +207,7 @@ def run_rtl_tests(models, num_processes, results_folder):
         env_vars["NETWORK"] = "resnet18"
         env_vars["TESTS"] = "layer2_0_downsample"
         env_vars["SIMS"] = "customposit,accelerator"
-        env_vars["DATA_DIR"] = f"/sim2/shared/MINOTAUR/nn_data/resnet18/"
+        env_vars["DATA_DIR"] = f"/sim2/shared/MINOTAUR/nn_data/unfused_maxpool/resnet18/"
 
         subprocess.run(
             ["make", "-f", "scverify/Verify_concat_sim_rtl_v_vcs.mk", "build"],
