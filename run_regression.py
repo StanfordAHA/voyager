@@ -127,6 +127,72 @@ def check_environment_vars(required_vars):
             sys.exit(1)
 
 
+def run_functional_test(model, layer, output_folder):
+    env_vars = os.environ.copy()
+    env_vars["NETWORK"] = model
+    env_vars["TESTS"] = layer
+    env_vars["SIMS"] = "customposit,file"
+    env_vars["DATA_DIR"] = f"/sim2/shared/MINOTAUR/nn_data/{model}/"
+    env_vars["DATATYPE"] = "FP32"
+
+    with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
+        try:
+            subprocess.run(
+                ["make", "sim"],
+                env=env_vars,
+                stdout=stdout_file,
+                stderr=subprocess.STDOUT,
+                timeout=1 * 30,
+            )
+        except subprocess.TimeoutExpired:
+            print(f"Test {model}_{layer} timed out")
+            stdout_file.write("Test timed out")
+
+    # search if the test passed
+    p = subprocess.Popen(
+        ["grep", "Error count: 0", f"{output_folder}/{model}_{layer}.log"],
+        stdout=subprocess.PIPE,
+    )
+    p.communicate()
+
+    return (f"{model}.{layer}", p.returncode == 0)
+
+
+def run_functional_tests(models, num_processes, results_folder):
+    check_environment_vars(["DIMENSION"])
+
+    env_vars = os.environ.copy()
+    env_vars["DATATYPE"] = "FP32"
+
+    # Build TestRunner binary
+    # subprocess.run(["make", "clean"], env=env_vars)
+
+    with open(f"{results_folder}/build.log", "w") as stdout_file:
+        subprocess.run(
+            ["make", "-j", "TestRunner"],
+            env=env_vars,
+            stdout=stdout_file,
+            stderr=subprocess.STDOUT,
+        )
+
+    pool = mp.Pool(num_processes)
+
+    test_results = []
+
+    for model in models:
+        for layer in LAYERS[model]:
+            pool.apply_async(
+                run_functional_test,
+                args=(model, layer, results_folder),
+                callback=test_results.append,
+            )
+
+    pool.close()
+    pool.join()
+
+    return print_test_results(test_results)
+
+
 def run_systemc_test(model, layer, output_folder):
     env_vars = os.environ.copy()
     env_vars["NETWORK"] = model
@@ -285,7 +351,10 @@ def main():
         help="Model(s) to use for regression (resnet18, mobilebert)",
     )
     parser.add_argument(
-        "--sims", type=str, required=True, help="Simulation to run (SystemC or RTL)"
+        "--sims",
+        type=str,
+        required=True,
+        help="Simulation to run (SystemC, RTL, functional)",
     )
     parser.add_argument(
         "--num_processes",
@@ -313,6 +382,8 @@ def main():
         success = run_systemc_tests(args.models, args.num_processes, results_folder)
     elif args.sims == "RTL":
         success = run_rtl_tests(args.models, args.num_processes, results_folder)
+    elif args.sims == "functional":
+        success = run_functional_tests(args.models, args.num_processes, results_folder)
     else:
         print("Invalid simulation type")
         success = False
