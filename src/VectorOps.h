@@ -152,6 +152,81 @@ void vmultdiv(Pack1D<ACC_DTYPE, WIDTH>& op0, Pack1D<ACC_DTYPE, WIDTH>& op1,
 // to be supported
 
 /*
+ * Dimension = 64
+ */
+#pragma hls_design ccore
+template <typename ACC_DTYPE>
+ACC_DTYPE treeadd(Pack1D<ACC_DTYPE, 64>& op) {
+  Pack1D<ACC_DTYPE, 32> lvl0;
+#pragma hls_unroll yes
+  for (int i = 0; i < 32; i++) {
+    lvl0[i] = static_cast<ACC_DTYPE>(op[i * 2] + op[i * 2 + 1]);
+  }
+
+  Pack1D<ACC_DTYPE, 16> lvl1;
+#pragma hls_unroll yes
+  for (int i = 0; i < 16; i++) {
+    lvl1[i] = static_cast<ACC_DTYPE>(lvl0[i * 2] + lvl0[i * 2 + 1]);
+  }
+
+  Pack1D<ACC_DTYPE, 8> lvl2;
+#pragma hls_unroll yes
+  for (int i = 0; i < 8; i++) {
+    lvl2[i] = static_cast<ACC_DTYPE>(lvl1[i * 2] + lvl1[i * 2 + 1]);
+  }
+
+  Pack1D<ACC_DTYPE, 4> lvl3;
+#pragma hls_unroll yes
+  for (int i = 0; i < 4; i++) {
+    lvl3[i] = static_cast<ACC_DTYPE>(lvl2[i * 2] + lvl2[i * 2 + 1]);
+  }
+
+  Pack1D<ACC_DTYPE, 2> lvl4;
+#pragma hls_unroll yes
+  for (int i = 0; i < 2; i++) {
+    lvl4[i] = static_cast<ACC_DTYPE>(lvl3[i * 2] + lvl3[i * 2 + 1]);
+  }
+
+  return static_cast<ACC_DTYPE>(lvl4[0] + lvl4[1]);
+}
+
+#pragma hls_design ccore
+template <typename ACC_DTYPE>
+ACC_DTYPE treemax(Pack1D<ACC_DTYPE, 64>& op) {
+  Pack1D<ACC_DTYPE, 32> lvl0;
+#pragma hls_unroll yes
+  for (int i = 0; i < 32; i++) {
+    lvl0[i] = op[i * 2] < op[i * 2 + 1] ? op[i * 2 + 1] : op[i * 2];
+  }
+
+  Pack1D<ACC_DTYPE, 16> lvl1;
+#pragma hls_unroll yes
+  for (int i = 0; i < 16; i++) {
+    lvl1[i] = lvl0[i * 2] < lvl0[i * 2 + 1] ? lvl0[i * 2 + 1] : lvl0[i * 2];
+  }
+
+  Pack1D<ACC_DTYPE, 8> lvl2;
+#pragma hls_unroll yes
+  for (int i = 0; i < 8; i++) {
+    lvl2[i] = lvl1[i * 2] < lvl1[i * 2 + 1] ? lvl1[i * 2 + 1] : lvl1[i * 2];
+  }
+
+  Pack1D<ACC_DTYPE, 4> lvl3;
+#pragma hls_unroll yes
+  for (int i = 0; i < 4; i++) {
+    lvl3[i] = lvl2[i * 2] < lvl2[i * 2 + 1] ? lvl2[i * 2 + 1] : lvl2[i * 2];
+  }
+
+  Pack1D<ACC_DTYPE, 2> lvl4;
+#pragma hls_unroll yes
+  for (int i = 0; i < 2; i++) {
+    lvl4[i] = lvl3[i * 2] < lvl3[i * 2 + 1] ? lvl3[i * 2 + 1] : lvl3[i * 2];
+  }
+
+  return lvl4[0] < lvl4[1] ? lvl4[1] : lvl4[0];
+}
+
+/*
  * Dimension = 32
  */
 #pragma hls_design ccore
