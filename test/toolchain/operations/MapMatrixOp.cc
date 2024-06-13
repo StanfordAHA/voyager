@@ -179,7 +179,7 @@ void MapMatrixOp(const SimplifiedParams &originalParams,
   // bias
   matrixParams->BIAS_OFFSET = params.BIAS_OFFSET;
   matrixParams->BIAS = params.BIAS;
-  acceleratorMemoryMap["bias"] = memoryMap.weights;
+  acceleratorMemoryMap["bias"] = memoryMap.bias;
 
   // P8 learningRate = static_cast<P8>(params.learningRate);
   // matrixParams->learningRate = learningRate.bits;
