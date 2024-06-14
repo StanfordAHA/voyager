@@ -64,6 +64,7 @@ LAYERS = {
     ],
 }
 
+
 def add_codegen_layers():
     sys.path.append("quantized-training/src/quantized_training/codegen/")
     import param_pb2
@@ -94,7 +95,7 @@ def print_test_results(test_results):
 
     for model in models:
         print("=" * 10 + f" {model} " + "=" * 10)
-        
+
         model_df = df[df["Model"] == model]
 
         # sort according to order in LAYERS
@@ -110,7 +111,7 @@ def print_test_results(test_results):
         print(passed["Layer"].to_string(index=False) if not passed.empty else "None")
         print("Failed:")
         print(failed["Layer"].to_string(index=False) if not failed.empty else "None")
-        
+
         # if runtime column exists, print runtime of each layer
         if "Runtime" in model_df.columns:
             print("Runtime:")
@@ -261,6 +262,7 @@ def run_rtl_test(model, layer, output_folder):
     env_vars["TESTS"] = layer
     env_vars["SIMS"] = "customposit,accelerator"
     env_vars["DATA_DIR"] = f"/sim2/shared/MINOTAUR/nn_data/unfused_maxpool/{model}/"
+    env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
 
     with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
         try:
@@ -294,7 +296,9 @@ def run_rtl_test(model, layer, output_folder):
 
 
 def run_rtl_tests(models, num_processes, results_folder):
-    check_environment_vars(["DATATYPE", "IC_DIMENSION", "OC_DIMENSION", "TECHNOLOGY", "CLOCK_PERIOD"])
+    check_environment_vars(
+        ["DATATYPE", "IC_DIMENSION", "OC_DIMENSION", "TECHNOLOGY", "CLOCK_PERIOD"]
+    )
 
     # clean old build
     subprocess.run(["make", "clean-catapult"], env=os.environ)
@@ -314,7 +318,10 @@ def run_rtl_tests(models, num_processes, results_folder):
         env_vars["NETWORK"] = "resnet18"
         env_vars["TESTS"] = "layer2_0_downsample"
         env_vars["SIMS"] = "customposit,accelerator"
-        env_vars["DATA_DIR"] = f"/sim2/shared/MINOTAUR/nn_data/unfused_maxpool/resnet18/"
+        env_vars["DATA_DIR"] = (
+            f"/sim2/shared/MINOTAUR/nn_data/unfused_maxpool/resnet18/"
+        )
+        env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
 
         subprocess.run(
             ["make", "-f", "scverify/Verify_concat_sim_rtl_v_vcs.mk", "build"],
@@ -376,6 +383,7 @@ def main():
     os.system(f"cd regression_results && ln -sf {current_time} latest")
 
     # Add codegen layers
+    subprocess.run(["make", "protos"])
     add_codegen_layers()
 
     if args.sims == "SystemC":
