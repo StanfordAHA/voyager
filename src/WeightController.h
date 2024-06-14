@@ -623,7 +623,10 @@ SC_MODULE(WeightController) {
       //   loop_bounds[1][params.fxIndex] = 7;
       // }
 
-      if (params.WEIGHT_TRANSPOSE) {
+      if (params.WEIGHT_TRANSPOSE && NROWS < 64 &&
+          NCOLS <
+              64) {  // don't support transpose when systolic array is larger
+                     // than 32x32, as it will require a very large buffer
         // we need a square buffer to store the transpose
         INPUT_DATATYPE transposeBuffer[NROWS > NCOLS ? NROWS : NCOLS]
                                       [NROWS > NCOLS ? NROWS : NCOLS];
