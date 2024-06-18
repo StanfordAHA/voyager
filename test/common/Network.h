@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "test/common/VerificationTypes.h"
+#include "test/compiler/proto/param.pb.h"
 
 class Network {
  public:
@@ -32,6 +33,11 @@ class Network {
 
   virtual std::vector<Workload> getAllWorkloads() = 0;
 
+  virtual std::vector<example::AcceleratorParam> get_params(
+      const std::vector<std::string>& names) {
+    return std::vector<example::AcceleratorParam>();
+  };
+
   const std::string getName() { return modelName; }
   const std::string getDataDir() { return dataDir; }
 
@@ -50,6 +56,8 @@ class Network {
         return "O1";
       case O2:
         return "O2";
+      default:
+        throw std::invalid_argument("Invalid option");
     }
   }
 

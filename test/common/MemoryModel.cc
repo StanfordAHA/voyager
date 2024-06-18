@@ -35,22 +35,22 @@ float* readFileAsFloat(const std::string& filename, int size,
 void MemoryModel::loadInputs(const SimplifiedParams& params,
                              const MemorySource& mem,
                              const std::string& filename, bool useDataFile) {
-  int X = params.loops[0][params.inputXLoopIndex[0]] *
-          params.loops[1][params.inputXLoopIndex[1]];
-  int Y = params.loops[0][params.inputYLoopIndex[0]] *
-          params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * (16);
-  int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * (16);
-  int FX = params.loops[1][params.fxIndex];
-  int FY = params.loops[1][params.fyIndex];
-  int STRIDE = params.STRIDE;
+  size_t X = params.loops[0][params.inputXLoopIndex[0]] *
+             params.loops[1][params.inputXLoopIndex[1]];
+  size_t Y = params.loops[0][params.inputYLoopIndex[0]] *
+             params.loops[1][params.inputYLoopIndex[1]];
+  size_t C = params.loops[1][params.reductionLoopIndex[1]] * (16);
+  size_t K = params.loops[0][params.weightLoopIndex[0]] *
+             params.loops[1][params.weightLoopIndex[1]] * (16);
+  size_t FX = params.loops[1][params.fxIndex];
+  size_t FY = params.loops[1][params.fyIndex];
+  size_t STRIDE = params.STRIDE;
   if (params.REPLICATION) {
     FX = 7;
     C = 3;
   }
 
-  int size = STRIDE * Y * STRIDE * X * C;
+  size_t size = STRIDE * Y * STRIDE * X * C;
   if (params.SOFTMAX || params.SOFTMAX_GRAD) {
     size = X * Y;
   } else if (params.CROSS_ENTROPY_GRAD) {
@@ -65,7 +65,7 @@ void MemoryModel::loadInputs(const SimplifiedParams& params,
   // We need to do some reshaping to get the correct values in the correct place
   xt::xarray<float> tensor =
       xt::adapt(tmpValues, size, xt::no_ownership(),
-                std::vector<std::size_t>({1, C, STRIDE * Y, STRIDE * X}));
+                std::vector<size_t>({1, C, STRIDE * Y, STRIDE * X}));
   tensor = xt::transpose(tensor, {2, 3, 1, 0});
 
   if (params.REPLICATION) {
@@ -123,22 +123,22 @@ void MemoryModel::loadInputs(const SimplifiedParams& params,
 void MemoryModel::loadWeights(const SimplifiedParams& params,
                               const MemorySource& mem,
                               const std::string& filename, bool useDataFile) {
-  int X = params.loops[0][params.inputXLoopIndex[0]] *
-          params.loops[1][params.inputXLoopIndex[1]];
-  int Y = params.loops[0][params.inputYLoopIndex[0]] *
-          params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * (16);
-  int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * (16);
-  int FX = params.loops[1][params.fxIndex];
-  int FY = params.loops[1][params.fyIndex];
-  int STRIDE = params.STRIDE;
+  size_t X = params.loops[0][params.inputXLoopIndex[0]] *
+             params.loops[1][params.inputXLoopIndex[1]];
+  size_t Y = params.loops[0][params.inputYLoopIndex[0]] *
+             params.loops[1][params.inputYLoopIndex[1]];
+  size_t C = params.loops[1][params.reductionLoopIndex[1]] * (16);
+  size_t K = params.loops[0][params.weightLoopIndex[0]] *
+             params.loops[1][params.weightLoopIndex[1]] * (16);
+  size_t FX = params.loops[1][params.fxIndex];
+  size_t FY = params.loops[1][params.fyIndex];
+  size_t STRIDE = params.STRIDE;
   if (params.REPLICATION) {
     FX = 7;
     C = 3;
   }
 
-  int size = FY * FX * C * K;
+  size_t size = FY * FX * C * K;
   if (params.NO_NORM) {
     size = C;
   } else if (params.CROSS_ENTROPY_GRAD) {
@@ -155,9 +155,8 @@ void MemoryModel::loadWeights(const SimplifiedParams& params,
   // Pytorch weight tensors are written as (OC, IC, KH, KW)
   // Our memory is written as (KH, KW, IC, OC)
   // We need to do some reshaping to get the correct values in the correct place
-  xt::xarray<float> tensor =
-      xt::adapt(tmpValues, size, xt::no_ownership(),
-                std::vector<std::size_t>({K, C, FY, FX}));
+  xt::xarray<float> tensor = xt::adapt(tmpValues, size, xt::no_ownership(),
+                                       std::vector<size_t>({K, C, FY, FX}));
   tensor = xt::transpose(tensor, {2, 3, 1, 0});
 
   int address = 0;
@@ -202,22 +201,22 @@ void MemoryModel::loadBias(const SimplifiedParams& params,
 void MemoryModel::loadResiduals(const SimplifiedParams& params,
                                 const MemorySource& mem,
                                 const std::string& filename, bool useDataFile) {
-  int X = params.loops[0][params.inputXLoopIndex[0]] *
-          params.loops[1][params.inputXLoopIndex[1]];
-  int Y = params.loops[0][params.inputYLoopIndex[0]] *
-          params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * (16);
-  int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * (16);
-  int FX = params.loops[1][params.fxIndex];
-  int FY = params.loops[1][params.fyIndex];
-  int STRIDE = params.STRIDE;
+  size_t X = params.loops[0][params.inputXLoopIndex[0]] *
+             params.loops[1][params.inputXLoopIndex[1]];
+  size_t Y = params.loops[0][params.inputYLoopIndex[0]] *
+             params.loops[1][params.inputYLoopIndex[1]];
+  size_t C = params.loops[1][params.reductionLoopIndex[1]] * (16);
+  size_t K = params.loops[0][params.weightLoopIndex[0]] *
+             params.loops[1][params.weightLoopIndex[1]] * (16);
+  size_t FX = params.loops[1][params.fxIndex];
+  size_t FY = params.loops[1][params.fyIndex];
+  size_t STRIDE = params.STRIDE;
   if (params.REPLICATION) {
     FX = 7;
     C = 3;
   }
 
-  int size = X * Y * K;
+  size_t size = X * Y * K;
   if (params.SOFTMAX_GRAD) {
     size = X * Y;
   }
@@ -229,7 +228,7 @@ void MemoryModel::loadResiduals(const SimplifiedParams& params,
   // Our memory is written as (H, W, C)
   // We need to do some reshaping to get the correct values in the correct place
   xt::xarray<float> tensor = xt::adapt(tmpValues, size, xt::no_ownership(),
-                                       std::vector<std::size_t>({K, Y, X}));
+                                       std::vector<size_t>({K, Y, X}));
   tensor = xt::transpose(tensor, {1, 2, 0});
 
   int address = 0;
@@ -249,16 +248,16 @@ void MemoryModel::loadResiduals(const SimplifiedParams& params,
 
 void MemoryModel::loadReferenceOutput(const SimplifiedParams& params,
                                       const Files& files, bool floatPrecision) {
-  int X = params.loops[0][params.inputXLoopIndex[0]] *
-          params.loops[1][params.inputXLoopIndex[1]];
-  int Y = params.loops[0][params.inputYLoopIndex[0]] *
-          params.loops[1][params.inputYLoopIndex[1]];
-  int C = params.loops[1][params.reductionLoopIndex[1]] * (16);
-  int K = params.loops[0][params.weightLoopIndex[0]] *
-          params.loops[1][params.weightLoopIndex[1]] * (16);
-  int FX = params.loops[1][params.fxIndex];
-  int FY = params.loops[1][params.fyIndex];
-  int STRIDE = params.STRIDE;
+  size_t X = params.loops[0][params.inputXLoopIndex[0]] *
+             params.loops[1][params.inputXLoopIndex[1]];
+  size_t Y = params.loops[0][params.inputYLoopIndex[0]] *
+             params.loops[1][params.inputYLoopIndex[1]];
+  size_t C = params.loops[1][params.reductionLoopIndex[1]] * (16);
+  size_t K = params.loops[0][params.weightLoopIndex[0]] *
+             params.loops[1][params.weightLoopIndex[1]] * (16);
+  size_t FX = params.loops[1][params.fxIndex];
+  size_t FY = params.loops[1][params.fyIndex];
+  size_t STRIDE = params.STRIDE;
   if (params.REPLICATION) {
     FX = 7;
     C = 3;
@@ -272,7 +271,7 @@ void MemoryModel::loadReferenceOutput(const SimplifiedParams& params,
     Y = 1;
   }
 
-  int size = X * Y * K;
+  size_t size = X * Y * K;
   if (params.SOFTMAX || params.SOFTMAX_GRAD) {
     size = X * Y;
   } else if (params.CROSS_ENTROPY_GRAD) {
@@ -290,7 +289,7 @@ void MemoryModel::loadReferenceOutput(const SimplifiedParams& params,
   // Our memory is written as (H, W, C)
   // We need to do some reshaping to get the correct values in the correct place
   xt::xarray<float> tensor = xt::adapt(tmpValues, size, xt::no_ownership(),
-                                       std::vector<std::size_t>({K, Y, X}));
+                                       std::vector<size_t>({K, Y, X}));
   tensor = xt::transpose(tensor, {1, 2, 0});
 
   int address = 0;

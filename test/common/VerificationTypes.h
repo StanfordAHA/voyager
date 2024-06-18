@@ -2,6 +2,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include "test/compiler/proto/param.pb.h"
 
 // By default we have 2MB of SRAM per MINOTAUR SoC
 // organized as 8x 256KB Banks with 2x 128KB Macros each
@@ -212,3 +213,42 @@ struct Workload {
   AcceleratorMemoryMap acceleratorMemoryMap;
   bool loadWeight = true;
 };
+
+struct Tiling {
+  int loops[2][6];
+  int x_loop_index[2];
+  int y_loop_index[2];
+  int reduction_loop_index[2];
+  int weight_loop_index[2];
+  int fx_index;
+  int fy_index;
+  int weight_reuse_index[2];
+  int stride;
+  bool replication;
+};
+
+inline std::ostream& operator<<(std::ostream& os, const Tiling& tiling) {
+  os << "Loops: " << std::endl;
+  for (int i = 0; i < 2; i++) {
+    os << "  " << i << ": ";
+    for (int j = 0; j < 6; j++) {
+      os << tiling.loops[i][j] << " ";
+    }
+    os << std::endl;
+  }
+  os << "X Loop Index: " << tiling.x_loop_index[0] << " "
+     << tiling.x_loop_index[1] << std::endl;
+  os << "Y Loop Index: " << tiling.y_loop_index[0] << " "
+     << tiling.y_loop_index[1] << std::endl;
+  os << "Reduction Loop Index: " << tiling.reduction_loop_index[0] << " "
+     << tiling.reduction_loop_index[1] << std::endl;
+  os << "Weight Loop Index: " << tiling.weight_loop_index[0] << " "
+     << tiling.weight_loop_index[1] << std::endl;
+  os << "FX Index: " << tiling.fx_index << std::endl;
+  os << "FY Index: " << tiling.fy_index << std::endl;
+  os << "Weight Reuse Index: " << tiling.weight_reuse_index[0] << " "
+     << tiling.weight_reuse_index[1] << std::endl;
+  os << "Stride: " << tiling.stride << std::endl;
+  os << "Replication: " << tiling.replication << std::endl;
+  return os;
+}

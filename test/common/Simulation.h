@@ -12,6 +12,7 @@
 #include "src/ArchitectureParams.h"
 #include "test/common/SimpleMemoryModel.h"
 #include "test/common/UniversalPosit.h"
+#include "test/compiler/proto/param.pb.h"
 
 void run_op(std::vector<SimplifiedParams> params_list,
             INPUT_DATATYPE *sramMemory, INPUT_DATATYPE *rramMemory,
@@ -35,11 +36,8 @@ class Simulation {
   std::string task;
   float tolerance = 0.1;
 
-  SimpleMemoryModel<INPUT_DATATYPE> *acceleratorMemory;
-  SimpleMemoryModel<INPUT_DATATYPE> *positMemory;
-  SimpleMemoryModel<INPUT_DATATYPE> *customFloatMemory;
-  SimpleMemoryModel<float> *floatMemory;
-  SimpleMemoryModel<UniversalPosit> *universalPositMemory;
+  std::vector<example::AcceleratorParam> params;
+  std::map<std::string, MemoryModel *> memory_models;
 
  private:
   std::string get_env_var(std::string const &name);

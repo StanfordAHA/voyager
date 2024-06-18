@@ -56,7 +56,7 @@ endif
 
 # We need to work with multiple C++ standards, as the SystemC lib is only
 # compatible with C++11 and the Universal Numbers Library requires C++17
-C11FLAGS += $(BASE_FLAGS) -std=c++11 -Wno-deprecated-declarations
+C11FLAGS += $(BASE_FLAGS) -std=c++17 -Wno-deprecated-declarations
 C17FLAGS += $(BASE_FLAGS) -std=c++17
 LDFLAGS += -lsystemc -lstdc++fs -labsl_log_internal_message -labsl_log_internal_check_op -lprotobuf -Wl,-rpath=$(CONDA_PREFIX)/lib
 LDLIBS += -L/cad/mentor/2024.1/Mgc_home/shared/lib/ -L$(CONDA_PREFIX)/lib
@@ -181,10 +181,10 @@ sim-debug: $(CC_BUILD_DIR)/TestRunner
 .PHONY: TestRunner
 TestRunner: $(CC_BUILD_DIR)/TestRunner
 
-$(CC_BUILD_DIR)/TestRunner: $(CC_BUILD_DIR)/Harness.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/MemoryModel.o $(CC_BUILD_DIR)/SimpleMemoryModel.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/networks.a $(CC_BUILD_DIR)/toolchain.a
+$(CC_BUILD_DIR)/TestRunner: $(CC_BUILD_DIR)/Harness.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/PyTorchModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/MemoryModel.o $(CC_BUILD_DIR)/SimpleMemoryModel.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/networks.a $(CC_BUILD_DIR)/toolchain.a
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
-$(CC_BUILD_DIR)/TestRunner-fast: $(CC_BUILD_DIR)/Harness-fast.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/MemoryModel.o $(CC_BUILD_DIR)/SimpleMemoryModel.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/networks.a $(CC_BUILD_DIR)/toolchain.a
+$(CC_BUILD_DIR)/TestRunner-fast: $(CC_BUILD_DIR)/Harness-fast.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/PyTorchModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/MemoryModel.o $(CC_BUILD_DIR)/SimpleMemoryModel.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/networks.a $(CC_BUILD_DIR)/toolchain.a
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
 .PHONY: MobileBERTAccuracy
@@ -219,6 +219,9 @@ $(CC_BUILD_DIR)/Harness-fast.o: test/common/Harness.cc test/common/Harness.h $(w
 	$(CC) $(C11FLAGS) -DCONNECTIONS_FAST_SIM -c -o $@ $<
 
 $(CC_BUILD_DIR)/GoldModel.o: test/common/GoldModel.cc test/common/GoldModel.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h
+	$(CC) $(C17FLAGS) -g -c -o $@ $<
+
+$(CC_BUILD_DIR)/PyTorchModel.o: test/common/PyTorchModel.cc test/common/PyTorchModel.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h test/compiler/proto/param.pb.h
 	$(CC) $(C17FLAGS) -g -c -o $@ $<
 
 $(CC_BUILD_DIR)/Utils.o: test/common/Utils.cc test/common/Utils.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h
@@ -321,5 +324,8 @@ clean-catapult:
 
 clean-rtl-sim:
 	rm -rf build/Catapult_debug/Accelerator.v1/scverify/concat_sim_rtl_v_vcs
+
+clean-protos:
+	rm -rf test/compiler/networks/resnet18/ test/compiler/networks/resnet50/ test/compiler/proto/param.pb.*
 
 .PHONY: clean clean-test clean-catapult clean-rtl-sim
