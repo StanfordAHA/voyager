@@ -492,11 +492,12 @@ struct VectorParams : BaseParams {
 
   bool DP_OUTPUT;
 
-  ac_int<2, false> addressGen0Mode;  // 1- 2d tensor, 2- 3d tensor
+  // 1: 3d-tensor, 2: 2d-tensor, 3: 1d-tensor
+  ac_int<2, false> addressGen0Mode;
   bool addressGen0Broadcast;
   ac_int<10, false> addressGen0BroadcastCount;
-  ac_int<2, false> addressGen1Mode;  // 1- residual, 2- 2dtensor
-  ac_int<2, false> addressGen2Mode;  // 1- bias, 2- 2dtensor
+  ac_int<2, false> addressGen1Mode;
+  ac_int<2, false> addressGen2Mode;
   bool MAXPOOL;
   bool AVGPOOL;
 

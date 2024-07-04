@@ -204,9 +204,9 @@ void Simulation::run() {
     MemoryMap memoryMap = workload.memoryMap;
 
     // Check if mapping valid
-    // if (validateMapping(params) != 0) {
-    //   std::abort();
-    // }
+    if (validateMapping(params) != 0) {
+      std::abort();
+    }
 
     X = params.loops[0][params.inputXLoopIndex[0]] *
         params.loops[1][params.inputXLoopIndex[1]];
@@ -563,7 +563,7 @@ int Simulation::checkOutput() {
     std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
-    std::string diffFile = outFilePrefix + "accel_vs_hlsgold.txt";
+    std::string diffFile = outFilePrefix + "accel_vs_pytorch.txt";
 
     rel_err += compare_arrays(
         accelerator_pt2e_memory->get_args(accel_param).back(), "accelerator",

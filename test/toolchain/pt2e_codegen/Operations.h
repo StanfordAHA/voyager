@@ -5,22 +5,35 @@
 #include "test/common/VerificationTypes.h"
 #include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/pt2e_codegen/MatrixOperation.h"
+#include "test/toolchain/pt2e_codegen/MatrixVectorMultiply.h"
+#include "test/toolchain/pt2e_codegen/PoolingOperation.h"
 #include "test/toolchain/pt2e_codegen/ReduceOperation.h"
-// #include "test/toolchain/pt2e_codegen/VectorOperation.h"
+#include "test/toolchain/pt2e_codegen/VectorOperation.h"
 
 void MapPytorchOperation(const codegen::AcceleratorParam &param,
                          std::deque<BaseParams *> &mappedParams,
                          std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   if (param.has_matrix_param()) {
-    MapMatrixOperation(param, mappedParams, opMemoryMaps);
+    const auto matrix_param = param.matrix_param();
+    const auto inputs = matrix_param.input();
+    int dim = 1;
+    for (int i = 0; i < inputs.shape_size() - 1; i++) {
+      dim *= inputs.shape(i);
+    }
+
+    if (dim == 1) {
+      MapMatrixVectorMultiply(param, mappedParams, opMemoryMaps);
+    } else {
+      MapMatrixOperation(param, mappedParams, opMemoryMaps);
+    }
   } else if (param.has_reduce_param()) {
     MapReduceOperation(param, mappedParams, opMemoryMaps);
   } else if (param.has_pooling_param()) {
-    // TODO:
+    MapPoolingOperation(param, mappedParams, opMemoryMaps);
   } else if (param.has_reshape_param()) {
     // TODO:
+    exit(1);
   } else if (param.vector_params_size() > 0) {
-    // TODO:
-    // MapVectorOperations(param, mappedParams, opMemoryMaps);
+    MapVectorOperations(param, mappedParams, opMemoryMaps);
   }
 }

@@ -774,3 +774,109 @@ inline Tiling get_matmul_tiling(codegen::MatrixParam param) {
     exit(1);
   }
 }
+
+inline Tiling get_conv2d_tiling(codegen::AcceleratorParam param) {
+  const auto matrix_param = param.matrix_param();
+  const auto input_shape = matrix_param.input().shape();
+  const auto weight_shape = matrix_param.weight().shape();
+  const auto output_shape = param.output().shape();
+
+  int input_dim = 1;
+  for (int i = 1; i < input_shape.size() - 1; i++) {
+    input_dim *= input_shape[i];
+  }
+
+  int X = output_shape[2];
+  int Y = output_shape[3];
+  int K = weight_shape[0];
+  int C = weight_shape[1];
+
+  int fx = weight_shape[2];
+  int fy = weight_shape[3];
+  int k0 = std::min(K / OC_DIMENSION, 64 / fx / fy);
+  int k1 = K / k0;
+  int x0 = std::sqrt(1024 / k0);
+  int x1 = X / x0;
+  int y0 = x0;
+  int y1 = x1;
+  int c0 = C / IC_DIMENSION;
+
+  return {
+      .loops = {{x1, y1, k1, 1, 1, 1}, {c0, k0, fx, fy, y0, x0}},
+      .x_loop_index = {0, 5},
+      .y_loop_index = {1, 4},
+      .reduction_loop_index = {3, 0},
+      .weight_loop_index = {2, 1},
+      .fx_index = 3,
+      .fy_index = 2,
+      .weight_reuse_index = {4, 5},
+      .stride = matrix_param.stride(0),
+      .replication = false,
+  };
+}
+
+inline Tiling get_pooling_tiling(codegen::AcceleratorParam param) {
+  const auto pooling_param = param.pooling_param();
+  const auto input_shape = pooling_param.input().shape();
+  const auto output_shape = param.output().shape();
+
+  int input_dim = 1;
+  for (int i = 1; i < input_shape.size() - 1; i++) {
+    input_dim *= input_shape[i];
+  }
+
+  int X = input_shape[2];
+  int Y = input_shape[3];
+  int C = pooling_param.kernel_size(0) * pooling_param.kernel_size(1);
+  int K = param.output().shape(1);
+
+  int x0 = 2;
+  int x1 = X / x0;
+  int y0 = 2;
+  int y1 = Y / y0;
+  int c0 = C / IC_DIMENSION;
+  int k0 = K / OC_DIMENSION;
+
+  return {
+      .loops = {{x1, y1, 1, 1, 1, 1}, {c0, k0, 1, 1, y0, x0}},
+      .x_loop_index = {0, 5},
+      .y_loop_index = {1, 4},
+      .reduction_loop_index = {3, 0},
+      .weight_loop_index = {2, 1},
+      .fx_index = 3,
+      .fy_index = 2,
+      .weight_reuse_index = {4, 5},
+      .stride = pooling_param.stride(0),
+      .replication = false,
+  };
+}
+
+inline Tiling get_gemm_tiling(codegen::MatrixParam param) {
+  const auto input_shape = param.input().shape();
+  const auto weight_shape = param.weight().shape();
+
+  int input_dim = 1;
+  for (int i = 1; i < input_shape.size() - 1; i++) {
+    input_dim *= input_shape[i];
+  }
+  int reduction_dim = weight_shape[1];
+  int output_dim = weight_shape[0];
+
+  int k0 = output_dim / OC_DIMENSION;
+  int x0 = 1024 / k0;
+  int x1 = input_dim / x0;
+  int c0 = reduction_dim / IC_DIMENSION;
+
+  return {
+      .loops = {{x1, 1, 1, 1, 1, 1}, {c0, k0, 1, 1, 1, x0}},
+      .x_loop_index = {0, 5},
+      .y_loop_index = {1, 4},
+      .reduction_loop_index = {3, 0},
+      .weight_loop_index = {2, 1},
+      .fx_index = 3,
+      .fy_index = 2,
+      .weight_reuse_index = {4, 5},
+      .stride = 1,
+      .replication = false,
+  };
+}

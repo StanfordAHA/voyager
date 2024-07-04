@@ -270,12 +270,11 @@ SC_MODULE(VectorOpUnit) {
       if (inst.vOp3 == VectorInstructions::vadd) {
         vadd<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(op3Src0, op3Src1,
                                                               res3);
-
-        // DLOG(op3Src0 << std::endl
-        //                 << " + " << std::endl
-        //                 << op3Src1 << std::endl
-        //                 << " = " << std::endl
-        //                 << res3);
+        DLOG(op3Src0 << std::endl
+                     << " + " << std::endl
+                     << op3Src1 << std::endl
+                     << " = " << std::endl
+                     << res3);
       } else if (inst.vOp3 == VectorInstructions::vmult ||
                  inst.vOp3 == VectorInstructions::vsquare) {
         if (inst.vOp3 == VectorInstructions::vsquare) {
@@ -510,7 +509,7 @@ SC_MODULE(VectorUnit) {
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch2AddressRequest);
   Connections::In<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(vectorFetch2DataResponse);
   Connections::Combinational<Pack1D<ACC_DTYPE, WIDTH> > CCS_INIT_S1(
-      vectorFetch2DataResponseReplicated);
+      vectorFetch2DataResponseConverted);
 
   Connections::Out<int> CCS_INIT_S1(vectorOutputAddress);
   Connections::Out<Pack1D<ODTYPE, WIDTH> > CCS_INIT_S1(finalVectorOutput);
@@ -564,8 +563,8 @@ SC_MODULE(VectorUnit) {
         vectorFetch1DataResponseConverted);
     vectorFetch.vectorFetch2AddressRequest(vectorFetch2AddressRequest);
     vectorFetch.vectorFetch2DataResponse(vectorFetch2DataResponse);
-    vectorFetch.vectorFetch2DataResponseReplicated(
-        vectorFetch2DataResponseReplicated);
+    vectorFetch.vectorFetch2DataResponseConverted(
+        vectorFetch2DataResponseConverted);
 
     vectorOpUnit.clk(clk);
     vectorOpUnit.rstn(rstn);
@@ -575,7 +574,7 @@ SC_MODULE(VectorUnit) {
     vectorOpUnit.systolicArrayOutput(systolicArrayOutput);
     vectorOpUnit.vectorFetch0Output(vectorFetch0DataResponseBroadcasted);
     vectorOpUnit.vectorFetch1Output(vectorFetch1DataResponseConverted);
-    vectorOpUnit.vectorFetch2Output(vectorFetch2DataResponseReplicated);
+    vectorOpUnit.vectorFetch2Output(vectorFetch2DataResponseConverted);
     vectorOpUnit.vectorOpUnitOutput(vectorOpUnitOutput);
 
     maxpoolUnit.clk(clk);

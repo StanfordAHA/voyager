@@ -100,10 +100,9 @@ inline std::vector<T*> PyTorchMemoryModelImpl<T>::get_args(
   for (auto& vector_param : param.vector_params()) {
     if (vector_param.has_other()) {
       // Check whether input or other is the output of the last operation.
-      const auto input_tensor = vector_param.input();
-      const auto other_tensor = vector_param.other();
-      const auto tensor_to_load =
-          other_tensor.node() == output_node ? input_tensor : other_tensor;
+      const auto input = vector_param.input();
+      const auto other = vector_param.other();
+      const auto tensor_to_load = other.node() == output_node ? input : other;
       args.push_back(get_tensor(tensor_to_load));
     }
     output_node = vector_param.name();

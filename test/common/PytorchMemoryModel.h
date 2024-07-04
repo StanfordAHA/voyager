@@ -61,7 +61,7 @@ class PyTorchMemoryModel {
 
  protected:
   void load_tensor(const codegen::Tensor& tensor, std::string data_dir,
-                   bool is_conv2d = false, bool random_data = false,
+                   bool transpose = false, bool random_data = false,
                    bool double_precision_ow = false);
   virtual void write_to_memory(const int address, const float value,
                                const int parttion, bool double_precision) = 0;
@@ -74,15 +74,12 @@ inline PyTorchMemoryModel::PyTorchMemoryModel(bool isDut) : isDut(isDut) {}
 
 inline void PyTorchMemoryModel::load_tensor(const codegen::Tensor& tensor,
                                             std::string data_dir,
-                                            bool is_conv2d, bool random_data,
+                                            bool transpose, bool random_data,
                                             bool double_precision_ow) {
   auto repeated_field = tensor.shape();
   std::vector<size_t> shape(repeated_field.begin(), repeated_field.end());
-
   int size = 1;
-  for (int dim : shape) {
-    size *= dim;
-  }
+  for (int dim : shape) size *= dim;
 
   std::string filename = data_dir + "/" + tensor.node() + ".bin";
   auto array_ptr = read_tensor_from_file(filename, size, random_data);
@@ -90,10 +87,9 @@ inline void PyTorchMemoryModel::load_tensor(const codegen::Tensor& tensor,
       xt::adapt(array_ptr, size, xt::no_ownership(), shape);
 
   // Accelerator expect the data to be layed out in a different order
-  bool is_weight = tensor.node().find("param_constant") != std::string::npos;
-  if (is_conv2d && shape.size() == 4) {
+  if (transpose && shape.size() == 4) {
     array = xt::transpose(array, {2, 3, 1, 0});
-  } else if (is_weight && shape.size() == 2) {
+  } else if (transpose && shape.size() == 2) {
     array = xt::transpose(array, {1, 0});
   }
 
@@ -132,6 +128,9 @@ inline void PyTorchMemoryModel::load_inputs(
     const codegen::MatrixParam& matrix_param = param.matrix_param();
     load_tensor(matrix_param.input(), data_dir, is_conv2d);
     output_node = matrix_param.name();
+    if (matrix_param.opcode() == "matmul") {
+      load_tensor(matrix_param.weight(), data_dir);
+    }
   } else if (param.has_pooling_param()) {
     const codegen::PoolingParam& pooling_param = param.pooling_param();
     load_tensor(pooling_param.input(), data_dir, true);
@@ -148,13 +147,11 @@ inline void PyTorchMemoryModel::load_inputs(
 
   for (const auto& vector_param : param.vector_params()) {
     if (vector_param.has_other()) {
-      // TODO:
       // Load the other tensor if it is not the output of last operation and
       // it is a constant tensor. Might fail if input or other tensor is a nop.
-      const auto input_tensor = vector_param.input();
-      const auto other_tensor = vector_param.other();
-      const auto tensor_to_load =
-          other_tensor.node() == output_node ? input_tensor : other_tensor;
+      const auto input = vector_param.input();
+      const auto other = vector_param.other();
+      const auto tensor_to_load = other.node() == output_node ? input : other;
       if (tensor_to_load.node().find("param_constant") == std::string::npos) {
         load_tensor(tensor_to_load, data_dir, is_conv2d);
       }
@@ -166,27 +163,33 @@ inline void PyTorchMemoryModel::load_inputs(
 inline void PyTorchMemoryModel::load_weights(
     const codegen::AcceleratorParam param, std::string data_dir,
     bool random_data) {
-  if (param.has_matrix_param()) {
-    const codegen::MatrixParam& matrix_param = param.matrix_param();
-    bool is_conv2d = matrix_param.opcode() == "conv2d";
-    load_tensor(matrix_param.weight(), data_dir, is_conv2d);
+  if (param.has_matrix_param() && param.matrix_param().opcode() != "matmul") {
+    const auto matrix_param = param.matrix_param();
+    // Transpose linear weights except for matrix vector multiply
+    const auto inputs = matrix_param.input();
+    int dim = 1;
+    for (int i = 0; i < inputs.shape_size() - 1; i++) {
+      dim *= inputs.shape(i);
+    }
+    bool transpose = dim > 1;
+    load_tensor(matrix_param.weight(), data_dir, transpose);
 
     if (matrix_param.has_bias()) {
-      // FIXME: hardcode bias to double precision for now
-      load_tensor(matrix_param.bias(), data_dir, is_conv2d, false, true);
+      // bias is hardcoded to double precision right now
+      load_tensor(matrix_param.bias(), data_dir, false, false, true);
     }
   }
 
   for (const auto& vector_param : param.vector_params()) {
     if (vector_param.has_other()) {
       // Check both input and other tensors to see if they are parameters.
-      const auto input_tensor = vector_param.input();
-      if (input_tensor.node().find("param_constant") != std::string::npos) {
-        load_tensor(input_tensor, data_dir);
+      const auto input = vector_param.input();
+      if (input.node().find("param_constant") != std::string::npos) {
+        load_tensor(input, data_dir);
       }
-      const auto other_tensor = vector_param.other();
-      if (other_tensor.node().find("param_constant") != std::string::npos) {
-        load_tensor(other_tensor, data_dir);
+      const auto other = vector_param.other();
+      if (other.node().find("param_constant") != std::string::npos) {
+        load_tensor(other, data_dir);
       }
     }
   }

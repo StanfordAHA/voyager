@@ -4,161 +4,160 @@
 #include "src/Params.h"
 #include "test/common/VerificationTypes.h"
 #include "test/compiler/proto/param.pb.h"
+#include "test/toolchain/pt2e_codegen/Common.h"
 
 void MapReduceOperation(const codegen::AcceleratorParam &param,
                         std::deque<BaseParams *> &mappedParams,
                         std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   const auto &reduce_param = param.reduce_param();
   if (reduce_param.opcode() == "softmax") {
-    const auto input = reduce_param.input();
-    int x_dim = 1;
-    for (int i = 0; i < input.shape_size() - 1; i++) {
-      x_dim *= input.shape(i);
-    }
-    int y_dim = input.shape(input.shape_size() - 1);
-
-    VectorParams *vectorParams = new VectorParams;
-    VectorInstructionConfig *vectorInstructionConfig =
+    VectorParams *vector_params = new VectorParams;
+    VectorInstructionConfig *vector_instruction_config =
         new VectorInstructionConfig;
-    AcceleratorMemoryMap acceleratorMemoryMap;
+    AcceleratorMemoryMap accelerator_memory_map;
 
-    const auto input_mem = reduce_param.input().memory();
-    acceleratorMemoryMap["vector0"] = input_mem.partition() == 0 ? SRAM : RRAM;
-    vectorParams->VECTOR_OFFSET = input_mem.offset();
-    vectorParams->addressGen0Mode = true;
-    vectorParams->addressGen0Broadcast = false;
-    vectorParams->addressGen0Loop[0][0] = 1;
-    vectorParams->addressGen0Loop[0][1] = x_dim;
-    vectorParams->addressGen0Loop[0][2] = 1;
-    vectorParams->addressGen0Loop[1][0] = 3;  // requires 3 passes
-    vectorParams->addressGen0Loop[1][1] = 1;
-    vectorParams->addressGen0Loop[1][2] = y_dim / OC_DIMENSION;
+    const auto vector_input = reduce_param.input();
+    int input_dim = 1;
+    for (int i = 0; i < vector_input.shape_size() - 1; i++) {
+      input_dim *= vector_input.shape(i);
+    }
+    int output_dim = vector_input.shape(vector_input.shape_size() - 1);
+
+    // inputs
+    const auto input_memory = vector_input.memory();
+    accelerator_memory_map["vector0"] = get_partition(input_memory.partition());
+    vector_params->VECTOR_OFFSET = input_memory.offset();
+    vector_params->addressGen0Mode = 2;
+    vector_params->addressGen0Broadcast = false;
+    vector_params->addressGen0Loop[0][0] = input_dim;
+    vector_params->addressGen0Loop[0][1] = 1;
+    vector_params->addressGen0Loop[0][2] = 1;
+    vector_params->addressGen0Loop[1][0] = 1;
+    vector_params->addressGen0Loop[1][1] = 3;
+    vector_params->addressGen0Loop[1][2] = output_dim / OC_DIMENSION;
+
+    for (int i = 0; i < 2; i++) {
+      vector_params->addressGen0InputXLoopIndex[i] = 0;
+      vector_params->addressGen0InputYLoopIndex[i] = 1;
+      vector_params->addressGen0WeightLoopIndex[i] = 2;
+    }
+
     // TODO: double precision
-    vectorParams->DP_VEC0 = false;
+    vector_params->DP_VEC0 = false;
 
     // turn off address generators
-    vectorParams->addressGen1Mode = 0;
-    vectorParams->addressGen2Mode = 0;
-
-    const auto output_mem = param.output().memory();
-    vectorParams->VECTOR_OUTPUT_OFFSET = output_mem.offset();
-    vectorParams->SCALAR_OUTPUT_OFFSET = output_mem.offset();
-    // vectorParams->scalarOutputCount = 0;
+    vector_params->addressGen1Mode = 0;
+    vector_params->addressGen2Mode = 0;
 
     // output
-    acceleratorMemoryMap["outputs"] = output_mem.partition() == 0 ? SRAM : RRAM;
+    const auto output_mem = param.output().memory();
+    accelerator_memory_map["outputs"] = get_partition(output_mem.partition());
+    vector_params->VECTOR_OUTPUT_OFFSET = output_mem.offset();
     for (int i = 0; i < 3; i++) {
-      vectorParams->outputLoops[0][i] = 1;
+      vector_params->outputLoops[0][i] = 1;
     }
-    vectorParams->outputXLoopIndex[0] = 0;
-    vectorParams->outputYLoopIndex[0] = 1;
-    vectorParams->outputWeightLoopIndex[0] = 2;
+    vector_params->outputLoops[1][0] = 1;
+    vector_params->outputLoops[1][1] = input_dim;
+    vector_params->outputLoops[1][2] = output_dim / OC_DIMENSION;
 
-    vectorParams->outputLoops[1][0] = 1;
-    vectorParams->outputLoops[1][1] = x_dim;
-    vectorParams->outputLoops[1][2] = y_dim / OC_DIMENSION;
-    vectorParams->outputWeightLoopIndex[1] = 2;
-    vectorParams->outputYLoopIndex[1] = 1;
-    vectorParams->outputXLoopIndex[1] = 0;
+    for (int i = 0; i < 2; i++) {
+      vector_params->outputXLoopIndex[i] = 0;
+      vector_params->outputYLoopIndex[i] = 1;
+      vector_params->outputWeightLoopIndex[i] = 2;
+    }
+
     // TODO: double precision
-    vectorParams->DP_OUTPUT = false;
-    vectorParams->SPLIT_OUTPUT = false;
+    vector_params->DP_OUTPUT = false;
+    vector_params->SPLIT_OUTPUT = false;
 
-    // sendSerializedParams<VectorParams, 32>(vectorParams,
-    // &serialVectorParamsIn);
-
-    // create instruction stream
-    // VectorInstructionConfig vectorInstructionConfig;
-
-    // inst 0- start reduction engine to calculate max
-    VectorInstructions vInst0;
-    vInst0.instType = VectorInstructions::reduction;
-    vInst0.rCount = y_dim / OC_DIMENSION;
-    vInst0.rOp = VectorInstructions::rmax;
-    vInst0.rDuplicate = 1;
-    vInst0.rDest = VectorInstructions::toVectorOp0Src1;
-    vInst0.rBroadcast = 1;
+    // inst 0 - start reduction engine to calculate max
+    VectorInstructions vinst0;
+    vinst0.instType = VectorInstructions::reduction;
+    vinst0.rCount = output_dim / OC_DIMENSION;
+    vinst0.rOp = VectorInstructions::rmax;
+    vinst0.rDuplicate = 1;
+    vinst0.rDest = VectorInstructions::toVectorOp0Src1;
+    vinst0.rBroadcast = 1;
     // broadcast max over entire array, for 2 passes
-    ac_int<16, false> vInst0_broadcastCount = 2 * y_dim / OC_DIMENSION;
-    vInst0.immediate0 = vInst0_broadcastCount.slc<8>(0);
-    vInst0.immediate1 = vInst0_broadcastCount.slc<8>(8);
-    vInst0.rSqrt = false;
-    vInst0.rReciprocal = false;
+    ac_int<16, false> vec_inst0_broadcastCount = 2 * output_dim / OC_DIMENSION;
+    vinst0.immediate0 = vec_inst0_broadcastCount.slc<8>(0);
+    vinst0.immediate1 = vec_inst0_broadcastCount.slc<8>(8);
+    vinst0.rSqrt = false;
+    vinst0.rReciprocal = false;
+    vector_instruction_config->inst[0] = vinst0;
+    vector_instruction_config->instCount[0] = 1;
 
-    vectorInstructionConfig->inst[0] = vInst0;
-    vectorInstructionConfig->instCount[0] = 1;
+    // inst 1 - send to max
+    VectorInstructions vinst1;
+    vinst1.instType = VectorInstructions::vector;
+    vinst1.vInput = VectorInstructions::readFromVectorFetch;
+    vinst1.vAccumulatePush = VectorInstructions::nop;
+    vinst1.vOp0Src1 = VectorInstructions::nop;
+    vinst1.vOp0 = VectorInstructions::nop;
+    vinst1.vOp1 = VectorInstructions::nop;
+    vinst1.vOp2 = VectorInstructions::toReduce;
+    vinst1.vOp3Src1 = VectorInstructions::nop;
+    vinst1.vOp3 = VectorInstructions::nop;
+    vinst1.vOp4 = VectorInstructions::nop;
+    vinst1.vDest = VectorInstructions::nop;
+    vector_instruction_config->inst[1] = vinst1;
+    vector_instruction_config->instCount[1] = output_dim / OC_DIMENSION;
 
-    // inst 1- send to max
-    VectorInstructions vInst1;
-    vInst1.instType = VectorInstructions::vector;
-    vInst1.vInput = VectorInstructions::readFromVectorFetch;
-    vInst1.vAccumulatePush = VectorInstructions::nop;
-    vInst1.vOp0Src1 = VectorInstructions::nop;
-    vInst1.vOp0 = VectorInstructions::nop;
-    vInst1.vOp1 = VectorInstructions::nop;
-    vInst1.vOp2 = VectorInstructions::toReduce;
-    vInst1.vOp3Src1 = VectorInstructions::nop;
-    vInst1.vOp3 = VectorInstructions::nop;
-    vInst1.vOp4 = VectorInstructions::nop;
-    vInst1.vDest = VectorInstructions::nop;
-    vectorInstructionConfig->inst[1] = vInst1;
-    vectorInstructionConfig->instCount[1] = y_dim / OC_DIMENSION;
-
-    // inst 2- start reduction engine to calculate sum
-    VectorInstructions vInst2;
-    vInst2.instType = VectorInstructions::reduction;
-    vInst2.rCount = y_dim / OC_DIMENSION;
-    vInst2.rOp = VectorInstructions::radd;
-    vInst2.rDuplicate = 1;
-    vInst2.rDest = VectorInstructions::toVectorOp3Src1;
-    vInst2.rBroadcast = 1;
+    // inst 2 - start reduction engine to calculate sum
+    VectorInstructions vinst2;
+    vinst2.instType = VectorInstructions::reduction;
+    vinst2.rCount = output_dim / OC_DIMENSION;
+    vinst2.rOp = VectorInstructions::radd;
+    vinst2.rDuplicate = 1;
+    vinst2.rDest = VectorInstructions::toVectorOp3Src1;
+    vinst2.rBroadcast = 1;
     // broadcast max over entire array
-    ac_int<16, false> vInst2_broadcastCount = y_dim / OC_DIMENSION;
-    vInst2.immediate0 = vInst2_broadcastCount.slc<8>(0);
-    vInst2.immediate1 = vInst2_broadcastCount.slc<8>(8);
-    vInst2.rSqrt = false;
-    vInst2.rReciprocal = true;
-    vectorInstructionConfig->inst[2] = vInst2;
-    vectorInstructionConfig->instCount[2] = 1;
+    ac_int<16, false> vec_inst2_broadcastCount = output_dim / OC_DIMENSION;
+    vinst2.immediate0 = vec_inst2_broadcastCount.slc<8>(0);
+    vinst2.immediate1 = vec_inst2_broadcastCount.slc<8>(8);
+    vinst2.rSqrt = false;
+    vinst2.rReciprocal = true;
+    vector_instruction_config->inst[2] = vinst2;
+    vector_instruction_config->instCount[2] = 1;
 
-    // inst 3- subtract max and exp, and reduce sum
-    VectorInstructions vInst3;
-    vInst3.instType = VectorInstructions::vector;
-    vInst3.vInput = VectorInstructions::readFromVectorFetch;
-    vInst3.vAccumulatePush = VectorInstructions::nop;
-    vInst3.vOp0Src1 = VectorInstructions::readFromReduce;
-    vInst3.vOp0 = VectorInstructions::vsub;
-    vInst3.vOp1 = VectorInstructions::vexp;
-    vInst3.vOp2 = VectorInstructions::toReduce;
-    vInst3.vOp3Src1 = VectorInstructions::nop;
-    vInst3.vOp3 = VectorInstructions::nop;
-    vInst3.vOp4 = VectorInstructions::nop;
-    vInst3.vDest = VectorInstructions::nop;
-    vectorInstructionConfig->inst[3] = vInst3;
-    vectorInstructionConfig->instCount[3] = y_dim / OC_DIMENSION;
+    // inst 3 - subtract max and exp, and reduce sum
+    VectorInstructions vinst3;
+    vinst3.instType = VectorInstructions::vector;
+    vinst3.vInput = VectorInstructions::readFromVectorFetch;
+    vinst3.vAccumulatePush = VectorInstructions::nop;
+    vinst3.vOp0Src1 = VectorInstructions::readFromReduce;
+    vinst3.vOp0 = VectorInstructions::vsub;
+    vinst3.vOp1 = VectorInstructions::vexp;
+    vinst3.vOp2 = VectorInstructions::toReduce;
+    vinst3.vOp3Src1 = VectorInstructions::nop;
+    vinst3.vOp3 = VectorInstructions::nop;
+    vinst3.vOp4 = VectorInstructions::nop;
+    vinst3.vDest = VectorInstructions::nop;
+    vector_instruction_config->inst[3] = vinst3;
+    vector_instruction_config->instCount[3] = output_dim / OC_DIMENSION;
 
-    // inst 4- subtract max and exp, and divide by reduced value
-    VectorInstructions vInst4;
-    vInst4.instType = VectorInstructions::vector;
-    vInst4.vInput = VectorInstructions::readFromVectorFetch;
-    vInst4.vAccumulatePush = VectorInstructions::nop;
-    vInst4.vOp0Src1 = VectorInstructions::readFromReduce;
-    vInst4.vOp0 = VectorInstructions::vsub;
-    vInst4.vOp1 = VectorInstructions::vexp;
-    vInst4.vOp2 = VectorInstructions::nop;
-    vInst4.vOp3Src1 = VectorInstructions::readReduceInterface;
-    vInst4.vOp3 = VectorInstructions::vmult;
-    vInst4.vOp4 = VectorInstructions::nop;
-    vInst4.vDest = VectorInstructions::vWriteOut;
-    vectorInstructionConfig->inst[4] = vInst4;
-    vectorInstructionConfig->instCount[4] = y_dim / OC_DIMENSION;
+    // inst 4 - subtract max and exp, and divide by reduced value
+    VectorInstructions vinst4;
+    vinst4.instType = VectorInstructions::vector;
+    vinst4.vInput = VectorInstructions::readFromVectorFetch;
+    vinst4.vAccumulatePush = VectorInstructions::nop;
+    vinst4.vOp0Src1 = VectorInstructions::readFromReduce;
+    vinst4.vOp0 = VectorInstructions::vsub;
+    vinst4.vOp1 = VectorInstructions::vexp;
+    vinst4.vOp2 = VectorInstructions::nop;
+    vinst4.vOp3Src1 = VectorInstructions::readReduceInterface;
+    vinst4.vOp3 = VectorInstructions::vmult;
+    vinst4.vOp4 = VectorInstructions::nop;
+    vinst4.vDest = VectorInstructions::vWriteOut;
+    vector_instruction_config->inst[4] = vinst4;
+    vector_instruction_config->instCount[4] = output_dim / OC_DIMENSION;
 
-    vectorInstructionConfig->instLen = 5;
-    vectorInstructionConfig->instLoopCount = x_dim;
+    vector_instruction_config->instLen = 5;
+    vector_instruction_config->instLoopCount = input_dim;
 
-    mappedParams.push_back(vectorParams);
-    mappedParams.push_back(vectorInstructionConfig);
-    opMemoryMaps.push_back(acceleratorMemoryMap);
+    mappedParams.push_back(vector_params);
+    mappedParams.push_back(vector_instruction_config);
+    opMemoryMaps.push_back(accelerator_memory_map);
   } else {
     std::cerr << "Unsupported reduce instruction: " << reduce_param.opcode()
               << std::endl;
