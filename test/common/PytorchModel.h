@@ -11,10 +11,10 @@
 #include "test/common/PytorchMemoryModel.h"
 #include "test/common/UniversalPosit.h"
 #include "test/common/VerificationTypes.h"
-#include "test/common/operations/MatrixMultiply.h"
-#include "test/common/operations/MatrixVectorMultiply.h"
-#include "test/common/operations/Softmax.h"
-#include "test/common/operations/VectorOperations.h"
+#include "test/common/operations/MatrixOps.h"
+#include "test/common/operations/Pooling.h"
+#include "test/common/operations/ReduceOps.h"
+#include "test/common/operations/VectorOps.h"
 #include "test/compiler/proto/param.pb.h"
 
 template <typename INPUT_T, typename ACCUMULATE_T>
@@ -51,15 +51,13 @@ void run_pytorch_op(const codegen::AcceleratorParam param,
     }
   }
 
-  // if (param.has_pooling_param()) {
-  //   const auto &pooling_param = param.pooling_param();
-  //   const auto input = pooling_param.input();
-  //   const auto input_tensor =
-  //       get_input<INPUT_T, ACCUMULATE_T>(input, args[arg_index++]);
-  //   const auto input_shape = get_shape(input);
-  //   output_tensor = pooling<INPUT_T, ACCUMULATE_T>(input_tensor,
-  //   input_shape); delete[] input_tensor;
-  // }
+  if (param.has_pooling_param()) {
+    const auto input = param.pooling_param().input();
+    const auto input_tensor =
+        get_input<INPUT_T, ACCUMULATE_T>(input, args[arg_index++]);
+    output_tensor = pooling(input_tensor, param);
+    delete[] input_tensor;
+  }
 
   if (param.has_matrix_param()) {
     const auto &matrix_param = param.matrix_param();

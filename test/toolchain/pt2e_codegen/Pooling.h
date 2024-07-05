@@ -16,9 +16,11 @@ void MapPoolingOperation(const codegen::AcceleratorParam &param,
 
   const auto pooling_param = param.pooling_param();
   const auto tiling = get_pooling_tiling(param);
-  std::cerr << "Pooling tiling: " << tiling << std::endl;
-  int C = pooling_param.kernel_size(0) * pooling_param.kernel_size(1);
+  int C = pooling_param.input().shape(1);
   int K = param.output().shape(1);
+
+  // avg pooling: {{1, 1, 8, 1, 1, 1}, {32, 3, 3, 4, 7, 7}}
+  // max pooling: {{56, 56, 1, 1, 1, 1}, {4, 4, 1, 1, 2, 2}}
 
   // input
   const auto input_memory = pooling_param.input().memory();
@@ -51,16 +53,15 @@ void MapPoolingOperation(const codegen::AcceleratorParam &param,
   for (int i = 0; i < 3; i++) {
     vector_params->outputLoops[0][i] = 1;
   }
-  vector_params->outputXLoopIndex[0] = 0;
-  vector_params->outputYLoopIndex[0] = 1;
-  vector_params->outputWeightLoopIndex[0] = 2;
-
   vector_params->outputLoops[1][0] = tiling.loops[0][tiling.y_loop_index[0]];
   vector_params->outputLoops[1][1] = tiling.loops[0][tiling.x_loop_index[0]];
   vector_params->outputLoops[1][2] = K / (OC_DIMENSION);
-  vector_params->outputYLoopIndex[1] = 0;
-  vector_params->outputXLoopIndex[1] = 1;
-  vector_params->outputWeightLoopIndex[1] = 2;
+
+  for (int i = 0; i < 2; i++) {
+    vector_params->outputYLoopIndex[i] = 0;
+    vector_params->outputXLoopIndex[i] = 1;
+    vector_params->outputWeightLoopIndex[i] = 2;
+  }
   vector_params->DP_OUTPUT = false;
 
   const int inst_count = tiling.loops[1][tiling.y_loop_index[1]] *

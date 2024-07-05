@@ -11,7 +11,7 @@
 // clang-format on
 #include "src/ArchitectureParams.h"
 #include "test/common/PytorchMemoryModelImpl.h"
-#include "test/common/PyTorchModel.h"
+#include "test/common/PytorchModel.h"
 #include "test/common/SimpleMemoryModel.h"
 #include "test/common/UniversalPosit.h"
 #include "test/compiler/proto/param.pb.h"

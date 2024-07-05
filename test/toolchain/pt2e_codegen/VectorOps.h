@@ -2,7 +2,7 @@
 
 #include "src/AccelTypes.h"
 #include "src/Params.h"
-#include "test/common/PyTorchModel.h"
+#include "test/common/PytorchModel.h"
 #include "test/common/VerificationTypes.h"
 #include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/pt2e_codegen/Common.h"

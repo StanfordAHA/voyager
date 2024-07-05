@@ -197,12 +197,13 @@ inline void PyTorchMemoryModel::load_weights(
 
 inline void PyTorchMemoryModel::load_outputs(
     const codegen::AcceleratorParam param, std::string data_dir) {
-  // always store output in the last memory partition with 0 offset
-  bool is_conv2d = param.matrix_param().opcode() == "conv2d";
-  codegen::Tensor output_tensor;
+    codegen::Tensor output_tensor;
   output_tensor.CopyFrom(param.output());
   auto memory = output_tensor.mutable_memory();
+  // always store output in the last memory partition with 0 offset
   memory->set_partition(-1);
   memory->set_offset(0);
-  load_tensor(output_tensor, data_dir, is_conv2d);
+  bool transpose =
+      param.matrix_param().opcode() == "conv2d" || param.has_pooling_param();
+  load_tensor(output_tensor, data_dir, transpose);
 }

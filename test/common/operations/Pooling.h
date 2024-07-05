@@ -3,25 +3,64 @@
 #include "test/common/operations/Common.h"
 
 template <typename T>
-inline T *max_pooling(const T *inputs, const std::vector<int> shape) {
-  T *outputs = new ACC_T[X * Y * K];
-  for (int y = 0; y < Y / 2; y++) {
-    for (int x = 0; x < X / 2; x++) {
-      for (int k = 0; k < K; k++) {
-        std::vector<T> v;
+T *pooling(const T *inputs, const codegen::AcceleratorParam &param) {
+  const auto &pooling_param = param.pooling_param();
+  int input_height = pooling_param.input().shape(2);
+  int input_width = pooling_param.input().shape(3);
+  int input_depth = pooling_param.input().shape(1);
 
-        for (int x_window = 0; x_window < 2; x_window++) {
-          for (int y_window = 0; y_window < 2; y_window++) {
-            int x_maxpool = x * 2 + x_window;
-            int y_maxpool = y * 2 + y_window;
-            v.push_back(outputs[y_maxpool * X * K + x_maxpool * K + k]);
-            std::cout << outputs[y_maxpool * X * K + x_maxpool * K + k] << " ";
+  int stride;
+  int kernel_size;
+  int padding;
+  int output_height;
+  int output_width;
+  if (pooling_param.opcode() == "adaptive_avg_pool2d") {
+    output_height = pooling_param.output_size(0);
+    output_width = pooling_param.output_size(1);
+    stride = input_height / output_height;
+    kernel_size = input_height - (output_height - 1) * stride * stride;
+    padding = 0;
+  } else {
+    stride = pooling_param.stride(0);
+    kernel_size = pooling_param.kernel_size(0);
+    padding = pooling_param.padding(0);
+    output_height = (input_height + 2 * padding - kernel_size) / stride + 1;
+    output_width = (input_width + 2 * padding - kernel_size) / stride + 1;
+  }
+
+  bool max_pool = pooling_param.opcode() == "max_pool2d";
+
+  T *output = new T[output_height * output_width * input_depth];
+
+  for (int y = 0; y < output_height; ++y) {
+    for (int x = 0; x < output_width; ++x) {
+      for (int d = 0; d < input_depth; ++d) {
+        T value = max_pool ? -9999 : 0;
+
+        for (int y_window = 0; y_window < kernel_size; ++y_window) {
+          for (int x_window = 0; x_window < kernel_size; ++x_window) {
+            int input_x = x * stride + x_window - padding;
+            int input_y = y * stride + y_window - padding;
+
+            if (input_x >= 0 && input_x < input_width && input_y >= 0 &&
+                input_y < input_height) {
+              T input = inputs[input_y * input_width * input_depth +
+                               input_x * input_depth + d];
+              if (max_pool) {
+                value = std::max(value, input);
+              } else {
+                value += input;
+              }
+            }
           }
         }
-
-        T max = *std::max_element(v.begin(), v.end());
-        std::cout << std::endl << "Max: " << max << std::endl;
+        if (!max_pool) {
+          value *= T(1.0 / (kernel_size * kernel_size));
+        }
+        output[y * output_width * input_depth + x * input_depth + d] = value;
       }
     }
   }
+
+  return output;
 }

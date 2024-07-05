@@ -4,11 +4,11 @@
 #include "src/Params.h"
 #include "test/common/VerificationTypes.h"
 #include "test/compiler/proto/param.pb.h"
-#include "test/toolchain/pt2e_codegen/MatrixOperation.h"
+#include "test/toolchain/pt2e_codegen/MatrixOps.h"
 #include "test/toolchain/pt2e_codegen/MatrixVectorMultiply.h"
-#include "test/toolchain/pt2e_codegen/PoolingOperation.h"
-#include "test/toolchain/pt2e_codegen/ReduceOperation.h"
-#include "test/toolchain/pt2e_codegen/VectorOperation.h"
+#include "test/toolchain/pt2e_codegen/Pooling.h"
+#include "test/toolchain/pt2e_codegen/ReduceOps.h"
+#include "test/toolchain/pt2e_codegen/VectorOps.h"
 
 void MapPytorchOperation(const codegen::AcceleratorParam &param,
                          std::deque<BaseParams *> &mappedParams,

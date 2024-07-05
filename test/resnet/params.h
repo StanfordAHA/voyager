@@ -6,18 +6,14 @@
 
 #include "test/common/VerificationTypes.h"
 
+int fy = IC_DIMENSION == 16 ? 2 : (IC_DIMENSION == 32 ? 1 : 7);
 const SimplifiedParams conv1_params = {
     .INPUT_OFFSET = 131072,
     .WEIGHT_OFFSET = 0,
     .OUTPUT_OFFSET = 431072,
     .WEIGHT_TRANSPOSE = false,
     // .loops = {{7, 7, 2, 1, 1, 1}, {1, 2, 7, 2, 16, 16}},
-    .loops = {{7, 7, 2, 1, 1, 1},
-              {1, 2, 7,
-               (IC_DIMENSION == 16   ? 2
-                : IC_DIMENSION == 32 ? 1
-                                  : 7),
-               16, 16}},
+    .loops = {{7, 7, 2, 1, 1, 1}, {1, 2, 7, fy, 16, 16}},
     .inputXLoopIndex = {0, 5},
     .inputYLoopIndex = {1, 4},
     .reductionLoopIndex = {3, 0},
