@@ -265,8 +265,7 @@ struct VectorInstructions {
   // Stage 0: add, mult
   ac_int<3, false> vOp0Src1;
   static const unsigned int readInterface = 1;
-  static const unsigned int op0immediate0 = 2;
-  static const unsigned int op0immediate1 = 3;
+  static const unsigned int op0immediate = 2;
   // static const unsigned int readFromReduce = 4;
 
   ac_int<2, false> vOp0;  // add, sub, mult
@@ -281,8 +280,7 @@ struct VectorInstructions {
   static const unsigned int vscaleexp = 2;
 
   ac_int<1, false> vOp1Src1;
-  static const unsigned int op1immediate0 = 0;
-  static const unsigned int op1immediate1 = 1;
+  static const unsigned int op1immediate = 0;
 
   // Stage 2: send to reduce unit
   ac_int<1, false> vOp2;
@@ -293,8 +291,7 @@ struct VectorInstructions {
                               // normal interface
   static const unsigned int readReduceInterface = 1;
   static const unsigned int readNormalInterface = 2;
-  static const unsigned int op3immediate0 = 3;
-  static const unsigned int op3immediate1 = 4;
+  static const unsigned int op3immediate = 3;
   ac_int<3, false> vOp3;  // add, mult
   // static const unsigned int vadd = 1;
   // static const unsigned int vmult = 2;
@@ -330,10 +327,10 @@ struct VectorInstructions {
   // broadcast count comes from {immediate1,immediate0}
   ac_int<1, false> rBroadcast;
 
-  ac_int<8, false> immediate0;
-  ac_int<8, false> immediate1;
+  ac_int<16, false> immediate0;
+  ac_int<16, false> immediate1;
 
-  static const unsigned int width = 60;
+  static const unsigned int width = 76;
 
 #ifndef NO_SYSC
   template <unsigned int Size>

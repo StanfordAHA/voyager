@@ -165,14 +165,9 @@ SC_MODULE(VectorOpUnit) {
         for (int i = 0; i < WIDTH; i++) {
           op0Src1[i] = tmp[i];
         }
-      } else if (inst.vOp0Src1 == VectorInstructions::op0immediate0 ||
-                 inst.vOp0Src1 == VectorInstructions::op0immediate1) {
-        IDTYPE immediate;
-        if (inst.vOp0Src1 == VectorInstructions::op0immediate0) {
-          immediate.setbits(inst.immediate0);
-        } else {
-          immediate.setbits(inst.immediate1);
-        }
+      } else if (inst.vOp0Src1 == VectorInstructions::op0immediate) {
+        typename ACC_DTYPE::AccumulationDatatype immediate;
+        immediate.setbits(inst.immediate0);
 
 #pragma hls_unroll yes
         for (int i = 0; i < WIDTH; i++) {
@@ -215,10 +210,8 @@ SC_MODULE(VectorOpUnit) {
         vexp<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(res0, res1);
       } else if (inst.vOp1 == VectorInstructions::vscaleexp) {
         ac_int<8, true> scaleVal;
-        if (inst.vOp1Src1 == VectorInstructions::op1immediate0) {
+        if (inst.vOp1Src1 == VectorInstructions::op1immediate) {
           scaleVal = inst.immediate0;
-        } else {
-          scaleVal = inst.immediate1;
         }
         vscaleexp<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(
             res0, scaleVal, res1);
@@ -252,14 +245,9 @@ SC_MODULE(VectorOpUnit) {
         for (int i = 0; i < WIDTH; i++) {
           op3Src1[i] = tmp[i];
         }
-      } else if (inst.vOp3Src1 == VectorInstructions::op3immediate0 ||
-                 inst.vOp3Src1 == VectorInstructions::op3immediate1) {
-        IDTYPE immediate;
-        if (inst.vOp3Src1 == VectorInstructions::op3immediate0) {
-          immediate.setbits(inst.immediate0);
-        } else {
-          immediate.setbits(inst.immediate1);
-        }
+      } else if (inst.vOp3Src1 == VectorInstructions::op3immediate) {
+        typename ACC_DTYPE::AccumulationDatatype immediate;
+        immediate.setbits(inst.immediate1);
 
 #pragma hls_unroll yes
         for (int i = 0; i < WIDTH; i++) {
@@ -284,11 +272,7 @@ SC_MODULE(VectorOpUnit) {
                                                                res3);
       } else if (inst.vOp3 == VectorInstructions::vscaleexp) {
         ac_int<8, true> scaleVal;
-        if (inst.vOp3Src1 == VectorInstructions::op3immediate0) {
-          scaleVal = inst.immediate0;
-        } else {
-          scaleVal = inst.immediate1;
-        }
+        scaleVal = inst.immediate1;
         vscaleexp<typename ACC_DTYPE::AccumulationDatatype, WIDTH>(
             op3Src0, scaleVal, res3);
       } else {
@@ -459,25 +443,21 @@ SC_MODULE(VectorOpUnit) {
         if (inst.rDest == VectorInstructions::toVectorOp0Src0) {
           ac_int<16, false> broadcastCount = 1;
           if (inst.rBroadcast) {
-            broadcastCount.set_slc(0, inst.immediate0);
-            broadcastCount.set_slc(8, inst.immediate1);
+            broadcastCount = inst.immediate0;
           }
           broadcastReduction0Count.Push(broadcastCount);
           reductionOpOutputOp0Src0.Push(res);
         } else if (inst.rDest == VectorInstructions::toVectorOp0Src1) {
           ac_int<16, false> broadcastCount = 1;
           if (inst.rBroadcast) {
-            broadcastCount.set_slc(0, inst.immediate0);
-            broadcastCount.set_slc(8, inst.immediate1);
+            broadcastCount = inst.immediate0;
           }
-
           broadcastReduction1Count.Push(broadcastCount);
           reductionOpOutputOp0Src1.Push(res);
         } else if (inst.rDest == VectorInstructions::toVectorOp3Src1) {
           ac_int<16, false> broadcastCount = 1;
           if (inst.rBroadcast) {
-            broadcastCount.set_slc(0, inst.immediate0);
-            broadcastCount.set_slc(8, inst.immediate1);
+            broadcastCount = inst.immediate0;
           }
           broadcastReduction2Count.Push(broadcastCount);
           reductionOpOutputOp3Src1.Push(res);

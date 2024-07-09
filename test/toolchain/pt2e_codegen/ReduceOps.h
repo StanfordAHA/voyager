@@ -79,9 +79,7 @@ void MapReduceOperation(const codegen::AcceleratorParam &param,
     vinst0.rDest = VectorInstructions::toVectorOp0Src1;
     vinst0.rBroadcast = 1;
     // broadcast max over entire array, for 2 passes
-    ac_int<16, false> vec_inst0_broadcastCount = 2 * output_dim / OC_DIMENSION;
-    vinst0.immediate0 = vec_inst0_broadcastCount.slc<8>(0);
-    vinst0.immediate1 = vec_inst0_broadcastCount.slc<8>(8);
+    vinst0.immediate0 = 2 * output_dim / OC_DIMENSION;
     vinst0.rSqrt = false;
     vinst0.rReciprocal = false;
     vector_instruction_config->inst[0] = vinst0;
@@ -112,9 +110,7 @@ void MapReduceOperation(const codegen::AcceleratorParam &param,
     vinst2.rDest = VectorInstructions::toVectorOp3Src1;
     vinst2.rBroadcast = 1;
     // broadcast max over entire array
-    ac_int<16, false> vec_inst2_broadcastCount = output_dim / OC_DIMENSION;
-    vinst2.immediate0 = vec_inst2_broadcastCount.slc<8>(0);
-    vinst2.immediate1 = vec_inst2_broadcastCount.slc<8>(8);
+    vinst2.immediate0 = output_dim / OC_DIMENSION;
     vinst2.rSqrt = false;
     vinst2.rReciprocal = true;
     vector_instruction_config->inst[2] = vinst2;

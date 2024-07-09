@@ -19,9 +19,9 @@
 // Function to check if the tensor requires double precision
 // Can be updated in the future.
 inline bool is_double_precision(const codegen::Tensor& tensor) {
-  // FIXME: turn off to directly compare with the old implementation
+  // FIXME: replace with proper check
+  // return tensor.dtype().find("8") == std::string::npos;
   return false;
-  return tensor.dtype().find("8") == std::string::npos;
 }
 
 inline float* read_tensor_from_file(const std::string& filename, int size,
@@ -61,21 +61,22 @@ class PyTorchMemoryModel {
 
  protected:
   void load_tensor(const codegen::Tensor& tensor, std::string data_dir,
-                   bool transpose = false, bool random_data = false,
-                   bool double_precision_ow = false);
+                   bool transpose = false, bool replication = false,
+                   bool double_precision_ow = false, bool random_data = false);
   virtual void write_to_memory(const int address, const float value,
                                const int parttion, bool double_precision) = 0;
 
   // special addressing is sometimes needed for DUT memory (ex. replication)
-  bool isDut;
+  bool is_dut;
 };
 
-inline PyTorchMemoryModel::PyTorchMemoryModel(bool isDut) : isDut(isDut) {}
+inline PyTorchMemoryModel::PyTorchMemoryModel(bool is_dut) : is_dut(is_dut) {}
 
 inline void PyTorchMemoryModel::load_tensor(const codegen::Tensor& tensor,
                                             std::string data_dir,
-                                            bool transpose, bool random_data,
-                                            bool double_precision_ow) {
+                                            bool transpose, bool replication,
+                                            bool double_precision_ow,
+                                            bool random_data) {
   auto repeated_field = tensor.shape();
   std::vector<size_t> shape(repeated_field.begin(), repeated_field.end());
   int size = 1;
@@ -83,8 +84,7 @@ inline void PyTorchMemoryModel::load_tensor(const codegen::Tensor& tensor,
 
   std::string filename = data_dir + "/" + tensor.node() + ".bin";
   auto array_ptr = read_tensor_from_file(filename, size, random_data);
-  xt::xarray<float> array =
-      xt::adapt(array_ptr, size, xt::no_ownership(), shape);
+  auto array = xt::adapt(array_ptr, size, xt::no_ownership(), shape);
 
   // Accelerator expect the data to be layed out in a different order
   if (transpose && shape.size() == 4) {
@@ -106,11 +106,20 @@ inline void PyTorchMemoryModel::load_tensor(const codegen::Tensor& tensor,
   std::cerr << "dtype: " << tensor.dtype() << std::endl;
   std::cerr << "double precision: " << double_precision << std::endl;
 
+  // number of elements packed into a single word for replication
+  const int packing_factor = IC_DIMENSION / 4 * 3;
+  if (replication) {
+    std::cerr << "packing factor: " << packing_factor << std::endl;
+  }
+
   int address = 0;
   for (auto it = array.begin(); it != array.end(); ++it) {
     write_to_memory(offset + address_multiplier * address, *it, partition,
                     double_precision);
     address++;
+    if (replication && address % IC_DIMENSION == packing_factor) {
+      address += IC_DIMENSION - packing_factor;
+    }
   }
 
   delete[] array_ptr;
@@ -126,8 +135,9 @@ inline void PyTorchMemoryModel::load_inputs(
   std::string output_node = "";
   if (param.has_matrix_param()) {
     const codegen::MatrixParam& matrix_param = param.matrix_param();
-    load_tensor(matrix_param.input(), data_dir, is_conv2d);
     output_node = matrix_param.name();
+    bool replication = matrix_param.input().shape(1) == 3 && is_dut;
+    load_tensor(matrix_param.input(), data_dir, is_conv2d, replication);
     if (matrix_param.opcode() == "matmul") {
       load_tensor(matrix_param.weight(), data_dir);
     }
@@ -197,7 +207,7 @@ inline void PyTorchMemoryModel::load_weights(
 
 inline void PyTorchMemoryModel::load_outputs(
     const codegen::AcceleratorParam param, std::string data_dir) {
-    codegen::Tensor output_tensor;
+  codegen::Tensor output_tensor;
   output_tensor.CopyFrom(param.output());
   auto memory = output_tensor.mutable_memory();
   // always store output in the last memory partition with 0 offset

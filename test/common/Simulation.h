@@ -33,11 +33,9 @@ class Simulation {
   void print_help();
 
  protected:
-  std::vector<Workload> workloads;
-  std::map<std::string, MemoryModel *> memory_models;
   std::vector<std::string> sims;
   std::string out_dir;
-  std::string modelName;
+  std::string model_name;
   std::string tests;
   std::string task;
   float tolerance = 0.1;

@@ -24,8 +24,8 @@ class PyTorchMemoryModelImpl : public PyTorchMemoryModel {
 
 template <class T>
 inline PyTorchMemoryModelImpl<T>::PyTorchMemoryModelImpl(std::vector<int> sizes,
-                                                         bool isDut)
-    : PyTorchMemoryModel(isDut) {
+                                                         bool is_dut)
+    : PyTorchMemoryModel(is_dut) {
   memories.reserve(sizes.size());
   try {
     for (int size : sizes) {

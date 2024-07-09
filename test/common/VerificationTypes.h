@@ -271,8 +271,9 @@ inline Tiling get_conv_tiling(codegen::MatrixParam param) {
 
   if (IH == 224 && IW == 224 && IC == 3 && KH == 7 && KW == 7 &&
       OC == 64) {  // conv1
+    const int fx = IC_DIMENSION == 16 ? 2 : (IC_DIMENSION == 32 ? 1 : 7);
     return {
-        .loops = {{7, 7, 2, 1, 1, 1}, {1, 2, 7, 2, 16, 16}},
+        .loops = {{7, 7, 2, 1, 1, 1}, {1, 2, 7, fx, 16, 16}},
         .x_loop_index = {0, 5},
         .y_loop_index = {1, 4},
         .reduction_loop_index = {3, 0},

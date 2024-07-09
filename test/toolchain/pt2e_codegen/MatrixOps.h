@@ -371,23 +371,27 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
         const auto tensor_to_load =
             output_node == it->other().node() ? it->input() : it->other();
         const int size = get_size(tensor_to_load);
+        if (size == 1) {
+          // TODO: Ideally this should be stroed in the vector param.
+          INPUT_DATATYPE constant = read_constant_param(tensor_to_load);
+          ACCUM_DATATYPE immediate = constant;
+          if (it->opcode() == "div" || it->opcode() == "div_") {
+            immediate = 1.0 / immediate;
+          }
 
-        if (stage == 0) {
-          if (size == 1) {
-            // TODO:
-            vinst.vOp0Src1 = VectorInstructions::op0immediate0;
-            // vinst.immediate0 = ;
-          } else {
+          if (stage == 0) {
+            vinst.vOp0Src1 = VectorInstructions::op0immediate;
+            vinst.immediate0 = immediate.bits_rep();
+          } else if (stage == 3) {
+            vinst.vOp3Src1 = VectorInstructions::op3immediate;
+            vinst.immediate1 = immediate.bits_rep();
+          }
+        } else {
+          if (stage == 0) {
             vinst.vOp0Src1 = VectorInstructions::readInterface;
             set_addr_gen1(tensor_to_load, tiling, accelerator_memory_map,
                           vector_params);
-          }
-        } else if (stage == 3) {
-          if (size == 1) {
-            // TODO:
-            vinst.vOp3Src1 = VectorInstructions::op3immediate0;
-            // vinst.immediate0 = ;
-          } else {
+          } else if (stage == 3) {
             vinst.vOp3Src1 = VectorInstructions::readNormalInterface;
             set_addr_gen2(tensor_to_load, tiling, accelerator_memory_map,
                           vector_params);

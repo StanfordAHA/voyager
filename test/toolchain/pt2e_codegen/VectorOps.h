@@ -2,6 +2,7 @@
 
 #include "src/AccelTypes.h"
 #include "src/Params.h"
+#include "test/common/PytorchMemoryModel.h"
 #include "test/common/PytorchModel.h"
 #include "test/common/VerificationTypes.h"
 #include "test/compiler/proto/param.pb.h"
@@ -150,8 +151,7 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   for (int stage = 0; stage < 5; stage++) {
     const auto opcode = has_vector_params ? it->opcode() : "nop";
     bool matched = vector_ops[stage].find(opcode) != vector_ops[stage].end();
-    unsigned int vop =
-        matched ? vinst_mappings[opcode] : VectorInstructions::nop;
+    auto vop = matched ? vinst_mappings[opcode] : VectorInstructions::nop;
 
     std::cerr << "stage: " << stage << "  opcode: " << opcode
               << "  matched: " << matched << std::endl;
@@ -173,27 +173,31 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
         const auto tensor_to_load =
             output_node == it->other().node() ? it->input() : it->other();
         const int size = get_size(tensor_to_load);
+        if (size == 1) {
+          // TODO: Ideally this should be stroed in the vector param.
+          INPUT_DATATYPE constant = read_constant_param(tensor_to_load);
+          ACCUM_DATATYPE immediate = constant;
+          if (it->opcode() == "div" || it->opcode() == "div_") {
+            immediate = 1.0 / immediate;
+          }
 
-        const auto input_shape = get_shape(it->input());
-        const auto other_shape = get_shape(it->other());
-        const auto output_shape = broadcast_shape(input_shape, other_shape);
+          if (stage == 0) {
+            vinst.vOp0Src1 = VectorInstructions::op0immediate;
+            vinst.immediate0 = immediate.bits_rep();
+          } else if (stage == 3) {
+            vinst.vOp3Src1 = VectorInstructions::op3immediate;
+            vinst.immediate1 = immediate.bits_rep();
+          }
+        } else {
+          const auto input_shape = get_shape(it->input());
+          const auto other_shape = get_shape(it->other());
+          const auto output_shape = broadcast_shape(input_shape, other_shape);
 
-        if (stage == 0) {
-          if (size == 1) {
-            // TODO:
-            vinst.vOp0Src1 = VectorInstructions::op0immediate0;
-            // vinst.immediate0 = ;
-          } else {
+          if (stage == 0) {
             vinst.vOp0Src1 = VectorInstructions::readInterface;
             set_vector_addr_gen1(tensor_to_load, output_shape,
                                  accelerator_memory_map, vector_params);
-          }
-        } else if (stage == 3) {
-          if (size == 1) {
-            // TODO:
-            vinst.vOp3Src1 = VectorInstructions::op3immediate0;
-            // vinst.immediate0 = ;
-          } else {
+          } else if (stage == 3) {
             vinst.vOp3Src1 = VectorInstructions::readNormalInterface;
             set_vector_addr_gen2(tensor_to_load, output_shape,
                                  accelerator_memory_map, vector_params);

@@ -7,10 +7,10 @@
 #include "test/common/VerificationTypes.h"
 
 std::map<int, std::set<std::string>> vector_ops = {
-    {0, {"add", "add_", "sub", "sub_", "mul", "mul_"}},
+    {0, {"add", "add_", "sub", "sub_", "mul", "mul_", "div", "div_"}},
     {1, {"exp"}},
     {2, {}},
-    {3, {"add", "add_", "mul", "mul_", "square"}},
+    {3, {"add", "add_", "mul", "mul_", "div", "div_", "square"}},
     {4, {"relu", "relu_"}},
 };
 
@@ -22,6 +22,8 @@ std::map<std::string, unsigned int> get_vector_instruction_mapping() {
   mapping["sub_"] = VectorInstructions::vsub;
   mapping["mul"] = VectorInstructions::vmult;
   mapping["mul_"] = VectorInstructions::vmult;
+  mapping["div"] = VectorInstructions::vmult;
+  mapping["div_"] = VectorInstructions::vmult;
   mapping["relu"] = VectorInstructions::vrelu;
   mapping["relu_"] = VectorInstructions::vrelu;
   mapping["exp"] = VectorInstructions::vexp;
@@ -31,4 +33,13 @@ std::map<std::string, unsigned int> get_vector_instruction_mapping() {
 
 inline MemorySource get_partition(const int &partition) {
   return partition == 0 ? SRAM : RRAM;
+}
+
+inline float read_constant_param(const codegen::Tensor tensor) {
+  const char *env_var = std::getenv("NETWORK");
+  std::string model_name(env_var);
+  std::string filename = "test/compiler/networks/" + model_name +
+                         "/tensor_files/" + tensor.node() + ".bin";
+  auto array_ptr = read_tensor_from_file(filename, 1, false);
+  return array_ptr[0];
 }
