@@ -8,6 +8,36 @@ RTL Simulation (E4M3, 16x16):
   script:
     - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims RTL --num_processes 32
 
+RTL Simulation (Posit8_1, 16x16):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=P8_1 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims RTL --num_processes 32
+
+RTL Simulation (Int8, 16x16):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=Int8 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims RTL --num_processes 32
+
+RTL Simulation (MXInt8, 16x16):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=MXInt8 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims RTL --num_processes 32
+
 RTL Simulation (E4M3, 16x32):
   stage: test
   artifacts:
@@ -37,3 +67,33 @@ RTL Simulation (E4M3, 32x64):
     expire_in: 1 month
   script:
     - DATATYPE=E4M3 IC_DIMENSION=32 OC_DIMENSION=64 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18 --sims RTL --num_processes 32
+
+RTL Simulation (E4M3, 8x16):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=E4M3 IC_DIMENSION=8 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims RTL --num_processes 32
+
+RTL Simulation (E4M3, 8x8):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=E4M3 IC_DIMENSION=8 OC_DIMENSION=8 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims RTL --num_processes 32
+
+RTL Simulation (E4M3, 4x8):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=E4M3 IC_DIMENSION=4 OC_DIMENSION=8 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims RTL --num_processes 32
