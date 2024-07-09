@@ -65,13 +65,16 @@ LAYERS = {
 }
 
 
-def print_test_results(test_results):
+def print_test_results(test_results, output_folder):
     columns = ["Model", "Layer", "Status", "Runtime"]
     if len(test_results[0]) == 3:
         columns = columns[:3]
 
     # convert list of tuples to DataFrame
     df = pd.DataFrame(test_results, columns=columns)
+
+    # dump dataframe to pickle
+    df.to_pickle(f"{output_folder}/test_results.pkl")
 
     # get models
     models = df["Model"].unique()
@@ -170,7 +173,7 @@ def run_systemc_tests(models, num_processes, results_folder):
     pool.close()
     pool.join()
 
-    return print_test_results(test_results)
+    return print_test_results(test_results, results_folder)
 
 
 def run_rtl_test(model, layer, output_folder):
@@ -257,7 +260,7 @@ def run_rtl_tests(models, num_processes, results_folder):
     pool.close()
     pool.join()
 
-    return print_test_results(test_results)
+    return print_test_results(test_results, results_folder)
 
 
 def main():
