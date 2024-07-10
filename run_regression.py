@@ -81,7 +81,7 @@ def print_test_results(test_results, output_folder):
 
     for model in models:
         print("=" * 10 + f" {model} " + "=" * 10)
-        
+
         model_df = df[df["Model"] == model]
 
         # sort according to order in LAYERS
@@ -97,7 +97,7 @@ def print_test_results(test_results, output_folder):
         print(passed["Layer"].to_string(index=False) if not passed.empty else "None")
         print("Failed:")
         print(failed["Layer"].to_string(index=False) if not failed.empty else "None")
-        
+
         # if runtime column exists, print runtime of each layer
         if "Runtime" in model_df.columns:
             print("Runtime:")
@@ -203,19 +203,30 @@ def run_rtl_test(model, layer, output_folder):
         stdout=subprocess.PIPE,
     )
     p.communicate()
+    success = p.returncode == 0
 
-    # capture number after "Runtime: " in the log file
-    p = subprocess.Popen(
-        ["grep", "-oP", "(?<=Runtime: ).\d+", f"{output_folder}/{model}_{layer}.log"],
-        stdout=subprocess.PIPE,
-    )
-    runtime = int(p.communicate()[0].decode("utf-8").strip())
+    if success:
+        # capture number after "Runtime: " in the log file
+        p = subprocess.Popen(
+            [
+                "grep",
+                "-oP",
+                "(?<=Runtime: ).\d+",
+                f"{output_folder}/{model}_{layer}.log",
+            ],
+            stdout=subprocess.PIPE,
+        )
+        runtime = int(p.communicate()[0].decode("utf-8").strip())
+    else:
+        runtime = 0
 
-    return (model, layer, p.returncode == 0, runtime)
+    return (model, layer, success, runtime)
 
 
 def run_rtl_tests(models, num_processes, results_folder):
-    check_environment_vars(["DATATYPE", "IC_DIMENSION", "OC_DIMENSION", "TECHNOLOGY", "CLOCK_PERIOD"])
+    check_environment_vars(
+        ["DATATYPE", "IC_DIMENSION", "OC_DIMENSION", "TECHNOLOGY", "CLOCK_PERIOD"]
+    )
 
     # clean old build
     subprocess.run(["make", "clean-catapult"], env=os.environ)
@@ -235,7 +246,9 @@ def run_rtl_tests(models, num_processes, results_folder):
         env_vars["NETWORK"] = "resnet18"
         env_vars["TESTS"] = "layer2_0_downsample"
         env_vars["SIMS"] = "customposit,accelerator"
-        env_vars["DATA_DIR"] = f"/sim2/shared/MINOTAUR/nn_data/unfused_maxpool/resnet18/"
+        env_vars["DATA_DIR"] = (
+            f"/sim2/shared/MINOTAUR/nn_data/unfused_maxpool/resnet18/"
+        )
 
         subprocess.run(
             ["make", "-f", "scverify/Verify_concat_sim_rtl_v_vcs.mk", "build"],
