@@ -124,7 +124,7 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   }
   vector_params->outputLoops[1][0] = 1;
   vector_params->outputLoops[1][1] = input_dim;
-  vector_params->outputLoops[1][2] = output_dim / (OC_DIMENSION);
+  vector_params->outputLoops[1][2] = output_dim / OC_DIMENSION;
 
   for (int i = 0; i < 2; i++) {
     vector_params->outputXLoopIndex[i] = 0;

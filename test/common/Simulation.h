@@ -27,9 +27,9 @@ class Simulation {
  public:
   Simulation();
 
-  void loadMemory();
+  void load_data();
   void run();
-  int checkOutput();
+  int check_outputs();
   void print_help();
 
  protected:

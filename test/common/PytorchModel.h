@@ -14,6 +14,7 @@
 #include "test/common/operations/MatrixOps.h"
 #include "test/common/operations/Pooling.h"
 #include "test/common/operations/ReduceOps.h"
+#include "test/common/operations/ReshapeOps.h"
 #include "test/common/operations/VectorOps.h"
 #include "test/compiler/proto/param.pb.h"
 
@@ -57,6 +58,14 @@ void run_pytorch_op(const codegen::AcceleratorParam param,
         get_input<INPUT_T, ACCUMULATE_T>(input, args[arg_index++]);
     output_tensor = pooling(input_tensor, param);
     delete[] input_tensor;
+  }
+
+  if (param.has_reshape_param()) {
+    const auto &reshape_param = param.reshape_param();
+    const auto &input = reshape_param.input();
+    const auto input_tensor =
+        get_input<INPUT_T, ACCUMULATE_T>(input, args[arg_index++]);
+    output_tensor = permute(input_tensor, reshape_param);
   }
 
   if (param.has_matrix_param()) {

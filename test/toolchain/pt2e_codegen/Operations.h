@@ -8,6 +8,7 @@
 #include "test/toolchain/pt2e_codegen/MatrixVectorMultiply.h"
 #include "test/toolchain/pt2e_codegen/Pooling.h"
 #include "test/toolchain/pt2e_codegen/ReduceOps.h"
+#include "test/toolchain/pt2e_codegen/ReshapeOps.h"
 #include "test/toolchain/pt2e_codegen/VectorOps.h"
 
 void MapPytorchOperation(const codegen::AcceleratorParam &param,
@@ -30,8 +31,7 @@ void MapPytorchOperation(const codegen::AcceleratorParam &param,
   } else if (param.has_pooling_param()) {
     MapPoolingOperation(param, mappedParams, opMemoryMaps);
   } else if (param.has_reshape_param()) {
-    // TODO:
-    exit(1);
+    MapReshapeOperation(param, mappedParams, opMemoryMaps);
   } else if (param.vector_params_size() > 0) {
     MapVectorOperations(param, mappedParams, opMemoryMaps);
   }

@@ -30,6 +30,7 @@ inline PyTorchMemoryModelImpl<T>::PyTorchMemoryModelImpl(std::vector<int> sizes,
   try {
     for (int size : sizes) {
       T* memory = new T[size];
+      std::fill(memory, memory + size, 0);
       memories.push_back(memory);
     }
   } catch (const std::bad_alloc& e) {

@@ -22,6 +22,9 @@ namespace filesystem = experimental::filesystem;
 }
 #endif
 
+using FloatMemoryModel = PyTorchMemoryModelImpl<float>;
+using HlsMemoryModel = PyTorchMemoryModelImpl<INPUT_DATATYPE>;
+
 Simulation::Simulation() {
   model_name = get_env_var("NETWORK");
   if (model_name.empty()) model_name = "resnet";
@@ -29,8 +32,8 @@ Simulation::Simulation() {
   tests = get_env_var("TESTS");
   if (tests.empty()) tests = "fc";
 
-  std::string simsEnv(get_env_var("SIMS"));
-  if (simsEnv.empty()) simsEnv = "fp32,systemc,accelerator";
+  std::string sims_env(get_env_var("SIMS"));
+  if (sims_env.empty()) sims_env = "fp32,systemc,accelerator";
 
   // Only applicable when NETWORK=mobilebert
   task = get_env_var("TASK");
@@ -54,7 +57,7 @@ Simulation::Simulation() {
   }
 
   // Parse sims to run
-  split_string(simsEnv, ',', std::back_inserter(sims));
+  split_string(sims_env, ',', std::back_inserter(sims));
   if (sims.size() & 0x01) {
     throw std::runtime_error("Need to supply even number of sim pairs.");
   }
@@ -84,19 +87,17 @@ Simulation::Simulation() {
   std::cout << "> RRAM: " << RRAM_MEMORY_SIZE / 1024 << " KB\n";
 }
 
-void Simulation::loadMemory() {
+void Simulation::load_data() {
   std::vector<int> memory_sizes{SRAM_MEMORY_SIZE, RRAM_MEMORY_SIZE,
                                 REFERENCE_MEMORY_SIZE};
-  if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
-    memories["systemc"] =
-        new PyTorchMemoryModelImpl<INPUT_DATATYPE>(memory_sizes, false);
-  }
   if (std::find(sims.begin(), sims.end(), "fp32") != sims.end()) {
-    memories["fp32"] = new PyTorchMemoryModelImpl<float>(memory_sizes, false);
+    memories["fp32"] = new FloatMemoryModel(memory_sizes, false);
+  }
+  if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
+    memories["systemc"] = new HlsMemoryModel(memory_sizes, false);
   }
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
-    memories["accelerator"] =
-        new PyTorchMemoryModelImpl<INPUT_DATATYPE>(memory_sizes, true);
+    memories["accelerator"] = new HlsMemoryModel(memory_sizes, true);
   }
 
   std::string data_dir =
@@ -114,113 +115,84 @@ void Simulation::run() {
   // Run gold models
   for (const auto& param : params) {
     if (std::find(sims.begin(), sims.end(), "fp32") != sims.end()) {
-      auto memory = (PyTorchMemoryModelImpl<float>*)(memories["fp32"]);
-      std::vector<float*> args = memory->get_args(param);
+      auto memory = (FloatMemoryModel*)(memories["fp32"]);
+      auto args = memory->get_args(param);
       run_pytorch_model(param, args);
     }
 
     if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
-      auto memory =
-          (PyTorchMemoryModelImpl<INPUT_DATATYPE>*)(memories["systemc"]);
-      std::vector<INPUT_DATATYPE*> args = memory->get_args(param);
+      auto memory = (HlsMemoryModel*)(memories["systemc"]);
+      auto args = memory->get_args(param);
       run_pytorch_model(param, args);
     }
   }
 
   // Run accelerator
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
-    auto memory =
-        (PyTorchMemoryModelImpl<INPUT_DATATYPE>*)(memories["accelerator"]);
+    auto memory = (HlsMemoryModel*)(memories["accelerator"]);
     run_pytorch_op(params, memory->memories[0], memory->memories[1]);
   }
 }
 
-template <typename T>
-SimpleMemoryModel<T>* get_memory(
-    const std::vector<std::string>& sims, const std::string& key,
-    std::map<std::string, MemoryModel*>& memory_models) {
-  if (std::find(sims.begin(), sims.end(), key) == sims.end()) {
-    return nullptr;
-  }
-
-  return static_cast<SimpleMemoryModel<T>*>(memory_models[key]);
-};
-
-int Simulation::checkOutput() {
-  std::string outFilePrefix;
+int Simulation::check_outputs() {
+  std::string prefix;
   if (params.size() == 1) {
-    outFilePrefix = out_dir + model_name + '.' + params.front().name() + '.';
+    prefix = out_dir + model_name + '.' + params.front().name() + '.';
   } else {
-    outFilePrefix = out_dir + model_name + '.' + params.front().name() +
-                    "_to_" + params.back().name() + '.';
+    prefix = out_dir + model_name + '.' + params.front().name() + "_to_" +
+             params.back().name() + '.';
   }
 
+  bool has_valid_comp = false;
   double rel_err = 0.0;
-  bool any_comparison = false;
-  int size = 0;
 
-  codegen::AcceleratorParam accel_param;
-  if (!this->params.empty()) {
-    accel_param = this->params.back();
-    auto output = accel_param.output();
-    size = 1;
-    for (int i = 0; i < output.shape_size(); i++) {
-      size *= output.shape(i);
-    }
-  }
+  auto param = params.back();
+  int size = 1;
+  for (const auto& dim : param.output().shape()) size *= dim;
 
   bool file = std::find(sims.begin(), sims.end(), "file") != sims.end();
 
-  auto fp32_memory =
-      static_cast<PyTorchMemoryModelImpl<float>*>(memories["fp32"]);
-  auto systemc_memory =
-      static_cast<PyTorchMemoryModelImpl<INPUT_DATATYPE>*>(memories["systemc"]);
-  auto accelerator_memory =
-      static_cast<PyTorchMemoryModelImpl<INPUT_DATATYPE>*>(
-          memories["accelerator"]);
-
-  //======================================
-  // PT2E Codegen Validation
-  //======================================
+  auto fp32_memory = (FloatMemoryModel*)memories["fp32"];
+  auto systemc_memory = (HlsMemoryModel*)memories["systemc"];
+  auto accelerator_memory = (HlsMemoryModel*)memories["accelerator"];
 
   if (fp32_memory && file) {
     std::cout << "FP32 PyTorch Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
-    std::string diffFile = outFilePrefix + "codegen_vs_pytorch.txt";
+    std::string filename = prefix + "codegen_vs_pytorch.txt";
 
-    rel_err += compare_arrays(fp32_memory->get_args(accel_param).back(), "fp32",
-                              fp32_memory->get_output(accel_param), "file",
-                              size, diffFile, false);
-    any_comparison = true;
+    rel_err += compare_arrays(fp32_memory->get_args(param).back(), "fp32",
+                              fp32_memory->get_output(param), "file", size,
+                              filename, false);
+    has_valid_comp = true;
   }
 
   if (accelerator_memory && file) {
     std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
-    std::string diffFile = outFilePrefix + "accel_vs_pytorch.txt";
+    std::string filename = prefix + "accel_vs_pytorch.txt";
 
-    rel_err += compare_arrays(accelerator_memory->get_args(accel_param).back(),
-                              "accelerator",
-                              accelerator_memory->get_output(accel_param),
-                              "file", size, diffFile, false);
-    any_comparison = true;
+    rel_err += compare_arrays(
+        accelerator_memory->get_args(param).back(), "accelerator",
+        accelerator_memory->get_output(param), "file", size, filename, false);
+    has_valid_comp = true;
   }
 
   if (accelerator_memory && systemc_memory) {
     std::cout << "Accelerator vs. HLS Posit Gold Model" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
-    std::string diffFile = outFilePrefix + "accel_vs_hlsgold.txt";
+    std::string filename = prefix + "accel_vs_hlsgold.txt";
 
-    rel_err += compare_arrays(accelerator_memory->get_args(accel_param).back(),
-                              "accelerator",
-                              systemc_memory->get_args(accel_param).back(),
-                              "systemc", size, diffFile, false);
-    any_comparison = true;
+    rel_err +=
+        compare_arrays(accelerator_memory->get_args(param).back(),
+                       "accelerator", systemc_memory->get_args(param).back(),
+                       "systemc", size, filename, false);
+    has_valid_comp = true;
   }
 
-  if (!any_comparison) {
+  if (!has_valid_comp) {
     std::cout << "No valid comparisons specified" << std::endl;
     std::abort();
   }
