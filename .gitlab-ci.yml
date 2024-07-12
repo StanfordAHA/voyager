@@ -16,5 +16,6 @@ variables:
   GIT_CLEAN_FLAGS: -ffdx
 
 include:
+  - local: .gitlab/ci/accuracy.yml
   - local: .gitlab/ci/sysc.yml
   - local: .gitlab/ci/rtl.yml
