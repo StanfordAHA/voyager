@@ -166,7 +166,7 @@ inline void PyTorchMemoryModel::load_inputs(
       const auto input = vector_param.input();
       const auto other = vector_param.other();
       const auto tensor_to_load = other.node() == output_node ? input : other;
-      if (tensor_to_load.node().find("param_constant") == std::string::npos) {
+      if (tensor_to_load.node().find("constant") == std::string::npos) {
         load_tensor(tensor_to_load, data_dir, is_conv2d);
       }
     }
@@ -198,11 +198,11 @@ inline void PyTorchMemoryModel::load_weights(
     if (vector_param.has_other()) {
       // Check both input and other tensors to see if they are parameters.
       const auto input = vector_param.input();
-      if (input.node().find("param_constant") != std::string::npos) {
+      if (input.node().find("constant") != std::string::npos) {
         load_tensor(input, data_dir);
       }
       const auto other = vector_param.other();
-      if (other.node().find("param_constant") != std::string::npos) {
+      if (other.node().find("constant") != std::string::npos) {
         load_tensor(other, data_dir);
       }
     }

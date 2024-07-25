@@ -9,7 +9,7 @@
 // organized as 8x 256KB Banks with 2x 128KB Macros each
 // FIXME: use a larger memory partition for testing
 #ifndef NUM_SRAM_BANKS
-#define NUM_SRAM_BANKS 32
+#define NUM_SRAM_BANKS 256
 #endif
 #define SRAM_MEMORY_SIZE (NUM_SRAM_BANKS * 256 * 1024)
 
@@ -17,7 +17,7 @@
 // organized as 12x 1MB Banks with 4x 256KB Macros each
 // 3x Superbanks and 4x Subbanks per Superbank
 #ifndef NUM_RRAM_BANKS
-#define NUM_RRAM_BANKS 12
+#define NUM_RRAM_BANKS 64
 #endif
 #define RRAM_MEMORY_SIZE (NUM_RRAM_BANKS * 1024 * 1024)
 
