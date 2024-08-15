@@ -22,8 +22,9 @@ $(info $(shell mkdir -p $(ALL_BUILD_DIRS)))
 CC := /cad/mentor/2024.1/Mgc_home/bin/g++
 
 # Check if the environment variable is set
+check_env_var:
 ifndef DATATYPE
-$(error DATATYPE is not set)
+	$(error DATATYPE and other required environment variables are not set)
 endif
 
 INC := \
@@ -181,7 +182,7 @@ sim-debug: $(CC_BUILD_DIR)/TestRunner
 	gdb ./$(CC_BUILD_DIR)/TestRunner
 
 .PHONY: TestRunner
-TestRunner: $(CC_BUILD_DIR)/TestRunner
+TestRunner: check_env_var $(CC_BUILD_DIR)/TestRunner
 
 $(CC_BUILD_DIR)/TestRunner: $(CC_BUILD_DIR)/Harness.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/MemoryModel.o $(CC_BUILD_DIR)/SimpleMemoryModel.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/networks.a $(CC_BUILD_DIR)/toolchain.a
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
@@ -294,13 +295,13 @@ $(CC_BUILD_DIR)/toolchain.a: $(TOOLCHAIN_OBJ)
 clean-all:
 	rm -rf build/*
 
-clean:
+clean: check_env_var
 	rm -rf $(CC_BUILD_DIR)
 
 clean-test:
 	rm -rf test_outputs/*
 
-clean-catapult:
+clean-catapult: check_env_var
 	rm -rf $(CATAPULT_BUILD_DIR)
 
 clean-rtl-sim:
