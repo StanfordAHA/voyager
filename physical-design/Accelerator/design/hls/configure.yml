@@ -1,0 +1,20 @@
+name: hls
+
+outputs:
+ - design.v
+ - build
+
+commands:
+ - ln -sf ../../../accel-src/src
+ - ln -sf ../../../accel-src/test
+ - ln -sf ../../../accel-src/lib
+ - ln -sf ../../../accel-src/Makefile
+ - ln -sf ../../../accel-src/scripts
+ - bash run.sh
+
+parameters:
+ clock_period: 2.0
+ datatype: None
+ ic_dimension: 16
+ oc_dimension: 16
+ technology: generic

@@ -1,0 +1,5 @@
+name: custom-dc-synthesis
+
+outputs:
+  - compile-options.tcl
+  - designer-interface.tcl

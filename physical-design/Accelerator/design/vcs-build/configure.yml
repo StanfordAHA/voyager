@@ -1,0 +1,22 @@
+name: vcs-build
+
+inputs:
+  - adk
+  - design.v
+  - build
+
+outputs:
+ - build
+
+commands:
+- sh run.sh
+
+parameters:
+  clock_period: 2
+  sim_level: rtl
+  # These parameters just need to exist for building the simulator
+  network: resnet18
+  layer: conv1
+  data_dir: None
+  sims: accelerator,customposit
+
