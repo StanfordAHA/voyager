@@ -34,27 +34,27 @@ multiplier = {
     "fc": 1,
   },
   "mobilebert": {
-    "bottleneck_input_dense": 2,
-    "bottleneck_input_LayerNorm": 5,
-    "attention_self_query_layer": 2,
-    "attention_self_value_layer": 1,
-    "attention_self_attention_scores_2": 4,
-    "attention_self_attention_probs_0": 4,
-    "attention_self_context_layer_0": 1,
-    "attention_self_context_layer_1": 1,
-    "attention_self_context_layer_2": 1,
-    "attention_self_context_layer_3": 1,
-    "attention_output_dense": 1,
-    "ffn_0_output_dense": 2,
-    "intermediate_dense": 2,
-    "output_bottleneck_dense": 1,
-    "output_bottleneck_LayerNorm": 1,
-    "classifier": 1,
+    "bottleneck_input_dense": 2 * 21,
+    "bottleneck_input_LayerNorm": 5 * 21,
+    "attention_self_query_layer": 2 * 21,
+    "attention_self_value_layer": 1 * 21,
+    "attention_self_attention_scores_2": 4 * 21,
+    "attention_self_attention_probs_0": 4 * 21,
+    "attention_self_context_layer_0": 1 * 21,
+    "attention_self_context_layer_1": 1 * 21,
+    "attention_self_context_layer_2": 1 * 21,
+    "attention_self_context_layer_3": 1 * 21,
+    "attention_output_dense": 1 * 21,
+    "ffn_0_output_dense": 2 * 21,
+    "intermediate_dense": 2 * 21,
+    "output_bottleneck_dense": 1 * 21,
+    "output_bottleneck_LayerNorm": 1 * 21,
+    "classifier": 1 * 21,
   }
 }
 
 
-def get_sim_results(build_dir, design_name="Accelerator"):
+def get_sim_results(build_dir, clock_period, design_name="Accelerator"):
     # list out all simulation nodes 
     sim_dirs = os.listdir(build_dir)
     # exclude the rtl-sim namemap run
@@ -87,17 +87,22 @@ def get_sim_results(build_dir, design_name="Accelerator"):
         )
         out = p.communicate()[0]    # pattern not found
         if not p.returncode == 0:
-            # print(f"Test Error in {log}: {out}")
             test.update({"status": "Abnormal"})
         else:
             count = int(out.decode('utf-8').strip())
             if count > 0:
-                # print(f"Test Error in {log}: {out}")
                 test.update({"status": f"Failed: {count}"})
             else:
                 test.update({"status": "Passed"})
 
         # get the runtime
+        p = subprocess.Popen(
+            ["grep", "-oP", "(?<=Ideal cycles: ).\\d+", log],
+            stdout=subprocess.PIPE,
+        )
+        ideal_cycles = p.communicate()[0].decode("utf-8").strip()
+        if ideal_cycles:
+            ideal_cycles = int(ideal_cycles)
         p = subprocess.Popen(
             ["grep", "-oP", "(?<=Runtime: ).\\d+", log],
             stdout=subprocess.PIPE,
@@ -105,7 +110,7 @@ def get_sim_results(build_dir, design_name="Accelerator"):
         runtime = p.communicate()[0].decode("utf-8").strip()
         if runtime:
             runtime = int(runtime)
-        test.update({"runtime (ns)": runtime})
+        test.update({"ideal cycles": ideal_cycles, "runtime (ns)": runtime, "utilization": ideal_cycles/(runtime/clock_period)})
 
         # Workaround: add the power fields so that they always exist as a key for all entries
         # so that the csv writer won't error out
@@ -157,7 +162,7 @@ if __name__ == "__main__":
 
       area = {"total_area (um2)": total_area, "mem_area": mem_area, "array_area": array_area}
     # get simulation results
-    tests = get_sim_results(build)
+    tests = get_sim_results(build, float(clock_period))
     results.update({build: {"datatype": datatype, "dimension": dimension, "clock_period (ns)": clock_period,
                             "area": area, "tests": tests }})
 
@@ -196,7 +201,7 @@ if __name__ == "__main__":
     header = list(results[list(results)[0]].keys())
     header = get_nested_keys(results)
     header += list(get_nested_values(results, "area").keys())
-    header += ["network", "status", "runtime (ns)", "energy (mJ)"]
+    header += ["network", "status", "ideal cycles", "runtime (ns)", "utilization", "energy (mJ)"]
     fields_to_remove = ["tests", "area"]
     for entry in fields_to_remove:
       header.remove(entry)
@@ -212,19 +217,22 @@ if __name__ == "__main__":
       for network, layers in entry["tests"].items():
         checklist = list(multiplier[network])
         status = "Complete"
+        ideal_cycles = 0
         runtime = 0
         energy = 0
         for layer, layer_data in layers.items():
           # some reports may not be generated yet.
           try:
+            ideal_cycles += layer_data["ideal cycles"] * multiplier[network][layer]
             runtime += layer_data["runtime (ns)"] * multiplier[network][layer]
             energy += layer_data[f"rtl power (W@{power_cond})"] * layer_data["runtime (ns)"] * 1e-6 * multiplier[network][layer]
           except:
             status = "Incomplete"
           checklist.remove(layer)
+        utilization = ideal_cycles/(runtime/float(entry["clock_period (ns)"]))
         # some layers are missing
         if checklist:
           status = "Incomplete"
-        data.update({"network": network, "status": status, "runtime (ns)": runtime, "energy (mJ)": energy})
+        data.update({"network": network, "status": status, "ideal cycles": ideal_cycles, "runtime (ns)": runtime, "utilization": utilization, "energy (mJ)": energy})
         dw.writerow(data)
     
