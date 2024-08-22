@@ -122,7 +122,7 @@ $(CATAPULT_BUILD_DIR)/Accelerator/Accelerator.v1/concat_rtl.v: $(CATAPULT_BUILD_
   /\*\// { comment = 1 } \
   /module intel16_1024x.*_rf_wrapper/ { within_block = 1 } \
   !within_block || within_block && !comment { print } \
-  within_block && /endmodule/ { within_block = 0 }
+  within_block && /endmodule/ { within_block = 0 } \
   comment = 0 \
 ' release/concat_rtl.v
 
