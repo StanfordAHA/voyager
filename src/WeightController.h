@@ -225,12 +225,12 @@ SC_MODULE(WeightController) {
     writeRequest[0].Reset();
     writeRequest[1].Reset();
 
+    bool bankSel = 0;
+
     wait();
 
     while (true) {
       const MatrixParams params = writerParams.Pop();
-
-      bool bankSel = 0;
 
       ac_int<8, false> loop_counters[2][5];
       ac_int<8, false> loop_bounds[2][5];
@@ -369,12 +369,12 @@ SC_MODULE(WeightController) {
     readAddress[0].Reset();
     readAddress[1].Reset();
 
+    bool bankSel = 0;
+
     wait();
 
     while (true) {
       const MatrixParams params = readerParams.Pop();
-
-      bool bankSel = 0;
 
       ac_int<8, false> loop_counters[2][6];
       ac_int<8, false> loop_bounds[2][6];
