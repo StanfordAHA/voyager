@@ -223,26 +223,19 @@ float compare_arrays(float *matrixA, std::string matrixA_name, float *matrixB,
                                                doublePrecision);
 }
 
-int validateMapping(SimplifiedParams params) {
-  int x0 = params.loops[1][params.inputXLoopIndex[1]];
-  int y0 = params.loops[1][params.inputYLoopIndex[1]];
-  int c0 = params.loops[1][params.reductionLoopIndex[1]];
-  int k0 = params.loops[1][params.weightLoopIndex[1]];
-  int fx = params.loops[1][params.fxIndex];
-  int fy = params.loops[1][params.fyIndex];
-  int stride = params.STRIDE;
-
-  if (params.FC || params.FC_GRAD || params.SOFTMAX || params.SOFTMAX_GRAD ||
-      params.NO_NORM || params.NO_NORM_GRAD || params.CROSS_ENTROPY_GRAD ||
-      params.GRAD_CLIPPING_UNIT_TEST || params.BIAS_GRAD ||
-      params.WEIGHT_UPDATE || params.MAXPOOL) {  // don't check for vector ops
-    return 0;
-  }
+int validateMapping(Tiling tiling) {
+  int x0 = tiling.loops[1][tiling.x_loop_index[1]];
+  int y0 = tiling.loops[1][tiling.y_loop_index[1]];
+  int c0 = tiling.loops[1][tiling.reduction_loop_index[1]];
+  int k0 = tiling.loops[1][tiling.weight_loop_index[1]];
+  int fx = tiling.loops[1][tiling.fx_index];
+  int fy = tiling.loops[1][tiling.fy_index];
+  int stride = tiling.stride;
 
   // TODO(fpedd): Fix and re-enable these checks
   // // Input buffer
   // int input_buffer_tile_size = (x0 * stride + fx - 1) * (y0 * stride + fy -
-  // 1); if (params.REPLICATION) {
+  // 1); if (tiling.replication) {
   //   // don't check temporarily TODO(fpedd): Why not?
   //   input_buffer_tile_size = 1;
   // }
@@ -256,12 +249,12 @@ int validateMapping(SimplifiedParams params) {
   // TODO(fpedd): The constraint should be c0, not 16. But this is causing
   // issues with the the last 3 conv layers of the ResNet18 model. Need to
   // investigate...
-  if (fx * fy * k0 * (params.REPLICATION ? 3 : 16) > WEIGHT_BUFFER_SIZE) {
+  if (fx * fy * k0 * (tiling.replication ? 3 : 16) > WEIGHT_BUFFER_SIZE) {
     std::cerr << "ERROR: Weight buffer tile size violation." << std::endl
               << "Constraint " << WEIGHT_BUFFER_SIZE << " but is " << fx
               << " * " << fy << " * " << k0 << " * "
-              << (params.REPLICATION ? 3 : 16) << " = "
-              << fx * fy * k0 * (params.REPLICATION ? 3 : 16) << std::endl;
+              << (tiling.replication ? 3 : 16) << " = "
+              << fx * fy * k0 * (tiling.replication ? 3 : 16) << std::endl;
     return -1;
   }
 
@@ -274,106 +267,26 @@ int validateMapping(SimplifiedParams params) {
     return -1;
   }
 
-  int x_check = params.inputXLoopIndex[1] >= 4
-                    ? params.loops[1][params.inputXLoopIndex[1]]
-                    : 1;
-  int y_check = params.inputYLoopIndex[1] >= 4
-                    ? params.loops[1][params.inputYLoopIndex[1]]
-                    : 1;
+  int x_check =
+      tiling.x_loop_index[1] >= 4 ? tiling.loops[1][tiling.x_loop_index[1]] : 1;
+  int y_check =
+      tiling.y_loop_index[1] >= 4 ? tiling.loops[1][tiling.y_loop_index[1]] : 1;
   if (x_check * y_check < 32) {
     std::cerr << "ERROR: Innermost X*Y must be >= 32." << std::endl;
-    std::cerr << "X -> params.loops[1][" << params.inputXLoopIndex[1]
-              << "] = " << params.loops[1][params.inputXLoopIndex[1]]
-              << std::endl;
-    std::cerr << "Y -> params.loops[1][" << params.inputYLoopIndex[1]
-              << "] = " << params.loops[1][params.inputYLoopIndex[1]]
-              << std::endl;
+    std::cerr << "X -> tiling.loops[1][" << tiling.x_loop_index[1]
+              << "] = " << tiling.loops[1][tiling.x_loop_index[1]] << std::endl;
+    std::cerr << "Y -> tiling.loops[1][" << tiling.y_loop_index[1]
+              << "] = " << tiling.loops[1][tiling.y_loop_index[1]] << std::endl;
     std::cerr << "X*Y (with index >= 4) is " << x_check * y_check << std::endl;
     return -1;
   }
 
-  if (params.reductionLoopIndex[1] != 0) {
+  if (tiling.reduction_loop_index[1] != 0) {
     std::cerr << "ERROR: Input channel needs to be outermost loop of buffer "
                  "level. But is "
-              << params.reductionLoopIndex[1] << std::endl;
+              << tiling.reduction_loop_index[1] << std::endl;
     return -1;
   }
 
   return 0;
-}
-
-/* This function checks for overlaps in weight/bias memory for a set of
- * workloads. */
-void validateMemoryMapping(std::vector<Workload> workloads) {
-  // put addresses and sizes of weights of all workloads into a vector of pairs
-  std::vector<std::tuple<Workload, int, int> > weightRanges;
-
-  for (const Workload &workload : workloads) {
-    const SimplifiedParams &params = workload.params;
-    if (!params.WEIGHT) {  // skip layers that don't use weights from weight
-                           // memory
-      continue;
-    }
-
-    // compute size of weights
-    int X = params.loops[0][params.inputXLoopIndex[0]] *
-            params.loops[1][params.inputXLoopIndex[1]];
-    int Y = params.loops[0][params.inputYLoopIndex[0]] *
-            params.loops[1][params.inputYLoopIndex[1]];
-    int C = params.loops[1][params.reductionLoopIndex[1]] * (16);
-    int K = params.loops[0][params.weightLoopIndex[0]] *
-            params.loops[1][params.weightLoopIndex[1]] * (16);
-    int FX = params.loops[1][params.fxIndex];
-    int FY = params.loops[1][params.fyIndex];
-    int STRIDE = params.STRIDE;
-    if (params.REPLICATION) {
-      FX = 7;
-      C = 3;
-    }
-
-    int size = FY * FX * C * K;
-    if (params.NO_NORM) {
-      size = C;
-    } else if (params.CROSS_ENTROPY_GRAD) {
-      size = X;
-    } else if (params.NO_NORM_GRAD) {
-      size = X * K;
-    } else if (params.WEIGHT_UPDATE) {
-      size = X * C;
-    }
-
-    if (params.NO_NORM || params.ACC_T_WEIGHT) {
-      size *= 2;
-    }
-
-    std::tuple<Workload, int, int> weightRange = std::make_tuple(
-        workload, params.WEIGHT_OFFSET, params.WEIGHT_OFFSET + size);
-
-    weightRanges.push_back(weightRange);
-  }
-
-  // sort weight ranges by start address
-  std::sort(weightRanges.begin(), weightRanges.end(),
-            [](const std::tuple<Workload, int, int> &a,
-               const std::tuple<Workload, int, int> &b) {
-              return std::get<1>(a) < std::get<1>(b);
-            });
-
-  // check for overlaps
-  for (int i = 0; i < weightRanges.size() - 1; i++) {
-    int start = std::get<1>(weightRanges[i]);
-    int end = std::get<2>(weightRanges[i]);
-    int nextStart = std::get<1>(weightRanges[i + 1]);
-    int nextEnd = std::get<2>(weightRanges[i + 1]);
-
-    if (nextStart < end) {
-      std::cerr << "ERROR: Weight memory overlap detected." << std::endl;
-      std::cerr << "Workload 1: " << std::get<0>(weightRanges[i]).name
-                << std::endl;
-      std::cerr << "Workload 2: " << std::get<0>(weightRanges[i + 1]).name
-                << std::endl;
-      std::cerr << "Overlap: [" << start << ", " << end << "] and ["
-                << nextStart << ", " << nextEnd << "]" << std::endl;
-    }
-  }
 }

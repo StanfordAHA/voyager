@@ -1,5 +1,10 @@
 .DEFAULT_GOAL := TestRunner
 
+# Default accelerator configurations
+IC_DIMENSION ?= 32
+OC_DIMENSION ?= 32
+DATATYPE ?= FP32
+
 # Detect OS
 OS := $(shell lsb_release -si)
 VER := $(shell lsb_release -sr)
@@ -11,8 +16,6 @@ $(info $(MSG))
 # Build folder format is build/DATATYPE_DIMENSIONxDIMENSION
 BUILD_DIR = build/$(DATATYPE)_$(IC_DIMENSION)x$(OC_DIMENSION)
 CC_BUILD_DIR = $(BUILD_DIR)/cc
-TOOLCHAIN_BUILD_DIR = $(BUILD_DIR)/cc/test/toolchain
-TOOLCHAIN_BUILD_DIRS = $(TOOLCHAIN_BUILD_DIR) $(TOOLCHAIN_BUILD_DIR)/operations
 ALL_BUILD_DIRS = $(CC_BUILD_DIR) $(TOOLCHAIN_BUILD_DIRS)
 # Create build dirs automatically
 $(info $(shell mkdir -p $(ALL_BUILD_DIRS)))
@@ -60,6 +63,8 @@ C11FLAGS += $(BASE_FLAGS) -std=c++17 -Wno-deprecated-declarations
 C17FLAGS += $(BASE_FLAGS) -std=c++17
 LDFLAGS += -lsystemc -lstdc++fs -labsl_log_internal_message -labsl_log_internal_check_op -lprotobuf -Wl,-rpath=$(CONDA_PREFIX)/lib
 LDLIBS += -L/cad/mentor/2024.1/Mgc_home/shared/lib/ -L$(CONDA_PREFIX)/lib
+LDFLAGS_NO_SYSC += -lstdc++fs -labsl_log_internal_message -labsl_log_internal_check_op -lprotobuf -Wl,-rpath=$(CONDA_PREFIX)/lib
+LDLIBS_NO_SYSC += -L$(CONDA_PREFIX)/lib
 
 ###########################################################
 # Catapult Synthesis
@@ -134,7 +139,6 @@ sim_sysc:
 	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/Utils.cc
 	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/DataLoader.cc
 	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/TestRunner.cc
-	syscan -kdb -cflags "$(C11FLAGS) -g" -Mdir=$(build_folder) test/toolchain/MapOperation.cc
 	vcs -full64 -sysc sc_main -kdb -debug_access+all -Mdir=$(build_folder) -o $(build_folder)/$(simv_name)
 	./$(build_folder)/$(simv_name) -ucli -i dump_fsdb.tcl
 
@@ -145,7 +149,6 @@ sim_sysc_gui:
 	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/Utils.cc
 	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/DataLoader.cc
 	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/TestRunner.cc
-	syscan -kdb -cflags "$(C11FLAGS) -g" -Mdir=$(build_folder) test/toolchain/MapOperation.cc
 	vcs -full64 -sysc sc_main -kdb -debug_access+all -Mdir=$(build_folder) -o $(build_folder)/$(simv_name)
 	./$(build_folder)/$(simv_name) -verdi
 
@@ -181,22 +184,22 @@ sim-debug: $(CC_BUILD_DIR)/TestRunner
 .PHONY: TestRunner
 TestRunner: $(CC_BUILD_DIR)/TestRunner
 
-$(CC_BUILD_DIR)/TestRunner: $(CC_BUILD_DIR)/Harness2.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/MemoryModel.o $(CC_BUILD_DIR)/SimpleMemoryModel.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/networks.a
-	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
-
-$(CC_BUILD_DIR)/TestRunner-fast: $(CC_BUILD_DIR)/Harness2-fast.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/MemoryModel.o $(CC_BUILD_DIR)/SimpleMemoryModel.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/networks.a
-	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
-
-.PHONY: MobileBERTAccuracy
-MobileBERTAccuracy: $(CC_BUILD_DIR)/AccuracyTester
-	./$(CC_BUILD_DIR)/AccuracyTester mobilebert models/mobilebert/binary_data/tiny_truncated_sst2/ 64
+.PHONY: MobileBertAccuracy
+MobileBertAccuracy: $(CC_BUILD_DIR)/AccuracyTester
+	./$(CC_BUILD_DIR)/AccuracyTester mobilebert data/sst2_val 64
 
 .PHONY: ResNetAccuracy
 ResNetAccuracy: $(CC_BUILD_DIR)/AccuracyTester
-	./$(CC_BUILD_DIR)/AccuracyTester resnet18 models/resnet/binary_data/imagenet_1000/
+	./$(CC_BUILD_DIR)/AccuracyTester resnet18 data/imagenet_val 50
 
-$(CC_BUILD_DIR)/AccuracyTester: $(CC_BUILD_DIR)/AccuracyTester.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/MemoryModel.o $(CC_BUILD_DIR)/SimpleMemoryModel.o $(CC_BUILD_DIR)/networks.a
-	$(CC) -o $@ $^ -lstdc++fs -pthread
+$(CC_BUILD_DIR)/TestRunner: $(CC_BUILD_DIR)/Harness.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/networks.a
+	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
+
+$(CC_BUILD_DIR)/TestRunner-fast: $(CC_BUILD_DIR)/Harness-fast.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/networks.a
+	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
+
+$(CC_BUILD_DIR)/AccuracyTester: $(CC_BUILD_DIR)/AccuracyTester.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/networks.a
+	$(CC) -o $@ $^ $(LDLIBS_NO_SYSC) $(LDFLAGS_NO_SYSC) -pthread
 
 .PHONY: MobileBERTFinetuning
 MobileBERTFinetuning: $(CC_BUILD_DIR)/Finetuning
@@ -212,13 +215,10 @@ PositTest: $(CC_BUILD_DIR)/PositTest
 $(CC_BUILD_DIR)/PositTest: test/common/PositTest.cc src/PositTypes.h
 	$(CC) $(C17FLAGS) -fopenmp -DNO_SYSC $< -o $@
 
-$(CC_BUILD_DIR)/Harness.o: test/common/Harness.cc test/common/Harness.h $(wildcard src/*.h)
+$(CC_BUILD_DIR)/Harness.o: test/common/Harness.cc test/common/Harness.h $(wildcard src/*.h) $(wildcard test/toolchain/*.h)
 	$(CC) $(C11FLAGS) -c -o $@ $<
 
-$(CC_BUILD_DIR)/Harness2.o: test/common/Harness2.cc test/common/Harness2.h $(wildcard src/*.h) $(wildcard test/toolchain/pt2e_codegen/*.h)
-	$(CC) $(C11FLAGS) -c -o $@ $<
-
-$(CC_BUILD_DIR)/Harness-fast.o: test/common/Harness.cc test/common/Harness.h $(wildcard src/*.h)
+$(CC_BUILD_DIR)/Harness-fast.o: test/common/Harness.cc test/common/Harness.h $(wildcard src/*.h) $(wildcard test/toolchain/*.h)
 	$(CC) $(C11FLAGS) -DCONNECTIONS_FAST_SIM -c -o $@ $<
 
 $(CC_BUILD_DIR)/Harness2-fast.o: test/common/Harness2.cc test/common/Harness2.h $(wildcard src/*.h)
@@ -230,19 +230,13 @@ $(CC_BUILD_DIR)/GoldModel.o: test/common/GoldModel.cc test/common/GoldModel.h sr
 $(CC_BUILD_DIR)/Utils.o: test/common/Utils.cc test/common/Utils.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
-$(CC_BUILD_DIR)/MemoryModel.o: test/common/MemoryModel.cc test/common/MemoryModel.h src/ArchitectureParams.h
-	$(CC) $(C17FLAGS) -c -o $@ $<
-
-$(CC_BUILD_DIR)/SimpleMemoryModel.o: test/common/SimpleMemoryModel.cc test/common/SimpleMemoryModel.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h
-	$(CC) $(C17FLAGS) -c -o $@ $<
-
-$(CC_BUILD_DIR)/Simulation.o: test/common/Simulation.cc test/common/Simulation.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h test/common/PytorchMemoryModel.h test/common/PytorchMemoryModelImpl.h test/common/PytorchModel.h test/common/operations/*.h test/common/VerificationTypes.h
+$(CC_BUILD_DIR)/Simulation.o: test/common/Simulation.cc test/common/Simulation.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h test/common/MemoryModel.h test/common/MemoryModelImpl.h test/common/operations/*.h test/common/VerificationTypes.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 $(CC_BUILD_DIR)/TestRunner.o: test/common/TestRunner.cc
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
-$(CC_BUILD_DIR)/AccuracyTester.o: test/common/AccuracyTester.cc src/PositTypes.h src/StdFloatTypes.h
+$(CC_BUILD_DIR)/AccuracyTester.o: test/common/AccuracyTester.cc src/PositTypes.h src/StdFloatTypes.h $(wildcard test/toolchain/*.h)
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 $(CC_BUILD_DIR)/Finetuning.o: test/training/Finetuning.cc test/training/forward_pass.h test/training/backward_pass.h test/training/model_arch.h test/training/memory_plan.h test/training/DTYPE.h
@@ -260,22 +254,12 @@ $(CC_BUILD_DIR)/DatasetIterator.o: test/training/DatasetIterator.cc
 .PHONY: networks
 networks: $(CC_BUILD_DIR)/networks.a
 
-$(CC_BUILD_DIR)/networks.a: $(CC_BUILD_DIR)/ResNet.o $(CC_BUILD_DIR)/MobileBERT.o $(CC_BUILD_DIR)/Generic.o $(CC_BUILD_DIR)/AutoGenerated.o $(CC_BUILD_DIR)/param.pb.o
+$(CC_BUILD_DIR)/networks.a: $(CC_BUILD_DIR)/Network.o $(CC_BUILD_DIR)/param.pb.o
 	$(AR) rcs $@ $^
 
-$(CC_BUILD_DIR)/ResNet.o: test/resnet/ResNet.cc test/resnet/*.h
-	$(CC) $(C17FLAGS) -c -o $@ $<
-
-$(CC_BUILD_DIR)/MobileBERT.o: test/mobilebert/MobileBERT.cc test/mobilebert/*.h test/mobilebert/mobilebert_tiny2/*.h test/common/VerificationTypes.h
-	$(CC) $(C17FLAGS) -c -o $@ $<
-
-$(CC_BUILD_DIR)/Generic.o: test/generic/Generic.cc
-	$(CC) $(C17FLAGS) -c -o $@ $<
-
 # Autogenerated networks
-$(CC_BUILD_DIR)/AutoGenerated.o: test/compiler/AutoGenerated.cc test/compiler/proto/param.pb.cc
+$(CC_BUILD_DIR)/Network.o: test/common/Network.cc test/compiler/proto/param.pb.cc
 	$(CC) $(C17FLAGS) -c -o $@ $<
-
 
 # protobuf generated files
 .PHONY: protos
@@ -288,29 +272,13 @@ test/compiler/networks/resnet50/params.pb: quantized-training/test/test_codegen.
 	python quantized-training/test/test_codegen.py --model resnet50 --output_dir test/compiler/networks/resnet50 | tee test/compiler/networks/resnet50/codegen.log
 test/compiler/networks/mobilebert/params.pb: quantized-training/test/test_codegen.py
 	mkdir -p test/compiler/networks/mobilebert
-	python quantized-training/test/test_codegen.py --model mobilebert_no_embed --output_dir test/compiler/networks/mobilebert | tee test/compiler/networks/mobilebert/codegen.log
+	python quantized-training/test/test_codegen.py --model mobilebert --output_dir test/compiler/networks/mobilebert | tee test/compiler/networks/mobilebert/codegen.log
 # test/compiler/networks/segformer/params.pb: quantized-training/test/test_codegen.py
 # 	python quantized-training/test/test_codegen.py --model segformer --output_dir test/compiler/networks/segformer
 test/compiler/proto/param.pb.cc: quantized-training/src/quantized_training/codegen/param.proto
 	protoc -I=quantized-training/src/quantized_training/codegen --cpp_out=test/compiler/proto $<
 $(CC_BUILD_DIR)/param.pb.o: test/compiler/proto/param.pb.cc
 	$(CC) $(C17FLAGS) -c -o $@ $<
-
-###########################################################
-# Toolchain
-###########################################################
-
-TOOLCHAIN_SRC = test/toolchain/MapOperation.cc $(wildcard test/toolchain/operations/*.cc)
-TOOLCHAIN_OBJ = $(addprefix $(CC_BUILD_DIR)/,  $(TOOLCHAIN_SRC:.cc=.o) )
-
-$(CC_BUILD_DIR)/test/toolchain/%.o: test/toolchain/%.cc
-	$(CC) $(C11FLAGS) -c -o $@ $<
-
-.PHONY: toolchain
-toolchain: $(CC_BUILD_DIR)/toolchain.a
-
-$(CC_BUILD_DIR)/toolchain.a: $(TOOLCHAIN_OBJ)
-	$(AR) rcs $@ $^
 
 ###########################################################
 # Cleanup Targets

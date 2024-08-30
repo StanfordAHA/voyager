@@ -109,7 +109,6 @@ inline T *perform_elwise_operation(const T *tensor1,
                                    const T *tensor2,
                                    const std::vector<int> &shape2,
                                    std::string operation) {
-  std::cerr << "perform_elwise_operation: " << operation << std::endl;
   auto result_shape = broadcast_shape(shape1, shape2);
   auto padded_shape1 = pad_shape(shape1, result_shape.size());
   auto padded_shape2 = pad_shape(shape2, result_shape.size());

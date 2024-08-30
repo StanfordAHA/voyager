@@ -45,14 +45,6 @@ inline ACCUMULATE_T *gemm(const INPUT_T *inputs, const INPUT_T *weights,
               << std::endl;
     exit(1);
   }
-  std::cerr << tiling << std::endl;
-
-  // TODO: replace tiling functions
-  // if (matrix_param.opcode() == "conv2d") {
-  //   tiling = get_conv2d_tiling(param);
-  // } else {
-  //   tiling = get_gemm_tiling(param);
-  // }
 
   int X = tiling.loops[0][tiling.x_loop_index[0]] *
           tiling.loops[1][tiling.x_loop_index[1]];
