@@ -327,6 +327,9 @@ void Harness::sendParams() {
                                                &serialMatrixParamsIn);
         matrixUnitStartSignal.SyncPop();
       }
+
+      sc_time start = sc_time_stamp();
+
       if (vectorParamsValid) {
         sendSerializedParams<VectorParams, 32>(*vectorParams,
                                                &serialVectorParamsIn);
@@ -338,7 +341,6 @@ void Harness::sendParams() {
       CCS_LOG("----- Accelerator Layer '" << currentParams.name
                                           << "' Started. -----");
 
-      sc_time start = sc_time_stamp();
 
       if (matrixParamsValid) {
         matrixUnitDoneSignal.SyncPop();
