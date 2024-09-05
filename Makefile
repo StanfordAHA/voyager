@@ -27,7 +27,6 @@ CC := /cad/mentor/2024.1/Mgc_home/bin/g++
 INC := \
 	-I/cad/mentor/2024.1/Mgc_home/shared/include/ \
 	-Ilib/ \
-	-Ilib/universal/include/ \
 	-Ilib/xtensor/include \
 	-Ilib/xtl/include \
 	-Isrc/ \

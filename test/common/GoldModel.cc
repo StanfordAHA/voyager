@@ -143,11 +143,3 @@ void run_gold_model(const codegen::AcceleratorParam &param,
   run_operation<INPUT_DATATYPE, INTERMEDIATE_DTYPE, ACCUM_DATATYPE>(param,
                                                                     args);
 }
-
-#ifndef NO_UNIVERSAL
-void run_gold_model(const codegen::AcceleratorParam &param,
-                    std::vector<UniversalPosit *> args) {
-  run_operation<UniversalPosit, UniversalPositAccum, UniversalPositAccum>(param,
-                                                                          args);
-}
-#endif

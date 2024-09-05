@@ -9,21 +9,6 @@
 // #include "matplotlib-cpp/matplotlibcpp.h"
 // namespace plt = matplotlibcpp;
 
-#ifndef NO_UNIVERSAL
-inline float readValue(UniversalPosit *matrix, int index,
-                       bool doublePrecision) {
-  if (!doublePrecision) {
-    return static_cast<float>(matrix[index]);
-  }
-
-  int lower = matrix[2 * index].encoding();
-  int upper = matrix[2 * index + 1].encoding();
-  UniversalPositAccum p16;
-  p16.setbits((upper << 8) + lower);
-  return static_cast<float>(p16);
-}
-#endif
-
 inline float readValue(INPUT_DATATYPE *matrix, int index,
                        bool doublePrecision) {
   if (!doublePrecision) {
@@ -188,32 +173,6 @@ float compare_arrays(INPUT_DATATYPE *matrixA, std::string matrixA_name,
       matrixA, matrixA_name, matrixB, matrixB_name, size, filename,
       doublePrecision);
 }
-
-#ifndef NO_UNIVERSAL
-float compare_arrays(INPUT_DATATYPE *matrixA, std::string matrixA_name,
-                     UniversalPosit *matrixB, std::string matrixB_name,
-                     size_t size, std::string filename, bool doublePrecision) {
-  return compare_arrays_internal<INPUT_DATATYPE, UniversalPosit>(
-      matrixA, matrixA_name, matrixB, matrixB_name, size, filename,
-      doublePrecision);
-}
-
-float compare_arrays(UniversalPosit *matrixA, std::string matrixA_name,
-                     UniversalPosit *matrixB, std::string matrixB_name,
-                     size_t size, std::string filename, bool doublePrecision) {
-  return compare_arrays_internal<UniversalPosit, UniversalPosit>(
-      matrixA, matrixA_name, matrixB, matrixB_name, size, filename,
-      doublePrecision);
-}
-
-float compare_arrays(UniversalPosit *matrixA, std::string matrixA_name,
-                     float *matrixB, std::string matrixB_name, size_t size,
-                     std::string filename, bool doublePrecision) {
-  return compare_arrays_internal<UniversalPosit, float>(
-      matrixA, matrixA_name, matrixB, matrixB_name, size, filename,
-      doublePrecision);
-}
-#endif
 
 float compare_arrays(float *matrixA, std::string matrixA_name, float *matrixB,
                      std::string matrixB_name, size_t size,

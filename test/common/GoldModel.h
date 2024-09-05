@@ -5,7 +5,6 @@
 // clang-format on
 #include "src/ArchitectureParams.h"
 #include "test/common/MemoryModel.h"
-#include "test/common/UniversalPosit.h"
 #include "test/common/VerificationTypes.h"
 #include "test/common/operations/MatrixOps.h"
 #include "test/common/operations/Pooling.h"
@@ -20,8 +19,3 @@ void run_gold_model(const codegen::AcceleratorParam &param,
 
 void run_gold_model(const codegen::AcceleratorParam &param,
                     std::vector<INPUT_DATATYPE *> args);
-
-#ifndef NO_UNIVERSAL
-void run_gold_model(const codegen::AcceleratorParam &param,
-                    std::vector<UniversalPosit *> args);
-#endif

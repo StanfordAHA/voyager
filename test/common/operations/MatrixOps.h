@@ -17,16 +17,6 @@ inline void fused_multiply_add(INPUT_DATATYPE a, INPUT_DATATYPE b,
 #endif
 }
 
-#ifndef NO_UNIVERSAL
-inline void fused_multiply_add(UniversalPosit a, UniversalPosit b,
-                               UniversalPositAccum &c) {
-  UniversalPositAccum product;
-  sw::universal::value<15> internal = sw::universal::fma<8, 1>(a, b, 0);
-  sw::universal::convert<16, 1, 15>(internal, product);
-  c += product;
-}
-#endif
-
 template <typename INPUT_T, typename ACCUMULATE_T, typename INTERMEDIATE_T>
 inline ACCUMULATE_T *gemm(const INPUT_T *inputs, const INPUT_T *weights,
                           const INPUT_T *bias,
@@ -38,7 +28,7 @@ inline ACCUMULATE_T *gemm(const INPUT_T *inputs, const INPUT_T *weights,
     tiling = get_conv2d_tiling(param);
   } else  {
     tiling = get_linear_tiling(param);
-  } 
+  }
 
   int X = tiling.loops[0][tiling.x_loop_index[0]] *
           tiling.loops[1][tiling.x_loop_index[1]];

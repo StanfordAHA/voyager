@@ -10,12 +10,6 @@ inline INTERMEDIATE_DTYPE exponent(const INTERMEDIATE_DTYPE &x) {
   return static_cast<INTERMEDIATE_DTYPE>(tmp);
 }
 
-#ifndef NO_UNIVERSAL
-inline UniversalPositAccum exponent(const UniversalPositAccum &x) {
-  return sw::universal::exp(x);
-}
-#endif
-
 template <typename T>
 inline T *softmax(const T *inputs, const std::vector<int> shape) {
   int num_rows = 1;

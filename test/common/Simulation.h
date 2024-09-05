@@ -11,7 +11,6 @@
 // clang-format on
 #include "src/ArchitectureParams.h"
 #include "test/common/MemoryModelImpl.h"
-#include "test/common/UniversalPosit.h"
 #include "test/compiler/proto/param.pb.h"
 
 void run_gold_model(std::vector<codegen::AcceleratorParam> params,

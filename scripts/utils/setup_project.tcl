@@ -25,7 +25,7 @@ solution options set Flows/VCS/SYSC_VERSION 2.3.3
 solution options set Flows/VCS/VLOGAN_OPTS {+v2k -timescale=1ns/10ps +notimingcheck +define+UNIT_DELAY}
 solution options set Flows/VCS/VCSSIM_OPTS {+fsdbfile+dump.fsdb +fsdb+all=on +fsdb+dumpon+0}
 solution options set Flows/VCS/VCS_DOFILE dump.do
-solution options set Flows/VCS/COMP_FLAGS "-O3 -Wall -Wno-unknown-pragmas -I$root/lib/ -I$root/lib/xtensor/include -I$root/lib/xtl/include -I$root/src/ -I$root/ -I$::env(CONDA_PREFIX)/include -DNO_UNIVERSAL -DSIM_$BLOCK -D$DATATYPE -DIC_DIMENSION=$IC_DIMENSION -DOC_DIMENSION=$OC_DIMENSION -std=c++17"
+solution options set Flows/VCS/COMP_FLAGS "-O3 -Wall -Wno-unknown-pragmas -I$root/lib/ -I$root/lib/xtensor/include -I$root/lib/xtl/include -I$root/src/ -I$root/ -I$::env(CONDA_PREFIX)/include -DSIM_$BLOCK -D$DATATYPE -DIC_DIMENSION=$IC_DIMENSION -DOC_DIMENSION=$OC_DIMENSION -std=c++17"
 solution options set Flows/VCS/VCSELAB_OPTS "-timescale=1ns/1ps -sysc=blocksync -lstdc++fs -L$::env(CONDA_PREFIX)/lib -LDFLAGS \"-Wl,--enable-new-dtags -Wl,-R,$::env(CONDA_PREFIX)/lib\" -labsl_log_internal_message -labsl_log_internal_check_op -lprotobuf"
 
 flow package require /SCVerify

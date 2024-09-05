@@ -10,10 +10,6 @@ inline void relu(float &x) { x = x > 0 ? x : 0; }
 
 inline void relu(INTERMEDIATE_DTYPE &x) { x.relu(); }
 
-#ifndef NO_UNIVERSAL
-inline void relu(UniversalPositAccum &x) { x = x > 0 ? x : 0; }
-#endif
-
 inline bool are_broadcastable(const std::vector<int> &shape1,
                               const std::vector<int> &shape2) {
   size_t len1 = shape1.size();

@@ -9,7 +9,6 @@
 
 #include "src/ArchitectureParams.h"
 #include "test/common/MemoryModel.h"
-#include "test/common/UniversalPosit.h"
 #include "test/common/VerificationTypes.h"
 #include "test/compiler/proto/param.pb.h"
 
@@ -53,21 +52,6 @@ inline ACCUM_DATATYPE read_tensor(const INPUT_DATATYPE *matrix, int index,
   }
 }
 
-#ifndef NO_UNIVERSAL
-inline UniversalPositAccum read_tensor(const UniversalPosit *matrix, int index,
-                                       bool double_precision) {
-  if (!double_precision) {
-    return static_cast<UniversalPositAccum>(matrix[index]);
-  }
-
-  int encoding1 = matrix[2 * index].encoding();
-  int encoding2 = matrix[2 * index + 1].encoding();
-  UniversalPositAccum p16;
-  p16.setbits((encoding2 << 8) + encoding1);
-  return p16;
-}
-#endif
-
 /***************************************************************************
  * save_tensor Functions
  *
@@ -96,19 +80,6 @@ inline void save_tensor(INPUT_DATATYPE *matrix, int index,
   }
 }
 
-#ifndef NO_UNIVERSAL
-inline void save_tensor(UniversalPosit *matrix, int index,
-                        UniversalPositAccum value, bool double_precision) {
-  if (!double_precision) {
-    matrix[index] = static_cast<UniversalPosit>(value);
-  } else {
-    int bits = value.encoding();
-    matrix[2 * index].setbits(bits & 0xFF);
-    matrix[2 * index + 1].setbits((bits >> 8) & 0xFF);
-  }
-}
-#endif
-
 /***************************************************************************
  * Elementwise Functions
  *
@@ -123,9 +94,3 @@ inline INTERMEDIATE_DTYPE reciprocal(const INTERMEDIATE_DTYPE &a) {
   tmp.reciprocal();
   return static_cast<INTERMEDIATE_DTYPE>(tmp);
 }
-
-#ifndef NO_UNIVERSAL
-inline UniversalPositAccum reciprocal(const UniversalPositAccum &a) {
-  return a.reciprocate();
-}
-#endif

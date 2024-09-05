@@ -149,20 +149,3 @@ inline void MemoryModelImpl<INPUT_DATATYPE>::write_to_memory(
     memory[address] = static_cast<INPUT_DATATYPE>(value);
   }
 }
-
-#ifndef NO_UNIVERSAL
-template <>
-inline void MemoryModelImpl<UniversalPosit>::write_to_memory(
-    const int address, const float value, const int partition,
-    bool double_precision) {
-  auto memory = get_memory(partition);
-  if (double_precision) {
-    UniversalPositAccum posit16 = value;
-    int bits = posit16.encoding();
-    memory[address].setbits(bits & 0xFF);
-    memory[address + 1].setbits((bits >> 8) & 0xFF);
-  } else {
-    memory[address] = value;
-  }
-}
-#endif
