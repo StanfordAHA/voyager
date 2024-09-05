@@ -6,7 +6,7 @@
 #include <cassert>
 
 #include "AccelTypes.h"
-#include "test/toolchain/MapOperation.h"
+#include "test/toolchain/Operations.h"
 
 #ifdef SOC_COSIM
 extern bool syscDone;
@@ -38,15 +38,14 @@ void register_interface(
 // void copy_output(void *sram, int size, int data_size);
 #endif
 
-Harness::Harness(sc_module_name name, std::vector<SimplifiedParams> params_list,
-                 INPUT_DATATYPE *sram, INPUT_DATATYPE *rram,
-                 std::vector<MemoryMap> memoryMap)
+Harness::Harness(sc_module_name name,
+                 std::vector<codegen::AcceleratorParam> params,
+                 INPUT_DATATYPE *sram, INPUT_DATATYPE *rram)
     : sc_module(name),
       clk("clk", 1, SC_NS, 0.5, 0, SC_NS, true),
-      params_list(params_list),
+      params(params),
       sramMemory(sram),
       rramMemory(rram),
-      memoryMap(memoryMap),
       inputDataResponse_fifo("inputDataResponse_fifo", 1024),
       weightDataResponse_fifo("weightDataResponse_fifo", 1024),
       biasDataResponse_fifo("biasDataResponse_fifo", 1024),
@@ -176,7 +175,7 @@ void Harness::readMemoryRequest(
       memSource = it->second;
     } else {
       std::cerr << "Memory interface " << memSourceType
-                << " has not been specified for layer " << currentParams.name
+                << " has not been specified for layer " << currentParams.name()
                 << " but received memory requests. Fix the operation mapping."
                 << std::endl;
       std::abort();
@@ -288,25 +287,26 @@ void Harness::sendParams() {
   wait();
 
   // Iterate through all params, ie all layers
-  for (int i = 0; i < params_list.size(); i++) {
-    currentParams = params_list.at(i);
+  for (int i = 0; i < params.size(); i++) {
+    currentParams = params.at(i);
 
-    std::deque<AcceleratorMemoryMap> opMemoryMaps;
-    std::deque<BaseParams *> opParams;
-    MapOperation(currentParams, memoryMap.at(i), opParams, opMemoryMaps);
+    std::deque<AcceleratorMemoryMap> accelerator_memory_maps;
+    std::deque<BaseParams *> accelerator_params;
+    MapPytorchOperation(currentParams, accelerator_params,
+                        accelerator_memory_maps);
 
-    while (opParams.size() > 0) {
+    while (accelerator_params.size() > 0) {
       bool matrixParamsValid, vectorParamsValid;
 
-      BaseParams *baseParam = opParams.front();
-      currentMemoryMap = opMemoryMaps.front();
+      BaseParams *baseParam = accelerator_params.front();
+      currentMemoryMap = accelerator_memory_maps.front();
 
       MatrixParams *matrixParams = dynamic_cast<MatrixParams *>(baseParam);
       matrixParamsValid = matrixParams != NULL;
 
       if (matrixParamsValid) {
-        opParams.pop_front();
-        baseParam = opParams.front();
+        accelerator_params.pop_front();
+        baseParam = accelerator_params.front();
       }
 
       VectorParams *vectorParams = dynamic_cast<VectorParams *>(baseParam);
@@ -314,12 +314,12 @@ void Harness::sendParams() {
       vectorParamsValid = vectorParams != NULL;
 
       if (vectorParamsValid) {
-        opParams.pop_front();
-        baseParam = opParams.front();
+        accelerator_params.pop_front();
+        baseParam = accelerator_params.front();
 
         vectorInstructionConfig =
             dynamic_cast<VectorInstructionConfig *>(baseParam);
-        opParams.pop_front();
+        accelerator_params.pop_front();
       }
 
       if (matrixParamsValid) {
@@ -335,7 +335,7 @@ void Harness::sendParams() {
         vectorUnitStartSignal.SyncPop();
       }
 
-      CCS_LOG("----- Accelerator Layer '" << currentParams.name
+      CCS_LOG("----- Accelerator Layer '" << currentParams.name()
                                           << "' Started. -----");
 
       sc_time start = sc_time_stamp();
@@ -346,12 +346,12 @@ void Harness::sendParams() {
       if (vectorParamsValid) {
         vectorUnitDoneSignal.SyncPop();
       }
-      CCS_LOG("----- Accelerator Layer '" << currentParams.name
+      CCS_LOG("----- Accelerator Layer '" << currentParams.name()
                                           << "' Finished. -----");
       sc_time end = sc_time_stamp();
       std::cout << "Runtime: " << end - start << std::endl;
 
-      opMemoryMaps.pop_front();
+      accelerator_memory_maps.pop_front();
     }
 
 #ifdef SOC_COSIM
@@ -385,11 +385,8 @@ void Harness::storeVectorOutputs() {
   }
 }
 
-void run_op(std::vector<SimplifiedParams> params_list,
-            INPUT_DATATYPE *sramMemory, INPUT_DATATYPE *rramMemory,
-            std::vector<MemoryMap> memoryMap) {
-  assert(params_list.size() == memoryMap.size() &&
-         "params_list and memoryMap must be the same size");
-  Harness harness("harness", params_list, sramMemory, rramMemory, memoryMap);
+void run_gold_model(std::vector<codegen::AcceleratorParam> params,
+                    INPUT_DATATYPE *sramMemory, INPUT_DATATYPE *rramMemory) {
+  Harness harness("harness", params, sramMemory, rramMemory);
   sc_start();
 }

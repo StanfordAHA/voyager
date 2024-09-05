@@ -1,4 +1,5 @@
 build
+data
 pybuild
 .direnv
 .vscode
@@ -16,12 +17,6 @@ venv
 test_outputs/
 test_outputs_e2e/
 logs/
-# "Manual" test data files
-models/resnet/binary_data*
-models/resnet/model_data/*
-!models/resnet/model_data/*.pth
-models/mobilebert/binary_data/*
-datafile
 # ZagZig codegen files
 test/*/gen_data
 test/*/*_networks_codegen.py

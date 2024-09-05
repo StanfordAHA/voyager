@@ -10,17 +10,11 @@
 #include "src/DataTypes.h"
 // clang-format on
 #include "src/ArchitectureParams.h"
-#include "test/common/PytorchMemoryModelImpl.h"
-#include "test/common/PytorchModel.h"
-#include "test/common/SimpleMemoryModel.h"
+#include "test/common/MemoryModelImpl.h"
 #include "test/common/UniversalPosit.h"
 #include "test/compiler/proto/param.pb.h"
 
-void run_op(std::vector<SimplifiedParams> params_list,
-            INPUT_DATATYPE *sramMemory, INPUT_DATATYPE *rramMemory,
-            std::vector<MemoryMap> memoryMap);
-
-void run_pytorch_op(std::vector<codegen::AcceleratorParam> params,
+void run_gold_model(std::vector<codegen::AcceleratorParam> params,
                     INPUT_DATATYPE *sramMemory, INPUT_DATATYPE *rramMemory);
 
 class Simulation {
@@ -34,14 +28,13 @@ class Simulation {
 
  protected:
   std::vector<std::string> sims;
-  std::string out_dir;
-  std::string model_name;
+  std::string model;
   std::string tests;
-  std::string task;
+  std::string out_dir;
   float tolerance = 0.1;
 
   std::vector<codegen::AcceleratorParam> params;
-  std::map<std::string, PyTorchMemoryModel *> memories;
+  std::map<std::string, MemoryModel *> memories;
 
  private:
   std::string get_env_var(std::string const &name);

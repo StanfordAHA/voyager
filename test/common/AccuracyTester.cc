@@ -1,11 +1,11 @@
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <future>
 #include <iostream>
+#include <stdexcept>
 #include <string>
-#include <thread>
 #include <vector>
-
-#include "test/common/VerificationTypes.h"
 
 #define NO_SYSC
 // clang-format off
@@ -13,202 +13,169 @@
 // clang-format on
 #include "src/ArchitectureParams.h"
 #include "test/common/GoldModel.h"
-#include "test/common/SimpleMemoryModel.h"
+#include "test/common/MemoryModelImpl.h"
+#include "test/common/Network.h"
 #include "test/common/Utils.h"
-#include "test/mobilebert/MobileBERT.h"
-#include "test/resnet/ResNet.h"
+#include "test/common/VerificationTypes.h"
+#include "test/compiler/proto/param.pb.h"
 
 /* Run inference on a single sample and return correct classification. */
-bool runInferenceOnSample(std::string& modelName, std::string& modelPath,
-                          std::vector<Workload> workloads,
-                          std::string folderName) {
-  // Create the memory model and load the model parameters
-  SimpleMemoryModel<INPUT_DATATYPE> memory(false);
+bool run_sample(std::string model_name, std::string data_dir,
+                std::string sample,
+                std::vector<codegen::AcceleratorParam> params) {
+  std::vector<int> memory_sizes{SRAM_MEMORY_SIZE};
+  auto memory =
+      std::make_unique<MemoryModelImpl<INPUT_DATATYPE>>(memory_sizes, false);
 
-  for (Workload& workload : workloads) {
-    if (modelName == "mobilebert") {
-      if (workload.loadWeight) {
-        workload.files.weights_file.insert(0, modelPath + "/params/");
-        workload.files.bias_file.insert(0, modelPath + "/params/");
-        memory.loadModelParams(workload.params, workload.files,
-                               workload.memoryMap, true);
+  int num_classes;
+  auto matrix_param = params.front().matrix_param();
+  std::string sample_dir = data_dir + "/" + sample;
+  if (model_name == "mobilebert") {
+    num_classes = 2;
+    memory->load_tensor(matrix_param.input(), sample_dir);
+
+    // Load attention mask
+    bool found_param = false;
+    for (const auto& param : params) {
+      for (const auto& vector_param : param.vector_params()) {
+        if (vector_param.has_other() &&
+            vector_param.other().node() == "arg1_1") {
+          memory->load_tensor(vector_param.other(), sample_dir);
+          found_param = true;
+          break;
+        }
       }
-    } else if (modelName == "resnet18") {
-      workload.files.weights_file.insert(0, modelPath + "/params/");
-      workload.files.bias_file.insert(0, modelPath + "/params/");
-      memory.loadModelParams(workload.params, workload.files,
-                             workload.memoryMap, true);
+      if (found_param) {
+        break;
+      }
+    }
+
+    if (!found_param) {
+      throw std::runtime_error("Error: Could not find attention mask.");
+    }
+  } else if (model_name == "resnet18") {
+    num_classes = 1000;
+    // Uncomment for testing
+    // sample_dir = "test/compiler/networks/" + model_name + "/tensor_files";
+    // Turn replication padding on only for accelerator (false here).
+    memory->load_tensor(matrix_param.input(), sample_dir, true);
+  }
+
+  std::string params_dir =
+      "test/compiler/networks/" + model_name + "/tensor_files";
+  for (const auto& param : params) {
+    memory->load_weights(param, params_dir);
+  }
+
+  // Run inference
+  for (const auto& param : params) {
+    auto args = memory->get_args(param);
+    run_gold_model(param, args);
+  }
+
+  // Extract final output
+  auto output = memory->get_args(params.back()).back();
+  float logits[num_classes];
+  for (int i = 0; i < num_classes; i++) {
+    logits[i] = output[i];
+  }
+
+  // Find the maximum logit index
+  int max_index = 0;
+  for (int i = 1; i < num_classes; i++) {
+    if (logits[i] > logits[max_index]) {
+      max_index = i;
     }
   }
 
-  int numClasses;
-  if (modelName == "mobilebert") {
-    numClasses = 2;
-  } else if (modelName == "resnet18") {
-    numClasses = 1000;
-  }
-
-  // load the model inputs for this sample
-  Workload firstWorkload = workloads[0];
-  if (modelName == "mobilebert") {
-    firstWorkload.files.inputs_file =
-        modelPath + "/" + folderName + "/embedding_output";
-  } else if (modelName == "resnet18") {
-    firstWorkload.files.inputs_file = modelPath + "/" + folderName + "/input";
-  }
-  memory.loadModelActivations(firstWorkload.params, firstWorkload.files,
-                              firstWorkload.memoryMap, true);
-
-  if (modelName == "mobilebert") {
-    // for loading attention mask, we make a custom workload
-    MobileBERT mobilebert("mobilebert", "inference", "");
-    Workload dummyAttentionMaskWorkload = mobilebert.getWorkloadsInRange(
-        {"attention_self_attention_scores_0"})[0];
-    dummyAttentionMaskWorkload.files.inputs_file = "";
-    dummyAttentionMaskWorkload.files.weights_file = "";
-    dummyAttentionMaskWorkload.files.bias_file =
-        modelPath + "/" + folderName + "/attention_mask";
-
-    dummyAttentionMaskWorkload.params.ATTENTION_MASK = true;
-    dummyAttentionMaskWorkload.params.RESIDUAL = false;
-    dummyAttentionMaskWorkload.params.RELU_GRAD = false;
-    dummyAttentionMaskWorkload.params.SOFTMAX_GRAD = false;
-    dummyAttentionMaskWorkload.params.WEIGHT_SPLITTING = false;
-    dummyAttentionMaskWorkload.memoryMap.bias = SRAM;
-    memory.loadModelActivations(dummyAttentionMaskWorkload.params,
-                                dummyAttentionMaskWorkload.files,
-                                dummyAttentionMaskWorkload.memoryMap, true);
-  }
-
-  // run every workload in the forward pass
-  for (Workload& workload : workloads) {
-    run_gold_model(workload.params, memory.sram + workload.params.INPUT_OFFSET,
-                   (workload.memoryMap.weights ? memory.rram : memory.sram) +
-                       workload.params.WEIGHT_OFFSET,
-                   memory.sram + workload.params.OUTPUT_OFFSET,
-                   (workload.memoryMap.bias ? memory.rram : memory.sram) +
-                       workload.params.BIAS_OFFSET,
-                   memory.sram + workload.params.RESIDUAL_OFFSET,
-                   memory.sram + workload.params.WEIGHT_RESIDUAL_OFFSET);
-  }
-
-  // get final output
-  float logits[numClasses];
-  for (int i = 0; i < numClasses; i++) {
-    float fp_logit;
-    if (workloads.back().params.ACC_T_OUTPUT) {
-      ACCUM_DATATYPE acc_logit(
-          &memory.sram[workloads.back().params.OUTPUT_OFFSET + 2 * i]);
-      fp_logit = acc_logit;
-    } else {
-      fp_logit = memory.sram[workloads.back().params.OUTPUT_OFFSET + i];
-    }
-    logits[i] = fp_logit;
-  }
-
-  // get class with highest probability
-  int maxIndex = 0;
-  for (int i = 0; i < numClasses; i++) {
-    if (logits[i] > logits[maxIndex]) {
-      maxIndex = i;
-    }
-  }
-
-  // get ground truth from folder name
-  int groundTruth;
-  if (modelName == "mobilebert") {
+  // Get ground truth from folder name
+  int ground_truth;
+  if (model_name == "mobilebert") {
     // last character of folder name is 0 or 1
-    groundTruth = folderName.back() - '0';
-  } else if (modelName == "resnet18") {
+    ground_truth = sample.back() - '0';
+  } else if (model_name == "resnet18") {
     // split folder name by underscore, first part is ground truth
-    groundTruth = std::stoi(folderName.substr(0, folderName.find("_")));
+    ground_truth = std::stoi(sample.substr(0, sample.find("_")));
   }
 
-  return maxIndex == groundTruth;
+  return max_index == ground_truth;
 }
 
 /* Test accuracy of model on a dataset using the C++ gold model. */
 int main(int argc, char* argv[]) {
   // model name is first argument
-  std::string modelName = std::string(argv[1]);
-  // path to folder with model parameters and dataset is second argument
-  std::string modelPath = std::string(argv[2]);
+  std::string model_name = std::string(argv[1]);
+  // path to dataset is second argument
+  std::string data_dir = std::string(argv[2]);
 
-  int numThreads = 1;
+  int num_threads = 1;
   if (argc > 3) {
-    numThreads = std::stoi(argv[3]);
+    num_threads = std::stoi(argv[3]);
   }
 
   // Print out model name, path, and number of threads
   std::cout << "*** Accuracy Tester ***" << std::endl;
   std::cout << "-----------------------" << std::endl;
-  std::cout << "Model name: " << modelName << std::endl;
-  std::cout << "Model path: " << modelPath << std::endl;
-  std::cout << "Number of threads: " << numThreads << std::endl;
+  std::cout << "Model name: " << model_name << std::endl;
+  std::cout << "Dataset path: " << data_dir << std::endl;
+  std::cout << "Number of threads: " << num_threads << std::endl;
 
-  // Get vector of workloads to run
-  std::vector<Workload> workloads;
-  if (modelName == "mobilebert") {
-    MobileBERT mobilebert("mobilebert", "inference", "");
-    workloads = mobilebert.getFullForwardPass();
-  } else if (modelName == "resnet18") {
-    ResNet resnet18("resnet18", "");
-    workloads = resnet18.getAllWorkloads();
-  } else {
-    std::cout << "ERROR: Model name not recognized." << std::endl;
+  Network network(model_name);
+  auto params = network.get_params();
+  std::cout << "Number of params: " << params.size() << std::endl;
+
+  if (!std::filesystem::exists(data_dir)) {
+    throw std::runtime_error("Error: Path does not exist.");
   }
 
-  validateMemoryMapping(workloads);
+  if (!std::filesystem::is_directory(data_dir)) {
+    throw std::runtime_error("Error: Path is not a directory.");
+  }
 
-  std::vector<std::string> datasetSamples;
-  // iterate through all folders in modelPath
+  // iterate through all folders in data_dir
   // each folder consists of two inputs
-  for (const auto& entry : std::filesystem::directory_iterator(modelPath)) {
+  std::vector<std::string> dataset;
+  std::filesystem::directory_iterator dir_it(data_dir);
+  for (const auto& entry : dir_it) {
     if (entry.is_directory()) {
       // get folder name
-      std::string folderName = entry.path().filename().string();
+      std::string directory = entry.path().filename().string();
 
       // skip params folder
-      if (folderName == "params") {
+      if (directory == "params") {
         continue;
       }
-      datasetSamples.push_back(folderName);
+      dataset.push_back(directory);
     }
   }
+  std::cout << "Number of samples: " << dataset.size() << std::endl;
 
-  // Run numThreads samples in parallel
-  int numBatches = datasetSamples.size() / numThreads;
-  int remainder = datasetSamples.size() % numThreads;
-  if (remainder > 0) {
-    numBatches++;
-  }
-  int numCorrect = 0;
-  int numSamples = 0;
+  // Run num_threads samples in parallel
+  int num_batches = dataset.size() / num_threads;
+  num_batches += dataset.size() % num_threads == 0 ? 0 : 1;
+  int num_correct = 0;
+  int num_samples = 0;
 
-  for (int batch = 0; batch < numBatches; batch++) {
-    std::vector<std::future<bool> > threadClassifications;
+  for (int batch = 0; batch < num_batches; batch++) {
+    std::vector<std::future<bool>> results;
 
-    for (int i = 0; i < numThreads; i++) {
-      int sampleIndex = batch * numThreads + i;
-      if (sampleIndex >= datasetSamples.size()) {
+    for (int i = 0; i < num_threads; i++) {
+      int sample_index = batch * num_threads + i;
+      if (sample_index >= dataset.size()) {
         break;
       }
-      std::string folderName = datasetSamples[sampleIndex];
-
-      threadClassifications.push_back(std::async(
-          std::launch::async, runInferenceOnSample, std::ref(modelName),
-          std::ref(modelPath), std::ref(workloads), folderName));
+      results.push_back(std::async(std::launch::async, run_sample, model_name,
+                                   data_dir, dataset[sample_index], params));
     }
 
-    for (int i = 0; i < threadClassifications.size(); i++) {
-      bool correctClassification = threadClassifications[i].get();
-      if (correctClassification) {
-        numCorrect++;
+    for (int i = 0; i < results.size(); i++) {
+      if (results[i].get()) {
+        num_correct++;
       }
-      numSamples++;
+      num_samples++;
     }
 
-    std::cout << "Accuracy: " << numCorrect << "/" << numSamples << " ("
-              << float(numCorrect) / numSamples * 100 << "%)" << std::endl;
+    std::cout << "Accuracy: " << num_correct << "/" << num_samples << " ("
+              << (float)num_correct / num_samples * 100 << "%)" << std::endl;
   }
 }
