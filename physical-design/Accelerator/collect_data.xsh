@@ -108,10 +108,12 @@ def get_sim_results(build_dir, clock_period, design_name="Accelerator"):
             stdout=subprocess.PIPE,
         )
         runtime = p.communicate()[0].decode("utf-8").strip()
+        util = ""
         if runtime:
             runtime = int(runtime)
-        test.update({"ideal cycles": ideal_cycles, "runtime (ns)": runtime, "utilization": ideal_cycles/(runtime/clock_period)})
+            util = ideal_cycles/(runtime/clock_period)
 
+        test.update({"ideal cycles": ideal_cycles, "runtime (ns)": runtime, "utilization": util})
         # Workaround: add the power fields so that they always exist as a key for all entries
         # so that the csv writer won't error out
         # test.update({f"rtl power (W@{power_cond})": "", f"syn power (W@{power_cond})": ""})
@@ -184,7 +186,7 @@ if __name__ == "__main__":
       header.remove(entry)
     networks_dict = get_nested_values(results, "tests")
     header+=list(get_nested_values(networks_dict))
-    dw = csv.DictWriter(f, fieldnames=header)
+    dw = csv.DictWriter(f, fieldnames=header, extrasaction='ignore')
     dw.writeheader()
     for entry in results.values():
       flatten = entry.copy()
@@ -205,7 +207,7 @@ if __name__ == "__main__":
     fields_to_remove = ["tests", "area"]
     for entry in fields_to_remove:
       header.remove(entry)
-    dw = csv.DictWriter(f, fieldnames=header)
+    dw = csv.DictWriter(f, fieldnames=header, extrasaction='ignore')
     dw.writeheader()
 
     # Calculate total energy and runtime for a network
