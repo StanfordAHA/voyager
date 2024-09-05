@@ -38,8 +38,9 @@ inline MemorySource get_partition(const int &partition) {
 inline float read_constant_param(const codegen::Tensor tensor) {
   const char *env_var = std::getenv("NETWORK");
   std::string model_name(env_var);
-  std::string filename = "test/compiler/networks/" + model_name +
-                         "/tensor_files/" + tensor.node() + ".bin";
+  std::string project_root = std::string(std::getenv("PROJECT_ROOT"));
+  std::string filename = project_root + "/test/compiler/networks/" +
+                         model_name + "/tensor_files/" + tensor.node() + ".bin";
   auto array_ptr = read_tensor_from_file(filename, 1, false);
   return array_ptr[0];
 }

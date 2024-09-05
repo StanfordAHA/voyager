@@ -90,7 +90,9 @@ void Simulation::load_data() {
     memories["accelerator"] = new HlsMemoryModel(memory_sizes, true);
   }
 
-  std::string data_dir = "test/compiler/networks/" + model + "/tensor_files";
+  std::string project_root = std::string(getenv("PROJECT_ROOT"));
+  std::string data_dir =
+      project_root + "/test/compiler/networks/" + model + "/tensor_files";
   for (const auto& [key, mem] : memories) {
     mem->load_inputs(params.front(), data_dir);
     mem->load_outputs(params.back(), data_dir);

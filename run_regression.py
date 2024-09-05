@@ -224,6 +224,7 @@ def run_rtl_tests(layers, num_processes, results_folder):
     with open(f"{results_folder}/vcs_build.log", "w") as stdout_file:
         env_vars = os.environ.copy()
         env_vars["NETWORK"] = "resnet18"
+        env_vars["TESTS"] = "submodule_0"
         env_vars["SIMS"] = "systemc,accelerator"
         env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
 
@@ -250,7 +251,7 @@ def run_rtl_tests(layers, num_processes, results_folder):
     pool.close()
     pool.join()
 
-    return print_test_results(test_results)
+    return print_test_results(test_results, layers)
 
 
 def main():

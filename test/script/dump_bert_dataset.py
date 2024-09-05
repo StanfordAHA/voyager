@@ -2,16 +2,16 @@ import argparse
 import os
 
 import torch
-import numpy as np
-
 from datasets import load_dataset
 from torch.utils.data import DataLoader
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from transformers import (
     AutoModelForSequenceClassification,
     AutoModelForQuestionAnswering,
     AutoTokenizer,
-    default_data_collator
+    BertPreTrainedModel,
+    MobileBertPreTrainedModel,
+    default_data_collator,
 )
 
 from utils import write_tensor_to_file
@@ -30,11 +30,9 @@ task_to_keys = {
 
 
 def process_qa_dataset(model_name_or_path, dataset, data_dir):
-    max_seq_length = 128
-    doc_stride = 0
-
     model = AutoModelForQuestionAnswering.from_pretrained(model_name_or_path)
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
+
     raw_datasets = load_dataset(dataset)
 
     column_names = raw_datasets["train"].column_names
@@ -46,7 +44,7 @@ def process_qa_dataset(model_name_or_path, dataset, data_dir):
     # Padding side determines if we do (question|context) or (context|question).
     pad_on_right = tokenizer.padding_side == "right"
 
-    max_seq_length = min(max_seq_length, tokenizer.model_max_length)
+    max_seq_length = min(128, tokenizer.model_max_length)
 
     # Validation preprocessing
     def prepare_validation_features(examples):
@@ -63,7 +61,7 @@ def process_qa_dataset(model_name_or_path, dataset, data_dir):
             examples[context_column_name if pad_on_right else question_column_name],
             truncation="only_second" if pad_on_right else "only_first",
             max_length=max_seq_length,
-            stride=doc_stride,
+            stride=0,
             return_overflowing_tokens=True,
             return_offsets_mapping=True,
             padding="max_length",
@@ -114,11 +112,12 @@ def process_qa_dataset(model_name_or_path, dataset, data_dir):
 
     model.eval()
 
-    print(model.__class__.__name__)
-    if model.__class__.__name__ == "MobileBertForQuestionAnswering":
+    if isinstance(model, MobileBertPreTrainedModel):
         embeddings = model.mobilebert.embeddings
-    elif model.__class__.__name__ == "BertForQuestionAnswering":
+    elif isinstance(model, BertPreTrainedModel):
         embeddings = model.bert.embeddings
+    else:
+        raise ValueError("Model not supported")
 
     for step, batch in enumerate(tqdm(eval_dataloader)):
         with torch.no_grad():
@@ -126,17 +125,16 @@ def process_qa_dataset(model_name_or_path, dataset, data_dir):
                 input_ids=batch["input_ids"],
                 token_type_ids=batch["token_type_ids"]
             )
-        embedding_output = embedding_output.detach().numpy().astype(np.float64)
-        attention_mask = (1.0 - batch["attention_mask"]).cpu().numpy() * np.finfo(np.float32).min
+        attention_mask = (1.0 - batch["attention_mask"]) * torch.finfo(torch.float).min
 
         folder = os.path.join(data_dir, str(step))
         os.makedirs(folder, exist_ok=True)
-        write_tensor_to_file(os.path.join(folder, "embedding_output"), embedding_output)
-        write_tensor_to_file(os.path.join(folder, "attention_mask"), attention_mask)
+        write_tensor_to_file(embedding_output, os.path.join(folder, "arg0_1.bin"))
+        write_tensor_to_file(attention_mask, os.path.join(folder, "arg1_1.bin"))
 
 
-def process_glue_dataset(model_name_or_path, task_name, data_dir, finetuning=False):
-    model = AutoModelForSequenceClassification.from_pretrained(model_name_or_path)
+def process_glue_dataset(model_name_or_path, task_name, data_dir):
+    model = AutoModelForSequenceClassification.from_pretrained(model_name_or_path).eval()
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
     raw_datasets = load_dataset("glue", task_name)
@@ -152,60 +150,52 @@ def process_glue_dataset(model_name_or_path, task_name, data_dir, finetuning=Fal
         result["labels"] = examples["label"]
         return result
 
-    tokenized_datasets = raw_datasets.map(
+    processed_datasets = raw_datasets.map(
         preprocess_function,
         batched=True,
         remove_columns=raw_datasets["train"].column_names,
         desc="Running tokenizer on dataset",
     )
 
-    if finetuning:
-        sets = ["train", "validation"]
+    eval_dataset = processed_datasets["validation"]
+
+    for index in range(3):
+        print(f"Sample {index} of the training set: {eval_dataset[index]}.")
+
+    eval_dataloader = DataLoader(eval_dataset, collate_fn=default_data_collator, batch_size=1)
+
+    if isinstance(model, MobileBertPreTrainedModel):
+        embeddings = model.mobilebert.embeddings
+    elif isinstance(model, BertPreTrainedModel):
+        embeddings = model.bert.embeddings
     else:
-        sets = ["validation"]
+        raise ValueError("Model not supported")
 
-    for set_name in sets:
-        dataset = tokenized_datasets[set_name]
-        dataloader = DataLoader(dataset, collate_fn=default_data_collator, batch_size=1)
+    for step, batch in enumerate(tqdm(eval_dataloader)):
+        embedding_output = embeddings(
+            input_ids=batch["input_ids"],
+            token_type_ids=batch["token_type_ids"]
+        )
+        attention_mask = (1.0 - batch["attention_mask"]) * torch.finfo(torch.float).min
+        label = int(batch["labels"].item())
 
-        model.eval()
-        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        model.to(device)
-
-        for idx, batch in enumerate(tqdm(dataloader, desc=f"Running through {set_name} dataset")):
-            inputs = {k: v.to(device) for k, v in batch.items()}
-            embedding_output = model.mobilebert.embeddings(
-                input_ids=inputs["input_ids"],
-                token_type_ids=inputs["token_type_ids"]
-            )
-            embedding_output = embedding_output.detach().numpy().astype(np.float64)
-            attention_mask = (1.0 - inputs["attention_mask"]).cpu().numpy() * np.finfo(np.float32).min
-            labels = inputs["labels"].detach().numpy().astype(np.float64)
-
-            if finetuning:
-                folder = os.path.join(data_dir, set_name, f"{idx}_{int(labels[0])}")
-            else:
-                folder = os.path.join(data_dir, f"{idx}_{int(labels[0])}")
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-            
-            # write embedding output and attention mask
-            write_tensor_to_file(os.path.join(folder, "arg0_1.bin"), embedding_output)
-            write_tensor_to_file(os.path.join(folder, "arg1_1.bin"), attention_mask)
+        folder = os.path.join(data_dir, f"{step}_{label}")
+        os.makedirs(folder, exist_ok=True)
+        write_tensor_to_file(embedding_output, os.path.join(folder, "arg0_1.bin"))
+        write_tensor_to_file(attention_mask, os.path.join(folder, "arg1_1.bin"))
 
 
 def main():
     parser = argparse.ArgumentParser(description="Generate datafiles from model.")
-    parser.add_argument("--model_name_or_path", help="Path to model directory.", default=None, required=True)
-    parser.add_argument("--dataset", help="Dataset to dump.", default="sst2")
-    parser.add_argument("--output_dir", help="Path to output datafiles.", required=True)
-    parser.add_argument("--finetuning", action="store_true", help="Dump dataset for finetuning.")
+    parser.add_argument("--model_name_or_path", required=True, help="Path to model directory.")
+    parser.add_argument("--dataset", default="sst2", help="Dataset to dump.")
+    parser.add_argument("--output_dir", required=True, help="Path to output files.")
     args = parser.parse_args()
 
     if args.dataset == "squad":
         process_qa_dataset(args.model_name_or_path, args.dataset, args.output_dir)
     else:
-        process_glue_dataset(args.model_name_or_path, args.dataset, args.output_dir, args.finetuning)
+        process_glue_dataset(args.model_name_or_path, args.dataset, args.output_dir)
 
 
 if __name__ == "__main__":

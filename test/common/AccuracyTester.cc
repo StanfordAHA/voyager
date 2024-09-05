@@ -1,11 +1,11 @@
+#include <algorithm>
+#include <cmath>
+#include <filesystem>
+#include <future>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <stdexcept>
-#include <future>
-#include <filesystem>
-#include <algorithm>   // Include if using standard algorithms
-#include <cmath>       // Include for mathematical operations
 
 #define NO_SYSC
 // clang-format off
@@ -24,7 +24,8 @@ bool run_sample(std::string model_name, std::string data_dir,
                 std::string sample,
                 std::vector<codegen::AcceleratorParam> params) {
   std::vector<int> memory_sizes{SRAM_MEMORY_SIZE};
-  auto memory = new MemoryModelImpl<INPUT_DATATYPE>(memory_sizes, false);
+  auto memory =
+      std::make_unique<MemoryModelImpl<INPUT_DATATYPE>>(memory_sizes, false);
 
   int num_classes;
   auto matrix_param = params.front().matrix_param();
@@ -32,7 +33,26 @@ bool run_sample(std::string model_name, std::string data_dir,
   if (model_name == "mobilebert") {
     num_classes = 2;
     memory->load_tensor(matrix_param.input(), sample_dir);
-    // TODO: load attention mask
+
+    // Load attention mask
+    bool found_param = false;
+    for (const auto& param : params) {
+      for (const auto& vector_param : param.vector_params()) {
+        if (vector_param.has_other() &&
+            vector_param.other().node() == "arg1_1") {
+          memory->load_tensor(vector_param.other(), sample_dir);
+          found_param = true;
+          break;
+        }
+      }
+      if (found_param) {
+        break;
+      }
+    }
+
+    if (!found_param) {
+      throw std::runtime_error("Error: Could not find attention mask.");
+    }
   } else if (model_name == "resnet18") {
     num_classes = 1000;
     // Uncomment for testing
@@ -137,7 +157,7 @@ int main(int argc, char* argv[]) {
   int num_samples = 0;
 
   for (int batch = 0; batch < num_batches; batch++) {
-    std::vector<std::future<bool> > results;
+    std::vector<std::future<bool>> results;
 
     for (int i = 0; i < num_threads; i++) {
       int sample_index = batch * num_threads + i;

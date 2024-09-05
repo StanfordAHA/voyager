@@ -186,11 +186,11 @@ TestRunner: $(CC_BUILD_DIR)/TestRunner
 
 .PHONY: MobileBertAccuracy
 MobileBertAccuracy: $(CC_BUILD_DIR)/AccuracyTester
-	./$(CC_BUILD_DIR)/AccuracyTester mobilebert data/sst2_val 64
+	./$(CC_BUILD_DIR)/AccuracyTester mobilebert data/bert_sst2_val 64
 
 .PHONY: ResNetAccuracy
 ResNetAccuracy: $(CC_BUILD_DIR)/AccuracyTester
-	./$(CC_BUILD_DIR)/AccuracyTester resnet18 data/imagenet_val 50
+	./$(CC_BUILD_DIR)/AccuracyTester resnet18 data/imagenet_val 64
 
 $(CC_BUILD_DIR)/TestRunner: $(CC_BUILD_DIR)/Harness.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/networks.a
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
