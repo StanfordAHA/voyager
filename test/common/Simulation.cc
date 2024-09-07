@@ -80,15 +80,15 @@ void Simulation::load_data() {
   std::vector<int> memory_sizes{SRAM_MEMORY_SIZE, RRAM_MEMORY_SIZE,
                                 REFERENCE_MEMORY_SIZE};
   if (std::find(sims.begin(), sims.end(), "fp32") != sims.end()) {
-    memories["fp32"] = new ArrayMemory<float>(memory_sizes);
+    memories["fp32"] = new ArrayMemory(memory_sizes);
     dataLoaders["fp32"] = new DataLoader(memories["fp32"], false);
   }
   if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
-    memories["systemc"] = new ArrayMemory<INPUT_DATATYPE>(memory_sizes);
+    memories["systemc"] = new ArrayMemory(memory_sizes);
     dataLoaders["systemc"] = new DataLoader(memories["systemc"], false);
   }
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
-    memories["accelerator"] = new ArrayMemory<INPUT_DATATYPE>(memory_sizes);
+    memories["accelerator"] = new ArrayMemory(memory_sizes);
     dataLoaders["accelerator"] = new DataLoader(memories["accelerator"], true);
   }
 
@@ -102,19 +102,21 @@ void Simulation::load_data() {
       dataLoader->load_weights(param, data_dir);
     }
   }
+
+  std::cout << "Data loaded successfully" << std::endl;
 }
 
 void Simulation::run() {
   // Run gold models
   for (const auto& param : params) {
     if (std::find(sims.begin(), sims.end(), "fp32") != sims.end()) {
-      auto memory = (ArrayMemory<float>*)(memories["fp32"]);
+      auto memory = (ArrayMemory*)(memories["fp32"]);
       auto args = memory->get_args(param);
-      run_gold_model(param, args);
+      // run_gold_model(param, args);
     }
 
     if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
-      auto memory = (ArrayMemory<INPUT_DATATYPE>*)(memories["systemc"]);
+      auto memory = (ArrayMemory*)(memories["systemc"]);
       auto args = memory->get_args(param);
       run_gold_model(param, args);
     }
@@ -122,8 +124,8 @@ void Simulation::run() {
 
   // Run accelerator
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
-    auto memory = (ArrayMemory<INPUT_DATATYPE>*)(memories["accelerator"]);
-    run_gold_model(params, memory->memories[0], memory->memories[1]);
+    auto memory = (ArrayMemory*)(memories["accelerator"]);
+    // run_accelerator(params, memory->memories[0], memory->memories[1]);
   }
 }
 

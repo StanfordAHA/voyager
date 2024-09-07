@@ -6,18 +6,17 @@
 
 #include "src/ArchitectureParams.h"
 
-template <class T>
-ArrayMemory<T>::ArrayMemory(std::vector<int> sizes) : MemoryInterface() {
+ArrayMemory::ArrayMemory(std::vector<int> sizes) : MemoryInterface() {
   memories.reserve(sizes.size());
   try {
     for (int size : sizes) {
-      T* memory = new T[size];
+      char* memory = new char[size];
       std::fill(memory, memory + size, 0);
       memories.push_back(memory);
     }
   } catch (const std::bad_alloc& e) {
     // Clean up any allocated memory if an exception is thrown
-    for (T* memory : memories) {
+    for (char* memory : memories) {
       delete[] memory;
     }
     memories.clear();
@@ -26,15 +25,13 @@ ArrayMemory<T>::ArrayMemory(std::vector<int> sizes) : MemoryInterface() {
   }
 }
 
-template <class T>
-ArrayMemory<T>::~ArrayMemory() {
-  for (T* memory : memories) {
+ArrayMemory::~ArrayMemory() {
+  for (char* memory : memories) {
     delete[] memory;
   }
 }
 
-template <class T>
-T* ArrayMemory<T>::get_memory(int partition) {
+char* ArrayMemory::get_memory(int partition) {
   if (partition < 0) {
     partition += memories.size();
   }
@@ -45,16 +42,9 @@ T* ArrayMemory<T>::get_memory(int partition) {
   return memories[partition];
 }
 
-template <class T>
-T* ArrayMemory<T>::get_tensor(const codegen::Tensor& tensor) {
-  int partition = tensor.memory().partition();
-  return get_memory(partition) + tensor.memory().offset();
-}
-
-template <class T>
-std::vector<T*> ArrayMemory<T>::get_args(
+std::vector<std::any> ArrayMemory::get_args(
     const codegen::AcceleratorParam& param) {
-  std::vector<T*> args;
+  std::vector<std::any> args;
   std::string output_node = "";
   if (param.has_matrix_param()) {
     const codegen::MatrixParam& matrix_param = param.matrix_param();
@@ -92,16 +82,21 @@ std::vector<T*> ArrayMemory<T>::get_args(
   }
 
   // Add the output tensor to the list of arguments
-  args.push_back(get_tensor(param.output()));
+  const codegen::Tensor& output = param.output();
+  char* outputPtr =
+      get_memory(output.memory().partition()) + output.memory().offset();
+  args.push_back(outputPtr);
+
   return args;
 }
 
 /**
- * Retrieves the output tensor from the given accelerator parameter. The
- * output tensor is stored at the last partition with an offset of 0.
+ * Retrieves the reference output tensor from the given accelerator parameter.
+ * The reference output tensor is stored at the last partition with an offset of
+ * 0.
  */
-template <class T>
-T* ArrayMemory<T>::get_output(const codegen::AcceleratorParam& param) {
+std::any ArrayMemory::get_reference_output(
+    const codegen::AcceleratorParam& param) {
   codegen::Tensor output_tensor;
   output_tensor.CopyFrom(param.output());
   auto memory = output_tensor.mutable_memory();
@@ -110,27 +105,77 @@ T* ArrayMemory<T>::get_output(const codegen::AcceleratorParam& param) {
   return get_tensor(output_tensor);
 }
 
-template <>
-void ArrayMemory<float>::write_to_memory(const int address, const float value,
-                                         const int partition,
-                                         bool double_precision) {
-  auto memory = get_memory(partition);
-  memory[address] = value;
+std::any ArrayMemory::get_output(const codegen::AcceleratorParam& param) {
+  codegen::Tensor output_tensor = param.output();
+  return get_tensor(output_tensor);
 }
 
-template <>
-void ArrayMemory<INPUT_DATATYPE>::write_to_memory(const int address,
-                                                  const float value,
-                                                  const int partition,
-                                                  bool double_precision) {
-  auto memory = get_memory(partition);
-  if (double_precision) {
-    ACCUM_DATATYPE posit16 = static_cast<ACCUM_DATATYPE>(value);
-    posit16.storeAsLowerPrecision(&memory[address]);
-  } else {
-    memory[address] = static_cast<INPUT_DATATYPE>(value);
+template <typename T>
+void ArrayMemory::read_tensor_from_memory(const int address,
+                                          const int partition, const int size,
+                                          T* tensor) {
+  char* memory = get_memory(partition) + address;
+
+  for (int i = 0; i < size; i++) {
+    ac_int<T::width> bits;
+    assert(T::width % 8 == 0);
+    for (int j = 0; j < T::width / 8; j++) {
+      bits.set_slc(
+          j * 8, static_cast<ac_int<8, false> >(memory[i * T::width / 8 + j]));
+    }
+    tensor[i].setbits(bits);
   }
 }
 
-template class ArrayMemory<float>;
-template class ArrayMemory<INPUT_DATATYPE>;
+// TODO: clean this up. currently this is causing namespace conflicts. we need
+// to make this file .cc instead of .h
+inline std::vector<int> get_shape_2(const codegen::Tensor& tensor) {
+  auto repeated_field = tensor.shape();
+  return std::vector<int>(repeated_field.begin(), repeated_field.end());
+}
+
+inline int get_size_2(const std::vector<int>& shape) {
+  int size = 1;
+  for (const auto& dim : shape) size *= dim;
+  return size;
+}
+
+inline int get_size_2(const codegen::Tensor& tensor) {
+  const auto shape = get_shape_2(tensor);
+  return get_size_2(shape);
+}
+
+std::any ArrayMemory::get_tensor(const codegen::Tensor& tensor) {
+  int partition = tensor.memory().partition();
+  int size = get_size_2(tensor);
+
+  if (tensor.dtype() == "bfloat16") {
+    DataTypes::bfloat16* data = new DataTypes::bfloat16[size];
+    read_tensor_from_memory<DataTypes::bfloat16>(tensor.memory().offset(),
+                                                 partition, size, data);
+    return data;
+  } else if (tensor.dtype() == "int8") {
+    DataTypes::int8* data = new DataTypes::int8[size];
+    read_tensor_from_memory<DataTypes::int8>(tensor.memory().offset(),
+                                             partition, size, data);
+    return tensor;
+  } else if (tensor.dtype() == "int32") {
+    DataTypes::int32* data = new DataTypes::int32[size];
+    read_tensor_from_memory<DataTypes::int32>(tensor.memory().offset(),
+                                              partition, size, data);
+    return data;
+  } else {
+    INPUT_DATATYPE* data = new INPUT_DATATYPE[size];
+    read_tensor_from_memory<INPUT_DATATYPE>(tensor.memory().offset(), partition,
+                                            size, data);
+    return data;
+  }
+}
+
+void ArrayMemory::write_bytes_to_memory(const int address, const int partition,
+                                        const int size, const char* bytes) {
+  auto memory = get_memory(partition);
+  for (int i = 0; i < size; i++) {
+    memory[address + i] = bytes[i];
+  }
+}
