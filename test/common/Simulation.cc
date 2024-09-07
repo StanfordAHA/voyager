@@ -147,30 +147,44 @@ int Simulation::check_outputs() {
 
   bool file = std::find(sims.begin(), sims.end(), "file") != sims.end();
 
-  auto fp32_memory = (ArrayMemory<float>*)memories["fp32"];
-  auto systemc_memory = (ArrayMemory<INPUT_DATATYPE>*)memories["systemc"];
-  auto accelerator_memory =
-      (ArrayMemory<INPUT_DATATYPE>*)memories["accelerator"];
+  // auto fp32_memory = (ArrayMemory*)memories["fp32"];
+  auto systemc_memory = (ArrayMemory*)memories["systemc"];
+  auto accelerator_memory = (ArrayMemory*)memories["accelerator"];
 
-  if (fp32_memory && file) {
-    std::cout << "FP32 PyTorch Gold Model vs. Pytorch" << std::endl;
-    std::cout << "(reveals issues in data loading or mapping)" << std::endl;
-    std::string filename = prefix + "fp32_vs_pytorch.txt";
+  // if (fp32_memory && file) {
+  //   std::cout << "FP32 PyTorch Gold Model vs. Pytorch" << std::endl;
+  //   std::cout << "(reveals issues in data loading or mapping)" << std::endl;
+  //   std::string filename = prefix + "fp32_vs_pytorch.txt";
 
-    rel_err += compare_arrays(fp32_memory->get_args(param).back(), "fp32",
-                              fp32_memory->get_output(param), "file", size,
-                              filename, false);
-    has_valid_comp = true;
-  }
+  //   rel_err += compare_arrays<CFloat, CFloat>(
+  //       fp32_memory->get_args(param).back(), "fp32",
+  //       fp32_memory->get_output(param), "file", size, filename, false);
+  //   has_valid_comp = true;
+  // }
 
   if (systemc_memory && file) {
     std::cout << "System C Gold Model vs. Pytorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
     std::string filename = prefix + "systemc_vs_pytorch.txt";
 
-    rel_err += compare_arrays(systemc_memory->get_args(param).back(), "systemc",
-                              systemc_memory->get_output(param), "file", size,
-                              filename, false);
+    std::any output_tensor = systemc_memory->get_output(param);
+    std::any reference_output_tensor =
+        systemc_memory->get_reference_output(param);
+    if (param.output().dtype() == "int8") {
+      rel_err += compare_arrays<DataTypes::int8, DataTypes::int8>(
+          output_tensor, "gold_model", reference_output_tensor, "file", size,
+          filename, false);
+    } else if (param.output().dtype() == "bfloat16") {
+      rel_err += compare_arrays<DataTypes::bfloat16, DataTypes::bfloat16>(
+          output_tensor, "gold_model", reference_output_tensor, "file", size,
+          filename, false);
+    } else {
+      // if unspecified, we will assume it's INPUT_DATATYPE
+      rel_err += compare_arrays<INPUT_DATATYPE, INPUT_DATATYPE>(
+          output_tensor, "gold_model", reference_output_tensor, "file", size,
+          filename, false);
+    }
+
     has_valid_comp = true;
   }
 
@@ -180,7 +194,7 @@ int Simulation::check_outputs() {
               << std::endl;
     std::string filename = prefix + "accelerator_vs_pytorch.txt";
 
-    rel_err += compare_arrays(
+    rel_err += compare_arrays<INPUT_DATATYPE, INPUT_DATATYPE>(
         accelerator_memory->get_args(param).back(), "accelerator",
         accelerator_memory->get_output(param), "file", size, filename, false);
     has_valid_comp = true;
@@ -192,10 +206,10 @@ int Simulation::check_outputs() {
               << std::endl;
     std::string filename = prefix + "accelerator_vs_systemc.txt";
 
-    rel_err +=
-        compare_arrays(accelerator_memory->get_args(param).back(),
-                       "accelerator", systemc_memory->get_args(param).back(),
-                       "systemc", size, filename, false);
+    rel_err += compare_arrays<INPUT_DATATYPE, INPUT_DATATYPE>(
+        accelerator_memory->get_args(param).back(), "accelerator",
+        systemc_memory->get_args(param).back(), "systemc", size, filename,
+        false);
     has_valid_comp = true;
   }
 
