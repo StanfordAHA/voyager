@@ -249,10 +249,10 @@ $(CC_BUILD_DIR)/Network.o: test/common/Network.cc test/compiler/proto/param.pb.c
 
 # protobuf generated files
 .PHONY: protos
-protos: test/compiler/proto/param.pb.cc test/compiler/networks/qresnet18/params.pb test/compiler/networks/resnet18/params.pb test/compiler/networks/resnet50/params.pb test/compiler/networks/mobilebert/params.pb
+protos: test/compiler/proto/param.pb.cc test/compiler/networks/qresnet18/params.pb # test/compiler/networks/resnet18/params.pb test/compiler/networks/resnet50/params.pb test/compiler/networks/mobilebert/params.pb
 test/compiler/networks/qresnet18/params.pb: quantized-training/test/test_codegen.py
 	mkdir -p test/compiler/networks/qresnet18
-	python quantized-training/test/test_codegen.py --model qresnet18 --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --output_dir test/compiler/networks/qresnet18 | tee test/compiler/networks/qresnet18/codegen.log
+	python quantized-training/test/test_codegen.py --model resnet18 --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --bf16 --output_dir test/compiler/networks/qresnet18 | tee test/compiler/networks/qresnet18/codegen.log
 test/compiler/networks/resnet18/params.pb: quantized-training/test/test_codegen.py
 	mkdir -p test/compiler/networks/resnet18
 	python quantized-training/test/test_codegen.py --model resnet18 --output_dir test/compiler/networks/resnet18 | tee test/compiler/networks/resnet18/codegen.log
