@@ -283,9 +283,9 @@ Int<wdth2, sgnd2> Int<wdth, sgnd>::fma(Int<wdth, sgnd> &b,
   // Int<wdth2, sgnd2> a_higherprecision(*this);
   // Int<wdth2, sgnd2> b_higherprecision(b);
 
-  return static_cast<Int<wdth2, sgnd2> >(*this) +
-         static_cast<Int<wdth2, sgnd2> >(b) *
-             static_cast<Int<wdth2, sgnd2> >(c);
+  return static_cast<Int<wdth2, sgnd2> >(*this) *
+             static_cast<Int<wdth2, sgnd2> >(b) +
+         c;
 
   // if (useDWImpl) {
   //   return fp_mac<AC_TRN_ZERO, ieee_compliance, wdth2 + exp2 + 1, exp2>(
