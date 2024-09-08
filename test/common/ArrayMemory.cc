@@ -4,6 +4,8 @@
 #include "src/DataTypes.h"
 // clang-format on
 
+#include <fstream>
+
 #include "src/ArchitectureParams.h"
 
 ArrayMemory::ArrayMemory(std::vector<int> sizes) : MemoryInterface() {
@@ -149,6 +151,28 @@ std::any ArrayMemory::get_tensor(const codegen::Tensor& tensor) {
   int partition = tensor.memory().partition();
   int size = get_size_2(tensor);
 
+  if (size == 1) {  // for scalar, we get the arg from the file, not from memory
+    const char* env_var = std::getenv("NETWORK");
+    std::string model_name(env_var);
+    std::string project_root = std::string(std::getenv("PROJECT_ROOT"));
+    std::string filename = project_root + "/test/compiler/networks/" +
+                           model_name + "/tensor_files/" + tensor.node() +
+                           ".bin";
+    float scalar;
+    std::ifstream input_stream(filename, std::ios::binary);
+    input_stream.read(reinterpret_cast<char*>(&scalar), sizeof(float));
+
+    if (tensor.dtype() == "bfloat16") {
+      DataTypes::bfloat16* data = new DataTypes::bfloat16[1];
+      data[0] = scalar;
+      return data;
+    } else {
+      std::cerr << "Unsupported data type for scalar tensor: " << tensor.dtype()
+                << std::endl;
+      std::abort();
+    }
+  }
+
   if (tensor.dtype() == "bfloat16") {
     DataTypes::bfloat16* data = new DataTypes::bfloat16[size];
     read_tensor_from_memory<DataTypes::bfloat16>(tensor.memory().offset(),
@@ -158,7 +182,7 @@ std::any ArrayMemory::get_tensor(const codegen::Tensor& tensor) {
     DataTypes::int8* data = new DataTypes::int8[size];
     read_tensor_from_memory<DataTypes::int8>(tensor.memory().offset(),
                                              partition, size, data);
-    return tensor;
+    return data;
   } else if (tensor.dtype() == "int32") {
     DataTypes::int32* data = new DataTypes::int32[size];
     read_tensor_from_memory<DataTypes::int32>(tensor.memory().offset(),

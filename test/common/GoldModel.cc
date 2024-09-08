@@ -5,9 +5,23 @@
 #include "test/common/VerificationTypes.h"
 #include "test/common/operations/MatrixOps.h"
 #include "test/common/operations/Pooling.h"
+#include "test/common/operations/QuantizeOps.h"
 #include "test/common/operations/ReduceOps.h"
 #include "test/common/operations/ReshapeOps.h"
 #include "test/common/operations/VectorOps.h"
+
+template <typename T>
+void save_tensor(char *output_bytes, std::any output_tensor, int size) {
+  T *output_tensor_casted = std::any_cast<T *>(output_tensor);
+
+  for (int i = 0; i < size; i++) {
+    auto bits = static_cast<T>(output_tensor_casted[i]).bits_rep();
+    constexpr int num_bytes = T::width / 8;
+    for (int j = 0; j < num_bytes; j++) {
+      output_bytes[i * num_bytes + j] = bits.template slc<8>(j * 8);
+    }
+  }
+}
 
 template <typename INPUT_T, typename ACCUMULATE_T, typename INTERMEDIATE_T,
           typename VECTOR_T>
@@ -71,11 +85,14 @@ void run_operation(const codegen::AcceleratorParam param,
           input_tensor, weight_tensor, args[2], param);
     }
     arg_index = 3;
-  } else if (param.vector_params_size() > 0) {
-    // fetch the input of the first vector instruction
-    const auto &vector_param = param.vector_params(0);
-    output_tensor = std::any_cast<INPUT_T *>(args[arg_index++]);
   }
+
+  // else if (param.vector_params_size() > 0) {
+  //   // fetch the input of the first vector instruction
+  //   const auto &vector_param = param.vector_params(0);
+  //   // output_tensor = std::any_cast<INPUT_T *>(args[arg_index++]);
+  //   // convert the input tensor to the correct datatype
+  // }
 
   for (const auto &vector_param : param.vector_params()) {
     if (activations.find(vector_param.opcode()) != activations.end()) {
@@ -100,10 +117,17 @@ void run_operation(const codegen::AcceleratorParam param,
 
       delete[] input_tensor;
       delete[] other_tensor;
+    } else if (vector_param.opcode().rfind("quantize", 0) == 0) {
+      // perform quantization operation
+      VECTOR_T *input_tensor = std::any_cast<VECTOR_T *>(args[arg_index++]);
+      VECTOR_T *scale = std::any_cast<VECTOR_T *>(args[arg_index++]);
+
+      output_tensor = quantize<VECTOR_T, INPUT_T>(
+          input_tensor, *scale, get_size(vector_param.input()));
     } else {
       std::cerr << "Unsupported vector instruction: " << vector_param.opcode()
                 << std::endl;
-      exit(1);
+      std::abort();
     }
   }
 
@@ -114,18 +138,16 @@ void run_operation(const codegen::AcceleratorParam param,
                          param.output().permutation());
   }
 
-  bool double_precision = is_double_precision(param.output());
   // save the output tensor
   char *output_bytes = std::any_cast<char *>(args.back());
-  INPUT_T *output_tensor_casted = std::any_cast<INPUT_T *>(output_tensor);
-  for (int i = 0; i < output_size; i++) {
-    ac_int<INPUT_T::width> bits =
-        static_cast<INPUT_T>(output_tensor_casted[i]).bits_rep();
-    for (int j = 0; j < INPUT_T::width / 8; j++) {
-      output_bytes[i * INPUT_T::width / 8 + j] = bits.template slc<8>(j * 8);
-    }
 
-    // delete[] output_tensor_casted;
+  if (param.output().dtype() == "bfloat16") {
+    save_tensor<DataTypes::bfloat16>(output_bytes, output_tensor, output_size);
+  } else if (param.output().dtype() == "int8") {
+    save_tensor<DataTypes::int8>(output_bytes, output_tensor, output_size);
+  } else {
+    // assume INPUT_T if the output tensor is not bfloat16 or int8
+    save_tensor<INPUT_T>(output_bytes, output_tensor, output_size);
   }
 }
 
