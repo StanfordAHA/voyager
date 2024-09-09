@@ -9,3 +9,13 @@
 #include "CFloat.h"
 #endif
 
+namespace DataTypes {
+typedef Int<8, true> int8;
+typedef Int<16, true> int16;
+typedef Int<32, true> int32;
+
+typedef StdFloat<3, 4, false, true, AC_RND_CONV> e4m3;
+typedef StdFloat<2, 5, false, true, AC_RND_CONV> e5m2;
+typedef StdFloat<7, 8, false, true, AC_RND_CONV> bfloat16;
+typedef StdFloat<23, 8, false, true, AC_RND_CONV> fp32;
+};  // namespace DataTypes
