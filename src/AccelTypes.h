@@ -86,21 +86,14 @@ struct PEInput {
 template <typename TYPE>
 struct PEWeight {
   TYPE data;
-  #if IC_DIMENSION == 8
-    ac_int<3, false> tag;
-  #elif IC_DIMENSION == 16
-    ac_int<4, false> tag;
-  #elif IC_DIMENSION == 32
-    ac_int<5, false> tag;
-  #endif  
 
-  #if IC_DIMENSION == 8
-  static const unsigned int width = TYPE::width + 3;
-  #elif IC_DIMENSION == 16
-  static const unsigned int width = TYPE::width + 4;
-  #elif IC_DIMENSION == 32
-  static const unsigned int width = TYPE::width + 5;
-  #endif  
+  static constexpr int int_log2(unsigned int n) {
+    return (n <= 1) ? 0 : 1 + int_log2(n / 2);
+  }
+
+  static constexpr int TAG_WIDTH = int_log2(IC_DIMENSION);
+  ac_int<TAG_WIDTH, false> tag;
+  static const unsigned int width = TYPE::width + TAG_WIDTH;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
@@ -176,6 +169,37 @@ class Pack1D<PEInput<Posit<nbits, es> >, SIZE> {
 #pragma hls_unroll yes
     for (unsigned int i = 0; i < SIZE; i++) {
       m &value[i].swapWeights;
+    }
+  }
+};
+
+template <size_t SIZE, int nbits, int es>
+class Pack1D<PEWeight<Posit<nbits, es> >, SIZE> {
+ public:
+  PEWeight<Posit<nbits, es> > value[SIZE];
+
+  static const unsigned int width = PEWeight<Posit<nbits, es> >::width * SIZE;
+
+  Pack1D() {}
+  Pack1D(const int a) {}
+
+  operator int() const { return Pack1D<PEWeight<Posit<nbits, es> >, SIZE>(); }
+
+  PEWeight<Posit<nbits, es> > &operator[](unsigned int i) {
+    return this->value[i];
+  }
+  const PEWeight<Posit<nbits, es> > &operator[](unsigned int i) const {
+    return this->value[i];
+  }
+  template <unsigned int Size>
+  void Marshall(Marshaller<Size> &m) {
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < SIZE; i++) {
+      m &value[i].data.bits;
+    }
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < SIZE; i++) {
+      m &value[i].tag;
     }
   }
 };

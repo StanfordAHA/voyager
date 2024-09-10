@@ -1,5 +1,5 @@
 # Create project folder
-set project_folder "$root/build/${DATATYPE}_${IC_DIMENSION}x${OC_DIMENSION}/Catapult/${TECHNOLOGY}/clock_${CLOCK_PERIOD}/$BLOCK"
+set project_folder "$ROOT/$CATAPULT_BUILD_DIR/$BLOCK"
 if { [file exists $project_folder] } {
   file delete -force -- $project_folder
 }
@@ -8,7 +8,7 @@ project new -dir $project_folder
 project save
 
 # Set log file
-logfile move "$root/build/${DATATYPE}_${IC_DIMENSION}x${OC_DIMENSION}/Catapult/${TECHNOLOGY}/clock_${CLOCK_PERIOD}/$BLOCK.log"
+logfile move "$ROOT/$CATAPULT_BUILD_DIR/$BLOCK.log"
 
 # Configure options
 solution options set Project/SolutionName $BLOCK
@@ -16,14 +16,14 @@ solution options set Message/ErrorOverride ASSERT-1 -remove
 solution options set Input/TargetPlatform x86_64
 solution options set /Input/CppStandard c++11
 solution options set Input/CompilerFlags "-D$DATATYPE -DIC_DIMENSION=$IC_DIMENSION -DOC_DIMENSION=$OC_DIMENSION"
-solution options set Input/SearchPath "$root/lib"
+solution options set Input/SearchPath "$ROOT/lib"
 solution options set Output/OutputVHDL false
 solution options set Architectural/DefaultMemMapThreshold 256
 solution options set Architectural/DefaultRegisterThreshold 4096
 solution options set Flows/Enable-SCVerify yes
 solution options set Flows/VCS/SYSC_VERSION 2.3.3
 solution options set Flows/VCS/VLOGAN_OPTS {+v2k -timescale=1ns/10ps +notimingcheck +define+UNIT_DELAY}
-solution options set Flows/VCS/VCSSIM_OPTS {+fsdbfile+dump.fsdb +fsdb+all=on +fsdb+dumpon+0}
+# solution options set Flows/VCS/VCSSIM_OPTS {+fsdbfile+dump.fsdb +fsdb+all=on +fsdb+dumpon+0}
 solution options set Flows/VCS/VCS_DOFILE dump.do
 solution options set Flows/VCS/COMP_FLAGS "-O3 -Wall -Wno-unknown-pragmas -I$root/lib/ -I$root/lib/xtensor/include -I$root/lib/xtl/include -I$root/src/ -I$root/ -I$::env(CONDA_PREFIX)/include -DSIM_$BLOCK -D$DATATYPE -DIC_DIMENSION=$IC_DIMENSION -DOC_DIMENSION=$OC_DIMENSION -std=c++17"
 solution options set Flows/VCS/VCSELAB_OPTS "-timescale=1ns/1ps -sysc=blocksync -lstdc++fs -L$::env(CONDA_PREFIX)/lib -LDFLAGS \"-Wl,--enable-new-dtags -Wl,-R,$::env(CONDA_PREFIX)/lib\" -labsl_log_internal_message -labsl_log_internal_check_op -lprotobuf"
@@ -34,7 +34,7 @@ flow package option set /SCVerify/USE_VCS true
 go new
 
 # Add source files
-solution file add $root/src/Accelerator.h -type CHEADER
+solution file add $ROOT/src/Accelerator.h -type CHEADER
 
 # Add testbench files
 solution file add $root/test/common/TestRunner.cc -type C++ -exclude true

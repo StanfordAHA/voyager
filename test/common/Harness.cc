@@ -42,7 +42,7 @@ Harness::Harness(sc_module_name name,
                  std::vector<codegen::AcceleratorParam> params,
                  INPUT_DATATYPE *sram, INPUT_DATATYPE *rram)
     : sc_module(name),
-      clk("clk", 1, SC_NS, 0.5, 0, SC_NS, true),
+      clk("clk", std::stod(std::getenv("CLOCK_PERIOD")), SC_NS, 0.5, 0, SC_NS, true),
       params(params),
       sramMemory(sram),
       rramMemory(rram),
@@ -327,6 +327,9 @@ void Harness::sendParams() {
                                                &serialMatrixParamsIn);
         matrixUnitStartSignal.SyncPop();
       }
+
+      sc_time start = sc_time_stamp();
+
       if (vectorParamsValid) {
         sendSerializedParams<VectorParams, 32>(*vectorParams,
                                                &serialVectorParamsIn);
@@ -338,7 +341,6 @@ void Harness::sendParams() {
       CCS_LOG("----- Accelerator Layer '" << currentParams.name()
                                           << "' Started. -----");
 
-      sc_time start = sc_time_stamp();
 
       if (matrixParamsValid) {
         matrixUnitDoneSignal.SyncPop();

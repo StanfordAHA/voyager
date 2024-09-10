@@ -1,3 +1,4 @@
+.cache
 build
 data
 pybuild
@@ -17,7 +18,4 @@ venv
 test_outputs/
 test_outputs_e2e/
 logs/
-# ZagZig codegen files
-test/*/gen_data
-test/*/*_networks_codegen.py
-test/*/paramsCodeGen.h
+regression_results/

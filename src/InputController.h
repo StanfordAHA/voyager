@@ -735,7 +735,12 @@ SC_MODULE(InputController) {
       int additionalUnrollingFactor;  // additional x values packed in a word
                                       // sent to the systolic array, but are
                                       // unused by the systolic array
-      if (IC_DIMENSION == 16) {
+
+      if (IC_DIMENSION == 8) {
+        packingFactor = 4;
+        unrollingFactor = 4;
+        additionalUnrollingFactor = 1;
+      } else if (IC_DIMENSION == 16) {
         packingFactor = 4;
         unrollingFactor = 4;
         additionalUnrollingFactor = 1;

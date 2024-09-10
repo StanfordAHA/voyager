@@ -3,16 +3,15 @@ stages:
   - test
 
 before_script:
-  - eval `modulecmd bash load base catapult/2022.2 vcs/T-2022.06-SP2 verdi/S-2021.09-SP1`
+  - eval `modulecmd bash load base catapult/2024.1 vcs/T-2022.06-SP2 verdi/S-2021.09-SP1`
   - export VG_GNU_PACKAGE=/cad/synopsys/vcs_gnu_package/S-2021.09/gnu_9/linux
   - source /cad/synopsys/vcs_gnu_package/S-2021.09/gnu_9/linux/source_me.sh
   - export LD_LIBRARY_PATH=/cad/mentor/2024.1/Mgc_home/lib:/cad/mentor/2024.1/Mgc_home/shared/lib:$LD_LIBRARY_PATH
-  - export PATH=/home/gitlab-runner/miniforge3/bin:$PATH
-  - conda init bash
-  - source ~/.bashrc
-  - conda activate /sim/gitlab-runner/envs/accelerator-env
+  - export PATH=/home/gitlab-runner/miniforge3/condabin:$PATH
+  - source $(conda info --base)/etc/profile.d/conda.sh
+  - conda create --name .conda-env --clone /sim/gitlab-runner/envs/accelerator-env
+  - conda activate .conda-env
   - pip install -e quantized-training
-  - pip install graphviz
   - export PROJECT_ROOT=`pwd`
 
 variables:
@@ -21,5 +20,5 @@ variables:
   GIT_CLEAN_FLAGS: -ffdx
 
 include:
-  - local: .gitlab/ci/sysc.yml
+  - local: .gitlab/ci/accuracy.yml
   - local: .gitlab/ci/rtl.yml

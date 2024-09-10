@@ -10,7 +10,7 @@ solution library add mem_1024x256
 solution library add mem_1024x512
 solution library add mem_1024x1024
 
-set memories(1024,128) "mem_1024x128.custom1024x128"
-set memories(1024,256) "mem_1024x256.custom1024x256"
-set memories(1024,512) "mem_1024x512.custom1024x512"
-set memories(1024,1024) "mem_1024x1024.custom1024x1024"
+set memories(sp,1024,128) "mem_1024x128.custom1024x128"
+set memories(sp,1024,256) "mem_1024x256.custom1024x256"
+set memories(sp,1024,512) "mem_1024x512.custom1024x512"
+set memories(sp,1024,1024) "mem_1024x1024.custom1024x1024"

@@ -5,7 +5,6 @@ import os
 import subprocess
 from collections import defaultdict
 
-
 def print_test_results(test_results, layers):
     results_by_model = defaultdict(list)
     for result in test_results:
@@ -164,7 +163,6 @@ def run_systemc_tests(layers, num_processes, results_folder):
 
     return print_test_results(test_results, layers)
 
-
 def run_rtl_test(model, layer, output_folder):
     env_vars = os.environ.copy()
     env_vars["NETWORK"] = model
@@ -192,15 +190,37 @@ def run_rtl_test(model, layer, output_folder):
         stdout=subprocess.PIPE,
     )
     p.communicate()
+    success = p.returncode == 0
 
-    # capture number after "Runtime: " in the log file
-    p = subprocess.Popen(
-        ["grep", "-oP", "(?<=Runtime: ).\d+", f"{output_folder}/{model}_{layer}.log"],
-        stdout=subprocess.PIPE,
-    )
-    runtime = int(p.communicate()[0].decode("utf-8").strip())
+    if success:
+        # capture number after "Runtime: " in the log file
+        p = subprocess.Popen(
+            [
+                "grep",
+                "-oP",
+                "(?<=Runtime: ).\d+",
+                f"{output_folder}/{model}_{layer}.log",
+            ],
+            stdout=subprocess.PIPE,
+        )
+        runtime = int(p.communicate()[0].decode("utf-8").strip())
 
-    return (model, layer, p.returncode == 0, runtime)
+        # capture number after "Ideal cycles: " in the log file
+        p = subprocess.Popen(
+            [
+                "grep",
+                "-oP",
+                "(?<=Ideal cycles: ).\d+",
+                f"{output_folder}/{model}_{layer}.log",
+            ],
+            stdout=subprocess.PIPE,
+        )
+        ideal = int(p.communicate()[0].decode("utf-8").strip())
+    else:
+        runtime = 0
+        ideal = 0
+
+    return (model, layer, success, runtime, ideal)
 
 
 def run_rtl_tests(layers, num_processes, results_folder):
@@ -252,7 +272,6 @@ def run_rtl_tests(layers, num_processes, results_folder):
     pool.join()
 
     return print_test_results(test_results, layers)
-
 
 def main():
     parser = argparse.ArgumentParser()

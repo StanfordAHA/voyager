@@ -21,15 +21,15 @@ proc pre_assembly {} {
 }
 
 proc pre_architect {} {
-  global full_block_name_stripped C_DATA_REP_NAME ACCUM_DATATYPE_WIDTH OC_DIMENSION TECHNOLOGY memories
-  directive set /$full_block_name_stripped/$full_block_name_stripped:run/run/while:accumulation_buffer.value.$C_DATA_REP_NAME -WORD_WIDTH [expr $ACCUM_DATATYPE_WIDTH * $OC_DIMENSION]
+  global full_block_name_stripped ACC_BUF_C_DATA_REP_NAME ACCUM_DATATYPE_WIDTH OC_DIMENSION TECHNOLOGY memories
+  directive set /$full_block_name_stripped/$full_block_name_stripped:run/run/while:accumulation_buffer.value.$ACC_BUF_C_DATA_REP_NAME -WORD_WIDTH [expr $ACCUM_DATATYPE_WIDTH * $OC_DIMENSION]
 
   if {$TECHNOLOGY != "generic"} {
     set memory_width [expr $ACCUM_DATATYPE_WIDTH * $OC_DIMENSION]
-    if {info exists memories(1024,$memory_width)} {
-      directive set /$full_block_name_stripped/$full_block_name_stripped:run/run/while:accumulation_buffer.value.$C_DATA_REP_NAME:rsc -MAP_TO_MODULE $memories(1024,$memory_width)
+    if {[info exists memories(dp,1024,$memory_width)]} {
+      directive set /$full_block_name_stripped/$full_block_name_stripped:run/run/while:accumulation_buffer.value.$ACC_BUF_C_DATA_REP_NAME:rsc -MAP_TO_MODULE $memories(dp,1024,$memory_width)
     } else {
-      error "No memory specified in technology file for depth=1024, width=$memory_width"
+      error "No dual-port memory specified in technology file for depth=1024, width=$memory_width"
     }
 
     # if {[expr $ACCUM_DATATYPE_WIDTH * $DIMENSION] == 128} {
@@ -41,7 +41,7 @@ proc pre_architect {} {
     # } elseif {[expr $ACCUM_DATATYPE_WIDTH * $DIMENSION] == 1024} {
     #   directive set /$full_block_name_stripped/$full_block_name_stripped:run/run/while:accumulation_buffer.value.$C_DATA_REP_NAME:rsc -MAP_TO_MODULE mem_1024x1024.custom1024x1024
     # } else {
-    #   error "No memory for width [expr $ACCUM_DATATYPE_WIDTH * $DIMENSION]"
+    #   error "No dual-port memory for width [expr $ACCUM_DATATYPE_WIDTH * $DIMENSION]"
     # }
   }
 }
