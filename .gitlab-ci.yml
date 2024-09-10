@@ -10,7 +10,7 @@ before_script:
   - export PATH=/home/gitlab-runner/miniforge3/condabin:$PATH
   - source $(conda info --base)/etc/profile.d/conda.sh
   - conda create -p $(pwd)/.conda-env --clone /sim/gitlab-runner/envs/accelerator-env
-  - conda activate .conda-env
+  - conda activate $(pwd)/.conda-env
   - pip install -e quantized-training
   - export PROJECT_ROOT=`pwd`
 

@@ -16,7 +16,7 @@ RTL Simulation (Posit8_1, 16x16):
       - ./regression_results
     expire_in: 1 month
   script:
-    - DATATYPE=P8_1 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims RTL --num_processes 32
+    - DATATYPE=P8_1 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims rtl --num_processes 32
 
 RTL Simulation (Int8, 16x16):
   stage: test
@@ -26,7 +26,7 @@ RTL Simulation (Int8, 16x16):
       - ./regression_results
     expire_in: 1 month
   script:
-    - DATATYPE=Int8 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims RTL --num_processes 32
+    - DATATYPE=Int8 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims rtl --num_processes 32
 
 RTL Simulation (MXInt8, 16x16):
   stage: test
@@ -36,7 +36,7 @@ RTL Simulation (MXInt8, 16x16):
       - ./regression_results
     expire_in: 1 month
   script:
-    - DATATYPE=MXInt8 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims RTL --num_processes 32
+    - DATATYPE=MXInt8 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,mobilebert --sims rtl --num_processes 32
 
 RTL Simulation (E4M3, 16x32):
   stage: test
