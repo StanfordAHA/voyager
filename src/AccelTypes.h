@@ -86,21 +86,14 @@ struct PEInput {
 template <typename TYPE>
 struct PEWeight {
   TYPE data;
-#if IC_DIMENSION == 8
-  ac_int<3, false> tag;
-#elif IC_DIMENSION == 16
-  ac_int<4, false> tag;
-#elif IC_DIMENSION == 32
-  ac_int<5, false> tag;
-#endif
 
-#if IC_DIMENSION == 8
-  static const unsigned int width = TYPE::width + 3;
-#elif IC_DIMENSION == 16
-  static const unsigned int width = TYPE::width + 4;
-#elif IC_DIMENSION == 32
-  static const unsigned int width = TYPE::width + 5;
-#endif
+  static constexpr int int_log2(unsigned int n) {
+    return (n <= 1) ? 0 : 1 + int_log2(n / 2);
+  }
+
+  static constexpr int TAG_WIDTH = int_log2(IC_DIMENSION);
+  ac_int<TAG_WIDTH, false> tag;
+  static const unsigned int width = TYPE::width + TAG_WIDTH;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
