@@ -11,6 +11,7 @@ verdiLog/
 __pycache__
 *.py[cod]
 venv
+.envrc
 .env
 .swp
 .gitlab-ci-local
