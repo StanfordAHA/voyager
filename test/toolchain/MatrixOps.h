@@ -366,78 +366,100 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   auto it = param.vector_params().begin();
   bool has_vector_params = it != param.vector_params().end();
   std::string output_node = matrix_param.name();
-  for (int stage = 0; stage < 5; stage++) {
-    const auto opcode = has_vector_params ? it->opcode() : "nop";
-    bool matched = vector_ops[stage].find(opcode) != vector_ops[stage].end();
-    unsigned int vop =
-        matched ? vinst_mappings[opcode] : VectorInstructions::nop;
 
-    std::cerr << "stage: " << stage << "  opcode: " << opcode
-              << "  matched: " << matched << std::endl;
+  int vectorStage = 0;
+  while (has_vector_params) {
+    const auto opcode = it->opcode();
 
-    if (opcode.rfind("dequantize", 0) == 0) {
-      matched = true;
-    }
+    if (opcode.rfind("dequantize", 0) == 0 ||
+        opcode.rfind("quantize", 0) == 0) {
+      const auto tensor_to_load =
+          output_node == it->other().node() ? it->input() : it->other();
+      const int size = get_size(tensor_to_load);
+      // support only scalar scale factor
+      assert(size == 1);
+      VECTOR_DATATYPE immediate = read_constant_param(tensor_to_load);
+      if (opcode.rfind("dequantize", 0) == 0) {
+        vinst.immediate0 = immediate.bits_rep();
+      } else if (opcode.rfind("quantize", 0) == 0) {
+        vector_params->outputQuantizeScale = immediate.bits_rep();
+      }
+    } else {
+      if (vectorStage == 5) {
+        // we have already processed all the stages
+        break;
+      }
 
-    if (stage == 0) {
-      vinst.vOp0 = vop;
-    } else if (stage == 1) {
-      vinst.vOp1 = vop;
-    } else if (stage == 2) {
-      vinst.vOp2 = vop;
-    } else if (stage == 3) {
-      vinst.vOp3 = vop;
-    } else if (stage == 4) {
-      vinst.vOp4 = vop;
-    }
+      for (int stage = vectorStage; stage < 5; stage++) {
+        bool matched =
+            vector_ops[stage].find(opcode) != vector_ops[stage].end();
 
-    if (matched) {
-      if (it->has_other()) {
-        const auto tensor_to_load =
-            output_node == it->other().node() ? it->input() : it->other();
-        const int size = get_size(tensor_to_load);
-        if (size == 1) {
-          // TODO: Ideally this should be stroed in the vector param.
-          VECTOR_DATATYPE immediate = read_constant_param(tensor_to_load);
+        std::cerr << "stage: " << stage << "  opcode: " << opcode
+                  << "  matched: " << matched << std::endl;
 
-          if (it->opcode() == "div" || it->opcode() == "div_") {
-            immediate = 1.0 / immediate;
-          }
-
+        if (matched) {
+          // set the opcode for the vector stage
+          unsigned int vop = vinst_mappings[opcode];
           if (stage == 0) {
-            vinst.vOp0Src1 = VectorInstructions::op0immediate;
-            vinst.immediate0 = immediate.bits_rep();
+            vinst.vOp0 = vop;
+          } else if (stage == 1) {
+            vinst.vOp1 = vop;
+          } else if (stage == 2) {
+            vinst.vOp2 = vop;
           } else if (stage == 3) {
-            vinst.vOp3Src1 = VectorInstructions::op3immediate;
-            vinst.immediate1 = immediate.bits_rep();
-          } else if (stage == 5) {
-            vinst.immediate1 = immediate.bits_rep();
+            vinst.vOp3 = vop;
+          } else if (stage == 4) {
+            vinst.vOp4 = vop;
           }
 
-          if (opcode.rfind("dequantize", 0) == 0) {
-            vinst.immediate0 = immediate.bits_rep();
+          // increment the stage for the next operation
+          vectorStage = stage + 1;
+          if (it->has_other()) {
+            const auto tensor_to_load =
+                output_node == it->other().node() ? it->input() : it->other();
+            const int size = get_size(tensor_to_load);
+            if (size == 1) {
+              // TODO: Ideally this should be stroed in the vector param.
+              VECTOR_DATATYPE immediate = read_constant_param(tensor_to_load);
+
+              if (it->opcode() == "div" || it->opcode() == "div_") {
+                immediate = 1.0 / immediate;
+              }
+
+              if (stage == 0) {
+                vinst.vOp0Src1 = VectorInstructions::op0immediate;
+                vinst.immediate0 = immediate.bits_rep();
+              } else if (stage == 3) {
+                vinst.vOp3Src1 = VectorInstructions::op3immediate;
+                vinst.immediate1 = immediate.bits_rep();
+              } else if (stage == 5) {
+                vinst.immediate1 = immediate.bits_rep();
+              }
+            } else {
+              if (stage == 0) {
+                vinst.vOp0Src1 = VectorInstructions::readInterface;
+                set_addr_gen1(tensor_to_load, tiling, accelerator_memory_map,
+                              vector_params);
+              } else if (stage == 3) {
+                vinst.vOp3Src1 = VectorInstructions::readNormalInterface;
+                set_addr_gen2(tensor_to_load, tiling, accelerator_memory_map,
+                              vector_params);
+              }
+            }
           }
 
-        } else {
-          if (stage == 0) {
-            vinst.vOp0Src1 = VectorInstructions::readInterface;
-            set_addr_gen1(tensor_to_load, tiling, accelerator_memory_map,
-                          vector_params);
-          } else if (stage == 3) {
-            vinst.vOp3Src1 = VectorInstructions::readNormalInterface;
-            set_addr_gen2(tensor_to_load, tiling, accelerator_memory_map,
-                          vector_params);
-          }
+          break;
         }
       }
-      ++it;
-      has_vector_params = it != param.vector_params().end();
-      if (has_vector_params) {
-        output_node = it->name();
-      }
+    }
+    ++it;
+    has_vector_params = it != param.vector_params().end();
+    if (has_vector_params) {
+      output_node = it->name();
     }
   }
 
+  // check that no more vector instructions are present
   if (it != param.vector_params().end()) {
     std::cerr << "Error: unsupported vector fusion pattern" << std::endl;
     exit(1);

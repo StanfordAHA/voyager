@@ -48,3 +48,25 @@ inline float read_constant_param(const codegen::Tensor tensor) {
   input_stream.read(reinterpret_cast<char *>(array_ptr), sizeof(float));
   return array_ptr[0];
 }
+
+int getLargestFactor(const int dim) {
+  int largestFactor = 1;
+  for (int i = 2; i <= 1024; i++) {  // 1024 is the maximum dimension
+    if (dim % i == 0) {
+      largestFactor = i;
+    }
+  }
+
+  return largestFactor;
+}
+
+void factorizeForAddressGen(const int dim, int *factors) {
+  if (dim > 1024) {
+    int largestFactor = getLargestFactor(dim);
+    factors[0] = dim / largestFactor;
+    factors[1] = largestFactor;
+  } else {
+    factors[0] = 1;
+    factors[1] = dim;
+  }
+}
