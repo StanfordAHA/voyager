@@ -7,36 +7,47 @@ from collections import defaultdict
 import pandas as pd
 import re
 
-def print_test_results(test_results, layers):
-    results_by_model = defaultdict(list)
-    for result in test_results:
-        results_by_model[result[0]].append(result)
+def print_test_results(test_results, layers, output_folder):
+    print(test_results)
+    columns = ["Model", "Layer", "Status", "Runtime", "Ideal"]
+    if len(test_results[0]) == 3:
+        columns = columns[:3]
 
-    all_tests_passed = True
-    for model, results in results_by_model.items():
-        # Sort results by layer order
-        results.sort(key=lambda x: layers[model].index(x[1]))
-        passed = [r for r in results if r[2] == True]
-        failed = [r for r in results if r[2] == False]
+    # convert list of tuples to DataFrame
+    df = pd.DataFrame(test_results, columns=columns)
 
-        if len(failed) > 0:
-            all_tests_passed = False
+    # dump dataframe to pickle
+    df.to_pickle(f"{output_folder}/test_results.pkl")
 
-        print(f"Model: {model}")
-        print("=" * 10 + " PASSED " + "=" * 10)
-        print("\n".join(r[1] for r in passed) if passed else "None")
-        print("=" * 10 + " FAILED " + "=" * 10)
-        print("\n".join(r[1] for r in failed) if failed else "None")
+    # get models
+    models = df["Model"].unique()
 
-        if len(results[0]) == 3:
-            continue
+    for model in models:
+        print("=" * 10 + f" {model} " + "=" * 10)
 
-        print("Runtime:")
-        for result in results:
-            print(f"{result[1]}: {result[3]}")
+        model_df = df[df["Model"] == model]
 
-    return all_tests_passed
+        # sort according to order in layers
+        model_df["Layer"] = pd.Categorical(model_df["Layer"], layers[model])
+        model_df.sort_values("Layer", inplace=True)
+        # turn categorial back to string
+        model_df["Layer"] = model_df["Layer"].astype(str)
 
+        passed = model_df[model_df["Status"] == True]
+        failed = model_df[model_df["Status"] == False]
+
+        print("Passed:")
+        print(passed["Layer"].to_string(index=False) if not passed.empty else "None")
+        print("Failed:")
+        print(failed["Layer"].to_string(index=False) if not failed.empty else "None")
+
+        # if runtime column exists, print runtime of each layer
+        if "Runtime" in model_df.columns:
+            print("Runtime:")
+            print(model_df[["Layer", "Runtime"]].to_string(index=False))
+
+    # return True if all tests passed
+    return len(df[df["Status"] == False]) == 0
 
 def check_environment_vars(required_vars):
     unset_vars = [var for var in required_vars if var not in os.environ]
@@ -103,7 +114,7 @@ def run_fp32_tests(layers, num_processes, results_folder):
     pool.close()
     pool.join()
 
-    return print_test_results(test_results, layers)
+    return print_test_results(test_results, layers, results_folder)
 
 
 def run_systemc_unit_test(model, layer, output_folder):
@@ -165,7 +176,7 @@ def run_systemc_tests(layers, num_processes, results_folder):
     pool.close()
     pool.join()
 
-    return print_test_results(test_results, layers)
+    return print_test_results(test_results, layers, results_folder)
 
 def run_rtl_test(model, layer, output_folder):
     env_vars = os.environ.copy()
@@ -212,16 +223,18 @@ def run_rtl_test(model, layer, output_folder):
         runtime = int(p.communicate()[0].decode("utf-8").strip())
 
         # capture number after "Ideal cycles: " in the log file
-        p = subprocess.Popen(
-            [
-                "grep",
-                "-oP",
-                "(?<=Ideal cycles: ).\d+",
-                f"{output_folder}/{model}_{layer}.log",
-            ],
-            stdout=subprocess.PIPE,
-        )
-        ideal = int(p.communicate()[0].decode("utf-8").strip())
+        # FIXME: Ideal cycles is not printed in the log file
+        # p = subprocess.Popen(
+        #     [
+        #         "grep",
+        #         "-oP",
+        #         "(?<=Ideal cycles: ).\d+",
+        #         f"{output_folder}/{model}_{layer}.log",
+        #     ],
+        #     stdout=subprocess.PIPE,
+        # )
+        # ideal = int(p.communicate()[0].decode("utf-8").strip())
+        ideal = 0
     else:
         runtime = 0
         ideal = 0
@@ -277,7 +290,7 @@ def run_rtl_tests(layers, num_processes, results_folder):
     pool.close()
     pool.join()
 
-    return print_test_results(test_results, layers)
+    return print_test_results(test_results, layers, results_folder)
 
 def run_accuracy(model, dataset, num_processes, output_folder):
     check_environment_vars(["DATATYPE", "IC_DIMENSION", "OC_DIMENSION"])
