@@ -6,7 +6,7 @@
 #include <cassert>
 
 #include "AccelTypes.h"
-#include "test/toolchain/Operations.h"
+#include "test/toolchain/MapOperation.h"
 
 #ifdef SOC_COSIM
 extern bool syscDone;
@@ -301,8 +301,7 @@ void Harness::sendParams() {
 
     std::deque<AcceleratorMemoryMap> accelerator_memory_maps;
     std::deque<BaseParams *> accelerator_params;
-    MapPytorchOperation(currentParams, accelerator_params,
-                        accelerator_memory_maps);
+    MapOperation(currentParams, accelerator_params, accelerator_memory_maps);
 
     while (accelerator_params.size() > 0) {
       bool matrixParamsValid, vectorParamsValid;

@@ -44,6 +44,7 @@ solution file add $root/test/common/GoldModel.cc -type C++ -exclude true
 solution file add $root/test/common/Simulation.cc -type C++ -exclude true
 solution file add $root/test/common/ArrayMemory.cc -type C++ -exclude true
 solution file add $root/test/common/DataLoader.cc -type C++ -exclude true
+solution file add $root/test/toolchain/MapOperation.cc -type C++ -exclude true
 
 # Add network files
 solution file add $root/test/common/Network.cc -type C++ -exclude true
