@@ -183,7 +183,7 @@ def run_rtl_test(model, layer, output_folder):
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
     env_vars["SIMS"] = "systemc,accelerator"
-    # Workaround: vcs/catapult don't support GLIBCXX_3.4.30 in their libstdc++, and the tools hardcode the linker libraries in such an 
+    # Workaround: vcs/catapult don't support GLIBCXX_3.4.30 in their libstdc++, and the tools hardcode the linker libraries in such an
     # order that their libs are used over the user specified ones. We need the newer version in order to run dependencies installed from conda.
     env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
 
@@ -222,19 +222,17 @@ def run_rtl_test(model, layer, output_folder):
         )
         runtime = int(p.communicate()[0].decode("utf-8").strip())
 
-        # capture number after "Ideal cycles: " in the log file
-        # FIXME: Ideal cycles is not printed in the log file
-        # p = subprocess.Popen(
-        #     [
-        #         "grep",
-        #         "-oP",
-        #         "(?<=Ideal cycles: ).\d+",
-        #         f"{output_folder}/{model}_{layer}.log",
-        #     ],
-        #     stdout=subprocess.PIPE,
-        # )
-        # ideal = int(p.communicate()[0].decode("utf-8").strip())
-        ideal = 0
+        # capture number after "Ideal runtime: " in the log file
+        p = subprocess.Popen(
+            [
+                "grep",
+                "-oP",
+                "(?<=Ideal runtime: ).\d+",
+                f"{output_folder}/{model}_{layer}.log",
+            ],
+            stdout=subprocess.PIPE,
+        )
+        ideal = int(p.communicate()[0].decode("utf-8").strip())
     else:
         runtime = 0
         ideal = 0

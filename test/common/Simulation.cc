@@ -104,9 +104,34 @@ void Simulation::load_data() {
   }
 }
 
+int Simulation::get_ideal_runtime(const codegen::AcceleratorParam& param) {
+  int cycles;
+  if (param.has_matrix_param()) {
+    int num_ops = 1;
+    num_ops *= param.matrix_param().input().shape(2);  // X
+    num_ops *= param.matrix_param().input().shape(3);  // Y
+
+    for (const auto& dim : param.matrix_param().weight().shape())
+      num_ops *= dim;  // FX * FY * C * K
+
+    cycles = num_ops / (IC_DIMENSION * OC_DIMENSION);
+  } else {
+    int num_ops = 1;
+    for (const auto& dim : param.output().shape()) num_ops *= dim;
+
+    cycles = num_ops / OC_DIMENSION;
+  }
+  // read CLOCK_PERIOD from environment
+  int clock_period =
+      std::getenv("CLOCK_PERIOD") ? std::stoi(std::getenv("CLOCK_PERIOD")) : 1;
+  return cycles * clock_period;
+}
+
 void Simulation::run() {
   // Run gold models
   for (const auto& param : params) {
+    std::cout << "Ideal runtime: " << get_ideal_runtime(param) << std::endl;
+
     if (std::find(sims.begin(), sims.end(), "fp32") != sims.end()) {
       auto memory = (ArrayMemory<float>*)(memories["fp32"]);
       auto args = memory->get_args(param);
