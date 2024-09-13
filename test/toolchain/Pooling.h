@@ -115,7 +115,7 @@ void MapPoolingOperation(const codegen::AcceleratorParam &param,
     vinst2.vOp3 = VectorInstructions::vmult;
     vinst2.vOp3Src1 = VectorInstructions::op3immediate;
     int kernel_size = tiling.loops[1][tiling.x_loop_index[1]];
-    ACCUM_DATATYPE scale = 1.0 / (kernel_size * kernel_size);
+    VECTOR_DATATYPE scale = 1.0 / (kernel_size * kernel_size);
     vinst2.immediate1 = scale.bits_rep();
   }
 
