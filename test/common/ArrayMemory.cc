@@ -184,6 +184,11 @@ std::any ArrayMemory::get_tensor(const codegen::Tensor& tensor) {
     read_tensor_from_memory<DataTypes::int8>(tensor.memory().offset(),
                                              partition, size, data);
     return data;
+  } else if (tensor.dtype() == "int24") {
+    DataTypes::int24* data = new DataTypes::int24[size];
+    read_tensor_from_memory<DataTypes::int24>(tensor.memory().offset(),
+                                              partition, size, data);
+    return data;
   } else if (tensor.dtype() == "int32") {
     DataTypes::int32* data = new DataTypes::int32[size];
     read_tensor_from_memory<DataTypes::int32>(tensor.memory().offset(),

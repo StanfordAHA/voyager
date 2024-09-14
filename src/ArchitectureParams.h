@@ -178,12 +178,12 @@ using F32 = StdFloat<23, 8, false, true, AC_RND_CONV>;
 #elif defined(INT8)
 
 using I8 = Int<8, true>;
-using I32 = Int<32, true>;
+using I24 = Int<24, true>;
 using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 
 #define INPUT_DATATYPE I8
 #define WEIGHT_DATATYPE I8
-#define ACCUM_DATATYPE I32
+#define ACCUM_DATATYPE I24
 #define OUTPUT_DATATYPE I8
 #define VECTOR_DATATYPE F16
 

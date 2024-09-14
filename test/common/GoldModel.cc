@@ -119,6 +119,9 @@ void run_operation(const codegen::AcceleratorParam param,
       if (vector_param.input().dtype() == "int32") {
         output_tensor = dequantize<DataTypes::int32, VECTOR_T>(
             output_tensor, args[arg_index++], get_size(vector_param.input()));
+      } else if (vector_param.input().dtype() == "int24") {
+        output_tensor = dequantize<DataTypes::int24, VECTOR_T>(
+            output_tensor, args[arg_index++], get_size(vector_param.input()));
       } else if (vector_param.input().dtype() == "int8") {
         output_tensor = dequantize<DataTypes::int8, VECTOR_T>(
             output_tensor, args[arg_index++], get_size(vector_param.input()));

@@ -59,6 +59,9 @@ void DataLoader::load_tensor(const codegen::Tensor& tensor,
     } else if (tensor.dtype() == "bfloat16") {
       memory_interface->write_to_memory<DataTypes::bfloat16>(offset, address,
                                                              *it, partition);
+    } else if (tensor.dtype() == "int24") {
+      memory_interface->write_to_memory<DataTypes::int24>(offset, address, *it,
+                                                          partition);
     } else if (tensor.dtype() == "int32") {
       memory_interface->write_to_memory<DataTypes::int32>(offset, address, *it,
                                                           partition);

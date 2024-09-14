@@ -23,6 +23,7 @@ class Int;
 namespace DataTypes {
 typedef Int<8, true> int8;
 typedef Int<16, true> int16;
+typedef Int<24, true> int24;
 typedef Int<32, true> int32;
 
 typedef StdFloat<3, 4, false, true, AC_RND_CONV> e4m3;
@@ -43,6 +44,11 @@ struct TypeName<int8> {
 template <>
 struct TypeName<int16> {
   static std::string name() { return "int16"; }
+};
+
+template <>
+struct TypeName<int24> {
+  static std::string name() { return "int24"; }
 };
 
 template <>
