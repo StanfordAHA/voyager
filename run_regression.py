@@ -7,6 +7,7 @@ from collections import defaultdict
 import pandas as pd
 import re
 
+
 def print_test_results(test_results, layers, output_folder):
     print(test_results)
     columns = ["Model", "Layer", "Status", "Runtime", "Ideal"]
@@ -48,6 +49,7 @@ def print_test_results(test_results, layers, output_folder):
 
     # return True if all tests passed
     return len(df[df["Status"] == False]) == 0
+
 
 def check_environment_vars(required_vars):
     unset_vars = [var for var in required_vars if var not in os.environ]
@@ -178,6 +180,7 @@ def run_systemc_tests(layers, num_processes, results_folder):
 
     return print_test_results(test_results, layers, results_folder)
 
+
 def run_rtl_test(model, layer, output_folder):
     env_vars = os.environ.copy()
     env_vars["NETWORK"] = model
@@ -290,6 +293,7 @@ def run_rtl_tests(layers, num_processes, results_folder):
 
     return print_test_results(test_results, layers, results_folder)
 
+
 def run_accuracy(model, dataset, num_processes, output_folder):
     check_environment_vars(["DATATYPE", "IC_DIMENSION", "OC_DIMENSION"])
 
@@ -312,13 +316,46 @@ def run_accuracy(model, dataset, num_processes, output_folder):
     if dataset == "imagenet":
         imagenet_path = "/sim2/shared/MINOTAUR/nn_data/imagenet_1000/data/"
         output_data_dir = "data/imagenet"
-        subprocess.run(["python3", "test/script/dump_resnet_dataset.py", "--data_dir", imagenet_path, "--output_dir", output_data_dir, "--num_samples", "1000"])
+        subprocess.run(
+            [
+                "python3",
+                "test/script/dump_resnet_dataset.py",
+                "--data_dir",
+                imagenet_path,
+                "--output_dir",
+                output_data_dir,
+                "--num_samples",
+                "1000",
+            ]
+        )
     elif dataset == "sst2":
         output_data_dir = "data/sst2"
-        subprocess.run(["python3", "test/script/dump_bert_dataset.py", "--dataset", "sst2", "--model_name_or_path", "models/mobilebert/mobilebert-tiny-sst2-bf16/", "--output_dir", output_data_dir])
+        subprocess.run(
+            [
+                "python3",
+                "test/script/dump_bert_dataset.py",
+                "--dataset",
+                "sst2",
+                "--model_name_or_path",
+                "models/mobilebert/mobilebert-tiny-sst2-bf16/",
+                "--output_dir",
+                output_data_dir,
+            ]
+        )
     elif dataset == "squad":
         output_data_dir = "data/squad"
-        subprocess.run(["python3", "test/script/dump_bert_dataset.py", "--dataset", "squad", "--model_name_or_path", "models/mobilebert/mobilebert-tiny-squad-bf16/", "--output_dir", output_data_dir])
+        subprocess.run(
+            [
+                "python3",
+                "test/script/dump_bert_dataset.py",
+                "--dataset",
+                "squad",
+                "--model_name_or_path",
+                "models/mobilebert/mobilebert-tiny-squad-bf16/",
+                "--output_dir",
+                output_data_dir,
+            ]
+        )
     else:
         raise ValueError("Invalid dataset")
 
@@ -364,6 +401,7 @@ def run_accuracy(model, dataset, num_processes, output_folder):
     # dump dataframe to pickle
     df.to_pickle(f"{output_folder}/test_results.pkl")
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -402,11 +440,15 @@ def main():
     os.system(f"cd regression_results && ln -sf {current_time} latest")
 
     # Add codegen layers
-    subprocess.run(["make", "protos"])
-
     layers = {}
     for network in args.models:
-        with open(f"test/compiler/networks/{network}/layers.txt", "r") as f:
+        env_vars = os.environ.copy()
+        env_vars["NETWORK"] = network
+        subprocess.run(["make", "network-proto"], env=env_vars)
+        with open(
+            f"test/compiler/networks/{network}/{os.environ['DATATYPE']}/layers.txt",
+            "r",
+        ) as f:
             layers[network] = f.read().splitlines()
 
     if args.sims == "systemc":
