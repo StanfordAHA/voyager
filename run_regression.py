@@ -16,9 +16,7 @@ def print_test_results(test_results, layers, output_folder):
 
     # convert list of tuples to DataFrame
     df = pd.DataFrame(test_results, columns=columns)
-
-    # dump dataframe to pickle
-    df.to_pickle(f"{output_folder}/test_results.pkl")
+    sorted_df = []
 
     # get models
     models = df["Model"].unique()
@@ -33,6 +31,7 @@ def print_test_results(test_results, layers, output_folder):
         model_df.sort_values("Layer", inplace=True)
         # turn categorial back to string
         model_df["Layer"] = model_df["Layer"].astype(str)
+        sorted_df.append(model_df)
 
         passed = model_df[model_df["Status"] == True]
         failed = model_df[model_df["Status"] == False]
@@ -46,6 +45,9 @@ def print_test_results(test_results, layers, output_folder):
         if "Runtime" in model_df.columns:
             print("Runtime:")
             print(model_df[["Layer", "Runtime"]].to_string(index=False))
+
+    # concatentate all sorted model DataFrames into a single DataFrame and save to pickle
+    pd.concat(sorted_df).to_pickle(f"{output_folder}/test_results.pkl")
 
     # return True if all tests passed
     return len(df[df["Status"] == False]) == 0
