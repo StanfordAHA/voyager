@@ -216,6 +216,7 @@ if { $DATATYPE == "P8_1" } {
   set PE_WEIGHT_DATATYPE "Int<8, true>::AccumulationDatatype"
   set PE_PSUM_DATATYPE "Int<24, true>::AccumulationDatatype"
   set C_DATA_REP_NAME "int_val"
+  set ACC_BUF_C_DATA_REP_NAME "int_val"
 
   set IO_DATATYPE_WIDTH 8
   set ACCUM_DATATYPE_WIDTH 24
