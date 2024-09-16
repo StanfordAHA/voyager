@@ -43,7 +43,8 @@ void MapReduceOperation(const codegen::AcceleratorParam &param,
     }
 
     // TODO: double precision
-    vector_params->DP_VEC0 = false;
+    vector_params->DP_VEC0 =
+        DataTypes::TypeName<INPUT_DATATYPE>::name() != vector_input.dtype();
 
     // turn off address generators
     vector_params->addressGen1Mode = 0;
@@ -67,7 +68,8 @@ void MapReduceOperation(const codegen::AcceleratorParam &param,
     }
 
     // TODO: double precision
-    vector_params->DP_OUTPUT = false;
+    vector_params->DP_OUTPUT =
+        DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
     vector_params->SPLIT_OUTPUT = false;
 
     // inst 0 - start reduction engine to calculate max

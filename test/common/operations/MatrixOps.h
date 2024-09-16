@@ -33,7 +33,10 @@ inline ACCUMULATE_T *gemm(std::any input_tensor, std::any weight_tensor,
   INPUT_T *inputs = std::any_cast<INPUT_T *>(input_tensor);
   INPUT_T *weights = std::any_cast<INPUT_T *>(weight_tensor);
   // bias is assumed to be in ACCUMULATE_T
-  ACCUMULATE_T *bias = std::any_cast<ACCUMULATE_T *>(bias_tensor);
+  ACCUMULATE_T *bias = nullptr;
+  if (matrix_param.has_bias()) {
+    bias = std::any_cast<ACCUMULATE_T *>(bias_tensor);
+  }
 
   Tiling tiling;
   if (matrix_param.opcode() == "conv2d") {

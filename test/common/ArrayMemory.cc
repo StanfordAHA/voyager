@@ -163,7 +163,7 @@ std::any ArrayMemory::get_tensor(const codegen::Tensor& tensor) {
     std::ifstream input_stream(filename, std::ios::binary);
     input_stream.read(reinterpret_cast<char*>(&scalar), sizeof(float));
 
-    if (tensor.dtype() == "bfloat16") {
+    if (tensor.dtype() == "bfloat16" || tensor.dtype() == "float32") {
       DataTypes::bfloat16* data = new DataTypes::bfloat16[1];
       data[0] = scalar;
       return data;

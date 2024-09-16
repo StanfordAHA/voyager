@@ -141,9 +141,14 @@ void run_operation(const codegen::AcceleratorParam param,
 
   int output_size = get_size(param.output());
   if (param.output().has_permutation()) {
-    output_tensor =
-        permute<INPUT_T>(std::any_cast<ACCUMULATE_T *>(output_tensor),
-                         param.output().permutation());
+    if (param.output().dtype() == "bfloat16") {
+      output_tensor = permute<DataTypes::bfloat16>(
+          std::any_cast<DataTypes::bfloat16 *>(output_tensor),
+          param.output().permutation());
+    } else {  // assume INPUT_T if the output tensor is not bfloat16
+      output_tensor = permute<INPUT_T>(std::any_cast<INPUT_T *>(output_tensor),
+                                       param.output().permutation());
+    }
   }
 
   // save the output tensor

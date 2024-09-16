@@ -63,7 +63,8 @@ void set_vector_addr_gen1(const codegen::Tensor &tensor,
   vector_params->ADDRESS_GEN1_OFFSET = memory.offset();
   vector_params->addressGen1Mode = nonzero_dims == 1 ? 3 : 1;
   // TODO: double precision
-  vector_params->DP_VEC1 = false;
+  vector_params->DP_VEC1 =
+      DataTypes::TypeName<INPUT_DATATYPE>::name() != tensor.dtype();
 
   for (int i = 0; i < 3; i++) {
     vector_params->addressGen1Loops[0][i] = 1;

@@ -107,9 +107,18 @@ void Simulation::load_data() {
 int Simulation::get_ideal_runtime(const codegen::AcceleratorParam& param) {
   int cycles;
   if (param.has_matrix_param()) {
+    // the total number of operations is X*Y*C*FX*FY*K.
     int num_ops = 1;
-    num_ops *= param.matrix_param().input().shape(2);  // X
-    num_ops *= param.matrix_param().input().shape(3);  // Y
+
+    if (param.matrix_param().input().shape_size() > 2) {
+      // starting at 2 so that we need to skip the batch and C dimensions
+      num_ops *= param.matrix_param().input().shape(2);     // X
+      if (param.matrix_param().input().shape_size() > 3) {  // Y (if present)
+        num_ops *= param.matrix_param().input().shape(3);
+      }
+    } else {
+      num_ops *= param.matrix_param().input().shape(0);  // X
+    }
 
     for (const auto& dim : param.matrix_param().weight().shape())
       num_ops *= dim;  // FX * FY * C * K
