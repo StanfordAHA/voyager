@@ -173,8 +173,20 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
 
   vector_params->DP_OUTPUT =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
-  // TODO: Transformer qkv output permutation
-  vector_params->SPLIT_OUTPUT = false;
+  if (param.output().has_permutation()) {
+    vector_params->SPLIT_OUTPUT =
+        param.output().shape(1) < param.output().shape(2);
+    vector_params->CONCAT_OUTPUT =
+        param.output().shape(1) > param.output().shape(2);
+  }
+
+  if (param.output().has_permutation()) {
+    // if we have permutation, we need to configure the address generators
+    // accordingly we need to make sure the output is split into 32x32 blocks
+    vector_params->outputLoops[1][1] = param.output().shape(1);
+    vector_params->outputLoops[1][2] =
+        param.output().shape(2) * param.output().shape(3) / OC_DIMENSION;
+  }
 
   VectorInstructions vinst;
   memset(&vinst, 0, sizeof(vinst));

@@ -121,6 +121,12 @@ SC_MODULE(OutputAddressGenerator) {
                         static_cast<ac_int<32, false> >((k / 32) * X * 32) +
                         static_cast<ac_int<32, false> >(x * 32) +
                         static_cast<ac_int<32, false> >(k % 32);
+                  } else if (params.CONCAT_OUTPUT) {
+                    baseAddress =
+                        static_cast<ac_int<32, false> >((k / 32) * K) +
+                        static_cast<ac_int<32, false> >((y % 32) * K * 4) +
+                        static_cast<ac_int<32, false> >(k % 32) +
+                        static_cast<ac_int<32, false> >(y / 32 * K / 4);
                   }
 
                   int address = params.VECTOR_OUTPUT_OFFSET + baseAddress;

@@ -498,6 +498,7 @@ struct VectorParams : BaseParams {
   ac_int<3, false> outputYLoopIndex[2];
   ac_int<3, false> outputWeightLoopIndex[2];
   bool SPLIT_OUTPUT;
+  bool CONCAT_OUTPUT;
 
   bool DP_OUTPUT;
   ac_int<16, false> outputQuantizeScale;
@@ -513,7 +514,7 @@ struct VectorParams : BaseParams {
 
   static const unsigned int width =
       5 * 32 /* OFFSETS */ + 4 * 6 * 11 /* Loops */ +
-      3 * 6 * 4 /* Loop indices */ + 8 * 1 /* Bools */ + 10 + 3 * 2 +
+      3 * 6 * 4 /* Loop indices */ + 9 * 1 /* Bools */ + 10 + 3 * 2 +
       16 * 4 /* Dequantize scale */;
 
 #ifndef NO_SYSC
@@ -588,6 +589,7 @@ struct VectorParams : BaseParams {
       m& outputWeightLoopIndex[i];
     }
     m & SPLIT_OUTPUT;
+    m & CONCAT_OUTPUT;
     m & DP_OUTPUT;
     m & outputQuantizeScale;
     m & addressGen0Mode;
