@@ -121,7 +121,7 @@ def run_fp32_tests(layers, num_processes, results_folder):
     return print_test_results(test_results, layers, results_folder)
 
 
-def run_systemc_unit_test(model, layer, output_folder):
+def run_systemc_unit_test(model, layer, output_folder, fast):
     env_vars = os.environ.copy()
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
@@ -131,7 +131,7 @@ def run_systemc_unit_test(model, layer, output_folder):
     with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
         try:
             subprocess.run(
-                ["make", "sim"],
+                ["make", "fast-sim" if fast else "sim"],
                 env=env_vars,
                 stdout=stdout_file,
                 stderr=subprocess.STDOUT,
@@ -151,7 +151,7 @@ def run_systemc_unit_test(model, layer, output_folder):
     return (model, layer, p.returncode == 0)
 
 
-def run_systemc_tests(layers, num_processes, results_folder):
+def run_systemc_tests(layers, num_processes, results_folder, fast):
     check_environment_vars(["DATATYPE", "IC_DIMENSION", "OC_DIMENSION"])
 
     # Build TestRunner binary
@@ -159,7 +159,7 @@ def run_systemc_tests(layers, num_processes, results_folder):
 
     with open(f"{results_folder}/build.log", "w") as stdout_file:
         subprocess.run(
-            ["make", "-j", "TestRunner"],
+            ["make", "-j", "TestRunner-fast" if fast else "TestRunner"],
             env=os.environ,
             stdout=stdout_file,
             stderr=subprocess.STDOUT,
@@ -173,7 +173,7 @@ def run_systemc_tests(layers, num_processes, results_folder):
         for test in tests:
             pool.apply_async(
                 run_systemc_unit_test,
-                args=(model, test, results_folder),
+                args=(model, test, results_folder, fast),
                 callback=test_results.append,
             )
 
@@ -419,7 +419,7 @@ def main():
     )
     parser.add_argument(
         "--sims",
-        choices=["fp32", "systemc", "rtl", "accuracy"],
+        choices=["fp32", "systemc", "fast-systemc", "rtl", "accuracy"],
         required=True,
         help="Simulation to run (fp32, systemc, rtl, accuracy)",
     )
@@ -453,8 +453,8 @@ def main():
         ) as f:
             layers[network] = f.read().splitlines()
 
-    if args.sims == "systemc":
-        success = run_systemc_tests(layers, args.num_processes, results_folder)
+    if args.sims == "systemc" or args.sims == "fast-systemc":
+        success = run_systemc_tests(layers, args.num_processes, results_folder, args.sims == "fast-systemc")
     elif args.sims == "rtl":
         success = run_rtl_tests(layers, args.num_processes, results_folder)
     elif args.sims == "fp32":

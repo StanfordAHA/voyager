@@ -198,6 +198,9 @@ sim-debug: $(CC_BUILD_DIR)/TestRunner
 .PHONY: TestRunner
 TestRunner: check_env_var $(CC_BUILD_DIR)/TestRunner
 
+.PHONY: TestRunner-fast
+TestRunner-fast: check_env_var $(CC_BUILD_DIR)/TestRunner-fast
+
 .PHONY: AccuracyTester
 AccuracyTester: ./$(CC_BUILD_DIR)/AccuracyTester
 
