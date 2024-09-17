@@ -32,7 +32,7 @@ test/compiler/networks/resnet50/P8_1/params.pb: test/compiler/run_compiler.py
 	python test/compiler/run_compiler.py resnet50 --activation posit8_1 --weight posit8_1 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
 
 ################################################################################
-# MobileBERT
+# MobileBERT (Full Network)
 ################################################################################
 test/compiler/networks/mobilebert/INT8/params.pb: test/compiler/run_compiler.py
 	mkdir -p $(dir $@)
@@ -45,3 +45,18 @@ test/compiler/networks/mobilebert/E4M3/params.pb: test/compiler/run_compiler.py
 test/compiler/networks/mobilebert/P8_1/params.pb: test/compiler/run_compiler.py
 	mkdir -p $(dir $@)
 	python test/compiler/run_compiler.py mobilebert --activation posit8_1 --weight posit8_1 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+
+################################################################################
+# MobileBERT (Encoder Only)
+################################################################################
+test/compiler/networks/mobilebert_encoder/INT8/params.pb: test/compiler/run_compiler.py
+	mkdir -p $(dir $@)
+	python test/compiler/run_compiler.py mobilebert_encoder --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+
+test/compiler/networks/mobilebert_encoder/E4M3/params.pb: test/compiler/run_compiler.py
+	mkdir -p $(dir $@)
+	python test/compiler/run_compiler.py mobilebert_encoder --activation fp8_e4m3 --weight fp8_e4m3 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+
+test/compiler/networks/mobilebert_encoder/P8_1/params.pb: test/compiler/run_compiler.py
+	mkdir -p $(dir $@)
+	python test/compiler/run_compiler.py mobilebert_encoder --activation posit8_1 --weight posit8_1 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
