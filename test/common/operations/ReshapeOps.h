@@ -48,9 +48,6 @@ inline T* permute(std::any input_tensor, const codegen::ReshapeParam param) {
     exit(1);
   }
 
-  std::cerr << "Permute order: " << order[0] << " " << order[1] << " "
-            << order[2] << " " << order[3] << std::endl;
-
   std::vector<int> permuted_shape(order.size());
   for (size_t i = 0; i < order.size(); ++i) {
     permuted_shape[i] = input_shape[order[i]];
@@ -105,12 +102,6 @@ inline T* permute(std::any input_tensor, const codegen::Permutation& param) {
               << std::endl;
     exit(1);
   }
-
-  std::cerr << "Permute order: ";
-  for (int dim : order) {
-    std::cerr << dim << " ";
-  }
-  std::cerr << std::endl;
 
   std::vector<int> permuted_shape(order.size());
   for (size_t i = 0; i < order.size(); ++i) {

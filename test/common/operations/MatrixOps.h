@@ -27,7 +27,6 @@ template <typename INPUT_T, typename ACCUMULATE_T, typename INTERMEDIATE_T>
 inline ACCUMULATE_T *gemm(std::any input_tensor, std::any weight_tensor,
                           std::any bias_tensor,
                           const codegen::AcceleratorParam &param) {
-  std::cout << "Running gemm op" << std::endl;
   const auto matrix_param = param.matrix_param();
 
   INPUT_T *inputs = std::any_cast<INPUT_T *>(input_tensor);
