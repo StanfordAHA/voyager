@@ -16,7 +16,7 @@ parameters:
   sim_level: rtl
   # These parameters just need to exist for building the simulator
   network: resnet18
-  layer: conv1
-  data_dir: None
-  sims: accelerator,customposit
+  layer: submodule_5
+  datatype: undefined
+  sims: accelerator,systemc
 

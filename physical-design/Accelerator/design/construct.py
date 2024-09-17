@@ -59,6 +59,7 @@ def construct():
     constraints = Step(this_dir + "/constraints")
     memory_1024x64_rf = Step(this_dir + "/../../common/memory")
     # Simulation
+    codegen = Step(this_dir + "/codegen")
     vcs_build = Step(this_dir + "/vcs-build")
     rtl_vcs_build = vcs_build.clone()
     rtl_vcs_build.set_name( 'rtl-vcs-build')
@@ -181,6 +182,7 @@ def construct():
 
     g.add_step(info)
     g.add_step(hls)
+    g.add_step(codegen)
     g.add_step(rtl_vcs_build)
     g.add_step(rtl_sim)
     g.add_step(rtl_sim_namemap)
@@ -216,15 +218,17 @@ def construct():
 
 
     g.connect_by_name(hls, synth)
-    g.connect_by_name(hls, rtl_vcs_build)
+    g.connect_by_name(hls, codegen)
+    g.connect(hls.o("design.v"), rtl_vcs_build.i("design.v"))
+    g.connect_by_name(codegen, rtl_vcs_build)
     g.connect_by_name(rtl_vcs_build, rtl_sim)
     g.connect_by_name(rtl_vcs_build, rtl_sim_namemap)
     g.connect_by_name(rtl_sim_namemap, synth)  # run.saif to generate namemap
     g.connect_by_name(constraints, synth)
-    g.connect(hls.o("build"), syn_vcs_build.i("build"))
     g.connect_by_name(custom_dc_synth, synth) # overwrite scripts
     g.connect_by_name(synth, custom_hack_synth_sdc)
     g.connect_by_name(synth, syn_vcs_build)
+    g.connect(codegen.o("build"), syn_vcs_build.i("build"))
     g.connect_by_name(syn_vcs_build, syn_sim)
     g.connect_by_name(rtl_sim, ptpx_rtl)
     g.connect(synth.o("design.v"), ptpx_rtl.i("design.v"))
@@ -282,6 +286,9 @@ def construct():
     # sweep (or maybe clone) ptpx using that. Explicitly change the input it's looking for to the specific fsdb name. 
     # The only thing is parameter doesn't support dict. If we want to make this work, we need a dumber 
     # ways to specify the sweep parameters (tests).
+
+    # codegen: need to generate data for all networks involved
+    codegen.update_params( { 'network': list(sweep_params["tests"]) } )
 
     # Sweep over tests
     networks = list(sweep_params["tests"])
