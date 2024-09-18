@@ -33,6 +33,7 @@ from quantized_training.codegen import (
     gen_compute_graph,
     split_multi_head_attention,
 )
+from quantized_training.quantize_pt2e import _fuse_quantize_with_previous_nodes
 from quantized_training.quantizer.xnnpack_quantizer_utils import (
     _convert_scalars_to_attrs,
 )
@@ -139,6 +140,8 @@ def transform(
     ShapeProp(gm).propagate(*uplifted_args)
     split_multi_head_attention(gm)
     ShapeProp(gm).propagate(*uplifted_args)
+
+    _fuse_quantize_with_previous_nodes(gm)
 
     pipeline = {
         0: ["gemm"],
