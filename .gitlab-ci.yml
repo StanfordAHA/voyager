@@ -13,6 +13,7 @@ before_script:
   - conda activate $(pwd)/.conda-env
   - pip install -e quantized-training
   - export PROJECT_ROOT=`pwd`
+  - export CODEGEN_DIR=test/compiler
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
