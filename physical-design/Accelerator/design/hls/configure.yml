@@ -10,6 +10,7 @@ commands:
  - ln -sf ../../../accel-src/lib
  - ln -sf ../../../accel-src/Makefile
  - ln -sf ../../../accel-src/codegen.mk
+ - ln -sf ../../../accel-src/quantized-training
  - ln -sf ../../../accel-src/scripts
  - bash run.sh
 
