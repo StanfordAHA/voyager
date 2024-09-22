@@ -32,7 +32,7 @@ export PROJECT_ROOT=$(pwd)
 pushd inputs/build/Catapult/Accelerator/Accelerator.v1
 # Workaround: see accelerator repo run_regression.py
 # build simulator
-make -f scverify/Verify_concat_sim_rtl_v_vcs.mk build CODEGEN_DIR=inputs/build/codegen NETWORK=${network} TESTS=${layer} DATATYPE=${datatype} SIMS=${sims} CLOCK_PERIOD=${clock_period} NETLIST_LEAF=${sim_level} VCS_VLOGAN_OPTS="${VCS_FLAGS}" ${EXTRA_FLAGS}
+make -f scverify/Verify_concat_sim_rtl_v_vcs.mk build CODEGEN_DIR=test/compiler NETWORK=${network} TESTS=${layer} DATATYPE=${datatype} SIMS=${sims} CLOCK_PERIOD=${clock_period} NETLIST_LEAF=${sim_level} VCS_VLOGAN_OPTS="${VCS_FLAGS}" ${EXTRA_FLAGS}
 popd
 
 ln -s ../inputs/build outputs/build

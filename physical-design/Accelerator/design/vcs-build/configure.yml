@@ -6,10 +6,11 @@ inputs:
   - build
 
 outputs:
- - build
+  - build
 
 commands:
-- sh run.sh
+  - ln -sf ../../../accel-src/test
+  - sh run.sh
 
 parameters:
   clock_period: 2
