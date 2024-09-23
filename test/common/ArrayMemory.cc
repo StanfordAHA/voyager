@@ -165,7 +165,7 @@ std::any ArrayMemory::get_tensor(const codegen::Tensor& tensor) {
     input_stream.read(reinterpret_cast<char*>(&scalar), sizeof(float));
 
     if (tensor.dtype() == "bfloat16" || tensor.dtype() == "float32") {
-      DataTypes::bfloat16* data = new DataTypes::bfloat16[1];
+      VECTOR_DATATYPE* data = new VECTOR_DATATYPE[1];
       data[0] = scalar;
       return data;
     } else {
