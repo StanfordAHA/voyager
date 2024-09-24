@@ -343,6 +343,8 @@ if __name__ == "__main__":
         )
         example_args = (embedding_output, extended_attention_mask, head_mask)
 
+        quantizer.set_module_name("classifier", None)
+
         class MobileBertNoEmbed(torch.nn.Module):
             def __init__(self):
                 super().__init__()
