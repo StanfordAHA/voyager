@@ -14,12 +14,10 @@ fi
 export LD_PRELOAD=${CONDA_PREFIX}/lib/libstdc++.so.6
 export PROJECT_ROOT=$(pwd)
 
-if [ ! -f inputs/build/Catapult/${fsdb_name}.fsdb ]; then
-  pushd inputs/build/Catapult/Accelerator/Accelerator.v1
-  # run sim
-  make -f scverify/Verify_concat_sim_rtl_v_vcs.mk sim CODEGEN_DIR=test/compiler NETWORK=${network} TESTS=${layer} DATATYPE=${datatype} SIMS=${sims} CLOCK_PERIOD=${clock_period} NETLIST_LEAF=${sim_level} VCS_VCSSIM_OPTS="${VCS_VCSSIM_OPTS}" ${EXTRA_FLAGS}
-  popd
-fi
+pushd inputs/build/Catapult/Accelerator/Accelerator.v1
+# run sim
+make -f scverify/Verify_concat_sim_rtl_v_vcs.mk sim CODEGEN_DIR=test/compiler NETWORK=${network} TESTS=${layer} DATATYPE=${datatype} SIMS=${sims} CLOCK_PERIOD=${clock_period} NETLIST_LEAF=${sim_level} VCS_VCSSIM_OPTS="${VCS_VCSSIM_OPTS}" ${EXTRA_FLAGS}
+popd
 
 # Convert fsdb to saif
 if [[ "${waveform}" == "True" && "${gen_saif}" == "True" ]]; then
