@@ -380,7 +380,7 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
       assert(size == 1);
       VECTOR_DATATYPE immediate = read_constant_param(tensor_to_load);
       if (opcode.rfind("dequantize", 0) == 0) {
-        vinst.immediate0 = immediate.bits_rep();
+        vinst.vDequantizeScale = immediate.bits_rep();
       } else if (opcode.rfind("quantize", 0) == 0) {
         vector_params->outputQuantizeScale = immediate.bits_rep();
       }

@@ -312,6 +312,7 @@ struct VectorInstructions {
   static const unsigned int readFromReduce = 4;
 
   ac_int<1, false> vDequantize;
+  ac_int<16, false> vDequantizeScale;
 
   // src0 refers to lhs and src1 refers to rhs
 
@@ -387,7 +388,7 @@ struct VectorInstructions {
   ac_int<16, false> immediate0;
   ac_int<16, false> immediate1;
 
-  static const unsigned int width = 78;
+  static const unsigned int width = 94;
 
 #ifndef NO_SYSC
   template <unsigned int Size>
@@ -395,6 +396,7 @@ struct VectorInstructions {
     m & instType;
     m & vInput;
     m & vDequantize;
+    m & vDequantizeScale;
     m & vOp0Src1;
     m & vOp0;
     m & vOp1;
@@ -903,6 +905,9 @@ struct VectorInstructionConfig : BaseParams {
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].vDequantize;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vDequantizeScale;
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].vOp0Src1;

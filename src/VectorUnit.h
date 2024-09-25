@@ -151,7 +151,7 @@ SC_MODULE(VectorOpUnit) {
         if constexpr (!MU_OUTPUT_DTYPE::is_floating_point &&
                       VEC_DTYPE::is_floating_point) {
           vdequantize<VEC_DTYPE, MU_OUTPUT_DTYPE, WIDTH>(tmp, op0Src0,
-                                                         inst.immediate0);
+                                                         inst.vDequantizeScale);
         } else {
 #pragma hls_unroll yes
           for (int i = 0; i < WIDTH; i++) {
