@@ -6,9 +6,10 @@ if [ "${sim_level}" == "syn" ]; then
   EXTRA_FLAGS="GATE_VLOG_DEP=./${VLOG_NAME}/${VLOG_NAME}.vts STAGE=gate"
 fi
 
-# TODO: need a way to skip dump file. I think we need to remove the dump options from catapult scripts. Need to test throughly
-fsdb_name=${sim_level}_${network}_${layer}
-VCS_VCSSIM_OPTS="+fsdbfile+${fsdb_name}.fsdb +fsdb+all=on +fsdb+dumpon+0"
+if [ "${waveform}" == "True" ]; then
+  fsdb_name=${sim_level}_${network}_${layer}
+  VCS_VCSSIM_OPTS="+fsdbfile+${fsdb_name}.fsdb +fsdb+all=on +fsdb+dumpon+0"
+fi
 
 export LD_PRELOAD=${CONDA_PREFIX}/lib/libstdc++.so.6
 export PROJECT_ROOT=$(pwd)
@@ -21,6 +22,6 @@ if [ ! -f inputs/build/Catapult/${fsdb_name}.fsdb ]; then
 fi
 
 # Convert fsdb to saif
-if [ "${gen_saif}" == "True" ]; then
+if [[ "${waveform}" == "True" && "${gen_saif}" == "True" ]]; then
   fsdb2saif inputs/build/Catapult/${fsdb_name}.fsdb -o outputs/run.saif
 fi

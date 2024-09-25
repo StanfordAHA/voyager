@@ -18,4 +18,5 @@ parameters:
   layer: submodule_5
   datatype: undefined
   sims: accelerator,systemc
+  waveform: False
   gen_saif: True

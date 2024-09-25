@@ -20,3 +20,4 @@ parameters:
  ic_dimension: 16
  oc_dimension: 16
  technology: generic
+ waveform: False

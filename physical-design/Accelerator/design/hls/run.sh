@@ -1,10 +1,12 @@
 set -o xtrace
 
 CATAPULT_BUILD_DIR=build/Catapult
-
 mkdir -p ${CATAPULT_BUILD_DIR}
-# build/Catapult will be the root directory of vcs simulations
-echo "dump -add sc_main/harness/accelerator/ccs_rtl" > build/Catapult/dump.do
+if [ "${waveform}" == "True" ]; then
+  # build/Catapult will be the root directory of vcs simulations
+  echo "dump -add sc_main/harness/accelerator/ccs_rtl" >build/Catapult/dump.do
+fi
+
 # build TestRunner
 make -j TestRunner BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} IC_DIMENSION=${ic_dimension} OC_DIMENSION=${oc_dimension}
 # generate RTL
@@ -12,7 +14,10 @@ make -j TestRunner BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATA
 make -j8 ${CATAPULT_BUILD_DIR}/Accelerator/Accelerator.v1/concat_rtl.v BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} OC_DIMENSION=${oc_dimension} IC_DIMENSION=${ic_dimension} CLOCK_PERIOD=${clock_period} TECHNOLOGY=${technology}
 
 # WARN: so far concat_rtl.v and concat_sim_rtl.v are identical, but may need to differentiate for synthesis and simulation
-[[ -f ${CATAPULT_BUILD_DIR}/Accelerator/Accelerator.v1/concat_rtl.v ]] || { echo "Error: RTL generation failed"; exit 1; }
+[[ -f ${CATAPULT_BUILD_DIR}/Accelerator/Accelerator.v1/concat_rtl.v ]] || {
+  echo "Error: RTL generation failed"
+  exit 1
+}
 
 cd outputs
 # Must link over Accelerator level and no name change for scverify makefile to work
