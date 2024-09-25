@@ -2,6 +2,26 @@ set -o xtrace
 
 CATAPULT_BUILD_DIR=build/Catapult
 mkdir -p ${CATAPULT_BUILD_DIR}
+
+if [[ "${technology}" == "intel16" ]]; then
+  ## Generate memory models
+  for mem in $(ls inputs/*.v); do
+    # Add these directives to memory models so that catapult doesn't complain
+    sed '1i\
+`define INTC_EMULATION' \
+      $mem >memories/$(basename $mem)
+    # WARN: We may want to remove this define at HLS so that we can simulate without this flag. But so far we don't do that
+
+    # Add translate off directive
+    sed -i '1i// synopsys translate_off' memories/$(basename $mem)
+    sed -i '$a// synopsys translate_on' memories/$(basename $mem)
+  done
+
+  for tcl in $(ls memories/intel16_sram*.tcl); do
+    catapult -shell -file $tcl
+  done
+fi
+
 if [ "${waveform}" == "True" ]; then
   # build/Catapult will be the root directory of vcs simulations
   echo "dump -add sc_main/harness/accelerator/ccs_rtl" >build/Catapult/dump.do
@@ -23,25 +43,7 @@ cd outputs
 # Must link over Accelerator level and no name change for scverify makefile to work
 ln -s ../build
 
-# Uncomment the intel16 sram
-awk '
-  /\/\*/ { comment = 1 }
-  /\*\// { comment = 1 }
-  
-  # Once start_marker is found, set the flag
-  /module intel16_1024x.*_rf_wrapper/ { within_block = 1 }
-
-  # print if meets the criteria
-  !within_block || within_block && !comment { print }
-  # within_block && !comment { print }
-  
-  # Mark it off once the end_marker is found
-  within_block && /endmodule/ { within_block = 0 }
-
-  # Reset the comment flag in every line
-  comment = 0
-
-' build/Catapult/Accelerator/Accelerator.v1/concat_rtl.v > design.v
+cp build/Catapult/Accelerator/Accelerator.v1/concat_rtl.v design.v
 
 # Renaming modules
 modname=$(grep -oP "(?<=module )ProcessingElement.*$" design.v | tail -1)

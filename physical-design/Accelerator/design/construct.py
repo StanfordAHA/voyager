@@ -8,7 +8,7 @@ import sys
 
 from mflowgen.components import Graph, Step
 
-sys.path.append(os.environ["PD_HOME"])
+sys.path.append(os.path.join(os.path.dirname(__file__), "..")) # for params
 from params import build_params, sim_params, sweep_params
 
 
@@ -57,7 +57,7 @@ def construct():
     # RTL and Library
     hls = Step(this_dir + "/hls")
     constraints = Step(this_dir + "/constraints")
-    memory_1024x64_rf = Step(this_dir + "/../../common/memory")
+    sram = Step(this_dir + "/../../common/memory")
     # Simulation
     # codegen = Step(this_dir + "/codegen")
     vcs_build = Step(this_dir + "/vcs-build")
@@ -92,10 +92,14 @@ def construct():
     # -----------------------------------------------------------------------
 
     # Customize for each sram type
-    memory_1024x64_rf.set_name("memory-1024x64-rf")
+    sram_rf = sram.clone()
+    sram_rf.set_name("sram-rf")
+    sram_sp = sram.clone()
+    sram_sp.set_name("sram-sp")
 
     mem_nodes = {
-        memory_1024x64_rf: "ip224rfsbhpm1r1w1024x64m2",
+        sram_rf: "ip224rfsbhpm1r1w1024x64m2",
+        sram_sp: "ip224uhdlp1p11rf_1024x64m4b2c1s1_t0r0p0d0a1m1h"
     }
 
     all_mem_types = set()
@@ -103,7 +107,6 @@ def construct():
         all_mem_types.add(mem)
 
     for node, mem in mem_nodes.items():
-        # wrapper.v is in the output by default
         node.extend_outputs(
             [
                 f"{mem}.sp",
@@ -131,19 +134,12 @@ def construct():
             synth,
         ]:
             step.extend_inputs(
-                # [f"{mem}-typical.lib", f"{mem}-wc.lib", f"{mem}-bc.lib", f"{mem}.lef", "wrapper.v"]
-                [f"{mem}-typical.db", f"{mem}-wc.db", f"{mem}-bc.db", f"{mem}.lef", "wrapper.v"]
+                # [f"{mem}-typical.lib", f"{mem}-wc.lib", f"{mem}-bc.lib", f"{mem}.lef"]
+                [f"{mem}-typical.db", f"{mem}-wc.db", f"{mem}-bc.db", f"{mem}.lef"]
             )
 
         for step in [
-            rtl_vcs_build,
-        ]:
-            step.extend_inputs(
-                ["wrapper.v", f"{mem}.v"]
-            )
-
-        for step in [
-            syn_vcs_build,
+            hls
         ]:
             step.extend_inputs(
                 [f"{mem}.v"]
@@ -210,6 +206,7 @@ def construct():
 
     # Connect memory to required nodes
     for mem in mem_nodes.keys():
+        g.connect_by_name(mem, hls)
         g.connect_by_name(mem, synth)
         g.connect_by_name(mem, rtl_vcs_build)
         g.connect_by_name(mem, syn_vcs_build)

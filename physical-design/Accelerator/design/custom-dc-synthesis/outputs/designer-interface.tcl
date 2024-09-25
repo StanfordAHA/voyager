@@ -39,7 +39,7 @@ set dc_suppressed_msg  			  [split $::env(suppressed_msg) ","]
 # Inputs
 #-------------------------------------------------------------------------
 
-set dc_rtl_handoff              "inputs/design.v inputs/wrapper.v"
+set dc_rtl_handoff              inputs/design.v
 set adk_dir                     inputs/adk
 set dc_upf                      inputs/design.upf
 
