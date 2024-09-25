@@ -204,7 +204,8 @@ SC_MODULE(VectorFetchUnit) {
                     if constexpr (VEC_DTYPE::is_floating_point &&
                                   IO_DTYPE::is_floating_point) {
                       // static cast to VEC_DTYPE
-#pragma hls_unroll yes
+
+                    UNROLL:
                       for (int dim = 0; dim < WIDTH; dim++) {
                         fullPrecisionDataResponse[dim] =
                             static_cast<VEC_DTYPE>(response[dim]);
@@ -386,7 +387,8 @@ SC_MODULE(VectorFetchUnit) {
                     if constexpr (VEC_DTYPE::is_floating_point &&
                                   IO_DTYPE::is_floating_point) {
                       // static cast to VEC_DTYPE
-#pragma hls_unroll yes
+
+                    UNROLL:
                       for (int dim = 0; dim < WIDTH; dim++) {
                         fullPrecisionDataResponse[dim] =
                             static_cast<VEC_DTYPE>(response[dim]);
@@ -567,7 +569,7 @@ SC_MODULE(VectorFetchUnit) {
                                   IO_DTYPE::is_floating_point) {
                       // static cast to VEC_DTYPE
 
-#pragma hls_unroll yes
+                    UNROLL:
                       for (int dim = 0; dim < WIDTH; dim++) {
                         fullPrecisionDataResponse[dim] =
                             static_cast<VEC_DTYPE>(response[dim]);

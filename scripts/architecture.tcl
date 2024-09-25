@@ -1,3 +1,7 @@
+proc is_floating_point {datatype} {
+  return [expr {[string match {F*} $datatype] || [string match {P*} $datatype]}]
+}
+
 if { $DATATYPE == "P8_1" } {
   set IO_DATATYPE "P8"
   set ACCUM_DATATYPE "F16"

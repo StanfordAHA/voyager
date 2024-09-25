@@ -196,8 +196,8 @@ SC_MODULE(MaxpoolUnit) {
 
                     if constexpr (VEC_DTYPE::is_floating_point &&
                                   IO_DTYPE::is_floating_point) {
-                      // static cast to VEC_DTYPE
-#pragma hls_unroll yes
+                    // static cast to VEC_DTYPE
+                    UNROLL:
                       for (int i = 0; i < WIDTH; i++) {
                         outputPixel[i] =
                             static_cast<IO_DTYPE>(uncastedOutputPixel[i]);
