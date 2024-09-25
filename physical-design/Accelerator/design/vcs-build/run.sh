@@ -16,6 +16,7 @@ VCS_FLAGS="-sverilog \
 +define+INTEL_NO_PWR_PINS \
 +define+INTC_MEM_FAST_SIM \
 +define+INTEL_EMULATION \
++define+INTC_EMULATION \
 +define+FUNCTIONAL \
 +define+no_unit_delay \
 "
