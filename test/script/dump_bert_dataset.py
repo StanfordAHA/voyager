@@ -186,6 +186,8 @@ def process_glue_dataset(model_name_or_path, task_name, data_dir):
 
 
 def main():
+    torch.set_num_threads(32)
+
     parser = argparse.ArgumentParser(description="Generate datafiles from model.")
     parser.add_argument("--model_name_or_path", required=True, help="Path to model directory.")
     parser.add_argument("--dataset", default="sst2", help="Dataset to dump.")

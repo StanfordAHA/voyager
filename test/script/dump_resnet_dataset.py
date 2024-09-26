@@ -1,5 +1,6 @@
 import argparse
 import os
+import torch
 
 from torchvision import datasets, transforms
 from tqdm import tqdm
@@ -49,6 +50,8 @@ def dump_imagenet(data_dir, output_dir, num_samples):
 
 
 def main():
+    torch.set_num_threads(32)
+
     parser = argparse.ArgumentParser(
         description='ResNet data generator (from model and images to binary data).'
     )
