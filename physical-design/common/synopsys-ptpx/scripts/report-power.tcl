@@ -49,17 +49,6 @@ report_power -nosplit -verbose \
 # report_power -nosplit -verbose -include_estimated_clock_network \
 #   > $ptpx_reports_dir/$ptpx_design_name.power.clock_tree.rpt
 
-# Custom reporting
-report_power -cell_power [get_cells -hier *systolicArray] \
-  > $ptpx_reports_dir/$ptpx_design_name.power.systolic_array.rpt
-
-# Deal with unpredictable ungrouping behavior
-set matrix_glue [get_cells *matrixProcessor/* -filter {is_memory_cell != true && base_name !~ *systolicArray*} -quiet]
-append_to_collection matrix_glue [get_cells */matrixProcessor* -filter {is_memory_cell != true && base_name !~ *systolicArray*} -quiet]
-append_to_collection matrix_glue [get_cells */matrixProcessor/* -filter {is_memory_cell != true && base_name !~ *systolicArray*} -quiet]
-report_power -cell_power $matrix_glue \
-  > $ptpx_reports_dir/$ptpx_design_name.power.matrix_glue.rpt
-
 # Cell hierarchy power report
 report_power -nosplit -hierarchy -verbose \
   > $ptpx_reports_dir/$ptpx_design_name.power.hier.rpt

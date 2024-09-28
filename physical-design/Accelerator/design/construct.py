@@ -47,7 +47,6 @@ def construct():
     # -----------------------------------------------------------------------
 
     this_dir = os.path.dirname(os.path.abspath(__file__))
-
     # ADK
     g.set_adk(adk_name)
     adk = g.get_adk_step()
@@ -75,9 +74,9 @@ def construct():
     syn_sim.set_name( 'syn-sim' )
     # Synthesis
     # synth = Step(this_dir + "/cadence-genus-synthesis")
-    synth = Step(this_dir + "/synopsys-dc-synthesis")
+    synth = Step(this_dir + "/../../common/synopsys-dc-synthesis")
     # Power
-    ptpx = Step(this_dir + "/synopsys-ptpx")
+    ptpx = Step(this_dir + "/../../common/synopsys-ptpx")
     ptpx_rtl = ptpx.clone()
     ptpx_syn = ptpx.clone()
     ptpx_rtl.set_name('ptpx-rtl')
