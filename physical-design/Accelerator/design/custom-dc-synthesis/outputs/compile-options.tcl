@@ -26,6 +26,7 @@
 
 puts "Info: Manual auto-ungrouping disable:"
 # Grep the module names from rtl
+set_ungroup [get_designs VectorUnit] false
 set_ungroup [get_designs ProcessingElement] false
 set_ungroup [get_designs SystolicArray] false
 

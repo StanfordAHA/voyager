@@ -79,10 +79,12 @@ def get_sim_results(build_dir, clock_period, design_name="Accelerator"):
           tests[network] = {}
         tests[network][layer] = test
 
+        print("\tParsing", network, layer)
+
         # check if test passed
         log = f"{node}/mflowgen-run.log"
         p = subprocess.Popen(
-            ["grep", "-oP", "(?<=Error count: )\\d", log],
+            ["grep", "-oP", "(?<=Error count: )\\d+", log],
             stdout=subprocess.PIPE,  # capture the output, not print to screen
         )
         out = p.communicate()[0]    # pattern not found
@@ -97,12 +99,12 @@ def get_sim_results(build_dir, clock_period, design_name="Accelerator"):
 
         # get the runtime
         p = subprocess.Popen(
-            ["grep", "-oP", "(?<=Ideal cycles: ).\\d+", log],
+            ["grep", "-oP", "(?<=Ideal runtime: ).\\d+", log],
             stdout=subprocess.PIPE,
         )
-        ideal_cycles = p.communicate()[0].decode("utf-8").strip()
-        if ideal_cycles:
-            ideal_cycles = int(ideal_cycles)
+        ideal_runtime = p.communicate()[0].decode("utf-8").strip()
+        if ideal_runtime:
+            ideal_runtime = int(ideal_runtime)
         p = subprocess.Popen(
             ["grep", "-oP", "(?<=Runtime: ).\\d+", log],
             stdout=subprocess.PIPE,
@@ -111,9 +113,10 @@ def get_sim_results(build_dir, clock_period, design_name="Accelerator"):
         util = ""
         if runtime:
             runtime = int(runtime)
-            util = ideal_cycles/(runtime/clock_period)
+            util = ideal_runtime/(runtime/clock_period)
 
-        test.update({"ideal cycles": ideal_cycles, "runtime (ns)": runtime, "utilization": util})
+        test.update({"ideal runtime (ns)": ideal_runtime, "runtime (ns)": runtime, "utilization": util})
+
         # Workaround: add the power fields so that they always exist as a key for all entries
         # so that the csv writer won't error out
         # test.update({f"rtl power (W@{power_cond})": "", f"syn power (W@{power_cond})": ""})
@@ -128,16 +131,13 @@ def get_sim_results(build_dir, clock_period, design_name="Accelerator"):
           rpt = f"{ptpx_dir}/reports/{design_name}.power.rpt"
           if os.path.exists(rpt):
             total_power = float($(grep -P "Total Power" @(rpt)).split()[3])
-            mem_power = float($(grep -P "memory" @(rpt)).split()[4])
+            mem_power = float($(grep -P "^memory" @(rpt)).split()[4])
             test.update({f"{level} power (W@{power_cond})": total_power, "mem power": mem_power})
-          rpt = f"{ptpx_dir}/reports/{design_name}.power.systolic_array.rpt"
+          rpt = f"{ptpx_dir}/reports/{design_name}.power.hier.rpt"
           if os.path.exists(rpt):
-            array_power = float($(grep -P "Totals" @(rpt)).split()[-2])
-            test.update({"array power": array_power})
-          rpt = f"{ptpx_dir}/reports/{design_name}.power.matrix_glue.rpt"
-          if os.path.exists(rpt):
-            matrix_glue_power = float($(grep -P "Totals" @(rpt)).split()[-2])
-            test.update({"matrix glue power": matrix_glue_power})
+            array_power = float($(grep -P "\WsystolicArray\W" @(rpt)).split()[-2])
+            vector_power = float($(grep -P "\WvectorUnit\W" @(rpt)).split()[-2])
+            test.update({"array power": array_power, "vector power": vector_power})
     return tests
 
 
@@ -149,6 +149,7 @@ if __name__ == "__main__":
   # extract metadata from the build dir name
   for build in build_dirs:
     build = build[:-1] # remove the trailing slash
+    print("Parsing", build)
     _, datatype, dimension, clock_period = build.split("-")
     clock_period = clock_period[:-2] # remove the trailing unit
     # get area numbers
@@ -163,6 +164,8 @@ if __name__ == "__main__":
         array_area = "N/A"
 
       area = {"total_area (um2)": total_area, "mem_area": mem_area, "array_area": array_area}
+    else:
+      area = {"total_area (um2)": 0, "mem_area": 0, "array_area": 0}
     # get simulation results
     tests = get_sim_results(build, float(clock_period))
     results.update({build: {"datatype": datatype, "dimension": dimension, "clock_period (ns)": clock_period,
@@ -203,7 +206,7 @@ if __name__ == "__main__":
     header = list(results[list(results)[0]].keys())
     header = get_nested_keys(results)
     header += list(get_nested_values(results, "area").keys())
-    header += ["network", "status", "ideal cycles", "runtime (ns)", "utilization", "energy (mJ)"]
+    header += ["network", "status", "ideal runtime (ns)", "runtime (ns)", "utilization", "energy (mJ)"]
     fields_to_remove = ["tests", "area"]
     for entry in fields_to_remove:
       header.remove(entry)
@@ -217,24 +220,30 @@ if __name__ == "__main__":
         del data[field]
       data.update(entry["area"])
       for network, layers in entry["tests"].items():
-        checklist = list(multiplier[network])
+        # checklist = list(multiplier[network])
         status = "Complete"
-        ideal_cycles = 0
+        ideal_runtime = 0
         runtime = 0
         energy = 0
         for layer, layer_data in layers.items():
           # some reports may not be generated yet.
           try:
-            ideal_cycles += layer_data["ideal cycles"] * multiplier[network][layer]
-            runtime += layer_data["runtime (ns)"] * multiplier[network][layer]
-            energy += layer_data[f"rtl power (W@{power_cond})"] * layer_data["runtime (ns)"] * 1e-6 * multiplier[network][layer]
+            ideal_runtime += layer_data["ideal runtime (ns)"]
+            runtime += layer_data["runtime (ns)"]
+            energy += layer_data[f"rtl power (W@{power_cond})"] * layer_data["runtime (ns)"] * 1e-6
           except:
+            print("Incomplete data for", entry["datatype"], network, layer)
             status = "Incomplete"
-          checklist.remove(layer)
-        utilization = ideal_cycles/(runtime/float(entry["clock_period (ns)"]))
+          # checklist.remove(layer)
+        try:
+            utilization = ideal_runtime/(runtime)
+        except:
+            # runtime is 0, meaning tests likely failed
+            utilization = "N/A"
         # some layers are missing
-        if checklist:
-          status = "Incomplete"
-        data.update({"network": network, "status": status, "ideal cycles": ideal_cycles, "runtime (ns)": runtime, "utilization": utilization, "energy (mJ)": energy})
+        # if checklist:
+        #   status = "Incomplete"
+        # WARN: since the layers to be run are not always the same, I cannot easily check if all layers are run. The result may be imcomplete without showing so 
+        data.update({"network": network, "status": status, "ideal runtime (ns)": ideal_runtime, "runtime (ns)": runtime, "utilization": utilization, "energy (mJ)": energy})
         dw.writerow(data)
     

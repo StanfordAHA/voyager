@@ -50,6 +50,8 @@ modname=$(grep -oP "(?<=module )ProcessingElement.*$" design.v | tail -1)
 sed -i "s/\<$modname\>/ProcessingElement/g" design.v
 modname=$(grep -oP "(?<=module )SystolicArray.*$" design.v | tail -1)
 sed -i "s/\<$modname\>/SystolicArray/g" design.v
+modname=$(grep -oP "(?<=module )VectorUnit.*$" design.v | tail -1)
+sed -i "s/\<$modname\>/VectorUnit/g" design.v
 
 cd ..
 
