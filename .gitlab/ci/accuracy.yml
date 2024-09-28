@@ -1,4 +1,4 @@
-Accuracy (E4M3, mobilebert, SST2):
+Accuracy (FP32, ResNet18, ImageNet):
   stage: test
   artifacts:
     when: always
@@ -6,9 +6,9 @@ Accuracy (E4M3, mobilebert, SST2):
       - ./regression_results
     expire_in: 1 month
   script:
-    - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models mobilebert --dataset sst2 --sims Accuracy --num_processes 32
+    - DATATYPE=CFLOAT IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models resnet18 --dataset imagenet --sims accuracy --num_processes 32
 
-Accuracy (P8_1, mobilebert, SST2):
+Accuracy (E4M3, ResNet18, ImageNet):
   stage: test
   artifacts:
     when: always
@@ -16,4 +16,105 @@ Accuracy (P8_1, mobilebert, SST2):
       - ./regression_results
     expire_in: 1 month
   script:
-    - DATATYPE=P8_1 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models mobilebert --dataset sst2 --sims Accuracy --num_processes 32
+    - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models resnet18 --dataset imagenet --sims accuracy --num_processes 32
+
+Accuracy (P8_1, ResNet18, ImageNet):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=P8_1 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models resnet18 --dataset imagenet --sims accuracy --num_processes 32
+
+Accuracy (INT8, ResNet18, ImageNet):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=INT8 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models resnet18 --dataset imagenet --sims accuracy --num_processes 32
+
+Accuracy (FP32, ResNet50, ImageNet):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=CFLOAT IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models resnet50 --dataset imagenet --sims accuracy --num_processes 32
+
+Accuracy (E4M3, ResNet50, ImageNet):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models resnet50 --dataset imagenet --sims accuracy --num_processes 32
+
+Accuracy (P8_1, ResNet50, ImageNet):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=P8_1 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models resnet50 --dataset imagenet --sims accuracy --num_processes 32
+
+Accuracy (INT8, ResNet50, ImageNet):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=INT8 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models resnet50 --dataset imagenet --sims accuracy --num_processes 32
+
+Accuracy (FP32, MobileBERT, SST2):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=CFLOAT IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models mobilebert --dataset sst2 --sims accuracy --num_processes 32
+
+Accuracy (E4M3, MobileBERT, SST2):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models mobilebert --dataset sst2 --sims accuracy --num_processes 32
+
+Accuracy (P8_1, MobileBERT, SST2):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+  script:
+    - DATATYPE=P8_1 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models mobilebert --dataset sst2 --sims accuracy --num_processes 32
+
+# TODO: Turn on when INT8 is supported
+# Accuracy (INT8, MobileBERT, SST2):
+#   stage: test
+#   artifacts:
+#     when: always
+#     paths:
+#       - ./regression_results
+#     expire_in: 1 month
+#   script:
+#     - DATATYPE=INT8 IC_DIMENSION=16 OC_DIMENSION=16 python3 run_regression.py --models mobilebert --dataset sst2 --sims accuracy --num_processes 32
