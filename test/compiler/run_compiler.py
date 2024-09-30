@@ -510,6 +510,30 @@ if __name__ == "__main__":
             output_file="bert",
             output_dir=args.output_dir,
         )
+    elif args.model == "layertest":
+        class LayerTest(torch.nn.Module):
+            def __init__(self):
+                super(LayerTest, self).__init__()
+                
+            def forward(self, x):
+                x = torch.sqrt(torch.abs(x))
+                return x
+
+        model = LayerTest()
+        model.eval()
+
+        example_args = (torch.randn(1, 3, 256, 256,))
+
+        model = prepare_pt2e(model, quantizer, example_args)
+
+        convert_pt2e(model)
+
+        pt_out, gm_out = transform(
+            model,
+            example_args,
+            output_file=args.model,
+            output_dir=args.output_dir,
+        )
     else:
         raise ValueError(f"Model {args.model} not supported")
 
