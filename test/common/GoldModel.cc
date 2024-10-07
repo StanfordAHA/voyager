@@ -59,19 +59,40 @@ void run_operation(const codegen::AcceleratorParam param,
   if (param.has_matrix_param()) {
     const auto &matrix_param = param.matrix_param();
 
+    if (matrix_param.opcode() == "conv2d" && matrix_param.groups() != 1) {
+      std::cerr << "Grouped convolution is not supported" << std::endl;
+      std::abort();
+    }
+
     // Permute input tensor
     const auto &input = matrix_param.input();
     std::any input_tensor = args[0];
     if (input.has_permutation()) {
-      input_tensor = permute<INPUT_T>(input_tensor, input.permutation());
+      input_tensor = permute<INPUT_T>(input_tensor, input);
     }
+    // std::cerr << "input tensor" << std::endl;
+    // INPUT_T *casted_input = std::any_cast<INPUT_T *>(input_tensor);
+    // for (int i = 0; i < 128; i++) {
+    //   for (int j = 0; j < 128; j++) {
+    //     std::cerr << casted_input[i * 128 + j] << " ";
+    //   }
+    //   std::cerr << std::endl;
+    // }
 
     // Permute weight tensor
     const auto &weight = matrix_param.weight();
     std::any weight_tensor = args[1];
     if (weight.has_permutation()) {
-      weight_tensor = permute<INPUT_T>(weight_tensor, weight.permutation());
+      weight_tensor = permute<INPUT_T>(weight_tensor, weight);
     }
+    // std::cerr << "weight tensor" << std::endl;
+    // INPUT_T *casted_weight = std::any_cast<INPUT_T *>(weight_tensor);
+    // for (int i = 0; i < 128; i++) {
+    //   for (int j = 0; j < 32; j++) {
+    //     std::cerr << casted_weight[i * 32 + j] << " ";
+    //   }
+    //   std::cerr << std::endl;
+    // }
 
     int dim = 1;
     for (int i = 0; i < input.shape_size() - 1; i++) {
@@ -87,6 +108,15 @@ void run_operation(const codegen::AcceleratorParam param,
           input_tensor, weight_tensor, args[2], param);
     }
     arg_index = 3;
+
+    // VECTOR_T *casted_output = std::any_cast<VECTOR_T *>(output_tensor);
+    // std::cerr << "matrix output tensor" << std::endl;
+    // for (int i = 0; i < 128; i++) {
+    //   for (int j = 0; j < 32; j++) {
+    //     std::cerr << casted_output[i * 32 + j] << " ";
+    //   }
+    //   std::cerr << std::endl;
+    // }
   } else if (param.vector_params_size() > 0) {
     // fetch the input of the first vector instruction
     output_tensor = args[arg_index++];
@@ -94,18 +124,53 @@ void run_operation(const codegen::AcceleratorParam param,
 
   for (const auto &vector_param : param.vector_params()) {
     if (activations.find(vector_param.opcode()) != activations.end()) {
+      if (vector_param.opcode() != "relu" && vector_param.opcode() != "relu_") {
+        std::cerr << "Unsupported activation function: "
+                  << vector_param.opcode() << std::endl;
+        std::abort();
+      }
+
       VECTOR_T *tensor = std::any_cast<VECTOR_T *>(output_tensor);
-      // TODO: Implement different activation functions
       int input_size = get_size(vector_param.input());
       for (int i = 0; i < input_size; i++) {
         relu(tensor[i]);
       }
     } else if (arithmetics.find(vector_param.opcode()) != arithmetics.end()) {
-      VECTOR_T *input_tensor = std::any_cast<VECTOR_T *>(output_tensor);
-      const auto input_shape = get_shape(vector_param.input());
+      const auto &input = vector_param.other().has_memory()
+                              ? vector_param.input()
+                              : vector_param.other();
+      const auto &other = vector_param.other().has_memory()
+                              ? vector_param.other()
+                              : vector_param.input();
 
-      const auto &other = vector_param.other();
-      VECTOR_T *other_tensor = std::any_cast<VECTOR_T *>(args[arg_index++]);
+      VECTOR_T *input_tensor = std::any_cast<VECTOR_T *>(output_tensor);
+      const auto input_shape = get_shape(input);
+
+      VECTOR_T *other_tensor;
+      if (other.dtype() != input.dtype()) {
+        // A dequantize is needed
+        VECTOR_T *scale = new VECTOR_T[1];
+        scale[0] = other.scale() != 0 ? other.scale() : 1.0;
+        if (other.dtype() == "int32") {
+          other_tensor = dequantize<DataTypes::int32, VECTOR_T>(
+              args[arg_index++], scale, get_size(other));
+        } else if (other.dtype() == "int24") {
+          other_tensor = dequantize<DataTypes::int24, VECTOR_T>(
+              args[arg_index++], scale, get_size(other));
+        } else if (other.dtype() == "int8") {
+          other_tensor = dequantize<DataTypes::int8, VECTOR_T>(
+              args[arg_index++], scale, get_size(other));
+        } else if (other.dtype() == "fp8_e4m3") {
+          other_tensor = dequantize<DataTypes::e4m3, VECTOR_T>(
+              args[arg_index++], scale, get_size(other));
+        } else {
+          std::cerr << "No dequantization operation for dtype: "
+                    << other.dtype() << std::endl;
+          std::abort();
+        }
+      } else {
+        other_tensor = std::any_cast<VECTOR_T *>(args[arg_index++]);
+      }
       const auto other_shape = get_shape(other);
 
       output_tensor =
@@ -122,7 +187,6 @@ void run_operation(const codegen::AcceleratorParam param,
         output_tensor = quantize<VECTOR_T, INPUT_T>(
             output_tensor, args[arg_index++], get_size(vector_param.input()));
       }
-
     } else if (vector_param.opcode().rfind("dequantize", 0) == 0) {
       // perform dequantization operation
       if constexpr (std::is_same<VECTOR_T, CFloat>::value) {
@@ -158,11 +222,11 @@ void run_operation(const codegen::AcceleratorParam param,
   if (param.output().has_permutation()) {
     if (param.output().dtype() == "bfloat16") {
       output_tensor = permute<DataTypes::bfloat16>(
-          std::any_cast<DataTypes::bfloat16 *>(output_tensor),
-          param.output().permutation());
-    } else {  // assume INPUT_T if the output tensor is not bfloat16
+          std::any_cast<DataTypes::bfloat16 *>(output_tensor), param.output());
+    } else {
+      // assume INPUT_T if the output tensor is not bfloat16
       output_tensor = permute<INPUT_T>(std::any_cast<INPUT_T *>(output_tensor),
-                                       param.output().permutation());
+                                       param.output());
     }
   }
 

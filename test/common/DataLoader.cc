@@ -15,10 +15,8 @@ void DataLoader::load_tensor(const codegen::Tensor& tensor,
   int size = 1;
   for (int dim : shape) size *= dim;
 
-  std::string input_name = !is_output && tensor.has_permutation()
-                               ? tensor.permutation().node()
-                               : tensor.node();
-  std::string filename = data_dir + "/" + input_name + ".bin";
+  std::string filename = data_dir + "/" + tensor.node() + ".bin";
+  std::cerr << "Loading tensor file " << filename << std::endl;
   auto array_ptr = read_tensor_from_file(filename, size, random_data);
   auto array = xt::adapt(array_ptr, size, xt::no_ownership(), shape);
 
