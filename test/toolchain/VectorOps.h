@@ -219,6 +219,7 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
       if (opcode.rfind("dequantize", 0) == 0) {
         vinst.immediate0 = immediate.bits_rep();
       } else if (opcode.rfind("quantize", 0) == 0) {
+        vector_params->OUTPUT_QUANTIZE = true;
         vector_params->outputQuantizeScale = immediate.bits_rep();
       }
 

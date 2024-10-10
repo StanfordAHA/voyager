@@ -529,6 +529,7 @@ struct VectorParams : BaseParams {
     CONCAT_OUTPUT = false;
 
     DP_OUTPUT = false;
+    OUTPUT_QUANTIZE = false;
 
     addressGen0Mode = 0;
     addressGen0Broadcast = false;
@@ -578,6 +579,7 @@ struct VectorParams : BaseParams {
   bool CONCAT_OUTPUT;
 
   bool DP_OUTPUT;
+  bool OUTPUT_QUANTIZE;
   ac_int<16, false> outputQuantizeScale;
 
   // 1: 3d-tensor, 2: 2d-tensor, 3: 1d-tensor
@@ -591,7 +593,7 @@ struct VectorParams : BaseParams {
 
   static const unsigned int width =
       5 * 32 /* OFFSETS */ + 4 * 6 * 11 /* Loops */ +
-      3 * 6 * 4 /* Loop indices */ + 9 * 1 /* Bools */ + 10 + 3 * 2 +
+      3 * 6 * 4 /* Loop indices */ + 10 * 1 /* Bools */ + 10 + 3 * 2 +
       16 * 4 /* Dequantize scale */;
 
 #ifndef NO_SYSC
@@ -668,6 +670,7 @@ struct VectorParams : BaseParams {
     m & SPLIT_OUTPUT;
     m & CONCAT_OUTPUT;
     m & DP_OUTPUT;
+    m & OUTPUT_QUANTIZE;
     m & outputQuantizeScale;
     m & addressGen0Mode;
     m & addressGen0Broadcast;
@@ -864,6 +867,7 @@ struct VectorParams : BaseParams {
     if (lhs.SPLIT_OUTPUT != rhs.SPLIT_OUTPUT) return false;
     if (lhs.CONCAT_OUTPUT != rhs.CONCAT_OUTPUT) return false;
     if (lhs.DP_OUTPUT != rhs.DP_OUTPUT) return false;
+    if (lhs.OUTPUT_QUANTIZE != rhs.OUTPUT_QUANTIZE) return false;
     if (lhs.outputQuantizeScale != rhs.outputQuantizeScale) return false;
 
     // Compare address generation modes and pooling settings

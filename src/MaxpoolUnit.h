@@ -204,10 +204,18 @@ SC_MODULE(MaxpoolUnit) {
                       }
 
                     } else {
-                      // quantize VEC_DTYPE to IO_DTYPE
-                      vquantize<VEC_DTYPE, IO_DTYPE, WIDTH>(
-                          uncastedOutputPixel, outputPixel,
-                          params.outputQuantizeScale);
+                      if (params.OUTPUT_QUANTIZE) {
+                        // quantize VEC_DTYPE to IO_DTYPE
+                        vquantize<VEC_DTYPE, IO_DTYPE, WIDTH>(
+                            uncastedOutputPixel, outputPixel,
+                            params.outputQuantizeScale);
+                      } else {
+#pragma hls_unroll yes
+                        for (int i = 0; i < WIDTH; i++) {
+                          outputPixel[i].setbits(
+                              uncastedOutputPixel[i].bits_rep());
+                        }
+                      }
                     }
 
                     tensorOut.Push(outputPixel);
