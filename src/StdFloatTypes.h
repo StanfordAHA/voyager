@@ -15,6 +15,8 @@ class StdFloat {
  public:
   typedef ac_std_float<mantissa + exp + 1, exp> ac_float_rep;
   static constexpr unsigned int width = ac_float_rep::width;
+  static constexpr unsigned int exponent_width = ac_float_rep::e_width;
+  static constexpr unsigned int mantissa_width = ac_float_rep::mant_bits;
 
   static constexpr bool is_floating_point = true;
 
@@ -126,8 +128,6 @@ class StdFloat {
   void expScale(ac_int<width, sign> offset) {
     if (float_val == float_val.zero()) return;
     // TODO: handle subnormal numbers
-    constexpr int exponent_width = ac_float_rep::e_width;
-    constexpr int mantissa_width = ac_float_rep::mant_bits;
     ac_int<exponent_width, true> exp_bits =
         float_val.d.template slc<exponent_width>(mantissa_width);
     exp_bits += offset;
@@ -140,10 +140,10 @@ class StdFloat {
       StdFloat &b,
       StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> &c);
 
-  template <int quantized_width, int quantized_sign>
+  template <int quantized_width, bool quantized_sign>
   Int<quantized_width, quantized_sign> quantize(ac_int<width, false> scale);
 
-  template <int quantized_width, int quantized_sign>
+  template <int quantized_width, bool quantized_sign>
   Int<quantized_width, quantized_sign> quantize(StdFloat scale);
 
   StdFloat operator+(const StdFloat &rhs);
@@ -403,7 +403,7 @@ StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::fma(
 
 template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
           ac_q_mode Q>
-template <int quantized_width, int quantized_sign>
+template <int quantized_width, bool quantized_sign>
 Int<quantized_width, quantized_sign>
 StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::quantize(
     ac_int<width, false> scale) {
@@ -414,7 +414,7 @@ StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::quantize(
 
 template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
           ac_q_mode Q>
-template <int quantized_width, int quantized_sign>
+template <int quantized_width, bool quantized_sign>
 Int<quantized_width, quantized_sign>
 StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::quantize(
     StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> scale) {
