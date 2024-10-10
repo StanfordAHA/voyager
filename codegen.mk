@@ -26,7 +26,7 @@ test/compiler/networks/resnet18/BF16/params.pb: test/compiler/run_compiler.py
 
 test/compiler/networks/resnet18/MXINT8/params.pb: test/compiler/run_compiler.py
 	mkdir -p $(dir $@)
-	python test/compiler/run_compiler.py resnet18 --activation int8,qs=microscaling,bs=32 --weight int8,qs=microscaling,bs=32 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+	python test/compiler/run_compiler.py resnet18 --force_scale_power_of_two --activation int8,qs=microscaling,bs=32 --weight int8,qs=microscaling,bs=32 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
 
 ################################################################################
 # ResNet50
@@ -53,7 +53,7 @@ test/compiler/networks/resnet50/BF16/params.pb: test/compiler/run_compiler.py
 
 test/compiler/networks/resnet50/MXINT8/params.pb: test/compiler/run_compiler.py
 	mkdir -p $(dir $@)
-	python test/compiler/run_compiler.py resnet50 --activation int8,qs=microscaling,bs=32 --weight int8,qs=microscaling,bs=32 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+	python test/compiler/run_compiler.py resnet50 --force_scale_power_of_two --activation int8,qs=microscaling,bs=32 --weight int8,qs=microscaling,bs=32 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
 
 ################################################################################
 # MobileBERT (Full Network)
@@ -80,7 +80,7 @@ test/compiler/networks/mobilebert/BF16/params.pb: test/compiler/run_compiler.py
 
 test/compiler/networks/mobilebert/MXINT8/params.pb: test/compiler/run_compiler.py
 	mkdir -p $(dir $@)
-	python test/compiler/run_compiler.py mobilebert --activation int8,qs=microscaling,bs=32 --weight int8,qs=microscaling,bs=32 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+	python test/compiler/run_compiler.py mobilebert --force_scale_power_of_two --activation int8,qs=microscaling,bs=32 --weight int8,qs=microscaling,bs=32 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
 
 ################################################################################
 # MobileBERT (Encoder Only)
@@ -107,7 +107,7 @@ test/compiler/networks/mobilebert_encoder/BF16/params.pb: test/compiler/run_comp
 
 test/compiler/networks/mobilebert_encoder/MXINT8/params.pb: test/compiler/run_compiler.py
 	mkdir -p $(dir $@)
-	python test/compiler/run_compiler.py mobilebert_encoder --activation int8,qs=microscaling,bs=32 --weight int8,qs=microscaling,bs=32 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+	python test/compiler/run_compiler.py mobilebert_encoder --force_scale_power_of_two --activation int8,qs=microscaling,bs=32 --weight int8,qs=microscaling,bs=32 --bf16 --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
 
 ################################################################################
 # Gesture

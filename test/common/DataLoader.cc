@@ -20,7 +20,7 @@ void DataLoader::load_tensor(const codegen::Tensor& tensor,
   auto array = xt::adapt(array_ptr, size, xt::no_ownership(), shape);
 
   // Accelerator expect the data to be layed out in a different order
-  if (transpose && shape.size() == 4) {
+  if (shape.size() == 4) {
     array = xt::transpose(array, {2, 3, 1, 0});
   } else if (transpose && shape.size() == 2) {
     array = xt::transpose(array, {1, 0});
@@ -62,6 +62,9 @@ void DataLoader::load_tensor(const codegen::Tensor& tensor,
     } else if (tensor.dtype() == "int32") {
       memory_interface->write_to_memory<DataTypes::int32>(offset, address, *it,
                                                           partition);
+    } else if (tensor.dtype() == "e8m0") {
+      memory_interface->write_to_memory<DataTypes::e8m0>(offset, address, *it,
+                                                         partition);
     } else {
       // if unspecified, we will assume it's INPUT_DATATYPE
       memory_interface->write_to_memory<INPUT_DATATYPE>(offset, address, *it,

@@ -4,6 +4,7 @@
 
 #include "test/common/VerificationTypes.h"
 #include "test/common/operations/MatrixOps.h"
+#include "test/common/operations/MxOps.h"
 #include "test/common/operations/Pooling.h"
 #include "test/common/operations/QuantizeOps.h"
 #include "test/common/operations/ReduceOps.h"
@@ -44,10 +45,18 @@ void run_operation(const codegen::AcceleratorParam param,
 
       std::vector<int> dims;
       for (int dim : reduce_param.dim()) {
-	  dims.push_back(dim);
+        dims.push_back(dim);
       }
 
       output_tensor = sum<VECTOR_T>(args[arg_index++], input_shape, dims);
+    } else if (reduce_param.opcode() == "calculate_mx_qparam") {
+      if (param.output().dtype() != "e8m0") {
+        std::runtime_error(
+            "Unsupported output dtype for calculate_mx_qparam: " +
+            param.output().dtype());
+      }
+      output_tensor = calculate_mx_qparam<VECTOR_T, DataTypes::e8m0>(
+          args[arg_index++], reduce_param);
     } else {
       std::cerr << "Unsupported reduce instruction: " << reduce_param.opcode()
                 << std::endl;
@@ -248,6 +257,8 @@ void run_operation(const codegen::AcceleratorParam param,
     save_tensor<DataTypes::bfloat16>(output_bytes, output_tensor, output_size);
   } else if (param.output().dtype() == "int8") {
     save_tensor<DataTypes::int8>(output_bytes, output_tensor, output_size);
+  } else if (param.output().dtype() == "e8m0") {
+    save_tensor<DataTypes::e8m0>(output_bytes, output_tensor, output_size);
   } else {
     // assume INPUT_T if the output tensor is not bfloat16 or int8
     save_tensor<INPUT_T>(output_bytes, output_tensor, output_size);

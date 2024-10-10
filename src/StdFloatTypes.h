@@ -134,6 +134,17 @@ class StdFloat {
     float_val.d.set_slc(mantissa_width, exp_bits);
   }
 
+  ac_int<exponent_width, false> unbiased_exponent() {
+    return float_val.d.template slc<exponent_width>(mantissa_width);
+  }
+
+  ac_int<exponent_width, true> exponent() {
+    ac_int<exponent_width, true> exp_bits =
+        float_val.d.template slc<exponent_width>(mantissa_width);
+
+    return exp_bits - ac_int<exponent_width, true>(ac_float_rep::exp_bias);
+  }
+
   template <int mantissa2, int exp2, bool useDWImpl2, bool ieee_compliance2,
             ac_q_mode Q2>
   StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> fma(

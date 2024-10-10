@@ -208,6 +208,11 @@ std::any ArrayMemory::get_tensor(const codegen::Tensor& tensor) {
     read_tensor_from_memory<DataTypes::int32>(tensor.memory().offset(),
                                               partition, size, data);
     return data;
+  } else if (tensor.dtype() == "e8m0") {
+    DataTypes::e8m0* data = new DataTypes::e8m0[size];
+    read_tensor_from_memory<DataTypes::e8m0>(tensor.memory().offset(),
+                                             partition, size, data);
+    return data;
   } else {
     INPUT_DATATYPE* data = new INPUT_DATATYPE[size];
     read_tensor_from_memory<INPUT_DATATYPE>(tensor.memory().offset(), partition,
