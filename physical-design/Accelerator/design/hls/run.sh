@@ -28,10 +28,10 @@ if [ "${waveform}" == "True" ]; then
 fi
 
 # build TestRunner
-make -j TestRunner BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} IC_DIMENSION=${ic_dimension} OC_DIMENSION=${oc_dimension}
+make -j TestRunner BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} IC_DIMENSION=${ic_dimension} OC_DIMENSION=${oc_dimension} INPUT_BUFFER_SIZE=${input_buffer_size} WEIGHT_BUFFER_SIZE=${weight_buffer_size} ACCUM_BUFFER_SIZE=${accum_buffer_size}
 # generate RTL
 # note: make rtl would try to write to release folder as well, so I bypass it this way. Ugly, but works for now
-make -j8 ${CATAPULT_BUILD_DIR}/Accelerator/Accelerator.v1/concat_rtl.v BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} OC_DIMENSION=${oc_dimension} IC_DIMENSION=${ic_dimension} CLOCK_PERIOD=${clock_period} TECHNOLOGY=${technology}
+make -j8 ${CATAPULT_BUILD_DIR}/Accelerator/Accelerator.v1/concat_rtl.v BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} OC_DIMENSION=${oc_dimension} IC_DIMENSION=${ic_dimension} INPUT_BUFFER_SIZE=${input_buffer_size} WEIGHT_BUFFER_SIZE=${weight_buffer_size} ACCUM_BUFFER_SIZE=${accum_buffer_size} CLOCK_PERIOD=${clock_period} TECHNOLOGY=${technology}
 
 # WARN: so far concat_rtl.v and concat_sim_rtl.v are identical, but may need to differentiate for synthesis and simulation
 [[ -f ${CATAPULT_BUILD_DIR}/Accelerator/Accelerator.v1/concat_rtl.v ]] || {
@@ -46,11 +46,11 @@ ln -s ../build
 cp build/Catapult/Accelerator/Accelerator.v1/concat_rtl.v design.v
 
 # Renaming modules
-modname=$(grep -oP "(?<=module )ProcessingElement.*$" design.v | tail -1)
+modname=$(grep -oP "(?<=module )ProcessingElement\w*" design.v | tail -1)
 sed -i "s/\<$modname\>/ProcessingElement/g" design.v
-modname=$(grep -oP "(?<=module )SystolicArray.*$" design.v | tail -1)
+modname=$(grep -oP "(?<=module )SystolicArray\w*" design.v | tail -1)
 sed -i "s/\<$modname\>/SystolicArray/g" design.v
-modname=$(grep -oP "(?<=module )VectorUnit.*$" design.v | tail -1)
+modname=$(grep -oP "(?<=module )VectorUnit\w*" design.v | tail -1)
 sed -i "s/\<$modname\>/VectorUnit/g" design.v
 
 cd ..

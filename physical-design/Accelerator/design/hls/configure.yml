@@ -19,5 +19,8 @@ parameters:
  datatype: None
  ic_dimension: 16
  oc_dimension: 16
+ input_buffer_size: 1024
+ weight_buffer_size: 1024
+ accum_buffer_size: 1024
  technology: generic
  waveform: False
