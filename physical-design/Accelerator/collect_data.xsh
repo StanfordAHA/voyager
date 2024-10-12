@@ -130,13 +130,17 @@ def get_sim_results(build_dir, clock_period, design_name="Accelerator"):
           ptpx_dir = ptpx_dir[0]
           rpt = f"{ptpx_dir}/reports/{design_name}.power.rpt"
           if os.path.exists(rpt):
-            total_power = float($(grep -P "Total Power" @(rpt)).split()[3])
-            mem_power = float($(grep -P "^memory" @(rpt)).split()[4])
+            print("\t\tParsing total power")
+            total_power = float($(grep -P -m 1 "Total Power" @(rpt)).split()[3])
+            print("\t\tParsing mem power")
+            mem_power = float($(grep -P -m 1 "^memory" @(rpt)).split()[4])
             test.update({f"{level} power (W@{power_cond})": total_power, "mem power": mem_power})
           rpt = f"{ptpx_dir}/reports/{design_name}.power.hier.rpt"
           if os.path.exists(rpt):
-            array_power = float($(grep -P "\WsystolicArray\W" @(rpt)).split()[-2])
-            vector_power = float($(grep -P "\WvectorUnit\W" @(rpt)).split()[-2])
+            print("\t\tParsing array power")
+            array_power = float($(grep -m1 -P "\\(Accelerator_SystolicArray_0\\)" @(rpt)).split()[-2])
+            print("\t\tParsing vector power")
+            vector_power = float($(grep -m1 -P "\\WvectorUnit\\W" @(rpt)).split()[-2])
             test.update({"array power": array_power, "vector power": vector_power})
     return tests
 
