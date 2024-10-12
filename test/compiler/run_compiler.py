@@ -33,11 +33,16 @@ from quantized_training import (
     get_default_quantizer,
     prepare_pt2e,
     split_multi_head_attention,
+    FusedAmaxObsFakeQuantize,
+    QuantizationSpec,
+    QuantizationConfig,
 )
 from quantized_training.quantize_pt2e import _fuse_quantize_dequantize_with_previous_op
 from quantized_training.quantizer.xnnpack_quantizer_utils import (
     _convert_scalars_to_attrs,
 )
+from quantized_training.quantizer import QScheme
+from quantized_training.pt2e_utils import print_node_scope_tabular
 
 task_to_keys = {
     "cola": ("sentence", None),
@@ -151,6 +156,7 @@ def transform(
 
     ShapeProp(gm).propagate(*uplifted_args)
     split_multi_head_attention(gm)
+
     ShapeProp(gm).propagate(*uplifted_args)
 
     _fuse_quantize_dequantize_with_previous_op(gm)
@@ -276,6 +282,13 @@ if __name__ == "__main__":
 
         quantizer.set_module_name("fc", None)
 
+        # use per-tensor instead of microscaling for conv1 in resnet18 and resnet50
+        if "microscaling" in args.activation and args.model in ["resnet18", "resnet50"]:
+            qspec = QuantizationSpec.from_str("int8,qs=per_tensor_symmetric")
+            qspec.observer_or_fake_quant_ctr = FusedAmaxObsFakeQuantize
+            qconfig = QuantizationConfig(qspec, None, qspec, None)
+            quantizer.set_module_name("conv1", qconfig)
+
         example_args = (torch.randn(1, 3, 224, 224, dtype=torch_dtype),)
         model = prepare_pt2e(model, quantizer, example_args)
 
@@ -290,7 +303,6 @@ if __name__ == "__main__":
 
         convert_pt2e(model)
 
-        example_args = (torch.randn(1, 3, 224, 224, dtype=torch_dtype),)
         pt_out, gm_out = transform(
             model,
             example_args,
@@ -329,6 +341,13 @@ if __name__ == "__main__":
         model = AutoModelForSequenceClassification.from_pretrained(
             args.model_name_or_path
         ).eval()
+
+        # turn off microscaling for matmul
+        if "microscaling" in args.activation:
+            qspec = QuantizationSpec.from_str("int8,qs=per_tensor_symmetric")
+            qspec.observer_or_fake_quant_ctr = FusedAmaxObsFakeQuantize
+            qconfig = QuantizationConfig(qspec, None, qspec, None)
+            quantizer.set_object_type(torch.ops.aten.matmul.default, qconfig)
 
         input_ids = torch.randint(0, 30522, (1, 128), dtype=torch.long)
         input_shape = input_ids.size()
@@ -443,7 +462,30 @@ if __name__ == "__main__":
             None,
         )
 
-        gm = prepare_pt2e(model.mobilebert.encoder.layer[0], quantizer, example_args)
+        # turn off microscaling for matmul
+        if "microscaling" in args.activation:
+            qspec = QuantizationSpec.from_str("int8,qs=per_tensor_symmetric")
+            qspec.observer_or_fake_quant_ctr = FusedAmaxObsFakeQuantize
+            qconfig = QuantizationConfig(qspec, None, qspec, None)
+            quantizer.set_object_type(torch.ops.aten.matmul.default, qconfig)
+
+        class MobileBertEncoder(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+
+            def forward(self, *args, **kwargs):
+                output = model.mobilebert.encoder.layer[0](*args, **kwargs)
+                return output[0][0]
+
+        gm = prepare_pt2e(MobileBertEncoder(), quantizer, example_args)
+
+        # Generate a random scale, otherwise a scale of 1 will be optimized away.
+        for name, module in gm.named_modules():
+            if hasattr(module, "scale"):
+                module.scale = torch.randn_like(module.scale)
+
+        for name, param in gm.named_parameters():
+            param.data.div_(100.0)
 
         convert_pt2e(gm)
 
@@ -519,13 +561,22 @@ if __name__ == "__main__":
             args.model_name_pr_path = "gesture/model256.pth"
 
         ld = torch.load(args.model_name_or_path, map_location="cpu")
-        cfg = Config.fromstring(ld['meta']['cfg'], ".py")
+        cfg = Config.fromstring(ld["meta"]["cfg"], ".py")
         cfg.load_from = args.model_name_or_path
         runner = Runner.from_cfg(cfg)
         model = runner.model
         model.eval()
 
-        example_args = (torch.randn(1, 3, 224, 224,), None, 'tensor')
+        example_args = (
+            torch.randn(
+                1,
+                3,
+                224,
+                224,
+            ),
+            None,
+            "tensor",
+        )
 
         model = prepare_pt2e(model, quantizer, example_args)
 
@@ -538,10 +589,11 @@ if __name__ == "__main__":
             output_dir=args.output_dir,
         )
     elif args.model == "layertest":
+
         class LayerTest(torch.nn.Module):
             def __init__(self):
                 super(LayerTest, self).__init__()
-                
+
             def forward(self, x):
                 x = torch.sqrt(torch.abs(x))
                 x = torch.sum(x, dim=[-1])
@@ -550,7 +602,12 @@ if __name__ == "__main__":
         model = LayerTest()
         model.eval()
 
-        example_args = (torch.randn(1, 8, 8, 8,))
+        example_args = torch.randn(
+            1,
+            8,
+            8,
+            8,
+        )
 
         model = prepare_pt2e(model, quantizer, example_args)
 
