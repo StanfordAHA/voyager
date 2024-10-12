@@ -80,14 +80,6 @@ void run_operation(const codegen::AcceleratorParam param,
     if (input.has_permutation()) {
       input_tensor = permute<INPUT_T>(input_tensor, input);
     }
-    // std::cerr << "input tensor" << std::endl;
-    // INPUT_T *casted_input = std::any_cast<INPUT_T *>(input_tensor);
-    // for (int i = 0; i < 128; i++) {
-    //   for (int j = 0; j < 128; j++) {
-    //     std::cerr << casted_input[i * 128 + j] << " ";
-    //   }
-    //   std::cerr << std::endl;
-    // }
 
     // Permute weight tensor
     const auto &weight = matrix_param.weight();
@@ -95,14 +87,6 @@ void run_operation(const codegen::AcceleratorParam param,
     if (weight.has_permutation()) {
       weight_tensor = permute<INPUT_T>(weight_tensor, weight);
     }
-    // std::cerr << "weight tensor" << std::endl;
-    // INPUT_T *casted_weight = std::any_cast<INPUT_T *>(weight_tensor);
-    // for (int i = 0; i < 128; i++) {
-    //   for (int j = 0; j < 32; j++) {
-    //     std::cerr << casted_weight[i * 32 + j] << " ";
-    //   }
-    //   std::cerr << std::endl;
-    // }
 
     int dim = 1;
     for (int i = 0; i < input.shape_size() - 1; i++) {
@@ -118,15 +102,6 @@ void run_operation(const codegen::AcceleratorParam param,
           input_tensor, weight_tensor, args[2], param);
     }
     arg_index = 3;
-
-    // VECTOR_T *casted_output = std::any_cast<VECTOR_T *>(output_tensor);
-    // std::cerr << "matrix output tensor" << std::endl;
-    // for (int i = 0; i < 128; i++) {
-    //   for (int j = 0; j < 32; j++) {
-    //     std::cerr << casted_output[i * 32 + j] << " ";
-    //   }
-    //   std::cerr << std::endl;
-    // }
   } else if (param.vector_params_size() > 0) {
     // fetch the input of the first vector instruction
     output_tensor = args[arg_index++];

@@ -8,6 +8,7 @@ from datasets import load_dataset
 from google.protobuf import text_format
 from google.protobuf.json_format import MessageToJson
 from torch._export import capture_pre_autograd_graph
+import torch.ao.quantization
 from torch.utils.data import DataLoader
 from torchvision import models
 from transformers import (
@@ -20,24 +21,23 @@ from transformers import (
 from tqdm import tqdm
 
 from quantized_training import (
-    add_qspec_args,
-    convert_pt2e,
-    get_default_quantizer,
-    prepare_pt2e,
-)
-from quantized_training.codegen import (
     MemoryManager,
     ShapeProp,
+    add_qspec_args,
     allocate_activations,
     allocate_weights,
+    convert_pt2e,
     fuse_operator,
     gen_code,
     gen_compute_graph,
+    get_default_quantizer,
+    prepare_pt2e,
     split_multi_head_attention,
 )
 from quantized_training.quantize_pt2e import _fuse_quantize_dequantize_with_previous_op
-from quantized_training.quantizer.xnnpack_quantizer_utils import _convert_scalars_to_attrs
-
+from quantized_training.quantizer.xnnpack_quantizer_utils import (
+    _convert_scalars_to_attrs,
+)
 
 task_to_keys = {
     "cola": ("sentence", None),
@@ -100,7 +100,7 @@ def _pair_conv_bn(layers):
 
     # Organize layers by prefix
     for layer in layers:
-        prefix = '.'.join(layer.split('.')[:-1])
+        prefix = ".".join(layer.split(".")[:-1])
         if prefix not in layer_dict:
             layer_dict[prefix] = []
         layer_dict[prefix].append(layer)
@@ -110,8 +110,8 @@ def _pair_conv_bn(layers):
         if "downsample" in prefix:
             pairs.append([f"{prefix}.0", f"{prefix}.1"])
         else:
-            conv_layers = sorted([l for l in layer_list if 'conv' in l])
-            bn_layers = sorted([l for l in layer_list if 'bn' in l])
+            conv_layers = sorted([l for l in layer_list if "conv" in l])
+            bn_layers = sorted([l for l in layer_list if "bn" in l])
 
             # Pair each conv with its corresponding bn
             for conv, bn in zip(conv_layers, bn_layers):
@@ -136,7 +136,7 @@ def transform(
     example_kwargs=None,
     *,
     output_file="compute_graph",
-    output_dir=None
+    output_dir=None,
 ):
     if example_kwargs is None:
         example_kwargs = {}
@@ -151,7 +151,6 @@ def transform(
 
     ShapeProp(gm).propagate(*uplifted_args)
     split_multi_head_attention(gm)
-
     ShapeProp(gm).propagate(*uplifted_args)
 
     _fuse_quantize_dequantize_with_previous_op(gm)
@@ -180,36 +179,32 @@ def transform(
 
     ShapeProp(gm).propagate(*uplifted_args)
 
-    manager = MemoryManager(1024 ** 4)
+    manager = MemoryManager(1024**4)
     allocate_weights(gm, manager)
     allocate_activations(gm, manager)
 
     manager.print_partitions()
     print("\nMemory allocated to tensors:")
     for node in gm.graph.nodes:
-        if (partition := node.meta.get('memory', None)) is None:
+        if (partition := node.meta.get("memory", None)) is None:
             print(f"Node {node.name} does not have memory allocated")
             continue
         print(f"{node.name}: {partition.start}, {partition.end}")
 
-    params = gen_code(
-        gm,
-        uplifted_args,
-        os.path.join(output_dir, "tensor_files")
-    )
+    params = gen_code(gm, uplifted_args, os.path.join(output_dir, "tensor_files"))
 
-    with open(os.path.join(output_dir, 'params.pb'), 'wb') as f:
+    with open(os.path.join(output_dir, "params.pb"), "wb") as f:
         f.write(params.SerializeToString())
 
-    with open(os.path.join(output_dir, 'params.txt'), "w") as f:
+    with open(os.path.join(output_dir, "params.txt"), "w") as f:
         f.write(text_format.MessageToString(params))
 
-    with open(os.path.join(output_dir, 'params.json'), "w") as f:
+    with open(os.path.join(output_dir, "params.json"), "w") as f:
         f.write(MessageToJson(params))
 
-    layers = [p.name for p in params.params if p.WhichOneof("param_type") != "nop"]
-    with open(os.path.join(output_dir, 'layers.txt'), 'w') as f:
-        f.write('\n'.join(layers))
+    layers = [p.name for p in params.params]
+    with open(os.path.join(output_dir, "layers.txt"), "w") as f:
+        f.write("\n".join(layers))
 
     gen_compute_graph(gm, os.path.join(output_dir, output_file))
 
@@ -226,29 +221,32 @@ TORCHVISION_MODELS = {
 if __name__ == "__main__":
     torch.manual_seed(0)
     torch.set_printoptions(precision=10)
+    torch.set_num_threads(32)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("model", default="resnet50")
     parser.add_argument(
         "--model_name_or_path",
         default=None,
-        help="Path to pretrained model or model identifier from huggingface.co/models."
+        help="Path to pretrained model or model identifier from huggingface.co/models.",
     )
     parser.add_argument(
-        "--task_name",
-        default="sst2",
-        help="Name of the task to load the dataset"
+        "--task_name", default="sst2", help="Name of the task to load the dataset"
     )
     parser.add_argument(
         "--output_dir",
         required=True,
-        help="Output directory for generated tensor files"
+        help="Output directory for generated tensor files",
     )
     add_qspec_args(parser)
     args = parser.parse_args()
 
     quantizer = get_default_quantizer(
-        args.activation, args.output_activation, args.weight, args.bias
+        input_activation=args.activation,
+        output_activation=args.output_activation,
+        weight=args.weight,
+        bias=args.bias,
+        force_scale_power_of_two=args.force_scale_power_of_two,
     )
 
     if args.model in TORCHVISION_MODELS:
@@ -256,7 +254,7 @@ if __name__ == "__main__":
 
         if args.model_name_or_path:
             checkpoint = torch.load(args.model_name_or_path, map_location="cpu")
-            model.load_state_dict(checkpoint['state_dict'], strict=False)
+            model.load_state_dict(checkpoint["state_dict"], strict=False)
 
         if args.bf16:
             model.bfloat16()
@@ -265,7 +263,9 @@ if __name__ == "__main__":
         module_names = [name for name, _ in model.named_modules()]
         modules_to_fuse = _pair_conv_bn(module_names)
         if len(modules_to_fuse) > 0:
-            model = torch.ao.quantization.fuse_modules(model, modules_to_fuse, inplace=True)
+            model = torch.ao.quantization.fuse_modules(
+                model, modules_to_fuse, inplace=True
+            )
 
         # Accelerator only supports 2x2 maxpool
         for module in model.modules():
@@ -284,12 +284,13 @@ if __name__ == "__main__":
         image_processor = AutoImageProcessor.from_pretrained("microsoft/resnet-18")
 
         for i in tqdm(range(10)):
-            inputs = image_processor(dataset['train'][i]["image"], return_tensors="pt")
+            inputs = image_processor(dataset["train"][i]["image"], return_tensors="pt")
             with torch.no_grad():
                 model(inputs.pixel_values.to(torch_dtype))
 
         convert_pt2e(model)
 
+        example_args = (torch.randn(1, 3, 224, 224, dtype=torch_dtype),)
         pt_out, gm_out = transform(
             model,
             example_args,
@@ -302,7 +303,9 @@ if __name__ == "__main__":
         if args.model_name_or_path is None:
             args.model_name_or_path = "nvidia/segformer-b0-finetuned-ade-512-512"
 
-        model = AutoModelForSemanticSegmentation.from_pretrained(args.model_name_or_path).eval()
+        model = AutoModelForSemanticSegmentation.from_pretrained(
+            args.model_name_or_path
+        ).eval()
 
         modules_to_fuse = ["decode_head.linear_fuse", "decode_head.batch_norm"]
         model = torch.ao.quantization.fuse_modules(model, modules_to_fuse, inplace=True)
@@ -323,7 +326,9 @@ if __name__ == "__main__":
     elif args.model == "mobilebert":
         if args.model_name_or_path is None:
             args.model_name_or_path = "google/mobilebert-uncased"
-        model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path).eval()
+        model = AutoModelForSequenceClassification.from_pretrained(
+            args.model_name_or_path
+        ).eval()
 
         input_ids = torch.randint(0, 30522, (1, 128), dtype=torch.long)
         input_shape = input_ids.size()
@@ -337,14 +342,18 @@ if __name__ == "__main__":
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
-        extended_attention_mask: torch.Tensor = model.mobilebert.get_extended_attention_mask(attention_mask, input_shape)
+        extended_attention_mask: torch.Tensor = (
+            model.mobilebert.get_extended_attention_mask(attention_mask, input_shape)
+        )
 
         # Prepare head mask if needed
         # 1.0 in head_mask indicate we keep the head
         # attention_probs has shape bsz x n_heads x N x N
         # input head_mask has shape [num_heads] or [num_hidden_layers x num_heads]
         # and head_mask is converted to shape [num_hidden_layers x batch x num_heads x seq_length x seq_length]
-        head_mask = model.mobilebert.get_head_mask(head_mask, model.config.num_hidden_layers)
+        head_mask = model.mobilebert.get_head_mask(
+            head_mask, model.config.num_hidden_layers
+        )
 
         embedding_output = model.mobilebert.embeddings(
             input_ids=input_ids,
@@ -352,6 +361,8 @@ if __name__ == "__main__":
             token_type_ids=token_type_ids,
         )
         example_args = (embedding_output, extended_attention_mask, head_mask)
+
+        quantizer.set_module_name("classifier", None)
 
         class MobileBertNoEmbed(torch.nn.Module):
             def __init__(self):
@@ -370,15 +381,18 @@ if __name__ == "__main__":
         # calibration
         tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
         raw_datasets = load_dataset("glue", args.task_name)
-
         sentence1_key, sentence2_key = task_to_keys[args.task_name]
 
         def preprocess_function(examples):
             # Tokenize the texts
             texts = (
-                (examples[sentence1_key],) if sentence2_key is None else (examples[sentence1_key], examples[sentence2_key])
+                (examples[sentence1_key],)
+                if sentence2_key is None
+                else (examples[sentence1_key], examples[sentence2_key])
             )
-            result = tokenizer(*texts, padding="max_length", max_length=128, truncation=True)
+            result = tokenizer(
+                *texts, padding="max_length", max_length=128, truncation=True
+            )
             result["labels"] = examples["label"]
             return result
 
@@ -388,20 +402,20 @@ if __name__ == "__main__":
             remove_columns=raw_datasets["train"].column_names,
             desc="Running tokenizer on dataset",
         )
-
         train_dataset = processed_datasets["train"]
-
-        train_dataloader = DataLoader(train_dataset, collate_fn=default_data_collator, batch_size=1)
-
+        train_dataloader = DataLoader(
+            train_dataset, collate_fn=default_data_collator, batch_size=1
+        )
         for step, batch in enumerate(tqdm(train_dataloader)):
             embedding_output = model.mobilebert.embeddings(
-                input_ids=batch["input_ids"],
-                token_type_ids=batch["token_type_ids"]
+                input_ids=batch["input_ids"], token_type_ids=batch["token_type_ids"]
             )
-            extended_attention_mask = model.mobilebert.get_extended_attention_mask(batch["attention_mask"], input_shape)
+            extended_attention_mask = model.mobilebert.get_extended_attention_mask(
+                batch["attention_mask"], input_shape
+            )
             gm(embedding_output, extended_attention_mask, head_mask)
-
-            if step == 9:
+            # Use 20 calibration steps
+            if step == 19:
                 break
 
         convert_pt2e(gm)
@@ -415,7 +429,9 @@ if __name__ == "__main__":
     elif args.model == "mobilebert_encoder":
         if args.model_name_or_path is None:
             args.model_name_or_path = "google/mobilebert-uncased"
-        model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path).eval()
+        model = AutoModelForSequenceClassification.from_pretrained(
+            args.model_name_or_path
+        ).eval()
 
         if args.bf16:
             model.bfloat16()
@@ -427,23 +443,7 @@ if __name__ == "__main__":
             None,
         )
 
-        class MobileBertEncoder(torch.nn.Module):
-            def __init__(self):
-                super().__init__()
-
-            def forward(self, *args, **kwargs):
-                output = model.mobilebert.encoder.layer[0](*args, **kwargs)
-                return output[0][0]
-
-        gm = prepare_pt2e(MobileBertEncoder(), quantizer, example_args)
-
-        # Generate a random scale, otherwise a scale of 1 will be optimized away.
-        for name, module in gm.named_modules():
-            if hasattr(module, "scale"):
-                module.scale = torch.randn_like(module.scale)
-
-        for name, param in gm.named_parameters():
-            param.data.div_(100.0)
+        gm = prepare_pt2e(model.mobilebert.encoder.layer[0], quantizer, example_args)
 
         convert_pt2e(gm)
 
@@ -459,7 +459,9 @@ if __name__ == "__main__":
     elif args.model == "bert":
         if args.model_name_or_path is None:
             args.model_name_or_path = "bert-base-uncased"
-        model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path).eval()
+        model = AutoModelForSequenceClassification.from_pretrained(
+            args.model_name_or_path
+        ).eval()
 
         input_ids = torch.randint(0, 30522, (1, 128), dtype=torch.long)
         input_shape = input_ids.size()
@@ -470,7 +472,9 @@ if __name__ == "__main__":
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
-        extended_attention_mask: torch.Tensor = model.bert.get_extended_attention_mask(attention_mask, input_shape)
+        extended_attention_mask: torch.Tensor = model.bert.get_extended_attention_mask(
+            attention_mask, input_shape
+        )
 
         # Prepare head mask if needed
         # 1.0 in head_mask indicate we keep the head
