@@ -23,3 +23,6 @@ popd
 if [[ "${waveform}" == "True" && "${gen_saif}" == "True" ]]; then
   fsdb2saif inputs/build/Catapult/${fsdb_name}.fsdb -o outputs/run.saif
 fi
+
+# Save disk space
+rm -f inputs/build/Catapult/${fsdb_name}.fsdb
