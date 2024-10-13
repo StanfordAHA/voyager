@@ -29,9 +29,10 @@ puts "Info: Manual auto-ungrouping disable:"
 set_ungroup [get_designs VectorUnit] false
 set_ungroup [get_designs ProcessingElement] false
 set_ungroup [get_designs SystolicArray] false
-# set_ungroup [get_cells -hier weightBuffer] false
-# set_ungroup [get_cells -hier inputBuffer] false
-# set_ungroup [get_cells -hier while_accumulation_buffer_*_rsc_comp] false
+set_ungroup [get_cells -hier weightBuffer] false
+set_ungroup [get_cells -hier inputBuffer] false
+# set_ungroup [get_cells -hier matrixProcessor] false
+set_ungroup [get_cells -hier while_accumulation_buffer_*_rsc_comp] false
 
 puts "Info: Flattening effort = $dc_flatten_effort"
 

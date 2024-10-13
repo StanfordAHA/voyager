@@ -23,9 +23,9 @@ inputs:
   - run.vcd
   - design.namemap
 
-outputs:
-  - primetime.session
-  - design.sdf
+# outputs:
+  # - primetime.session
+  # - design.sdf
 
 #-------------------------------------------------------------------------
 # Commands

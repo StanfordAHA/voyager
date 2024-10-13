@@ -85,6 +85,7 @@ def construct():
     # Customization
     custom_hack_synth_sdc = Step(this_dir + "/custom-hack-synth-sdc")
     custom_dc_synth = Step(this_dir + "/custom-dc-synthesis")
+    custom_ptpx = Step(this_dir + "/custom-ptpx")
 
     # -----------------------------------------------------------------------
     # Node modifications
@@ -150,6 +151,9 @@ def construct():
     synth.extend_outputs(["design.spef.gz"])
     synth.extend_inputs(custom_dc_synth.all_outputs())
 
+    ptpx_rtl.extend_inputs(custom_ptpx.all_outputs())
+    ptpx_syn.extend_inputs(custom_ptpx.all_outputs())
+
     # Add extra input edges to innovus steps that need custom tweaks
     # init.extend_inputs(custom_init.all_outputs())
     # init.extend_inputs(["io_pad_placement.tcl"])
@@ -185,6 +189,7 @@ def construct():
         g.add_step(mem)
     g.add_step(constraints)
     g.add_step(custom_dc_synth)
+    g.add_step(custom_ptpx)
     g.add_step(synth)
     g.add_step(custom_hack_synth_sdc)
     g.add_step(syn_vcs_build)
@@ -226,10 +231,12 @@ def construct():
     g.connect(hls.o("build"), syn_vcs_build.i("build"))
     g.connect_by_name(syn_vcs_build, syn_sim)
     g.connect_by_name(rtl_sim, ptpx_rtl)
+    g.connect_by_name(custom_ptpx, ptpx_rtl)
     g.connect(synth.o("design.v"), ptpx_rtl.i("design.v"))
     g.connect(synth.o("design.spef.gz"), ptpx_rtl.i("design.spef.gz"))
     g.connect(synth.o("design.namemap"), ptpx_rtl.i("design.namemap"))
     g.connect_by_name(custom_hack_synth_sdc, ptpx_rtl)
+    g.connect_by_name(custom_ptpx, ptpx_syn)
     g.connect_by_name(syn_sim, ptpx_syn)
     g.connect(synth.o("design.v"), ptpx_syn.i("design.v"))
     g.connect(synth.o("design.spef.gz"), ptpx_syn.i("design.spef.gz"))
@@ -287,8 +294,8 @@ def construct():
 
     # Sweep over tests
     networks = list(sweep_params["tests"])
-    for sim in [rtl_sim, syn_sim]:
-    # for sim in [rtl_sim]:
+    # for sim in [rtl_sim, syn_sim]:
+    for sim in [rtl_sim]:
         parameterized_step = g.param_space(sim, "network", networks)
         for step in parameterized_step:
             network = step.get_param("network")

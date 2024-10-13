@@ -120,7 +120,7 @@ report_clock_gating \
 
 # Report Submodule info
 current_design [get_designs Accelerator_VectorUnit_0]
-reoprt_area > ${dc_reports_dir}/VectorUnit.mapped.area.rpt
+report_area > ${dc_reports_dir}/VectorUnit.mapped.area.rpt
 current_design [get_designs Accelerator_SystolicArray_0]
-reoprt_area > ${dc_reports_dir}/SystolicArray.mapped.area.rpt
+report_area > ${dc_reports_dir}/SystolicArray.mapped.area.rpt
 

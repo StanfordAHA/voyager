@@ -50,7 +50,7 @@ foreach tcl $order {
 }
 
 # Save the primetime session for debug sessions
-save_session outputs/primetime.session
+# save_session outputs/primetime.session
 
 exit
 
