@@ -364,6 +364,7 @@ SC_MODULE(MatrixProcessor) {
           // if (garbageCount < NUM_GARBAGE) {
           //   garbageCount++;
           // } else {
+        INCR_OUT_STEP:
           outputStep++;
           // DLOG("systolic array output: " << outputs);
           bool accumulationFinished =

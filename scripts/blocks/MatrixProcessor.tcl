@@ -35,4 +35,6 @@ proc pre_extract {} {
 
   # to prevent stuttering issues, schedule inputDin and psumIn to happen in the same cycle
   cycle set inputSkewerDin.Push() -from psumInSkewerDin.Push() -equal 0
+
+  cycle set *INCR_OUT_STEP:* -from *WRITE_ACC_BUFFER:* -equal 0
 }
