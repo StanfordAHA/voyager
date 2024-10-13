@@ -7,7 +7,6 @@
 #include "ArchitectureParams.h"
 #include "ParamsDeserializer.h"
 
-
 template <typename DTYPE, typename ACC_DTYPE, int NROWS, int NCOLS>
 SC_MODULE(WeightController) {
   sc_in<bool> CCS_INIT_S1(clk);
@@ -30,7 +29,9 @@ SC_MODULE(WeightController) {
     return (n <= 1) ? 0 : 1 + int_log2(n / 2);
   }
 
-  static constexpr int LOOP_WIDTH = (8 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION : OC_DIMENSION)));
+  static constexpr int LOOP_WIDTH =
+      (8 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION
+                                                      : OC_DIMENSION)));
 
 #ifdef HYBRID_FP8
   Connections::Out<Pack1D<HYBRID_TYPE, NCOLS> > CCS_INIT_S1(
@@ -718,10 +719,10 @@ SC_MODULE(WeightController) {
           }
         }
       } else {  // passthrough
-        ac_int<32,false> total_values = loop_bounds[0][0] * loop_bounds[0][1] *
-                           loop_bounds[0][2] * loop_bounds[1][0] *
-                           loop_bounds[1][1] * loop_bounds[1][2] *
-                           loop_bounds[1][3] * loop_bounds[1][4];
+        ac_int<32, false> total_values = loop_bounds[0][0] * loop_bounds[0][1] *
+                                         loop_bounds[0][2] * loop_bounds[1][0] *
+                                         loop_bounds[1][1] * loop_bounds[1][2] *
+                                         loop_bounds[1][3] * loop_bounds[1][4];
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
