@@ -56,6 +56,14 @@ if __name__ == "__main__":
     # Get the unique layers for each network for parameter sweep
     print(f"Collecting layers...")
     networks = ["resnet18", "resnet50", "mobilebert_encoder"]
+    for network in networks:
+      # Make sure dataset is generated
+      if not os.path.exists(f"../accel-src/test/compiler/networks/{network}/{build_params['datatype']}"):
+          print(f"Generating dataset for {network} {build_params['datatype']}...")
+          pushd ../accel-src/
+          make network-proto NETWORK=@(network) DATATYPE=@(build_params['datatype'])
+          popd
+
     layers = collect_layers(networks, build_params["datatype"])
     for network in networks:
         sweep_params["tests"][network] = list(layers[network]) # only the keys - layer names
@@ -77,5 +85,5 @@ if __name__ == "__main__":
     # this assumes hls is step 7, unfortunately mflowgen doesn't support explicit step name in this command
     if build_params['clock_period'] == 1:
         mflowgen param update -k clock_period -v 1.1 -s 7
-        print(f"Step 6 clock period updated. Please make sure it's the hls stage.")
+        print(f"Step 7 clock period updated. Please make sure it's the hls stage.")
 
