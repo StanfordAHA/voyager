@@ -21,7 +21,7 @@ def delete_nested_keys(data, key):
         for item in data:
             delete_nested_keys(item, key)
 
-def collect_layers(networks: list, datatype: str):
+def collect_layers(networks: list, datatype: str, verbose: bool = False):
     layers = {}
     for network in networks:
         layers[network] = {}
@@ -38,7 +38,8 @@ def collect_layers(networks: list, datatype: str):
             for layer_name, layer_val in layer_params.items():
                 dif = DeepDiff(lp, layer_val, ignore_order=True)
                 if not dif:
-                    print(f"{network} duplicate layer removed: {name} == {layer_name}")
+                    if verbose:
+                      print(f"{network} duplicate layer removed: {name} == {layer_name}")
                     # increment multiplier
                     layers[network][layer_name] += 1
                     exists = True
