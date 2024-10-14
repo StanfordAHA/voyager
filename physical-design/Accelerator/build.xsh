@@ -22,6 +22,7 @@ sim_params = {
     "sims": "accelerator,systemc",
     "network": "resnet18",  # default network
     "layer": "quantize_symmetric",  # default layer
+    "sweep": True
 }
 
 sweep_params = {
@@ -37,7 +38,9 @@ if __name__ == "__main__":
     parser.add_argument("--input", type=int, default=None, help="Input Buffer Size")
     parser.add_argument("--weight", type=int, default=None, help="Weight Buffer Size")
     parser.add_argument("--accum", type=int, default=None, help="Accum Buffer Size")
-    parser.add_argument("--clock", type=float, default=None)
+    parser.add_argument("--clock", type=float, default=None, help="Clock Period in ns")
+    parser.add_argument("--no-sweep", action="store_true", help="Disable parameter sweep")
+    parser.add_argument("--sweep", action="store_true", help="Enable parameter sweep")
 
     args = parser.parse_args()
 
@@ -52,21 +55,33 @@ if __name__ == "__main__":
     build_params["input_buffer_size"] = args.input if args.input else build_params["input_buffer_size"]
     build_params["weight_buffer_size"] = args.weight if args.weight else build_params["weight_buffer_size"]
     build_params["accum_buffer_size"] = args.accum if args.accum else build_params["accum_buffer_size"]
+    if args.no_sweep and args.sweep:
+        print("Cannot have both --no-sweep and --sweep. Defaulting to sweep.")
+        exit(1)
+    sim_params["sweep"] = True if args.sweep else False if args.no_sweep else sim_params["sweep"]
+
+    # Make sure the dataset for default network is generated
+    if not os.path.exists(f"../accel-src/test/compiler/networks/{sim_params['network']}/{build_params['datatype']}"):
+        print(f"Generating dataset for {sim_params['network']} {build_params['datatype']}...")
+        pushd ../accel-src/
+        make network-proto NETWORK=@(sim_params['network']) DATATYPE=@(build_params['datatype'])
+        popd
 
     # Get the unique layers for each network for parameter sweep
-    print(f"Collecting layers...")
-    networks = ["resnet18", "resnet50", "mobilebert_encoder"]
-    for network in networks:
-      # Make sure dataset is generated
-      if not os.path.exists(f"../accel-src/test/compiler/networks/{network}/{build_params['datatype']}"):
-          print(f"Generating dataset for {network} {build_params['datatype']}...")
-          pushd ../accel-src/
-          make network-proto NETWORK=@(network) DATATYPE=@(build_params['datatype'])
-          popd
+    if sim_params["sweep"]:
+      print(f"Collecting parameter sweeping layers...")
+      networks = ["resnet18", "resnet50", "mobilebert_encoder"]
+      for network in networks:
+        # Make sure all required dataset is generated
+        if not os.path.exists(f"../accel-src/test/compiler/networks/{network}/{build_params['datatype']}"):
+            print(f"Generating dataset for {network} {build_params['datatype']}...")
+            pushd ../accel-src/
+            make network-proto NETWORK=@(network) DATATYPE=@(build_params['datatype'])
+            popd
 
-    layers = collect_layers(networks, build_params["datatype"])
-    for network in networks:
-        sweep_params["tests"][network] = list(layers[network]) # only the keys - layer names
+      layers = collect_layers(networks, build_params["datatype"])
+      for network in networks:
+          sweep_params["tests"][network] = list(layers[network]) # only the keys - layer names
 
     with open(f"{os.path.dirname(__file__)}/params.py", "w") as f:
         f.write(f"build_params = {build_params}\n")

@@ -293,14 +293,15 @@ def construct():
     # codegen.update_params( { 'network': list(sweep_params["tests"]) } )
 
     # Sweep over tests
-    networks = list(sweep_params["tests"])
-    # for sim in [rtl_sim, syn_sim]:
-    for sim in [rtl_sim]:
-        parameterized_step = g.param_space(sim, "network", networks)
-        for step in parameterized_step:
-            network = step.get_param("network")
-            layers = sweep_params["tests"][network]
-            g.param_space(step, "layer", layers)
+    if sim_params["sweep"]:
+        networks = list(sweep_params["tests"])
+        # for sim in [rtl_sim, syn_sim]:
+        for sim in [rtl_sim]:
+            parameterized_step = g.param_space(sim, "network", networks)
+            for step in parameterized_step:
+                network = step.get_param("network")
+                layers = sweep_params["tests"][network]
+                g.param_space(step, "layer", layers)
 
     return g
 
