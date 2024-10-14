@@ -23,7 +23,9 @@ inputs:
   - run.vcd
   - design.namemap
 
-# outputs:
+outputs:
+  # seems like mflowgen requires to have at least one output, otherwise the step doesn't get marked done. Add a random output
+  - design.rpt
   # - primetime.session
   # - design.sdf
 
@@ -33,6 +35,7 @@ inputs:
 
 commands:
   - source run.sh
+  - ln -s reports/*.design.rpt outputs/design.rpt
 
 debug:
   - source debug.sh
