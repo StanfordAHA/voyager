@@ -681,10 +681,12 @@ SC_MODULE(WeightScaleController) {
     while (true) {
       const MatrixParams params = paramsIn.Pop();
 
-      fetcherParams.Push(params);
-      writerParams.Push(params);
-      readerParams.Push(params);
-      transposerParams.Push(params);
+      if (params.MX) {
+        fetcherParams.Push(params);
+        writerParams.Push(params);
+        readerParams.Push(params);
+        transposerParams.Push(params);
+      }
     }
   }
 };

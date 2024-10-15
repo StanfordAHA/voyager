@@ -308,6 +308,8 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   matrix_params->BIAS_OFFSET = bias_memory.offset();
   accelerator_memory_map["bias"] = get_partition(bias_memory.partition());
 
+  matrix_params->MX = matrix_param.opcode() == "conv2d_mx";
+
   // vector instructions
   VectorParams *vector_params = new VectorParams;
   vector_params->addressGen0Mode = 0;  // use matrix unit outputs
@@ -372,6 +374,12 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
       VECTOR_DATATYPE immediate = read_constant_param(it->other());
       if (opcode.rfind("dequantize", 0) == 0) {
         vinst.vDequantizeScale = immediate.bits_rep();
+
+        bool is_mx_based_design = ACCUM_DATATYPE::is_floating_point !=
+                                  ACCUM_BUFFER_DATATYPE::is_floating_point;
+        if (is_mx_based_design && !matrix_param.has_mx_input()) {
+          vinst.vDequantize = true;
+        }
       } else if (opcode.rfind("quantize", 0) == 0) {
         vector_params->OUTPUT_QUANTIZE = true;
         vector_params->outputQuantizeScale = immediate.bits_rep();

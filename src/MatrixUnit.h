@@ -109,7 +109,8 @@ SC_MODULE(MatrixUnit) {
                   ACCUMULATION_BUFFER_SIZE>
       CCS_INIT_S1(matrixProcessor);
 #else
-  MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE, ACCUM_BUFFER_DATATYPE, MX,
+  MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE, ACCUM_BUFFER_DATATYPE,
+                  !std::is_same_v<ACCUM_DATATYPE, ACCUM_BUFFER_DATATYPE>,
                   IC_DIMENSION, OC_DIMENSION, ACCUMULATION_BUFFER_SIZE>
       CCS_INIT_S1(matrixProcessor);
 #endif

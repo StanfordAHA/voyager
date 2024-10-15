@@ -100,12 +100,15 @@ inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
   bool weight_double_precision = is_double_precision(matrix_param.weight());
   bool bias_double_precision = is_double_precision(matrix_param.bias());
 
+  constexpr bool is_mx_based_design = ACCUMULATE_T::is_floating_point !=
+                                      ACCUMULATION_BUFFER_T::is_floating_point;
+
   ACCUMULATION_BUFFER_T *outputs = new ACCUMULATION_BUFFER_T[X * Y * K];
 
   // initialize to bias
   for (int i = 0; i < X * Y; i++) {
     for (int k = 0; k < K; k++) {
-      if (is_mx) {
+      if (is_mx || is_mx_based_design) {
         outputs[i * K + k] = ACCUMULATION_BUFFER_T(0.0);
       } else {
         if (matrix_param.has_bias()) {
@@ -154,17 +157,13 @@ inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
                       int output_addr = y * X * K + x * K + k;
 
                       ACCUMULATE_T psum;
-                      if (is_mx) {
+                      if (is_mx || is_mx_based_design) {
                         psum = ACCUMULATE_T(0.0);
                       } else {
-                        if constexpr (ACCUMULATE_T::is_floating_point ==
-                                      ACCUMULATION_BUFFER_T::
+                        if constexpr (ACCUMULATE_T::is_floating_point &&
+                                      !ACCUMULATION_BUFFER_T::
                                           is_floating_point) {
                           psum = outputs[output_addr];
-                        } else {
-                          throw std::runtime_error(
-                              "ACCUMULATE_T and ACCUMULATION_BUFFER_T must "
-                              "have the same floating point type");
                         }
                       }
 
@@ -227,6 +226,12 @@ inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
                               "MX operations are not supported for floating "
                               "point types");
                         }
+                      } else if (is_mx_based_design) {
+                        // use a scale factor of 1 to directly convert the int
+                        // value into a float
+                        ACCUMULATION_BUFFER_T scaled_psum =
+                            static_cast<ACCUMULATION_BUFFER_T>(psum);
+                        outputs[output_addr] += scaled_psum;
                       } else {
                         if constexpr (ACCUMULATE_T::is_floating_point &&
                                       !ACCUMULATION_BUFFER_T::

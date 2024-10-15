@@ -649,7 +649,10 @@ SC_MODULE(MatrixProcessor) {
         // CCS_LOG("outputs: " << outputs);
 
         // TODO: add scale factors and scale the psum
-        Pack1D<IDTYPE, 1> inputScale = inputScaleChannel.Pop();
+        Pack1D<IDTYPE, 1> inputScale;
+        if (params.MX) {
+          inputScale = inputScaleChannel.Pop();
+        }
 
         bool readNewWeights;
         if (params.weightReuseIndex[0] != params.weightReuseIndex[1]) {
@@ -660,7 +663,7 @@ SC_MODULE(MatrixProcessor) {
           readNewWeights = (loop_counters[1][params.weightReuseIndex[1]] == 0);
         }
         readNewWeights = readNewWeights || step == 0;
-        if (readNewWeights) {
+        if (readNewWeights && params.MX) {
           weightScales = weightScaleChannel.Pop();
           // CCS_LOG("weightScales: " << weightScales);
         }
@@ -674,7 +677,9 @@ SC_MODULE(MatrixProcessor) {
           // IDTYPE scale = inputScale[0];
           scaled_outputs[i] = static_cast<ACCUM_BUFFER_TYPE>(outputs[i]);
           // CCS_LOG("scaled_outputs: " << scaled_outputs[i]);
-          scaled_outputs[i].expScale(scale.int_val);
+          if (params.MX) {
+            scaled_outputs[i].expScale(scale.int_val);
+          }
           // CCS_LOG("scaled_outputs after scale: " << scaled_outputs[i]);
           previous_accumulation.value[i] += scaled_outputs[i];
         }

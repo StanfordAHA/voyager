@@ -223,6 +223,13 @@ void run_operation(const codegen::AcceleratorParam param,
         std::cerr << "No quantization operations should be emitted for CFloat"
                   << std::endl;
         std::abort();
+      } else if constexpr (ACCUMULATE_T::is_floating_point !=
+                           ACCUMULATION_BUFFER_T::is_floating_point) {
+        // for MX-based design, if we aren't performing microscaling, we will
+        // see a dequantization instruction. this dequantization instruction is
+        // really just a scale operation.
+        output_tensor = dequantize<ACCUMULATION_BUFFER_T, VECTOR_T>(
+            output_tensor, args[arg_index++], get_size(vector_param.input()));
       } else {
         if (vector_param.input().dtype() == "int32") {
           output_tensor = dequantize<DataTypes::int32, VECTOR_T>(

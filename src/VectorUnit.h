@@ -152,6 +152,17 @@ SC_MODULE(VectorOpUnit) {
                       VEC_DTYPE::is_floating_point) {
           vdequantize<VEC_DTYPE, MU_OUTPUT_DTYPE, WIDTH>(tmp, op0Src0,
                                                          inst.vDequantizeScale);
+        } else if constexpr (std::is_same_v<MU_OUTPUT_DTYPE, VEC_DTYPE>) {
+          // with MX types, we might need to perform a dequantize operation
+          if (inst.vDequantize) {
+            vdequantize<VEC_DTYPE, MU_OUTPUT_DTYPE, WIDTH>(
+                tmp, op0Src0, inst.vDequantizeScale);
+          } else {
+#pragma hls_unroll yes
+            for (int i = 0; i < WIDTH; i++) {
+              op0Src0[i] = tmp[i];
+            }
+          }
         } else {
         UNROLL:
           for (int i = 0; i < WIDTH; i++) {

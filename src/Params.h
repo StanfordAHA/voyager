@@ -96,9 +96,11 @@ struct MatrixParams : BaseParams {
   bool BIAS;
   int BIAS_OFFSET;
 
+  bool MX;
+
   static const unsigned int width =
       5 * 32 /* OFFSETS */ + (12 + 10) * 10 /* Loops */ +
-      (6 + 3) * 2 * 3 /* Loop indices */ + 8 * 1 /* Bools */ + 2;
+      (6 + 3) * 2 * 3 /* Loop indices */ + 8 * 1 /* Bools */ + 3;
 
 #ifndef NO_SYSC
   template <unsigned int Size>
@@ -152,6 +154,7 @@ struct MatrixParams : BaseParams {
     m & TRANPOSE_INPUTS;
     m & BIAS;
     m & BIAS_OFFSET;
+    m & MX;
   }
 
   inline friend void sc_trace(sc_trace_file* tf, const MatrixParams& params,
@@ -262,6 +265,8 @@ struct MatrixParams : BaseParams {
 
     if (lhs.BIAS != rhs.BIAS || lhs.BIAS_OFFSET != rhs.BIAS_OFFSET)
       return false;
+
+    if (lhs.MX != rhs.MX) return false;
 
     // If all members are equal, return true
     return true;

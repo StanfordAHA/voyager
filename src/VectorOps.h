@@ -83,9 +83,16 @@ void vdequantize(Pack1D<QUANTIZED_TYPE, WIDTH>& op0,
   VEC_DTYPE scale;
   scale.setbits(scale_bits);
 
+  if constexpr (std::is_same_v<VEC_DTYPE, QUANTIZED_TYPE>) {
 #pragma hls_unroll yes
-  for (int i = 0; i < WIDTH; i++) {
-    res[i] = op0[i].dequantize(scale);
+    for (int i = 0; i < WIDTH; i++) {
+      res[i] = op0[i] * scale;
+    }
+  } else {
+#pragma hls_unroll yes
+    for (int i = 0; i < WIDTH; i++) {
+      res[i] = op0[i].dequantize(scale);
+    }
   }
 }
 

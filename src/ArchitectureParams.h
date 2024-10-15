@@ -198,7 +198,6 @@ using BF16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 #define OUTPUT_DATATYPE I8
 #define VECTOR_DATATYPE BF16
 
-#define MX true
 #define MX_DATATYPE Scale<8>
 
 #elif defined(CFLOAT)

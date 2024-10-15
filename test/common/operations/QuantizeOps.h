@@ -77,7 +77,12 @@ DEQUANTIZED_TYPE* dequantize(std::any input, std::any scale, int size) {
   DEQUANTIZED_TYPE* scale_val = std::any_cast<DEQUANTIZED_TYPE*>(scale);
   DEQUANTIZED_TYPE* dequantized_output = new DEQUANTIZED_TYPE[size];
 
-  if constexpr (!TYPE::is_floating_point) {
+  if constexpr (std::is_same_v<TYPE, DEQUANTIZED_TYPE>) {
+    // dequantization is just going to be a multiplication by the scale
+    for (int i = 0; i < size; i++) {
+      dequantized_output[i] = input_tensor[i] * (*scale_val);
+    }
+  } else if constexpr (!TYPE::is_floating_point) {
     // perform dequantization operation
     for (int i = 0; i < size; i++) {
       dequantized_output[i] = input_tensor[i].template dequantize(*scale_val);
