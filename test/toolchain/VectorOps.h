@@ -228,7 +228,18 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
         }
       } else {  // microscaling
         auto other_shape = get_shape(it->other());
-        other_shape[other_shape.size() - 1] *= OC_DIMENSION;
+
+        // change other_shape to 2D tensor
+        int total_size = 1;
+        for (int i = 0; i < other_shape.size(); i++) {
+          total_size *= other_shape[i];
+        }
+
+        int other_dim_factors[2];
+        factorizeForAddressGen(total_size / OC_DIMENSION, other_dim_factors);
+
+        other_dim_factors[1] *= OC_DIMENSION;
+        other_shape = {other_dim_factors[0], other_dim_factors[1]};
 
         set_vector_addr_gen1(tensor_to_load, other_shape,
                              accelerator_memory_map, vector_params);
