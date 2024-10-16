@@ -1,7 +1,7 @@
 
-# MINOTAUR DNN Accelerator
+# Voyager DNN Accelerator Generator
 
-This repository contains the MINOTAUR DNN accelerator HLS code.
+This repository contains the Voyager DNN accelerator generator.
 
 It is written in SystemC/C++ and can be used for simulation (which allows for fast verification) and for generating Verilog (RTL code). The RTL code is then used for RTL-level (cycle-accurate) simulations and further synthesis of real HW.
 
@@ -11,9 +11,9 @@ It is written in SystemC/C++ and can be used for simulation (which allows for fa
 We are using the built-in [GitLab CI](https://docs.gitlab.com/ee/ci/). It triggers whenever someone pushes to a branch.
 
 ### Runners
-- We are using a single GitLab runner on `rsgvm9` (two are inactive).
+- We are using a single GitLab runner on `r8cad-tsmc40r`.
 - They can be configured using `/etc/gitlab-runner/config.toml`.
-- The working directory of the runners is `/home/gitlab-runner/minotaur-ci`.
+- The working directory of the runners is `/sim/gitlab-runner/`.
 
 ## Setup
 
@@ -26,7 +26,7 @@ git clone git@code.stanford.edu:tsmc40r/brainpower/accelerator.git
 ```
 
 ### 2. Environment Requirements
-Create your own `.envrc` file that sets up the conda environment and sources the `env.sh` file. A sample configuration might look like this:
+Install [direnv](https://direnv.net/), and then create your own `.envrc` file in the project root directory that sets up the conda environment and sources the `env.sh` file. A sample configuration might look like this:
 
 ```bash
 layout anaconda ./.conda-env
@@ -40,8 +40,6 @@ After creating the `.envrc` file, ensure the conda environment is activated.
   - You need to have [`git lfs`](https://git-lfs.github.com/) installed.
   - You need `g++` with at least C++17 support.
   - You need a python3 environment with required packages installed (try running the tests and you will be notified of the missing packages).
-  - You need to include the Catapult lib in your `LD_LIBRARY_PATH`. For example, `export LD_LIBRARY_PATH=/cad/mentor/2024.1/Mgc_home/lib:/cad/mentor/2024.1/Mgc_home/shared/lib:$LD_LIBRARY_PATH`.
-  - Note: you can change the `.envrc` file according to your system environment and use [`direnv`](https://direnv.net) to automatically load it.
 
 ### 3. Initialize the submodules
 ```bash
@@ -85,9 +83,6 @@ Upon completion, check the `regression_results` folder for the `latest` subfolde
 - `Makefile`: Builds the source code.
 - `run_regression.py`: Main script to invoke regression tests.
 
-## Integration
-The accelerator must be integrated into an SoC to be fully functional. We use the [Chipyard Framework](https://github.com/ucb-bar/chipyard) for this. Our fork [`soc`](https://code.stanford.edu/tsmc40r/brainpower/soc) of Chipyard includes the [`minotaur-blocks`](https://code.stanford.edu/tsmc40r/brainpower/minotaur-blocks) repo as a submodule under `soc/generators/minotaur-blocks`, which includes this [`accelerator`](https://code.stanford.edu/tsmc40r/brainpower/accelerator) repo under `minotaur-blocks/src/main/resources/sysc/accelerator`.
-
 ## Adding New Models
 To try a new model, you’ll need to modify this script:
 - [run_compiler.py](https://code.stanford.edu/tsmc40r/brainpower/accelerator/-/blob/compiler/test/compiler/run_compiler.py?ref_type=heads): Reference existing models to understand the required compilation steps.
@@ -95,8 +90,3 @@ To try a new model, you’ll need to modify this script:
 Add the network in the following file:
 - [codegen.mk](https://code.stanford.edu/tsmc40r/brainpower/accelerator/-/blob/compiler/codegen.mk?ref_type=heads): Specify the model and set up any required quantization.
 
-## TODO
-- [ ] Remove dependence on parameters `NETWORK` and `TESTS` in CI (they could change).
-- [ ] Introduce global CI variables for data paths, common flags, etc.
-- [ ] Get `end2end` Python script working again to run either a single `end2end` sample or a batch of samples for accuracy testing.
-- [ ] Add other ResNets and AlexNet to CI. Use Git patches to increase `#banks` in `VerificationTypes.h`.
