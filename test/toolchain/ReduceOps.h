@@ -165,24 +165,17 @@ void MapReduceOperation(const codegen::AcceleratorParam &param,
 
     const auto vector_input = reduce_param.input();
 
-    // reduction dimension depends on the input shape
-    // if it's a 4d tensor (conv), then the reduction dimension is the second
-    // dimension if it's a 3d tensor (gemm), then the reduction dimension is the
-    // last dimension
-
-    int reduction_dim_size = 1;
-    int tensor_dim_size = 1;
-    if (vector_input.shape_size() == 4) {
-      reduction_dim_size = vector_input.shape(1);
-      tensor_dim_size = vector_input.shape(2) * vector_input.shape(3);
-    } else if (vector_input.shape_size() == 3) {
-      reduction_dim_size = vector_input.shape(2);
-      tensor_dim_size = vector_input.shape(1);
-    } else {
-      std::cerr << "Unsupported tensor shape for calculate_mx_qparam"
-                << std::endl;
-      exit(1);
+    int mx_axis = reduce_param.dim(0);
+    if (mx_axis == -1) {
+      mx_axis = reduce_param.input().shape().size() - 1;
     }
+    int reduction_dim_size = reduce_param.input().shape(mx_axis);
+
+    int tensor_dim_size = 1;
+    for (int i = 0; i < reduce_param.input().shape().size(); i++) {
+      tensor_dim_size *= reduce_param.input().shape(i);
+    }
+    tensor_dim_size /= reduction_dim_size;
 
     // assume block size of 32
     int block_size = 32;
