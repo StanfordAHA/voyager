@@ -761,14 +761,21 @@ inline void adjust_tiling_for_dimension(Tiling& tiling) {
 
 inline Tiling get_linear_tiling(codegen::AcceleratorParam param) {
   const auto matrix_param = param.matrix_param();
-  const auto input_shape = matrix_param.has_mx_input()
-                               ? matrix_param.mx_input().input().shape()
-                               : matrix_param.input().shape();
-  const auto weight_shape = matrix_param.has_mx_weight()
-                                ? matrix_param.mx_weight().input().shape()
-                                : matrix_param.weight().shape();
-  const auto input = matrix_param.input();
-  const auto weight = matrix_param.weight();
+
+  const auto input = matrix_param.has_mx_input()
+                         ? matrix_param.mx_input().input()
+                         : matrix_param.input();
+  const auto input_shape = input.has_permutation()
+                               ? input.permutation().output_shape()
+                               : input.shape();
+
+  const auto weight = matrix_param.has_mx_weight()
+                          ? matrix_param.mx_weight().input()
+                          : matrix_param.weight();
+
+  const auto weight_shape = weight.has_permutation()
+                                ? weight.permutation().output_shape()
+                                : weight.shape();
 
   // TODO: we should use OC_DIMENSION and IC_DIMENSION instead
   const int oc_dim = 16;
@@ -786,7 +793,7 @@ inline Tiling get_linear_tiling(codegen::AcceleratorParam param) {
 
   // torch.matmul weight is also an activation
   if (matrix_param.opcode() == "matmul") {
-    int size = matrix_param.weight().shape_size();
+    int size = weight_shape.size();
     c0 = weight_shape[size - 2] / ic_dim;
     k0 = weight_shape[size - 1] / oc_dim;
   }
