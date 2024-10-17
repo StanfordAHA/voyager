@@ -141,6 +141,7 @@ def flatten_args(mixed_list):
 
 
 def transform(
+    compiler_args,
     model: torch.fx.GraphModule,
     example_args,
     example_kwargs=None,
@@ -203,6 +204,15 @@ def transform(
         print(f"{node.name}: {partition.start}, {partition.end}")
 
     params = gen_code(gm, uplifted_args, os.path.join(output_dir, "tensor_files"))
+
+    # NOTE: This is a temporary fix for resnet18 and resnet50, where we need to force the dtype of bias to bfloat16.
+    # for resnet18 and resnet50, we use per-tensor instead of microscaling for conv1.
+    # bias is quantized to int32, but we need to force the dtype as bfloat16, since the microscaling hardware uses bfloat16 for bias
+    if "microscaling" in args.activation and args.model in ["resnet18", "resnet50"]:
+        for param in params.params:
+            print(param)
+            if param.name == "submodule_0":
+                param.matrix_param.bias.dtype = "bfloat16"
 
     with open(os.path.join(output_dir, "params.pb"), "wb") as f:
         f.write(params.SerializeToString())
@@ -295,7 +305,7 @@ if __name__ == "__main__":
             bias_qspec = DerivedQuantizationSpec(
                 derived_from=None,
                 derive_qparams_fn=derive_bias_qparams_fn,
-                dtype="int24",
+                dtype="int32",
             )
 
             qconfig = QuantizationConfig(qspec, None, qspec, bias_qspec)
@@ -316,6 +326,7 @@ if __name__ == "__main__":
         convert_pt2e(model)
 
         pt_out, gm_out = transform(
+            args,
             model,
             example_args,
             output_file=args.model,
@@ -340,6 +351,7 @@ if __name__ == "__main__":
         convert_pt2e(model)
 
         pt_out, gm_out = transform(
+            args,
             model,
             example_args,
             output_file="segformer",
@@ -452,6 +464,7 @@ if __name__ == "__main__":
         convert_pt2e(gm)
 
         pt_out, gm_out = transform(
+            args,
             gm,
             example_args,
             output_file="mobilebert",
@@ -502,6 +515,7 @@ if __name__ == "__main__":
         convert_pt2e(gm)
 
         pt_out, gm_out = transform(
+            args,
             gm,
             example_args,
             output_file="mobilebert",
@@ -560,6 +574,7 @@ if __name__ == "__main__":
         convert_pt2e(gm)
 
         pt_out, gm_out = transform(
+            args,
             gm,
             example_args,
             output_file="bert",
@@ -595,6 +610,7 @@ if __name__ == "__main__":
         convert_pt2e(model)
 
         pt_out, gm_out = transform(
+            args,
             model,
             example_args,
             output_file=args.model,
@@ -626,6 +642,7 @@ if __name__ == "__main__":
         convert_pt2e(model)
 
         pt_out, gm_out = transform(
+            args,
             model,
             example_args,
             output_file=args.model,
