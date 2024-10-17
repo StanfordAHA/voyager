@@ -543,7 +543,7 @@ SC_MODULE(WeightController) {
 
                               if (params.WEIGHT_TRANSPOSE &&
                                   OC_DIMENSION > IC_DIMENSION) {
-                                (fy * FX * C * 2 * K1) + (fx * C * 2 * K1) +
+                                address = (fy * FX * C * 2 * K1) + (fx * C * 2 * K1) +
                                     (c + rep * NROWS) * K1 + k1;
                               }
                               readAddress[bankSel].Push(address);
