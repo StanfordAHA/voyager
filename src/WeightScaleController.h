@@ -30,7 +30,7 @@ SC_MODULE(WeightScaleController) {
 
   Connections::Combinational<Pack1D<DTYPE, NCOLS> > transposeOut;
 
-  MatrixParamsDeserializer<2> CCS_INIT_S1(paramsDeserializer);
+  MatrixParamsDeserializer<4> CCS_INIT_S1(paramsDeserializer);
 
   SC_CTOR(WeightScaleController) {
     paramsDeserializer.clk(clk);

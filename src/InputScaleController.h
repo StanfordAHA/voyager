@@ -30,7 +30,7 @@ SC_MODULE(InputScaleController) {
 
   Connections::Combinational<Pack1D<DTYPE, 1> > transposeOut;
 
-  MatrixParamsDeserializer<0> CCS_INIT_S1(paramsDeserializer);
+  MatrixParamsDeserializer<3> CCS_INIT_S1(paramsDeserializer);
 
   SC_CTOR(InputScaleController) {
     paramsDeserializer.clk(clk);
