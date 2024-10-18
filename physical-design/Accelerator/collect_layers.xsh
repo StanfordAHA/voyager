@@ -29,6 +29,11 @@ def collect_layers(networks: list, datatype: str, verbose: bool = False):
         layer_params = {}
 
         for lp in layer_params_json['params']:
+            # ignore nop layers
+            if 'nop' in lp:
+                if verbose:
+                    print(f"Skipping {network} nop layer: {lp['name']}")
+                continue
             name = lp['name']
             delete_nested_keys(lp, "name")
             delete_nested_keys(lp, "memory")
@@ -52,6 +57,6 @@ def collect_layers(networks: list, datatype: str, verbose: bool = False):
     return layers
 
 if __name__ == "__main__":
-    layers = collect_layers(["resnet18", "resnet50"], "E4M3")
+    layers = collect_layers(["mobilebert_encoder", "resnet18", "resnet50"], "E4M3", verbose=True)
     pprint(layers)
 
