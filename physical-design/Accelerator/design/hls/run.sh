@@ -27,11 +27,9 @@ if [ "${waveform}" == "True" ]; then
   echo "dump -add sc_main/harness/accelerator/ccs_rtl" >build/Catapult/dump.do
 fi
 
-# build TestRunner
-make -j TestRunner BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} IC_DIMENSION=${ic_dimension} OC_DIMENSION=${oc_dimension} INPUT_BUFFER_SIZE=${input_buffer_size} WEIGHT_BUFFER_SIZE=${weight_buffer_size} ACCUM_BUFFER_SIZE=${accum_buffer_size}
 # generate RTL
 # note: make rtl would try to write to release folder as well, so I bypass it this way. Ugly, but works for now
-make -j8 ${CATAPULT_BUILD_DIR}/Accelerator/Accelerator.v1/concat_rtl.v BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} OC_DIMENSION=${oc_dimension} IC_DIMENSION=${ic_dimension} INPUT_BUFFER_SIZE=${input_buffer_size} WEIGHT_BUFFER_SIZE=${weight_buffer_size} ACCUM_BUFFER_SIZE=${accum_buffer_size} CLOCK_PERIOD=${clock_period} TECHNOLOGY=${technology}
+make -j8 Accelerator BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} OC_DIMENSION=${oc_dimension} IC_DIMENSION=${ic_dimension} INPUT_BUFFER_SIZE=${input_buffer_size} WEIGHT_BUFFER_SIZE=${weight_buffer_size} ACCUM_BUFFER_SIZE=${accum_buffer_size} CLOCK_PERIOD=${clock_period} TECHNOLOGY=${technology}
 
 # WARN: so far concat_rtl.v and concat_sim_rtl.v are identical, but may need to differentiate for synthesis and simulation
 [[ -f ${CATAPULT_BUILD_DIR}/Accelerator/Accelerator.v1/concat_rtl.v ]] || {
