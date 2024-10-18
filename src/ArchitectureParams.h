@@ -200,6 +200,8 @@ using BF16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 
 #define MX_DATATYPE Scale<8>
 
+#define SUPPORT_MX true
+
 #elif defined(CFLOAT)
 
 #define INPUT_DATATYPE CFloat
@@ -221,6 +223,10 @@ using BF16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 
 #if !defined MX_DATATYPE
 #define MX_DATATYPE INPUT_DATATYPE
+#endif
+
+#if !defined SUPPORT_MX
+#define SUPPORT_MX false
 #endif
 
 #if !defined(IC_DIMENSION)

@@ -60,12 +60,8 @@ Harness::Harness(sc_module_name name,
   accelerator.serialVectorParamsIn(serialVectorParamsIn);
   accelerator.inputAddressRequest(inputAddressRequest);
   accelerator.inputDataResponse(inputDataResponse);
-  accelerator.inputScaleAddressRequest(inputScaleAddressRequest);
-  accelerator.inputScaleDataResponse(inputScaleDataResponse);
   accelerator.weightAddressRequest(weightAddressRequest);
   accelerator.weightDataResponse(weightDataResponse);
-  accelerator.weightScaleAddressRequest(weightScaleAddressRequest);
-  accelerator.weightScaleDataResponse(weightScaleDataResponse);
   accelerator.biasAddressRequest(biasAddressRequest);
   accelerator.biasDataResponse(biasDataResponse);
   accelerator.vectorFetch0AddressRequest(vectorFetch0AddressRequest);
@@ -81,6 +77,13 @@ Harness::Harness(sc_module_name name,
   accelerator.matrixUnitDoneSignal(matrixUnitDoneSignal);
   accelerator.vectorUnitStartSignal(vectorUnitStartSignal);
   accelerator.vectorUnitDoneSignal(vectorUnitDoneSignal);
+
+#if SUPPORT_MX
+  accelerator.inputScaleAddressRequest(inputScaleAddressRequest);
+  accelerator.inputScaleDataResponse(inputScaleDataResponse);
+  accelerator.weightScaleAddressRequest(weightScaleAddressRequest);
+  accelerator.weightScaleDataResponse(weightScaleDataResponse);
+#endif
 
 #ifdef SOC_COSIM
   init_checkers();
@@ -107,6 +110,7 @@ Harness::Harness(sc_module_name name,
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
 
+#if SUPPORT_MX
   SC_THREAD(readRequestInputScale);
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
@@ -114,6 +118,7 @@ Harness::Harness(sc_module_name name,
   SC_THREAD(sendResponseInputScale);
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
+#endif
 
   SC_THREAD(readRequestWeights);
   sensitive << clk.posedge_event();
@@ -123,6 +128,7 @@ Harness::Harness(sc_module_name name,
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
 
+#if SUPPORT_MX
   SC_THREAD(readRequestWeightScale);
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
@@ -130,6 +136,7 @@ Harness::Harness(sc_module_name name,
   SC_THREAD(sendResponseWeightScale);
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
+#endif
 
   SC_THREAD(readRequestVector0);
   sensitive << clk.posedge_event();
@@ -252,11 +259,15 @@ void Harness::sendResponseInputs() {
 }
 
 void Harness::readRequestInputScale() {
+#if SUPPORT_MX
   readMemoryRequest(&inputScaleAddressRequest, &inputScaleDataResponse_fifo,
                     "inputs");
+#endif
 }
 void Harness::sendResponseInputScale() {
+#if SUPPORT_MX
   sendMemoryResponse(&inputScaleDataResponse_fifo, &inputScaleDataResponse);
+#endif
 }
 
 void Harness::readRequestWeights() {
@@ -267,11 +278,15 @@ void Harness::sendResponseWeights() {
 }
 
 void Harness::readRequestWeightScale() {
+#if SUPPORT_MX
   readMemoryRequest(&weightScaleAddressRequest, &weightScaleDataResponse_fifo,
                     "weights");
+#endif
 }
 void Harness::sendResponseWeightScale() {
+#if SUPPORT_MX
   sendMemoryResponse(&weightScaleDataResponse_fifo, &weightScaleDataResponse);
+#endif
 }
 
 void Harness::readRequestVector0() {

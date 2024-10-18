@@ -66,13 +66,13 @@ SC_MODULE(MatrixProcessor) {
       weightsToSystolicArray[NCOLS];
 
   // only used for MX
-  Connections::Combinational<MatrixParams> CCS_INIT_S1(
+  Connections::ConditionalCombinational<MatrixParams, IS_MX> CCS_INIT_S1(
       accumulationBufferParams);
-  Connections::Combinational<Pack1D<ODTYPE, NCOLS> > CCS_INIT_S1(
+  Connections::ConditionalCombinational<Pack1D<ODTYPE, NCOLS>, IS_MX > CCS_INIT_S1(
       unscaledAccumulationChannel);
 
-  Connections::In<Pack1D<IDTYPE, 1> > CCS_INIT_S1(inputScaleChannel);
-  Connections::In<Pack1D<IDTYPE, NCOLS> > CCS_INIT_S1(weightScaleChannel);
+  Connections::ConditionalIn<Pack1D<IDTYPE, 1>, IS_MX > CCS_INIT_S1(inputScaleChannel);
+  Connections::ConditionalIn<Pack1D<IDTYPE, NCOLS>, IS_MX > CCS_INIT_S1(weightScaleChannel);
 
   Connections::SyncOut CCS_INIT_S1(startSignal);
   Connections::SyncOut CCS_INIT_S1(doneSignal);
@@ -551,189 +551,192 @@ SC_MODULE(MatrixProcessor) {
 
   // This thread is only used for MX
   void process_accumulation() {
-    unscaledAccumulationChannel.ResetRead();
-    accumulationBufferParams.ResetRead();
-    inputScaleChannel.Reset();
-    weightScaleChannel.Reset();
+    if constexpr (IS_MX) {
+      unscaledAccumulationChannel.ResetRead();
+      accumulationBufferParams.ResetRead();
+      inputScaleChannel.Reset();
+      weightScaleChannel.Reset();
 
-    outputsChannel.Reset();
+      outputsChannel.Reset();
 
-    wait();
+      wait();
 
-    while (true) {
-      CCS_LOG("start");
+      while (true) {
+        CCS_LOG("start");
 
-      const MatrixParams params = accumulationBufferParams.Pop();
-      ac_int<8, false> loop_counters[2][6];
-      ac_int<8, false> loop_bounds[2][6];
+        const MatrixParams params = accumulationBufferParams.Pop();
+        ac_int<8, false> loop_counters[2][6];
+        ac_int<8, false> loop_bounds[2][6];
 #pragma hls_unroll yes
-      for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 2; i++) {
 #pragma hls_unroll yes
-        for (int j = 0; j < 6; j++) {
-          loop_counters[i][j] = 0;
-          loop_bounds[i][j] = params.loops[i][j];
+          for (int j = 0; j < 6; j++) {
+            loop_counters[i][j] = 0;
+            loop_bounds[i][j] = params.loops[i][j];
+          }
         }
-      }
 
-      ac_int<32, false> totalOps =
-          params.loops[0][0] * params.loops[0][1] * params.loops[0][2] *
-          params.loops[1][0] * params.loops[1][1] * params.loops[1][2] *
-          params.loops[1][3] * params.loops[1][4] * params.loops[1][5];
+        ac_int<32, false> totalOps =
+            params.loops[0][0] * params.loops[0][1] * params.loops[0][2] *
+            params.loops[1][0] * params.loops[1][1] * params.loops[1][2] *
+            params.loops[1][3] * params.loops[1][4] * params.loops[1][5];
 
 #ifdef __SYNTHESIS__
-      Pack1D<ACCUM_BUFFER_TYPE, NCOLS> accumulation_buffer[BUFFER_SIZE];
+        Pack1D<ACCUM_BUFFER_TYPE, NCOLS> accumulation_buffer[BUFFER_SIZE];
 #else
-      Pack1D<ACCUM_BUFFER_TYPE, NCOLS> *accumulation_buffer =
-          new Pack1D<ACCUM_BUFFER_TYPE, NCOLS>[BUFFER_SIZE];
+        Pack1D<ACCUM_BUFFER_TYPE, NCOLS> *accumulation_buffer =
+            new Pack1D<ACCUM_BUFFER_TYPE, NCOLS>[BUFFER_SIZE];
 #endif
 
-      ac_int<32, false> step = 0;
+        ac_int<32, false> step = 0;
 
-      Pack1D<ACCUM_BUFFER_TYPE, NCOLS> bias;
-      Pack1D<IDTYPE, NCOLS> weightScales;
+        Pack1D<ACCUM_BUFFER_TYPE, NCOLS> bias;
+        Pack1D<IDTYPE, NCOLS> weightScales;
 
-      // loop indices that are used to determine when to read in a new bias
-      int biasReuseIndices[4] = {5, 5, 5, 5};
-      for (int i = 5; i > params.weightLoopIndex[1]; i--) {
-        biasReuseIndices[5 - i] = i;
-      }
+        // loop indices that are used to determine when to read in a new bias
+        int biasReuseIndices[4] = {5, 5, 5, 5};
+        for (int i = 5; i > params.weightLoopIndex[1]; i--) {
+          biasReuseIndices[5 - i] = i;
+        }
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
-      while (step < totalOps) {
-        // CCS_LOG("acc step " << step << " out of " << totalOps);
-        bool firstAccumulation =
-            loop_counters[1][params.reductionLoopIndex[1]] == 0 &&
-            loop_counters[1][params.fxIndex] == 0 &&
-            loop_counters[1][params.fyIndex] == 0;
+        while (step < totalOps) {
+          // CCS_LOG("acc step " << step << " out of " << totalOps);
+          bool firstAccumulation =
+              loop_counters[1][params.reductionLoopIndex[1]] == 0 &&
+              loop_counters[1][params.fxIndex] == 0 &&
+              loop_counters[1][params.fyIndex] == 0;
 
-        Pack1D<ACCUM_BUFFER_TYPE, NCOLS> previous_accumulation;
+          Pack1D<ACCUM_BUFFER_TYPE, NCOLS> previous_accumulation;
 
 #pragma hls_unroll yes
-        for (int i = 0; i < NCOLS; i++) {
-          previous_accumulation.value[i].setZero();
-        }
-
-        if (firstAccumulation) {
-          if (params.BIAS) {
-            bool readBias = true;
-#pragma hls_unroll yes
-            for (int i = 0; i < 4; i++) {
-              readBias =
-                  readBias && (loop_counters[1][biasReuseIndices[i]] == 0);
-            }
-
-            if (readBias) {
-              bias = biasChannel.Pop();
-              // CCS_LOG("bias: " << bias);
-            }
-
-            previous_accumulation = bias;
+          for (int i = 0; i < NCOLS; i++) {
+            previous_accumulation.value[i].setZero();
           }
-        } else {
-          int readAddress = static_cast<ac_int<10, false> >(
-                                loop_counters[1][params.weightLoopIndex[1]] *
-                                params.loops[1][params.inputXLoopIndex[1]] *
-                                params.loops[1][params.inputYLoopIndex[1]]) +
-                            static_cast<ac_int<10, false> >(
-                                loop_counters[1][params.inputYLoopIndex[1]] *
-                                params.loops[1][params.inputXLoopIndex[1]]) +
-                            loop_counters[1][params.inputXLoopIndex[1]];
 
-          previous_accumulation = accumulation_buffer[readAddress];
-        }
-
-        Pack1D<ODTYPE, NCOLS> outputs;
-        outputs = unscaledAccumulationChannel.Pop();
-
-        // CCS_LOG("outputs: " << outputs);
-
-        // TODO: add scale factors and scale the psum
-        Pack1D<IDTYPE, 1> inputScale;
-        if (params.MX) {
-          inputScale = inputScaleChannel.Pop();
-        }
-
-        bool readNewWeights;
-        if (params.weightReuseIndex[0] != params.weightReuseIndex[1]) {
-          readNewWeights =
-              (loop_counters[1][params.weightReuseIndex[1]] == 0) &&
-              (loop_counters[1][params.weightReuseIndex[0]] == 0);
-        } else {
-          readNewWeights = (loop_counters[1][params.weightReuseIndex[1]] == 0);
-        }
-        readNewWeights = readNewWeights || step == 0;
-        if (readNewWeights && params.MX) {
-          weightScales = weightScaleChannel.Pop();
-          // CCS_LOG("weightScales: " << weightScales);
-        }
-
-        Pack1D<ACCUM_BUFFER_TYPE, NCOLS> scaled_outputs;
-
+          if (firstAccumulation) {
+            if (params.BIAS) {
+              bool readBias = true;
 #pragma hls_unroll yes
-        for (int i = 0; i < NCOLS; i++) {
-          IDTYPE scale = inputScale[0] + weightScales[i];
-          // CCS_LOG("scale: " << scale);
-          // IDTYPE scale = inputScale[0];
-          scaled_outputs[i] = static_cast<ACCUM_BUFFER_TYPE>(outputs[i]);
-          // CCS_LOG("scaled_outputs: " << scaled_outputs[i]);
+              for (int i = 0; i < 4; i++) {
+                readBias =
+                    readBias && (loop_counters[1][biasReuseIndices[i]] == 0);
+              }
+
+              if (readBias) {
+                bias = biasChannel.Pop();
+                // CCS_LOG("bias: " << bias);
+              }
+
+              previous_accumulation = bias;
+            }
+          } else {
+            int readAddress = static_cast<ac_int<10, false> >(
+                                  loop_counters[1][params.weightLoopIndex[1]] *
+                                  params.loops[1][params.inputXLoopIndex[1]] *
+                                  params.loops[1][params.inputYLoopIndex[1]]) +
+                              static_cast<ac_int<10, false> >(
+                                  loop_counters[1][params.inputYLoopIndex[1]] *
+                                  params.loops[1][params.inputXLoopIndex[1]]) +
+                              loop_counters[1][params.inputXLoopIndex[1]];
+
+            previous_accumulation = accumulation_buffer[readAddress];
+          }
+
+          Pack1D<ODTYPE, NCOLS> outputs;
+          outputs = unscaledAccumulationChannel.Pop();
+
+          // CCS_LOG("outputs: " << outputs);
+
+          // TODO: add scale factors and scale the psum
+          Pack1D<IDTYPE, 1> inputScale;
           if (params.MX) {
-            scaled_outputs[i].expScale(scale.int_val);
+            inputScale = inputScaleChannel.Pop();
           }
-          // CCS_LOG("scaled_outputs after scale: " << scaled_outputs[i]);
-          previous_accumulation.value[i] += scaled_outputs[i];
-        }
-        int addr = static_cast<ac_int<10, false> >(
-                       loop_counters[1][params.weightLoopIndex[1]] *
-                       params.loops[1][params.inputXLoopIndex[1]] *
-                       params.loops[1][params.inputYLoopIndex[1]]) +
-                   static_cast<ac_int<10, false> >(
-                       loop_counters[1][params.inputYLoopIndex[1]] *
-                       params.loops[1][params.inputXLoopIndex[1]]) +
-                   loop_counters[1][params.inputXLoopIndex[1]];
-        if (addr == 0) {
-          IDTYPE scale = inputScale[0] + weightScales[0];
-          // CCS_LOG(inputScale[0] << " + " << weightScales[0] << " = " <<
-          // scale); CCS_LOG("scaled psums: " << previous_accumulation);
-        }
 
-        bool accumulationFinished =
-            (loop_counters[1][params.reductionLoopIndex[1]] ==
-             params.loops[1][params.reductionLoopIndex[1]] - 1) &&
-            (loop_counters[1][params.fxIndex] ==
-             params.loops[1][params.fxIndex] - 1) &&
-            (loop_counters[1][params.fyIndex] ==
-             params.loops[1][params.fyIndex] - 1);
+          bool readNewWeights;
+          if (params.weightReuseIndex[0] != params.weightReuseIndex[1]) {
+            readNewWeights =
+                (loop_counters[1][params.weightReuseIndex[1]] == 0) &&
+                (loop_counters[1][params.weightReuseIndex[0]] == 0);
+          } else {
+            readNewWeights =
+                (loop_counters[1][params.weightReuseIndex[1]] == 0);
+          }
+          readNewWeights = readNewWeights || step == 0;
+          if (readNewWeights && params.MX) {
+            weightScales = weightScaleChannel.Pop();
+            // CCS_LOG("weightScales: " << weightScales);
+          }
 
-        if (accumulationFinished) {
-          outputsChannel.Push(previous_accumulation);
-          // CCS_LOG("matrix processor output: " << previous_accumulation);
-        } else {
-          int writeAddress = static_cast<ac_int<10, false> >(
-                                 loop_counters[1][params.weightLoopIndex[1]] *
-                                 params.loops[1][params.inputXLoopIndex[1]] *
-                                 params.loops[1][params.inputYLoopIndex[1]]) +
-                             static_cast<ac_int<10, false> >(
-                                 loop_counters[1][params.inputYLoopIndex[1]] *
-                                 params.loops[1][params.inputXLoopIndex[1]]) +
-                             loop_counters[1][params.inputXLoopIndex[1]];
+          Pack1D<ACCUM_BUFFER_TYPE, NCOLS> scaled_outputs;
 
-          accumulation_buffer[writeAddress] = previous_accumulation;
-        }
-
-        step++;
-        loop_counters[1][5]++;
 #pragma hls_unroll yes
-        for (int i = 1; i >= 0; i--) {
+          for (int i = 0; i < NCOLS; i++) {
+            IDTYPE scale = inputScale[0] + weightScales[i];
+            // CCS_LOG("scale: " << scale);
+            // IDTYPE scale = inputScale[0];
+            scaled_outputs[i] = static_cast<ACCUM_BUFFER_TYPE>(outputs[i]);
+            // CCS_LOG("scaled_outputs: " << scaled_outputs[i]);
+            if (params.MX) {
+              scaled_outputs[i].expScale(scale.int_val);
+            }
+            // CCS_LOG("scaled_outputs after scale: " << scaled_outputs[i]);
+            previous_accumulation.value[i] += scaled_outputs[i];
+          }
+          int addr = static_cast<ac_int<10, false> >(
+                         loop_counters[1][params.weightLoopIndex[1]] *
+                         params.loops[1][params.inputXLoopIndex[1]] *
+                         params.loops[1][params.inputYLoopIndex[1]]) +
+                     static_cast<ac_int<10, false> >(
+                         loop_counters[1][params.inputYLoopIndex[1]] *
+                         params.loops[1][params.inputXLoopIndex[1]]) +
+                     loop_counters[1][params.inputXLoopIndex[1]];
+          if (addr == 0) {
+            IDTYPE scale = inputScale[0] + weightScales[0];
+            // CCS_LOG(inputScale[0] << " + " << weightScales[0] << " = " <<
+            // scale); CCS_LOG("scaled psums: " << previous_accumulation);
+          }
+
+          bool accumulationFinished =
+              (loop_counters[1][params.reductionLoopIndex[1]] ==
+               params.loops[1][params.reductionLoopIndex[1]] - 1) &&
+              (loop_counters[1][params.fxIndex] ==
+               params.loops[1][params.fxIndex] - 1) &&
+              (loop_counters[1][params.fyIndex] ==
+               params.loops[1][params.fyIndex] - 1);
+
+          if (accumulationFinished) {
+            outputsChannel.Push(previous_accumulation);
+            // CCS_LOG("matrix processor output: " << previous_accumulation);
+          } else {
+            int writeAddress = static_cast<ac_int<10, false> >(
+                                   loop_counters[1][params.weightLoopIndex[1]] *
+                                   params.loops[1][params.inputXLoopIndex[1]] *
+                                   params.loops[1][params.inputYLoopIndex[1]]) +
+                               static_cast<ac_int<10, false> >(
+                                   loop_counters[1][params.inputYLoopIndex[1]] *
+                                   params.loops[1][params.inputXLoopIndex[1]]) +
+                               loop_counters[1][params.inputXLoopIndex[1]];
+
+            accumulation_buffer[writeAddress] = previous_accumulation;
+          }
+
+          step++;
+          loop_counters[1][5]++;
 #pragma hls_unroll yes
-          for (int j = 5; j >= 0; j--) {
-            if (loop_counters[i][j] == params.loops[i][j]) {
-              loop_counters[i][j] = 0;
-              if (j > 0) {
-                loop_counters[i][j - 1]++;
-              } else {
-                if (i > 0) {
-                  loop_counters[i - 1][5]++;
+          for (int i = 1; i >= 0; i--) {
+#pragma hls_unroll yes
+            for (int j = 5; j >= 0; j--) {
+              if (loop_counters[i][j] == params.loops[i][j]) {
+                loop_counters[i][j] = 0;
+                if (j > 0) {
+                  loop_counters[i][j - 1]++;
+                } else {
+                  if (i > 0) {
+                    loop_counters[i - 1][5]++;
+                  }
                 }
               }
             }

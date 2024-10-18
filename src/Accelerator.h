@@ -68,17 +68,20 @@ SC_MODULE(Accelerator) {
     matrixUnit.serialMatrixParamsIn(serialMatrixParamsIn);
     matrixUnit.inputAddressRequest(inputAddressRequest);
     matrixUnit.inputDataResponse(inputDataResponse);
-    matrixUnit.inputScaleAddressRequest(inputScaleAddressRequest);
-    matrixUnit.inputScaleDataResponse(inputScaleDataResponse);
     matrixUnit.weightAddressRequest(weightAddressRequest);
     matrixUnit.weightDataResponse(weightDataResponse);
-    matrixUnit.weightScaleAddressRequest(weightScaleAddressRequest);
-    matrixUnit.weightScaleDataResponse(weightScaleDataResponse);
     matrixUnit.biasAddressRequest(biasAddressRequest);
     matrixUnit.biasDataResponse(biasDataResponse);
     matrixUnit.outputsFromSystolicArray(outputsFromSystolicArray);
     matrixUnit.startSignal(matrixUnitStartSignal);
     matrixUnit.doneSignal(matrixUnitDoneSignal);
+
+#if SUPPORT_MX
+    matrixUnit.inputScaleAddressRequest(inputScaleAddressRequest);
+    matrixUnit.inputScaleDataResponse(inputScaleDataResponse);
+    matrixUnit.weightScaleAddressRequest(weightScaleAddressRequest);
+    matrixUnit.weightScaleDataResponse(weightScaleDataResponse);
+#endif
 
     vectorUnit.clk(clk);
     vectorUnit.rstn(rstn);
