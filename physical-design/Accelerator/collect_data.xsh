@@ -235,7 +235,10 @@ if __name__ == "__main__":
     # Get the headers, for tests, need to get its first-level keys
     header = list(result_[list(result_)[0]].keys())
     header.remove("tests")
-    header += list(result_[list(result_)[0]]["tests"][0])
+    try:
+      header += list(result_[list(result_)[0]]["tests"][0])
+    except:
+      pass
 
     dw = csv.DictWriter(f, fieldnames=header, extrasaction='ignore')
     dw.writeheader()
@@ -335,7 +338,10 @@ if __name__ == "__main__":
     
     header = list(results_[list(results_)[0]].keys())
     header.remove("tests")
-    header += list(results_[list(results_)[0]]["tests"][0])
+    try:
+      header += list(results_[list(results_)[0]]["tests"][0])
+    except:
+      pass
     dw = csv.DictWriter(f, fieldnames=header, extrasaction='ignore')
     dw.writeheader()
 
