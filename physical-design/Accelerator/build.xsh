@@ -7,7 +7,7 @@ from pprint import pprint
 from collect_layers import collect_layers
 
 build_params = {
-    "datatype": "INT8",
+    "datatype": "INT8_32",
     "ic_dimension": 16,
     "oc_dimension": 16,
     "clock_period": 1,
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
     # Modify clock period  for hls stage if it's 1ns
     # this assumes hls is step 7, unfortunately mflowgen doesn't support explicit step name in this command
-    if build_params['clock_period'] == 1:
-        mflowgen param update -k clock_period -v 1.1 -s 7
-        print(f"Step 7 clock period updated. Please make sure it's the hls stage.")
+    # if build_params['clock_period'] == 1:
+    #     mflowgen param update -k clock_period -v 1.1 -s 7
+    #     print(f"Step 7 clock period updated. Please make sure it's the hls stage.")
 
