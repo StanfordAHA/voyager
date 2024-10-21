@@ -77,8 +77,8 @@ OPERATOR_MAPPINGS = {
         torch.ops.quantized_ops.linear_mx.default,
         torch.ops.quantized_ops.matmul_mx.default,
     ],
-    "quantize": [torch.ops.quantized_ops.quantize_symmetric],
-    "dequantize": [torch.ops.quantized_ops.dequantize_symmetric],
+    "quantize": [torch.ops.quantized_ops.quantize],
+    "dequantize": [torch.ops.quantized_ops.dequantize],
 }
 
 
@@ -205,15 +205,6 @@ def transform(
 
     params = gen_code(gm, uplifted_args, os.path.join(output_dir, "tensor_files"))
 
-    # NOTE: This is a temporary fix for resnet18 and resnet50, where we need to force the dtype of bias to bfloat16.
-    # for resnet18 and resnet50, we use per-tensor instead of microscaling for conv1.
-    # bias is quantized to int32, but we need to force the dtype as bfloat16, since the microscaling hardware uses bfloat16 for bias
-    if "microscaling" in args.activation and args.model in ["resnet18", "resnet50"]:
-        for param in params.params:
-            print(param)
-            if param.name == "submodule_0":
-                param.matrix_param.bias.dtype = "bfloat16"
-
     with open(os.path.join(output_dir, "params.pb"), "wb") as f:
         f.write(params.SerializeToString())
 
@@ -305,7 +296,7 @@ if __name__ == "__main__":
             bias_qspec = DerivedQuantizationSpec(
                 derived_from=None,
                 derive_qparams_fn=derive_bias_qparams_fn,
-                dtype="int32",
+                dtype=None,
             )
 
             qconfig = QuantizationConfig(qspec, None, qspec, bias_qspec)
@@ -323,7 +314,7 @@ if __name__ == "__main__":
             with torch.no_grad():
                 model(inputs.pixel_values.to(torch_dtype))
 
-        convert_pt2e(model)
+        convert_pt2e(model, args.bias)
 
         pt_out, gm_out = transform(
             args,
@@ -348,7 +339,7 @@ if __name__ == "__main__":
         example_args = (torch.randn(1, 3, 512, 672),)
 
         model = prepare_pt2e(model, quantizer, example_args)
-        convert_pt2e(model)
+        convert_pt2e(model, args.bias)
 
         pt_out, gm_out = transform(
             args,
@@ -461,7 +452,7 @@ if __name__ == "__main__":
             if step == 19:
                 break
 
-        convert_pt2e(gm)
+        convert_pt2e(gm, args.bias)
 
         pt_out, gm_out = transform(
             args,
@@ -512,7 +503,7 @@ if __name__ == "__main__":
         for name, param in gm.named_parameters():
             param.data.div_(100.0)
 
-        convert_pt2e(gm)
+        convert_pt2e(gm, args.bias)
 
         pt_out, gm_out = transform(
             args,
@@ -571,7 +562,7 @@ if __name__ == "__main__":
         example_args = (embedding_output, extended_attention_mask, head_mask)
 
         gm = prepare_pt2e(BertNoEmbed(), quantizer, example_args)
-        convert_pt2e(gm)
+        convert_pt2e(gm, args.bias)
 
         pt_out, gm_out = transform(
             args,
@@ -607,7 +598,7 @@ if __name__ == "__main__":
 
         model = prepare_pt2e(model, quantizer, example_args)
 
-        convert_pt2e(model)
+        convert_pt2e(model, args.bias)
 
         pt_out, gm_out = transform(
             args,
