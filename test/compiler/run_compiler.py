@@ -478,12 +478,23 @@ if __name__ == "__main__":
             None,
         )
 
-        # turn off microscaling for matmul
         if "microscaling" in args.activation:
+            # turn off microscaling for matmul
             qspec = QuantizationSpec.from_str("int8,qs=per_tensor_symmetric")
             qspec.observer_or_fake_quant_ctr = FusedAmaxObsFakeQuantize
             qconfig = QuantizationConfig(qspec, None, qspec, None)
             quantizer.set_object_type(torch.ops.aten.matmul.default, qconfig)
+
+            # turn off microscaling for op with permute
+            bias_qspec = DerivedQuantizationSpec(
+                derived_from=None,
+                derive_qparams_fn=derive_bias_qparams_fn,
+                dtype=None,
+            )
+            qconfig = QuantizationConfig(qspec, None, qspec, bias_qspec)
+            quantizer.set_module_name(
+                "G['model'].mobilebert.encoder.layer[0].attention.output.dense", qconfig
+            )
 
         class MobileBertEncoder(torch.nn.Module):
             def __init__(self):
