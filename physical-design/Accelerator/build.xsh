@@ -41,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument("--clock", type=float, default=None, help="Clock Period in ns")
     parser.add_argument("--no-sweep", action="store_true", help="Disable parameter sweep")
     parser.add_argument("--sweep", action="store_true", help="Enable parameter sweep")
+    parser.add_argument("--no-waveform", action="store_true", help="Don't waveform")
 
     args = parser.parse_args()
 
@@ -59,6 +60,7 @@ if __name__ == "__main__":
         print("Cannot have both --no-sweep and --sweep. Defaulting to sweep.")
         exit(1)
     sim_params["sweep"] = True if args.sweep else False if args.no_sweep else sim_params["sweep"]
+    sim_params["waveform"] = False if args.no_waveform else sim_params["waveform"]
 
     # Make sure the dataset for default network is generated
     if not os.path.exists(f"../accel-src/test/compiler/networks/{sim_params['network']}/{build_params['datatype']}"):
