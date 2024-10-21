@@ -3,12 +3,16 @@ flow run /MemGen/MemoryGenerator_BuildLib {
 VENDOR           Intel
 RTLTOOL          DesignCompiler
 TECHNOLOGY       16
-LIBRARY          intel16_sram_wrapper_1024x64_1r1w
-MODULE           intel16_sram_wrapper_1024x64_1r1w
+LIBRARY          intel16_sram_wrapper_1r1w
+MODULE           intel16_sram_wrapper_1r1w
 OUTPUT_DIR       ./memories
 FILES {
-  { FILENAME memories/intel16_sram_wrapper_1024x64_1r1w.v FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
-  { FILENAME memories/ip224rfsbhpm1r1w1024x64m2.v         FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
+  { FILENAME memories/intel16_sram_wrapper_1r1w.v    FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
+  { FILENAME memories/ip224rfsbhpm1r1w2048x32m4.v    FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
+  { FILENAME memories/ip224rfsbhpm1r1w1024x64m2.v    FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
+  { FILENAME memories/ip224rfsbhpm1r1w512x128m1.v    FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
+  { FILENAME memories/ip224rfsbhpm1r1w256x128m1.v    FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
+  { FILENAME memories/ip224rfsbhpm1r1w128x128m1.v    FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
 }
 VHDLARRAYPATH    {}
 LINK_LIBRARY     {}
@@ -28,9 +32,9 @@ READLATENCY      1
 DEPTH            DEPTH
 GEN_EXT_RAM_PIPE 0
 PARAMETERS {
-  { PARAMETER DEPTH      TYPE hdl IGNORE 0 MIN 1024 MAX {} DEFAULT 1024 }
-  { PARAMETER WIDTH      TYPE hdl IGNORE 0 MIN 64   MAX {} DEFAULT 512  }
-  { PARAMETER ADDR_WIDTH TYPE hdl IGNORE 0 MIN 10   MAX {} DEFAULT 10   }
+  { PARAMETER DEPTH      TYPE hdl IGNORE 0 MIN 128 MAX {} DEFAULT 1024 }
+  { PARAMETER WIDTH      TYPE hdl IGNORE 0 MIN 32  MAX {} DEFAULT 512  }
+  { PARAMETER ADDR_WIDTH TYPE hdl IGNORE 0 MIN 7   MAX {} DEFAULT 10   }
 }
 PORTS {
   { NAME port_r MODE Read  }
