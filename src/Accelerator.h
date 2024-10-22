@@ -19,12 +19,14 @@ SC_MODULE(Accelerator) {
   Connections::Out<MemoryRequest> CCS_INIT_S1(inputAddressRequest);
   Connections::In<Pack1D<INPUT_DATATYPE, IC_DIMENSION> > CCS_INIT_S1(
       inputDataResponse);
+#if SUPPORT_MX
   Connections::Out<MemoryRequest> CCS_INIT_S1(inputScaleAddressRequest);
   Connections::In<Pack1D<INPUT_DATATYPE, 1> > CCS_INIT_S1(
       inputScaleDataResponse);
   Connections::Out<MemoryRequest> CCS_INIT_S1(weightScaleAddressRequest);
   Connections::In<Pack1D<INPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
       weightScaleDataResponse);
+#endif
   Connections::Out<MemoryRequest> CCS_INIT_S1(weightAddressRequest);
   Connections::In<Pack1D<INPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
       weightDataResponse);

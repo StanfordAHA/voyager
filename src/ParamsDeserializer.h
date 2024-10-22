@@ -119,12 +119,13 @@ SC_MODULE(VectorParamsDeserializer) {
   }
 };
 
+template <int MODULE_COUNT>
 SC_MODULE(MatrixParamsRouter) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
   Connections::In<int> CCS_INIT_S1(serialParamsIn);
-  Connections::Out<int> serialMatrixParams[5];
+  Connections::Out<int> serialMatrixParams[MODULE_COUNT];
 
   SC_CTOR(MatrixParamsRouter) {
     SC_THREAD(run);
@@ -134,7 +135,7 @@ SC_MODULE(MatrixParamsRouter) {
 
   void run() {
     serialParamsIn.Reset();
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < MODULE_COUNT; i++) {
       serialMatrixParams[i].Reset();
     }
 
@@ -143,7 +144,7 @@ SC_MODULE(MatrixParamsRouter) {
       // Matrix Params
       int serialParam = serialParamsIn.Pop();
 #pragma hls_unroll yes
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < MODULE_COUNT; i++) {
         serialMatrixParams[i].Push(serialParam);
       }
     }

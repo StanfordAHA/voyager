@@ -15,9 +15,11 @@ SC_MODULE(MatrixUnit) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
-  MatrixParamsRouter CCS_INIT_S1(paramsRouter);
+  static const int PARAMS_MODULE_COUNT = SUPPORT_MX ? 5 : 3;
+
+  MatrixParamsRouter<PARAMS_MODULE_COUNT> CCS_INIT_S1(paramsRouter);
   Connections::In<int> CCS_INIT_S1(serialMatrixParamsIn);
-  Connections::Combinational<int> serialMatrixParams[5];
+  Connections::Combinational<int> serialMatrixParams[PARAMS_MODULE_COUNT];
 
   // clang-format off
   #ifdef SIM_InputController
@@ -157,7 +159,7 @@ SC_MODULE(MatrixUnit) {
     paramsRouter.clk(clk);
     paramsRouter.rstn(rstn);
     paramsRouter.serialParamsIn(serialMatrixParamsIn);
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < PARAMS_MODULE_COUNT; i++) {
       paramsRouter.serialMatrixParams[i](serialMatrixParams[i]);
     }
 

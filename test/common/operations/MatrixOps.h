@@ -230,8 +230,8 @@ inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
                             static_cast<ACCUMULATION_BUFFER_T>(psum);
                         outputs[output_addr] += scaled_psum;
                       } else {
-                        if constexpr (ACCUMULATE_T::is_floating_point &&
-                                      !ACCUMULATION_BUFFER_T::
+                        if constexpr (ACCUMULATE_T::is_floating_point ==
+                                      ACCUMULATION_BUFFER_T::
                                           is_floating_point) {
                           outputs[output_addr] =
                               static_cast<ACCUMULATE_T>(psum);
