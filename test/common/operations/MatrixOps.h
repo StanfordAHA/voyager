@@ -156,8 +156,8 @@ inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
                       if (is_mx || is_mx_based_design) {
                         psum = ACCUMULATE_T(0.0);
                       } else {
-                        if constexpr (ACCUMULATE_T::is_floating_point &&
-                                      !ACCUMULATION_BUFFER_T::
+                        if constexpr (ACCUMULATE_T::is_floating_point ==
+                                      ACCUMULATION_BUFFER_T::
                                           is_floating_point) {
                           psum = outputs[output_addr];
                         }
