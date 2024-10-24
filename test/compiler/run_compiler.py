@@ -364,6 +364,19 @@ if __name__ == "__main__":
             qconfig = QuantizationConfig(qspec, None, qspec, None)
             quantizer.set_object_type(torch.ops.aten.matmul.default, qconfig)
 
+            # turn off microscaling for op with permute
+            bias_qspec = DerivedQuantizationSpec(
+                derived_from=None,
+                derive_qparams_fn=derive_bias_qparams_fn,
+                dtype=None,
+            )
+            qconfig = QuantizationConfig(qspec, None, qspec, bias_qspec)
+            for encoder_layer in range(24):
+                quantizer.set_module_name(
+                    f"mobilebert.encoder.layer[{encoder_layer}].attention.output.dense",
+                    qconfig,
+                )
+
         input_ids = torch.randint(0, 30522, (1, 128), dtype=torch.long)
         input_shape = input_ids.size()
         attention_mask = torch.ones(input_shape)
