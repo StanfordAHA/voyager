@@ -289,7 +289,11 @@ if __name__ == "__main__":
         quantizer.set_module_name("fc", None)
 
         # use per-tensor instead of microscaling for conv1 in resnet18 and resnet50
-        if "microscaling" in args.activation and args.model in ["resnet18", "resnet50"]:
+        if (
+            args.activation is not None
+            and "microscaling" in args.activation
+            and args.model in ["resnet18", "resnet50"]
+        ):
             qspec = QuantizationSpec.from_str("int8,qs=per_tensor_symmetric")
             qspec.observer_or_fake_quant_ctr = FusedAmaxObsFakeQuantize
 
@@ -358,7 +362,7 @@ if __name__ == "__main__":
         ).eval()
 
         # turn off microscaling for matmul
-        if "microscaling" in args.activation:
+        if args.activation is not None and "microscaling" in args.activation:
             qspec = QuantizationSpec.from_str("int8,qs=per_tensor_symmetric")
             qspec.observer_or_fake_quant_ctr = FusedAmaxObsFakeQuantize
             qconfig = QuantizationConfig(qspec, None, qspec, None)
@@ -491,7 +495,7 @@ if __name__ == "__main__":
             None,
         )
 
-        if "microscaling" in args.activation:
+        if args.activation is not None and "microscaling" in args.activation:
             # turn off microscaling for matmul
             qspec = QuantizationSpec.from_str("int8,qs=per_tensor_symmetric")
             qspec.observer_or_fake_quant_ctr = FusedAmaxObsFakeQuantize
