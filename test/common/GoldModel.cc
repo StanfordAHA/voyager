@@ -55,8 +55,15 @@ void run_operation(const codegen::AcceleratorParam param,
             "Unsupported output dtype for calculate_mx_qparam: " +
             param.output().dtype());
       }
-      output_tensor = calculate_mx_qparam<VECTOR_T, DataTypes::e8m0>(
-          args[arg_index++], reduce_param);
+      if constexpr (std::is_same<VECTOR_T, CFloat>::value) {
+        std::cerr
+            << "No calculate_mx_param operation should be emitted for CFloat"
+            << std::endl;
+        std::abort();
+      } else {
+        output_tensor = calculate_mx_qparam<VECTOR_T, DataTypes::e8m0>(
+            args[arg_index++], reduce_param);
+      }
     } else {
       std::cerr << "Unsupported reduce instruction: " << reduce_param.opcode()
                 << std::endl;
