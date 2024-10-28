@@ -5,6 +5,7 @@ import subprocess
 import csv
 import json
 import copy
+import argparse
 from pprint import pprint
 from collect_layers import collect_layers, delete_nested_keys
 
@@ -141,16 +142,28 @@ def flatten_dict(d, parent_key='', sep='.'):
   return items
 
 if __name__ == "__main__":
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--build", type=str, default="", help="Specify the build directory to parse")
+  args = parser.parse_args()
+
   results = {}
 
+  def glob_dirs(s):
+     return [i for i in os.listdir('.') if os.path.isdir(i) and i.startswith(s)]
+      
   # get the list of builds
-  build_dirs = g`build-*/`
+  if args.build:
+    build_dirs = [args.build.rstrip("/")]
+  else:
+    build_dirs = @glob_dirs`build-`
+
+  print(build_dirs)
 
   # extract metadata from the build dir name
   for build in build_dirs:
-    build = build[:-1] # remove the trailing slash
     print("Parsing", build)
-    _, datatype, dimension, buffer_sizes, clock_period = build.split("-")
+    temp_ = build.split("-")
+    _, datatype, dimension, buffer_sizes, clock_period = temp_[0:5] 
     clock_period = clock_period[:-2] # remove the trailing unit
     input_buf_size, weight_buf_size, accum_buf_size = buffer_sizes.split("x")
     area = {}
@@ -202,6 +215,17 @@ if __name__ == "__main__":
                     "seq": vector_area_seq
                    }
                  })
+
+    # calculate the remaining area
+    addr_ctrl_area = area["total"] - area["mem"]["total"] - area["array"]["total"] - area["vector"]["total"]
+    addr_ctrl_area_comb = area["comb"] - area["array"]["comb"] - area["vector"]["comb"]
+    addr_ctrl_area_seq = area["seq"] - area["array"]["seq"] - area["vector"]["seq"]
+    area.update({"addr_ctrl": {
+                  "total": addr_ctrl_area,
+                  "comb": addr_ctrl_area_comb,
+                  "seq": addr_ctrl_area_seq
+                 }
+               })
 
     # get simulation results
     tests = get_sim_results(build, float(clock_period))
