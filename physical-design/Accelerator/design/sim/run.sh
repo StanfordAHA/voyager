@@ -20,9 +20,8 @@ make -f scverify/Verify_concat_sim_rtl_v_vcs.mk sim CODEGEN_DIR=test/compiler NE
 popd
 
 # Convert fsdb to saif
-if [[ "${waveform}" == "True" && "${gen_saif}" == "True" ]]; then
+if [[ "${waveform}" == "True" && "${use_saif}" == "True" ]]; then
   fsdb2saif inputs/build/Catapult/${fsdb_name}.fsdb -o outputs/run.saif
+  # Delete fsdb to save disk space
+  rm -f inputs/build/Catapult/${fsdb_name}.fsdb
 fi
-
-# Save disk space
-rm -f inputs/build/Catapult/${fsdb_name}.fsdb

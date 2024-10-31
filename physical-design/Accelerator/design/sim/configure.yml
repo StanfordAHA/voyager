@@ -19,4 +19,4 @@ parameters:
   datatype: undefined
   sims: accelerator,systemc
   waveform: False
-  gen_saif: True
+  use_saif: True

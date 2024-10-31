@@ -22,7 +22,8 @@ sim_params = {
     "sims": "accelerator,systemc",
     "network": "resnet18",  # default network
     "layer": "quantize_symmetric",  # default layer
-    "sweep": True
+    "sweep": True,
+    "use_saif": True,
 }
 
 sweep_params = {
@@ -42,6 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-sweep", action="store_true", help="Disable parameter sweep")
     parser.add_argument("--sweep", action="store_true", help="Enable parameter sweep")
     parser.add_argument("--no-waveform", action="store_true", help="Don't waveform")
+    parser.add_argument("--fsdb", action="store_true", help="Keep FSDB files instead of converting to saif")
 
     args = parser.parse_args()
 
@@ -61,6 +63,7 @@ if __name__ == "__main__":
         exit(1)
     sim_params["sweep"] = True if args.sweep else False if args.no_sweep else sim_params["sweep"]
     sim_params["waveform"] = False if args.no_waveform else sim_params["waveform"]
+    sim_params["use_saif"] = False if args.fsdb else sim_params["use_saif"]
 
     # Make sure the dataset for default network is generated
     if not os.path.exists(f"../accel-src/test/compiler/networks/{sim_params['network']}/{build_params['datatype']}"):
