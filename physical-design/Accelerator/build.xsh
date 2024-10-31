@@ -21,7 +21,7 @@ sim_params = {
     "waveform": True,
     "sims": "accelerator,systemc",
     "network": "resnet18",  # default network
-    "layer": "quantize_symmetric",  # default layer
+    "layer": "linear",  # default layer
     "sweep": True,
     "use_saif": True,
 }
