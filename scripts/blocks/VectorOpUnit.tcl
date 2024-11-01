@@ -9,8 +9,8 @@ proc pre_architect {} {
   if { [is_floating_point $VECTOR_DATATYPE] && ![is_floating_point $ACCUM_BUFFER_DATATYPE] } {
     # no unrolling needed
   } elseif { $VECTOR_DATATYPE == $ACCUM_BUFFER_DATATYPE } {
-    directive set /$vector_op_unit_stripped/vectorOpRun/UNROLL_0 -UNROLL yes
+    directive set /$vector_op_unit_stripped/vectorOpRun/LOOP_0_UNROLL -UNROLL yes
   } else {
-    directive set /$vector_op_unit_stripped/vectorOpRun/UNROLL_1 -UNROLL yes
+    directive set /$vector_op_unit_stripped/vectorOpRun/LOOP_1_UNROLL -UNROLL yes
   }
 }

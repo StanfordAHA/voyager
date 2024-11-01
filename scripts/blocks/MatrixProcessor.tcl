@@ -57,11 +57,11 @@ proc pre_architect {} {
     directive set $accumulation_buffer_path:rsc -MAP_TO_MODULE $memories(1r1w)
   }
 
-  # Unroll loops that were not unrolled
-  if {$SUPPORT_MX == true} {
-    for {set index 0} { $index < 6 } { incr index } {
-      directive set /$full_block_name_stripped/process_accumulation/UNROLL_$index -UNROLL yes
-    }
+  # Unroll loops that were not unrolled due to if constexpr bug
+  set loops [directive get /$full_block_name_stripped/.../LOOP_*_UNROLL -match glob -return path]
+  puts $loops
+  foreach loop $loops {
+    directive set $loop -UNROLL yes
   }
 }
 
