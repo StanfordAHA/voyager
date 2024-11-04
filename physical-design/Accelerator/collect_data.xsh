@@ -56,25 +56,33 @@ def get_sim_results(build_dir, clock_period, design_name="Accelerator"):
             else:
                 test.update({"status": "Passed"})
 
-        # get the runtime
-        p = subprocess.Popen(
-            ["grep", "-oP", "-m", "1", "(?<=Ideal runtime: )\\d+", log],
-            stdout=subprocess.PIPE,
-        )
-        ideal_runtime = p.communicate()[0].decode("utf-8").strip()
-        if ideal_runtime:
-            ideal_runtime = int(ideal_runtime)
-        p = subprocess.Popen(
-            ["grep", "-oP", "-m", "1", "(?<=Runtime: ).\\d+", log],
-            stdout=subprocess.PIPE,
-        )
-        runtime = p.communicate()[0].decode("utf-8").strip()
-        util = ""
-        if runtime:
-            runtime = int(runtime)
-            util = ideal_runtime/(runtime/clock_period)
+        # get runtime
+        try:
+          matrix_ideal_runtime = $(grep -oP -m 1 "(?<=Matrix unit ideal runtime: )\\d+" @(log)).strip()
+          vector_ideal_runtime = $(grep -oP -m 1 "(?<=Vector unit ideal runtime: )\\d+" @(log)).strip()
+          runtime = int($(grep -oP -m 1 "(?<=Runtime: )\\d+" @(log)).strip())
+          if matrix_ideal_runtime:
+            matrix_ideal_runtime = int(matrix_ideal_runtime)
+            ideal_runtime = int(matrix_ideal_runtime)
+            matrix_util = matrix_ideal_runtime/(int(runtime)/clock_period)
+            util = matrix_util
+          else:
+            ideal_runtime = int(vector_ideal_runtime)
+            matrix_util = ""
+            util = ideal_runtime/(int(runtime)/clock_period)
+        except:
+          # TODO: remove the original ideal runtime once fully migrated to new ideal runtime format
+          ideal_runtime = int($(grep -oP -m 1 "(?<=Ideal runtime: )\\d+" @(log)).strip())
+          runtime = int($(grep -oP -m 1 "(?<=Runtime: )\\d+" @(log)).strip())
+          util = ideal_runtime/(runtime/clock_period)
+          matrix_util = ""
 
-        test.update({"ideal runtime (ns)": ideal_runtime, "runtime (ns)": runtime, "utilization": util})
+        test.update({"ideal runtime (ns)": ideal_runtime, 
+                     "matrix ideal runtime": matrix_ideal_runtime,
+                     "runtime (ns)": runtime,
+                     "utilization": util,
+                     "matrix_utilization": matrix_util
+                     })
 
         # Workaround: add the power fields so that they always exist as a key for all entries
         # so that the csv writer won't error out
@@ -163,7 +171,11 @@ if __name__ == "__main__":
   for build in build_dirs:
     print("Parsing", build)
     temp_ = build.split("-")
-    _, datatype, dimension, buffer_sizes, clock_period = temp_[0:5] 
+    try:
+      _, datatype, dimension, buffer_sizes, clock_period = temp_[0:5] 
+    except:
+      print("Skipping", build, "due to incorrect naming")
+      continue
     clock_period = clock_period[:-2] # remove the trailing unit
     input_buf_size, weight_buf_size, accum_buf_size = buffer_sizes.split("x")
     area = {}
@@ -217,15 +229,16 @@ if __name__ == "__main__":
                  })
 
     # calculate the remaining area
-    addr_ctrl_area = area["total"] - area["mem"]["total"] - area["array"]["total"] - area["vector"]["total"]
-    addr_ctrl_area_comb = area["comb"] - area["array"]["comb"] - area["vector"]["comb"]
-    addr_ctrl_area_seq = area["seq"] - area["array"]["seq"] - area["vector"]["seq"]
-    area.update({"addr_ctrl": {
-                  "total": addr_ctrl_area,
-                  "comb": addr_ctrl_area_comb,
-                  "seq": addr_ctrl_area_seq
-                 }
-               })
+    if rpt:
+      addr_ctrl_area = area["total"] - area["mem"]["total"] - area["array"]["total"] - area["vector"]["total"]
+      addr_ctrl_area_comb = area["comb"] - area["array"]["comb"] - area["vector"]["comb"]
+      addr_ctrl_area_seq = area["seq"] - area["array"]["seq"] - area["vector"]["seq"]
+      area.update({"addr_ctrl": {
+                    "total": addr_ctrl_area,
+                    "comb": addr_ctrl_area_comb,
+                    "seq": addr_ctrl_area_seq
+                  }
+                })
 
     # get simulation results
     tests = get_sim_results(build, float(clock_period))
@@ -294,18 +307,22 @@ if __name__ == "__main__":
         checklist = list(layers_to_run[network])
         status = "Passed"
         power_status = "Complete"
-        ideal_runtime = runtime = energy = mem_energy = input_buf_energy = weight_buf_energy = accum_buf_energy = arr_energy = vec_energy = 0
+        ideal_runtime = matrix_ideal_runtime = runtime = matrix_runtime = energy = mem_energy = input_buf_energy = weight_buf_energy = accum_buf_energy = arr_energy = vec_energy = 0
         for layer, layer_data in layer_dict.items():
+          runtime += layer_data["runtime (ns)"] * layers_to_run[network][layer]
+          ideal_runtime += layer_data["ideal runtime (ns)"] * layers_to_run[network][layer]
+          if layer_data["matrix ideal runtime"]:
+            matrix_ideal_runtime += layer_data["matrix ideal runtime"] * layers_to_run[network][layer]
+            matrix_runtime += layer_data["runtime (ns)"] * layers_to_run[network][layer]
+
           try:
-            ideal_runtime += layer_data["ideal runtime (ns)"] * layers_to_run[network][layer]
-            runtime += layer_data["runtime (ns)"] * layers_to_run[network][layer]
             status = "Failed" if layer_data["status"] != "Passed" else status
           except:
             print("\tIncomplete simulation data for", build, network, layer)
             status = "Abnormal"
             
+          # put energy at the back so that if energy is not available, the rest of the data is still there
           try:
-            # put energy at the back so that if energy is not available, the rest of the data is still there
             energy += layer_data["rtl_power"]["total"] * layer_data["runtime (ns)"] * 1e-6 * layers_to_run[network][layer]
             mem_energy += layer_data["rtl_power"]["mem"] * layer_data["runtime (ns)"] * 1e-6 * layers_to_run[network][layer]
             input_buf_energy += layer_data["rtl_power"]["input_buffer"] * layer_data["runtime (ns)"] * 1e-6 * layers_to_run[network][layer]
@@ -322,7 +339,9 @@ if __name__ == "__main__":
         # multiply by 21
         if network == "mobilebert_encoder":
           ideal_runtime *= 21
+          matrix_ideal_runtime *= 21
           runtime *= 21
+          matrix_runtime *= 21
           mem_energy *= 21
           input_buf_energy *= 21
           weight_buf_energy *= 21
@@ -338,6 +357,11 @@ if __name__ == "__main__":
           # if runtime is 0, means tests likely failed, so cannot divide
           utilization = "N/A"
 
+        try:
+          matrix_utilization = matrix_ideal_runtime/float(matrix_runtime)
+        except:
+          matrix_utilization = "N/A"
+
         # if power data is incomplete, mark the build as incomplete
         if power_status == "Incomplete":
           status += " - Incomplete"
@@ -349,8 +373,11 @@ if __name__ == "__main__":
           {"network": network,
           "status": status,
           "ideal runtime (ns)": ideal_runtime,
+          "matrix ideal runtime (ns)": matrix_ideal_runtime,
           "runtime (ns)": runtime,
+          "matrix runtime (ns)": matrix_runtime,
           "utilization": utilization,
+          "matrix_utilization": matrix_utilization,
           "energy (mJ)": energy,
           "mem energy": mem_energy, 
           "input buffer energy": input_buf_energy, 
