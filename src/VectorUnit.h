@@ -124,6 +124,8 @@ SC_MODULE(VectorOpUnit) {
     broadcastReductionOpOutputOp0Src0.ResetRead();
     broadcastReductionOpOutputOp0Src1.ResetRead();
     broadcastReductionOpOutputOp3Src1.ResetRead();
+    vectorFetch3AddressRequest.Reset();
+    vectorFetch3DataResponse.Reset();
 
     wait();
 
@@ -310,13 +312,33 @@ SC_MODULE(VectorOpUnit) {
       // DLOG("res3: " << res3);
 
       /*
-       * Stage 4: relu
+       * Stage 4: relu and value mapping
        */
       if (inst.vOp4 == VectorInstructions::vrelu ||
           inst.vOp4 == VectorInstructions::vrelumask) {
         bool useMask = inst.vOp4 == VectorInstructions::vrelumask;
         vrelu<typename VEC_DTYPE::AccumulationDatatype, WIDTH>(res3, op0Src1,
                                                                useMask, res4);
+      } else if (inst.vOp4 == VectorInstructions::vmap) {
+#pragma hls_unroll yes
+        for (int i = 0; i < WIDTH; i++) {
+          DataTypes::bfloat16 value = res3[i];
+          uint offset = value.bits_rep().to_uint();
+
+          MemoryRequest memRequest = {inst.vmapOffset + offset * 2, 2};
+          vectorFetch3AddressRequest.Push(memRequest);
+
+          DataTypes::bfloat16 mappedValue;
+
+          IO_DTYPE response1 = vectorFetch3DataResponse.Pop();
+          IO_DTYPE response2 = vectorFetch3DataResponse.Pop();
+
+          ac_int<16, false> bits1 = response1.bits_rep();
+          ac_int<16, false> bits2 = response2.bits_rep();
+          mappedValue.setbits((bits2 << 8) | bits1);
+
+          res4[i] = mappedValue;
+        }
       } else {
         res4 = res3;
       }

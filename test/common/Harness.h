@@ -142,8 +142,7 @@ SC_MODULE(Harness) {
   template <long unsigned int DIMENSION>
   void readMemoryRequest(
       CombinationalInterface<MemoryRequest> * addressRequest,
-      sc_fifo<Pack1D<INPUT_DATATYPE, DIMENSION> > * dataResponse_fifo,
-      std::string memSourceType);
+      sc_fifo<Pack1D<INPUT_DATATYPE, DIMENSION> > * dataResponse_fifo);
   template <long unsigned int DIMENSION>
   void sendMemoryResponse(
       sc_fifo<Pack1D<INPUT_DATATYPE, DIMENSION> > * dataResponse_fifo,
@@ -152,7 +151,7 @@ SC_MODULE(Harness) {
 
   void readSingleMemoryRequest(
       CombinationalInterface<MemoryRequest> * addressRequest,
-      sc_fifo<INPUT_DATATYPE> * dataResponse_fifo, std::string memSourceType);
+      sc_fifo<INPUT_DATATYPE> * dataResponse_fifo);
   void sendSingleMemoryResponse(
       sc_fifo<INPUT_DATATYPE> * dataResponse_fifo,
       CombinationalInterface<INPUT_DATATYPE> * dataResponse);

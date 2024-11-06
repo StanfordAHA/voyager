@@ -295,6 +295,7 @@ struct VectorInstructions {
     vOp3Src1 = 0;
     vOp3 = 0;
     vOp4 = 0;
+    vmapOffset = 0;
     vAccumulatePush = 0;
     vDest = 0;
     rCount = 0;
@@ -365,6 +366,8 @@ struct VectorInstructions {
   ac_int<2, false> vOp4;
   static const unsigned int vrelu = 1;
   static const unsigned int vrelumask = 2;
+  static const unsigned int vmap = 3;
+  ac_int<64, false> vmapOffset;
 
   // Stage 5: quantize
   ac_int<1, false> vOp5;
@@ -399,7 +402,7 @@ struct VectorInstructions {
   ac_int<16, false> immediate0;
   ac_int<16, false> immediate1;
 
-  static const unsigned int width = 95;
+  static const unsigned int width = 159;
 
 #ifndef NO_SYSC
   template <unsigned int Size>
@@ -416,6 +419,7 @@ struct VectorInstructions {
     m & vOp3Src1;
     m & vOp3;
     m & vOp4;
+    m & vmapOffset;
     m & vOp5;
     m & vAccumulatePush;
     m & vDest;
@@ -449,6 +453,7 @@ struct VectorInstructions {
     os << "vOp3Src1: " << params.vOp3Src1 << std::endl;
     os << "vOp3: " << params.vOp3 << std::endl;
     os << "vOp4: " << params.vOp4 << std::endl;
+    os << "vmapOffset: " << params.vmapOffset << std::endl;
     os << "vDest: " << params.vDest << std::endl;
     os << "rCount: " << params.rCount << std::endl;
     os << "rOp: " << params.rOp << std::endl;
@@ -960,6 +965,9 @@ struct VectorInstructionConfig : BaseParams {
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].vOp4;
+    }
+    for (int j = 0; j < 8; j++) {
+      m& inst[j].vmapOffset;
     }
     for (int j = 0; j < 8; j++) {
       m& inst[j].vOp5;

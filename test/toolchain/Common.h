@@ -11,7 +11,7 @@ std::map<int, std::set<std::string>> vector_ops = {
     {1, {"exp"}},
     {2, {}},
     {3, {"add", "add_", "mul", "mul_", "div", "div_", "square"}},
-    {4, {"relu", "relu_"}}};
+    {4, {"relu", "relu_", "vmap"}}};
 
 std::map<std::string, unsigned int> get_vector_instruction_mapping() {
   std::map<std::string, unsigned int> mapping;
@@ -27,6 +27,7 @@ std::map<std::string, unsigned int> get_vector_instruction_mapping() {
   mapping["relu_"] = VectorInstructions::vrelu;
   mapping["exp"] = VectorInstructions::vexp;
   mapping["square"] = VectorInstructions::vsquare;
+  mapping["vmap"] = VectorInstructions::vmap;
   return mapping;
 }
 

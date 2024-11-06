@@ -276,7 +276,9 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
           }
 
           vectorStage = stage + 1;
-          if (it->has_other()) {
+          if (it->opcode() == "vmap") {
+            vinst.vmapOffset = it->other().memory().offset();
+          } else if (it->has_other()) {
             const auto tensor_to_load =
                 output_node == it->other().node() ? it->input() : it->other();
             const int size = get_size(tensor_to_load);
