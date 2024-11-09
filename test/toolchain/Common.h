@@ -71,3 +71,29 @@ void factorizeForAddressGen(const int dim, int *factors) {
     factors[1] = dim;
   }
 }
+
+inline std::vector<int> get_shape(const codegen::Tensor &tensor) {
+  auto repeated_field = tensor.shape();
+  return std::vector<int>(repeated_field.begin(), repeated_field.end());
+}
+
+inline std::vector<int> squeeze_shape(const std::vector<int> &input) {
+  std::vector<int> result;
+  for (int value : input) {
+    if (value > 1) {
+      result.push_back(value);
+    }
+  }
+  return result;
+}
+
+inline int get_size(const std::vector<int> &shape) {
+  int size = 1;
+  for (const auto &dim : shape) size *= dim;
+  return size;
+}
+
+inline int get_size(const codegen::Tensor &tensor) {
+  const auto shape = get_shape(tensor);
+  return get_size(shape);
+}

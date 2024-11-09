@@ -300,6 +300,11 @@ SC_MODULE(VectorOpUnit) {
         }
         vmult<typename VEC_DTYPE::AccumulationDatatype, WIDTH>(op3Src0, op3Src1,
                                                                res3);
+        DLOG(op3Src0 << std::endl
+                     << " * " << std::endl
+                     << op3Src1 << std::endl
+                     << " = " << std::endl
+                     << res3);
       } else if (inst.vOp3 == VectorInstructions::vscaleexp) {
         ac_int<8, true> scaleVal;
         scaleVal = inst.immediate1;
@@ -320,7 +325,6 @@ SC_MODULE(VectorOpUnit) {
         vrelu<typename VEC_DTYPE::AccumulationDatatype, WIDTH>(res3, op0Src1,
                                                                useMask, res4);
       } else if (inst.vOp4 == VectorInstructions::vmap) {
-#pragma hls_unroll yes
         for (int i = 0; i < WIDTH; i++) {
           DataTypes::bfloat16 value = res3[i];
           uint offset = value.bits_rep().to_uint();

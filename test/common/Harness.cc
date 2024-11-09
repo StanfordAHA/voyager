@@ -227,7 +227,7 @@ void Harness::readMemoryRequest(
         }
         data[i].setbits(bits);
       }
-      DLOG("access at addr: " << memRequest.address << " data: " << data
+      DLOG("read addr: " << memRequest.address << " data: " << data
                               << std::endl);
       dataResponse_fifo->write(data);
     }
@@ -267,7 +267,7 @@ void Harness::readSingleMemoryRequest(
         bits.set_slc(byte * 8, static_cast<ac_int<8, false>>(memory[address]));
       }
       data.setbits(bits);
-      DLOG("access at addr: " << memRequest.address << " data: " << data
+      DLOG("read addr: " << memRequest.address << " data: " << data
                               << std::endl);
       dataResponse_fifo->write(data);
     }
@@ -402,7 +402,6 @@ void Harness::sendParams() {
       bool matrixParamsValid, vectorParamsValid;
 
       BaseParams *baseParam = accelerator_params.front();
-      currentMemoryMap = accelerator_memory_maps.front();
 
       MatrixParams *matrixParams = dynamic_cast<MatrixParams *>(baseParam);
       matrixParamsValid = matrixParams != NULL;
@@ -487,7 +486,7 @@ void Harness::storeVectorOutputs() {
   while (true) {
     Pack1D<OUTPUT_DATATYPE, OC_DIMENSION> data = vectorOutput.Pop();
     unsigned long long base_address = vectorOutputAddress.Pop();
-    DLOG("address: " << base_address << " data: " << data);
+    DLOG("write address: " << base_address << " data: " << data);
     for (int i = 0; i < OC_DIMENSION; i++) {
       ac_int<OUTPUT_DATATYPE::width, false> bits = data[i].bits_rep();
       for (int byte = 0; byte < OUTPUT_DATATYPE::width / 8; byte++) {

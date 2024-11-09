@@ -717,18 +717,22 @@ struct VectorParams : BaseParams {
       }
     }
     for (int i = 0; i < 2; i++) {
-      os << "addressGen0InputXLoopIndex[" << i
-         << "]: " << params.addressGen0InputXLoopIndex[i] << std::endl;
-    }
-    for (int i = 0; i < 2; i++) {
       os << "addressGen0InputYLoopIndex[" << i
          << "]: " << params.addressGen0InputYLoopIndex[i] << std::endl;
+    }
+    for (int i = 0; i < 2; i++) {
+      os << "addressGen0InputXLoopIndex[" << i
+         << "]: " << params.addressGen0InputXLoopIndex[i] << std::endl;
     }
     for (int i = 0; i < 2; i++) {
       os << "addressGen0WeightLoopIndex[" << i
          << "]: " << params.addressGen0WeightLoopIndex[i] << std::endl;
     }
     os << "DP_VEC0: " << params.DP_VEC0 << std::endl;
+    os << "addressGen0Mode: " << params.addressGen0Mode << std::endl;
+    os << "addressGen0Broadcast: " << params.addressGen0Broadcast << std::endl;
+    os << "addressGen0BroadcastCount: " << params.addressGen0BroadcastCount
+       << std::endl;
     os << "ADDRESS_GEN1_OFFSET: " << params.ADDRESS_GEN1_OFFSET << std::endl;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
@@ -737,18 +741,19 @@ struct VectorParams : BaseParams {
       }
     }
     for (int i = 0; i < 2; i++) {
-      os << "addressGen1InputXLoopIndex[" << i
-         << "]: " << params.addressGen1InputXLoopIndex[i] << std::endl;
-    }
-    for (int i = 0; i < 2; i++) {
       os << "addressGen1InputYLoopIndex[" << i
          << "]: " << params.addressGen1InputYLoopIndex[i] << std::endl;
+    }
+    for (int i = 0; i < 2; i++) {
+      os << "addressGen1InputXLoopIndex[" << i
+         << "]: " << params.addressGen1InputXLoopIndex[i] << std::endl;
     }
     for (int i = 0; i < 2; i++) {
       os << "addressGen1WeightLoopIndex[" << i
          << "]: " << params.addressGen1WeightLoopIndex[i] << std::endl;
     }
     os << "DP_VEC1: " << params.DP_VEC1 << std::endl;
+    os << "addressGen1Mode: " << params.addressGen1Mode << std::endl;
     os << "ADDRESS_GEN2_OFFSET: " << params.ADDRESS_GEN2_OFFSET << std::endl;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
@@ -757,18 +762,19 @@ struct VectorParams : BaseParams {
       }
     }
     for (int i = 0; i < 2; i++) {
-      os << "addressGen2InputXLoopIndex[" << i
-         << "]: " << params.addressGen2InputXLoopIndex[i] << std::endl;
-    }
-    for (int i = 0; i < 2; i++) {
       os << "addressGen2InputYLoopIndex[" << i
          << "]: " << params.addressGen2InputYLoopIndex[i] << std::endl;
+    }
+    for (int i = 0; i < 2; i++) {
+      os << "addressGen2InputXLoopIndex[" << i
+         << "]: " << params.addressGen2InputXLoopIndex[i] << std::endl;
     }
     for (int i = 0; i < 2; i++) {
       os << "addressGen2WeightLoopIndex[" << i
          << "]: " << params.addressGen2WeightLoopIndex[i] << std::endl;
     }
     os << "DP_VEC2: " << params.DP_VEC2 << std::endl;
+    os << "addressGen2Mode: " << params.addressGen2Mode << std::endl;
     os << "VECTOR_OUTPUT_OFFSET: " << params.VECTOR_OUTPUT_OFFSET << std::endl;
     os << "SCALAR_OUTPUT_OFFSET: " << params.SCALAR_OUTPUT_OFFSET << std::endl;
     for (int i = 0; i < 2; i++) {
@@ -778,11 +784,11 @@ struct VectorParams : BaseParams {
       }
     }
     for (int i = 0; i < 2; i++) {
-      os << "outputXLoopIndex[" << i << "]: " << params.outputXLoopIndex[i]
+      os << "outputYLoopIndex[" << i << "]: " << params.outputYLoopIndex[i]
          << std::endl;
     }
     for (int i = 0; i < 2; i++) {
-      os << "outputYLoopIndex[" << i << "]: " << params.outputYLoopIndex[i]
+      os << "outputXLoopIndex[" << i << "]: " << params.outputXLoopIndex[i]
          << std::endl;
     }
     for (int i = 0; i < 2; i++) {
@@ -791,12 +797,6 @@ struct VectorParams : BaseParams {
     }
     os << "SPLIT_OUTPUT: " << params.SPLIT_OUTPUT << std::endl;
     os << "DP_OUTPUT: " << params.DP_OUTPUT << std::endl;
-    os << "addressGen0Mode: " << params.addressGen0Mode << std::endl;
-    os << "addressGen0Broadcast: " << params.addressGen0Broadcast << std::endl;
-    os << "addressGen0BroadcastCount: " << params.addressGen0BroadcastCount
-       << std::endl;
-    os << "addressGen1Mode: " << params.addressGen1Mode << std::endl;
-    os << "addressGen2Mode: " << params.addressGen2Mode << std::endl;
     os << "MAXPOOL: " << params.MAXPOOL << std::endl;
     os << "AVGPOOL: " << params.AVGPOOL << std::endl;
     return os;

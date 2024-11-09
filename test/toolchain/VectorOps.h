@@ -40,29 +40,32 @@ inline std::vector<int> broadcast_shape(const std::vector<int> &shape1,
     result_shape[max_size - i] = std::max(dim1, dim2);
   }
 
-  return result_shape;
+  return squeeze_shape(result_shape);
 }
 
 void set_vector_addr_gen1(const codegen::Tensor &tensor,
                           const std::vector<int> &output_shape,
                           AcceleratorMemoryMap &accelerator_memory_map,
                           VectorParams *vector_params) {
+  const auto memory = tensor.memory();
+  accelerator_memory_map["vector1"] = get_partition(memory.partition());
+  vector_params->ADDRESS_GEN1_OFFSET = memory.offset();
+
   int nonzero_dims = 0;
   for (const int &dim : tensor.shape()) {
     if (dim != 1) nonzero_dims++;
   }
 
-  int input_dim = 1;
-  for (int i = 0; i < output_shape.size() - 1; i++) {
-    input_dim *= output_shape[i];
+  const int total_dims = output_shape.size();
+  const int broadcast_dims = total_dims - nonzero_dims;
+  if (broadcast_dims == 0) {
+    vector_params->addressGen1Mode = 1;
+  } else if (broadcast_dims == 1) {
+    vector_params->addressGen1Mode = 2;
+  } else if (broadcast_dims == 2) {
+    vector_params->addressGen1Mode = 3;
   }
-  int output_dim = output_shape[output_shape.size() - 1];
 
-  const auto memory = tensor.memory();
-  accelerator_memory_map["vector1"] = get_partition(memory.partition());
-  vector_params->ADDRESS_GEN1_OFFSET = memory.offset();
-  vector_params->addressGen1Mode = nonzero_dims == 1 ? 3 : 1;
-  // TODO: double precision
   vector_params->DP_VEC1 =
       (DataTypes::TypeName<INPUT_DATATYPE>::name() != tensor.dtype()) &&
       ((DataTypes::TypeName<MX_DATATYPE>::name() != tensor.dtype()));
@@ -70,13 +73,25 @@ void set_vector_addr_gen1(const codegen::Tensor &tensor,
   for (int i = 0; i < 3; i++) {
     vector_params->addressGen1Loops[0][i] = 1;
   }
-  vector_params->addressGen1Loops[1][0] = 1;
-  vector_params->addressGen1Loops[1][1] = input_dim;
-  vector_params->addressGen1Loops[1][2] = output_dim / (OC_DIMENSION);
+
+  if (total_dims == 1) {
+    vector_params->addressGen1Loops[1][0] = 1;
+    vector_params->addressGen1Loops[1][1] = 1;
+  } else if (total_dims == 2) {
+    vector_params->addressGen1Loops[1][0] = 1;
+    vector_params->addressGen1Loops[1][1] = output_shape[0];
+  } else if (total_dims == 3) {
+    vector_params->addressGen1Loops[1][0] = output_shape[0];
+    vector_params->addressGen1Loops[1][1] = output_shape[1];
+  } else {
+    throw std::invalid_argument(
+        "Unsupported number of dimensions for vector operations!");
+  }
+  vector_params->addressGen1Loops[1][2] = output_shape.back() / OC_DIMENSION;
 
   for (int i = 0; i < 2; i++) {
-    vector_params->addressGen1InputXLoopIndex[i] = 0;
-    vector_params->addressGen1InputYLoopIndex[i] = 1;
+    vector_params->addressGen1InputYLoopIndex[i] = 0;
+    vector_params->addressGen1InputXLoopIndex[i] = 1;
     vector_params->addressGen1WeightLoopIndex[i] = 2;
   }
 
@@ -88,35 +103,51 @@ void set_vector_addr_gen2(const codegen::Tensor &tensor,
                           const std::vector<int> &output_shape,
                           AcceleratorMemoryMap &accelerator_memory_map,
                           VectorParams *vector_params) {
+  const auto memory = tensor.memory();
+  accelerator_memory_map["vector2"] = get_partition(memory.partition());
+  vector_params->ADDRESS_GEN2_OFFSET = memory.offset();
+
   int nonzero_dims = 0;
   for (const int &dim : tensor.shape()) {
     if (dim != 1) nonzero_dims++;
   }
 
-  int input_dim = 1;
-  for (int i = 0; i < output_shape.size() - 1; i++) {
-    input_dim *= output_shape[i];
+  const int total_dims = output_shape.size();
+  const int broadcast_dims = total_dims - nonzero_dims;
+  if (broadcast_dims == 0) {
+    vector_params->addressGen2Mode = 1;
+  } else if (broadcast_dims == 1) {
+    vector_params->addressGen2Mode = 2;
+  } else if (broadcast_dims == 2) {
+    vector_params->addressGen2Mode = 3;
   }
-  int output_dim = output_shape[output_shape.size() - 1];
 
-  const auto memory = tensor.memory();
-  accelerator_memory_map["vector2"] = get_partition(memory.partition());
-  vector_params->ADDRESS_GEN2_OFFSET = memory.offset();
-  vector_params->addressGen2Mode = nonzero_dims == 1 ? 3 : 1;
-  // TODO: double precision
-  vector_params->DP_VEC2 = false;
+  vector_params->DP_VEC2 =
+      (DataTypes::TypeName<INPUT_DATATYPE>::name() != tensor.dtype()) &&
+      ((DataTypes::TypeName<MX_DATATYPE>::name() != tensor.dtype()));
 
-  // copy loop values and indices
   for (int i = 0; i < 3; i++) {
     vector_params->addressGen2Loops[0][i] = 1;
   }
-  vector_params->addressGen2Loops[1][0] = 1;
-  vector_params->addressGen2Loops[1][1] = input_dim;
-  vector_params->addressGen2Loops[1][2] = output_dim / (OC_DIMENSION);
+
+  if (total_dims == 1) {
+    vector_params->addressGen2Loops[1][0] = 1;
+    vector_params->addressGen2Loops[1][1] = 1;
+  } else if (total_dims == 2) {
+    vector_params->addressGen2Loops[1][0] = 1;
+    vector_params->addressGen2Loops[1][1] = output_shape[0];
+  } else if (total_dims == 3) {
+    vector_params->addressGen2Loops[1][0] = output_shape[0];
+    vector_params->addressGen2Loops[1][1] = output_shape[1];
+  } else {
+    throw std::invalid_argument(
+        "Unsupported number of dimensions for vector operations!");
+  }
+  vector_params->addressGen2Loops[1][2] = output_shape.back() / OC_DIMENSION;
 
   for (int i = 0; i < 2; i++) {
-    vector_params->addressGen2InputXLoopIndex[i] = 0;
-    vector_params->addressGen2InputYLoopIndex[i] = 1;
+    vector_params->addressGen2InputYLoopIndex[i] = 0;
+    vector_params->addressGen2InputXLoopIndex[i] = 1;
     vector_params->addressGen2WeightLoopIndex[i] = 2;
   }
 
@@ -131,30 +162,54 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   AcceleratorMemoryMap accelerator_memory_map;
 
   const auto vector_input = param.vector_params(0).input();
-  int dim = 1;
+  int numel = 1;
   for (int i = 0; i < vector_input.shape_size(); i++) {
-    dim *= vector_input.shape(i);
+    numel *= vector_input.shape(i);
   }
-
-  int dim_factors[2];
-  factorizeForAddressGen(dim / OC_DIMENSION, dim_factors);
 
   const auto input_memory = vector_input.memory();
   accelerator_memory_map["vector0"] = get_partition(input_memory.partition());
   vector_params->VECTOR_OFFSET = input_memory.offset();
   vector_params->addressGen0Mode = 1;
   vector_params->addressGen0Broadcast = false;
+
   for (int i = 0; i < 3; i++) {
     vector_params->addressGen0Loop[0][i] = 1;
+    vector_params->outputLoops[0][i] = 1;
   }
-  vector_params->addressGen0Loop[1][0] = 1;
-  vector_params->addressGen0Loop[1][1] = dim_factors[0];
-  vector_params->addressGen0Loop[1][2] = dim_factors[1];
+
+  const auto input_shape = squeeze_shape(get_shape(vector_input));
+  const int input_dims = input_shape.size();
+  if (input_dims == 1) {
+    vector_params->addressGen0Loop[1][0] = 1;
+    vector_params->addressGen0Loop[1][1] = 1;
+    vector_params->outputLoops[1][0] = 1;
+    vector_params->outputLoops[1][1] = 1;
+  } else if (input_dims == 2) {
+    vector_params->addressGen0Loop[1][0] = 1;
+    vector_params->addressGen0Loop[1][1] = input_shape[0];
+    vector_params->outputLoops[1][0] = 1;
+    vector_params->outputLoops[1][1] = input_shape[0];
+  } else if (input_dims == 3) {
+    vector_params->addressGen0Loop[1][0] = input_shape[0];
+    vector_params->addressGen0Loop[1][1] = input_shape[1];
+    vector_params->outputLoops[1][0] = input_shape[0];
+    vector_params->outputLoops[1][1] = input_shape[1];
+  } else {
+    throw std::invalid_argument(
+        "Unsupported number of dimensions for vector operations!");
+  }
+  vector_params->addressGen0Loop[1][2] = input_shape.back() / OC_DIMENSION;
+  vector_params->outputLoops[1][2] = input_shape.back() / OC_DIMENSION;
 
   for (int i = 0; i < 2; i++) {
-    vector_params->addressGen0InputXLoopIndex[i] = 0;
-    vector_params->addressGen0InputYLoopIndex[i] = 1;
+    vector_params->addressGen0InputYLoopIndex[i] = 0;
+    vector_params->addressGen0InputXLoopIndex[i] = 1;
     vector_params->addressGen0WeightLoopIndex[i] = 2;
+
+    vector_params->outputYLoopIndex[i] = 0;
+    vector_params->outputXLoopIndex[i] = 1;
+    vector_params->outputWeightLoopIndex[i] = 2;
   }
 
   // set double precision if the datatype is not the same as the input datatype
@@ -165,29 +220,15 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   accelerator_memory_map["outputs"] = get_partition(output_memory.partition());
   vector_params->VECTOR_OUTPUT_OFFSET = output_memory.offset();
 
-  for (int i = 0; i < 3; i++) {
-    vector_params->outputLoops[0][i] = 1;
-  }
-  vector_params->outputLoops[1][0] = 1;
-  vector_params->outputLoops[1][1] = dim_factors[0];
-  vector_params->outputLoops[1][2] = dim_factors[1];
-
-  for (int i = 0; i < 2; i++) {
-    vector_params->outputXLoopIndex[i] = 0;
-    vector_params->outputYLoopIndex[i] = 1;
-    vector_params->outputWeightLoopIndex[i] = 2;
-  }
-
   vector_params->DP_OUTPUT =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
+
   if (param.output().has_permutation()) {
     vector_params->SPLIT_OUTPUT =
         param.output().shape(1) < param.output().shape(2);
     vector_params->CONCAT_OUTPUT =
         param.output().shape(1) > param.output().shape(2);
-  }
 
-  if (param.output().has_permutation()) {
     // if we have permutation, we need to configure the address generators
     // accordingly we need to make sure the output is split into 32x32 blocks
     vector_params->outputLoops[1][1] = param.output().shape(1);
@@ -245,7 +286,7 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
                              accelerator_memory_map, vector_params);
 
         vector_params->BROADCAST_VEC1_SCALE = true;
-        vector_params->vec1BroadcastCount = dim / size / OC_DIMENSION;
+        vector_params->vec1BroadcastCount = numel / size / OC_DIMENSION;
         vector_params->OUTPUT_QUANTIZE_MX = true;
       }
 
@@ -337,7 +378,7 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   VectorInstructionConfig *vector_instruction_config =
       new VectorInstructionConfig;
   vector_instruction_config->inst[0] = vinst;
-  vector_instruction_config->instCount[0] = dim / OC_DIMENSION;
+  vector_instruction_config->instCount[0] = numel / OC_DIMENSION;
   vector_instruction_config->instLen = 1;
   vector_instruction_config->instLoopCount = 1;
 
