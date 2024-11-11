@@ -116,11 +116,14 @@ SC_MODULE(OutputAddressGenerator) {
                   ac_int<16, false> Y = Y0 * Y1;
 
                   ac_int<32, false> baseAddress = y * X * K + x * K + k;
+                  ac_int<8, false> headSize = params.headSize;
                   if (params.SPLIT_OUTPUT) {
-                    baseAddress = ((k / 32) * X * 32) + (x * 32) + (k % 32);
+                    baseAddress = ((k / headSize) * X * headSize) +
+                                  (x * headSize) + (k % headSize);
                   } else if (params.CONCAT_OUTPUT) {
-                    baseAddress = ((k / 32) * K) + ((y % 32) * K * 4) +
-                                  (k % 32) + (y / 32 * K / 4);
+                    baseAddress = ((k / headSize) * K) +
+                                  ((y % headSize) * K * 4) + (k % headSize) +
+                                  (y / headSize * K / 4);
                   }
 
                   if (params.DP_OUTPUT) {

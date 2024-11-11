@@ -265,19 +265,21 @@ SC_MODULE(InputController) {
                         ac_int<32, false> baseAddress = y * X * C + x * C + c;
                         int burstSize = NROWS;
 
+                        ac_int<8, false> headSize = params.headSize;
+
                         if (params.REPLICATION) {
                           baseAddress = y * (X / packingFactor) * IC_DIMENSION +
                                         (x / packingFactor) * IC_DIMENSION + c;
                         }
                         if (params.CONCAT_INPUT && params.TRANPOSE_INPUTS) {
-                          baseAddress =
-                              (c + (x % 16)) * 32 +
-                              (((x / 16) * IC_DIMENSION) / 32 * C * 32) +
-                              (((x / 16) * IC_DIMENSION) % 32);
+                          baseAddress = (c + (x % 16)) * headSize +
+                                        (((x / 16) * IC_DIMENSION) / headSize *
+                                         C * headSize) +
+                                        (((x / 16) * IC_DIMENSION) % headSize);
                         } else {
                           if (params.CONCAT_INPUT) {
-                            baseAddress =
-                                ((c / 32) * X * 32) + (x * 32) + (c % 32);
+                            baseAddress = ((c / headSize) * X * headSize) +
+                                          (x * headSize) + (c % headSize);
                           }
                           if (params.TRANPOSE_INPUTS) {
                             baseAddress =
@@ -954,7 +956,6 @@ SC_MODULE(InputController) {
             loop_bounds[0][0] * loop_bounds[0][1] * loop_bounds[0][2] *
             loop_bounds[1][0] * loop_bounds[1][1] * loop_bounds[1][2] *
             loop_bounds[1][3] * loop_bounds[1][4] * loop_bounds[1][5];
-        std::cerr << "window buffer total count: " << total_count << std::endl;
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
         for (int i = 0; i < total_count; i++) {

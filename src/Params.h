@@ -54,6 +54,8 @@ struct MatrixParams : BaseParams {
     CONCAT_INPUT = false;
     CONCAT_HEAD_WEIGHTS = false;
     TRANPOSE_INPUTS = false;
+
+    headSize = 32;
   }
 #endif
 
@@ -93,6 +95,8 @@ struct MatrixParams : BaseParams {
   bool CONCAT_HEAD_WEIGHTS;
   bool TRANPOSE_INPUTS;
 
+  ac_int<8, false> headSize;
+
   bool BIAS;
   unsigned long long BIAS_OFFSET;
 
@@ -100,7 +104,7 @@ struct MatrixParams : BaseParams {
 
   static const unsigned int width =
       5 * 64 /* OFFSETS */ + (12 + 10) * 10 /* Loops */ +
-      (6 + 3) * 2 * 3 /* Loop indices */ + 8 * 1 /* Bools */ + 3;
+      (6 + 3) * 2 * 3 /* Loop indices */ + 8 * 1 /* Bools */ + 3 + 8;
 
 #ifndef NO_SYSC
   template <unsigned int Size>
@@ -155,6 +159,7 @@ struct MatrixParams : BaseParams {
     m & BIAS;
     m & BIAS_OFFSET;
     m & MX;
+    m & headSize;
   }
 
   inline friend void sc_trace(sc_trace_file* tf, const MatrixParams& params,
@@ -217,6 +222,15 @@ struct MatrixParams : BaseParams {
        << std::endl;
     os << "STRIDE: " << params.STRIDE << std::endl;
     os << "REPLICATION: " << params.REPLICATION << std::endl;
+    os << "STORE_IN_ACC: " << params.STORE_IN_ACC << std::endl;
+    os << "ACC_FROM_ACC: " << params.ACC_FROM_ACC << std::endl;
+    os << "CONCAT_INPUT: " << params.CONCAT_INPUT << std::endl;
+    os << "CONCAT_HEAD_WEIGHTS: " << params.CONCAT_HEAD_WEIGHTS << std::endl;
+    os << "TRANPOSE_INPUTS: " << params.TRANPOSE_INPUTS << std::endl;
+    os << "BIAS: " << params.BIAS << std::endl;
+    os << "BIAS_OFFSET: " << params.BIAS_OFFSET << std::endl;
+    os << "MX: " << params.MX << std::endl;
+    os << "headSize: " << params.headSize << std::endl;
     return os;
   }
 
@@ -267,6 +281,8 @@ struct MatrixParams : BaseParams {
       return false;
 
     if (lhs.MX != rhs.MX) return false;
+
+    if (lhs.headSize != rhs.headSize) return false;
 
     // If all members are equal, return true
     return true;
@@ -551,6 +567,7 @@ struct VectorParams : BaseParams {
     addressGen2Mode = 0;
     MAXPOOL = false;
     AVGPOOL = false;
+    headSize = 32;
   }
 #endif
 
@@ -592,6 +609,7 @@ struct VectorParams : BaseParams {
   ac_int<3, false> outputWeightLoopIndex[2];
   bool SPLIT_OUTPUT;
   bool CONCAT_OUTPUT;
+  ac_int<8, false> headSize;
 
   bool DP_OUTPUT;
   bool OUTPUT_QUANTIZE;
@@ -610,7 +628,7 @@ struct VectorParams : BaseParams {
   static const unsigned int width =
       5 * 64 /* OFFSETS */ + 4 * 6 * 11 /* Loops */ +
       3 * 6 * 4 /* Loop indices */ + 12 * 1 /* Bools */ + 10 + 3 * 2 +
-      16 * 4 /* Dequantize scale */ + 8;
+      16 * 4 /* Dequantize scale */ + 8 + 8 /* Transformer head dimension */;
 
 #ifndef NO_SYSC
   template <unsigned int Size>
@@ -699,6 +717,7 @@ struct VectorParams : BaseParams {
     m & addressGen2Mode;
     m & MAXPOOL;
     m & AVGPOOL;
+    m & headSize;
   }
 
   inline friend void sc_trace(sc_trace_file* tf, const VectorParams& params,
@@ -796,6 +815,8 @@ struct VectorParams : BaseParams {
          << "]: " << params.outputWeightLoopIndex[i] << std::endl;
     }
     os << "SPLIT_OUTPUT: " << params.SPLIT_OUTPUT << std::endl;
+    os << "CONCAT_OUTPUT: " << params.CONCAT_OUTPUT << std::endl;
+    os << "headSize: " << params.headSize << std::endl;
     os << "DP_OUTPUT: " << params.DP_OUTPUT << std::endl;
     os << "MAXPOOL: " << params.MAXPOOL << std::endl;
     os << "AVGPOOL: " << params.AVGPOOL << std::endl;

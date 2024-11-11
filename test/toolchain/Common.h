@@ -73,7 +73,7 @@ void factorizeForAddressGen(const int dim, int *factors) {
 }
 
 inline std::vector<int> get_shape(const codegen::Tensor &tensor) {
-  auto repeated_field = tensor.shape();
+  const auto repeated_field = tensor.shape();
   return std::vector<int>(repeated_field.begin(), repeated_field.end());
 }
 
