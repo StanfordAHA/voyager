@@ -85,6 +85,7 @@ struct MatrixParams : BaseParams {
   ac_int<3, false> weightAddressGenFyIndex;
 
   ac_int<2, false> STRIDE;
+  ac_int<8, false> headSize;
 
   bool WEIGHT_TRANSPOSE;
   bool REPLICATION;
@@ -94,8 +95,6 @@ struct MatrixParams : BaseParams {
   bool CONCAT_INPUT;
   bool CONCAT_HEAD_WEIGHTS;
   bool TRANPOSE_INPUTS;
-
-  ac_int<8, false> headSize;
 
   bool BIAS;
   unsigned long long BIAS_OFFSET;
@@ -149,6 +148,7 @@ struct MatrixParams : BaseParams {
     m & weightAddressGenFxIndex;
     m & weightAddressGenFyIndex;
     m & STRIDE;
+    m & headSize;
     m & WEIGHT_TRANSPOSE;
     m & REPLICATION;
     m & STORE_IN_ACC;
@@ -159,7 +159,6 @@ struct MatrixParams : BaseParams {
     m & BIAS;
     m & BIAS_OFFSET;
     m & MX;
-    m & headSize;
   }
 
   inline friend void sc_trace(sc_trace_file* tf, const MatrixParams& params,
@@ -706,6 +705,7 @@ struct VectorParams : BaseParams {
     }
     m & SPLIT_OUTPUT;
     m & CONCAT_OUTPUT;
+    m & headSize;
     m & DP_OUTPUT;
     m & OUTPUT_QUANTIZE;
     m & outputQuantizeScale;
@@ -717,7 +717,6 @@ struct VectorParams : BaseParams {
     m & addressGen2Mode;
     m & MAXPOOL;
     m & AVGPOOL;
-    m & headSize;
   }
 
   inline friend void sc_trace(sc_trace_file* tf, const VectorParams& params,

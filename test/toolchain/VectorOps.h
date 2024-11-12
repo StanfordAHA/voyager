@@ -56,15 +56,12 @@ void set_vector_addr_gen1(const codegen::Tensor &tensor,
     if (dim != 1) nonzero_dims++;
   }
 
-  // TODO: this logic needs to be updated
-  const int total_dims = output_shape.size();
-  const int broadcast_dims = total_dims - nonzero_dims;
-  if (broadcast_dims == 0) {
-    vector_params->addressGen1Mode = 1;
-  } else if (broadcast_dims == 1) {
-    vector_params->addressGen1Mode = 2;
-  } else if (broadcast_dims == 2) {
+  if (nonzero_dims == 1) {
     vector_params->addressGen1Mode = 3;
+  } else if (nonzero_dims == 2) {
+    vector_params->addressGen1Mode = 2;
+  } else if (nonzero_dims == 3) {
+    vector_params->addressGen1Mode = 1;
   }
 
   vector_params->DP_VEC1 =
@@ -75,6 +72,7 @@ void set_vector_addr_gen1(const codegen::Tensor &tensor,
     vector_params->addressGen1Loops[0][i] = 1;
   }
 
+  const int total_dims = output_shape.size();
   if (total_dims == 1) {
     vector_params->addressGen1Loops[1][0] = 1;
     vector_params->addressGen1Loops[1][1] = 1;
@@ -113,14 +111,12 @@ void set_vector_addr_gen2(const codegen::Tensor &tensor,
     if (dim != 1) nonzero_dims++;
   }
 
-  const int total_dims = output_shape.size();
-  const int broadcast_dims = total_dims - nonzero_dims;
-  if (broadcast_dims == 0) {
-    vector_params->addressGen2Mode = 1;
-  } else if (broadcast_dims == 1) {
-    vector_params->addressGen2Mode = 2;
-  } else if (broadcast_dims == 2) {
+  if (nonzero_dims == 1) {
     vector_params->addressGen2Mode = 3;
+  } else if (nonzero_dims == 2) {
+    vector_params->addressGen2Mode = 2;
+  } else if (nonzero_dims == 3) {
+    vector_params->addressGen2Mode = 1;
   }
 
   vector_params->DP_VEC2 =
@@ -131,6 +127,7 @@ void set_vector_addr_gen2(const codegen::Tensor &tensor,
     vector_params->addressGen2Loops[0][i] = 1;
   }
 
+  const int total_dims = output_shape.size();
   if (total_dims == 1) {
     vector_params->addressGen2Loops[1][0] = 1;
     vector_params->addressGen2Loops[1][1] = 1;
@@ -331,7 +328,7 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
               const auto input_shape = get_shape(it->input());
               const auto other_shape = get_shape(it->other());
               const auto output_shape =
-                  broadcast_shape(input_shape, other_shape);
+                  squeeze_shape(broadcast_shape(input_shape, other_shape));
 
               if (stage == 0) {
                 vinst.vOp0Src1 = VectorInstructions::readInterface;

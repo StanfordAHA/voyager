@@ -45,7 +45,7 @@ SC_MODULE(InputController) {
   }
 
   static constexpr int LOOP_WIDTH =
-      (11 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION
+      (10 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION
                                                        : OC_DIMENSION)));
 
   SC_CTOR(InputController) {

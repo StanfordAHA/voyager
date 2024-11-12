@@ -332,14 +332,15 @@ SC_MODULE(VectorOpUnit) {
           MemoryRequest memRequest = {inst.vmapOffset + offset * 2, 2};
           vectorFetch3AddressRequest.Push(memRequest);
 
+          ac_int<16, false> bits = 0;
+          for (int j = 0; j < 2; j++) {
+            IO_DTYPE response = vectorFetch3DataResponse.Pop();
+            ac_int<16, false> bits_rep = response.bits_rep();
+            bits = bits | (bits_rep << (8 * j));
+          }
+
           DataTypes::bfloat16 mappedValue;
-
-          IO_DTYPE response1 = vectorFetch3DataResponse.Pop();
-          IO_DTYPE response2 = vectorFetch3DataResponse.Pop();
-
-          ac_int<16, false> bits1 = response1.bits_rep();
-          ac_int<16, false> bits2 = response2.bits_rep();
-          mappedValue.setbits((bits2 << 8) | bits1);
+          mappedValue.setbits(bits);
 
           res4[i] = mappedValue;
         }
