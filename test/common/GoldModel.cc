@@ -270,7 +270,7 @@ void run_operation(const codegen::AcceleratorParam param,
           std::any_cast<DataTypes::bfloat16 *>(args[arg_index++]);
 
       for (int i = 0; i < size; i++) {
-        DataTypes::bfloat16 value = input_tensor[i];
+        DataTypes::bfloat16 value = static_cast<DataTypes::bfloat16>(input_tensor[i]);
         unsigned int index = value.bits_rep().to_uint();
         input_tensor[i] = static_cast<VECTOR_T>(value_map[index]);
       }
