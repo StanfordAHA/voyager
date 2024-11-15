@@ -287,8 +287,9 @@ SC_MODULE(InputController) {
                           }
                         }
                         MemoryRequest memRequest;
-                        memRequest = {params.INPUT_OFFSET + baseAddress,
-                                      burstSize};
+                        memRequest = {params.INPUT_OFFSET +
+                                          baseAddress * (DTYPE::width / 8),
+                                      burstSize * (DTYPE::width / 8)};
 
                         addressRequest.Push(memRequest);
 
