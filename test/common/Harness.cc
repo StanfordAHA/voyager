@@ -7,6 +7,8 @@
 
 #include "AccelTypes.h"
 #include "sysc/kernel/sc_time.h"
+
+#ifndef CFLOAT
 #include "test/toolchain/MapOperation.h"
 
 #ifdef SOC_COSIM
@@ -33,21 +35,23 @@ void register_interface(
         *vectorFetch2AddressRequest,
     std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION>>::width>>
         *vectorFetch2AddressResponse,
+    std::deque<sc_lv<Wrapped<MemoryRequest>::width>>
+        *vectorFetch3AddressRequest,
+    std::deque<sc_lv<Wrapped<INPUT_DATATYPE>::width>>
+        *vectorFetch3AddressResponse,
     std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION>>::width>>
         *vectorOutput,
-    std::deque<sc_lv<Wrapped<int>::width>> *vectorOutputAddress);
+    std::deque<sc_lv<Wrapped<unsigned long long>::width>> *vectorOutputAddress);
 // void copy_output(void *sram, int size, int data_size);
 #endif
 
 Harness::Harness(sc_module_name name,
-                 std::vector<codegen::AcceleratorParam> params, char *sram,
-                 char *rram)
+                 std::vector<codegen::AcceleratorParam> params, char *memory)
     : sc_module(name),
       clk("clk", std::stod(std::getenv("CLOCK_PERIOD")), SC_NS, 0.5, 0, SC_NS,
           true),
       params(params),
-      sramMemory(sram),
-      rramMemory(rram),
+      memory(memory),
       inputDataResponse_fifo("inputDataResponse_fifo", 1024),
       weightDataResponse_fifo("weightDataResponse_fifo", 1024),
       biasDataResponse_fifo("biasDataResponse_fifo", 1024),
@@ -70,6 +74,8 @@ Harness::Harness(sc_module_name name,
   accelerator.vectorFetch1DataResponse(vectorFetch1DataResponse);
   accelerator.vectorFetch2AddressRequest(vectorFetch2AddressRequest);
   accelerator.vectorFetch2DataResponse(vectorFetch2DataResponse);
+  accelerator.vectorFetch3AddressRequest(vectorFetch3AddressRequest);
+  accelerator.vectorFetch3DataResponse(vectorFetch3DataResponse);
   accelerator.vectorOutput(vectorOutput);
   accelerator.vectorOutputAddress(vectorOutputAddress);
 
@@ -96,7 +102,9 @@ Harness::Harness(sc_module_name name,
       vectorFetch1AddressRequest.getDataQueue(),
       vectorFetch1DataResponse.getDataQueue(),
       vectorFetch2AddressRequest.getDataQueue(),
-      vectorFetch2DataResponse.getDataQueue(), vectorOutput.getDataQueue(),
+      vectorFetch2DataResponse.getDataQueue(),
+      vectorFetch3AddressRequest.getDataQueue(),
+      vectorFetch3DataResponse.getDataQueue(), vectorOutput.getDataQueue(),
       vectorOutputAddress.getDataQueue());
 #endif
 
@@ -162,6 +170,14 @@ Harness::Harness(sc_module_name name,
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
 
+  SC_THREAD(readRequestVector3);
+  sensitive << clk.posedge_event();
+  async_reset_signal_is(rstn, false);
+
+  SC_THREAD(sendResponseVector3);
+  sensitive << clk.posedge_event();
+  async_reset_signal_is(rstn, false);
+
   SC_THREAD(readRequestBias);
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
@@ -189,33 +205,13 @@ void Harness::reset() {
 template <long unsigned int DIMENSION>
 void Harness::readMemoryRequest(
     CombinationalInterface<MemoryRequest> *addressRequest,
-    sc_fifo<Pack1D<INPUT_DATATYPE, DIMENSION>> *dataResponse_fifo,
-    std::string memSourceType) {
+    sc_fifo<Pack1D<INPUT_DATATYPE, DIMENSION>> *dataResponse_fifo) {
   addressRequest->ResetRead();
 
   wait();
 
   while (true) {
     MemoryRequest memRequest = addressRequest->Pop();
-    MemorySource memSource;
-
-    auto it = currentMemoryMap.find(memSourceType);
-    if (it != currentMemoryMap.end()) {
-      memSource = it->second;
-    } else {
-      std::cerr << "Memory interface " << memSourceType
-                << " has not been specified for layer " << currentParams.name()
-                << " but received memory requests. Fix the operation mapping."
-                << std::endl;
-      std::abort();
-    }
-
-    char *memory;
-    if (memSource == RRAM) {
-      memory = rramMemory;
-    } else {
-      memory = sramMemory;
-    }
 
     int total_num_bytes = memRequest.burstSize;
 
@@ -225,17 +221,17 @@ void Harness::readMemoryRequest(
       for (int i = 0; i < DIMENSION; i++) {
         ac_int<INPUT_DATATYPE::width, false> bits;
         int num_bytes = INPUT_DATATYPE::width / 8;
+        unsigned long long base_address = memRequest.address;
         for (int byte = 0; byte < num_bytes; byte++) {
-          bits.set_slc(
-              byte * 8,
-              static_cast<ac_int<8, false>>(
-                  memory[int(memRequest.address) + b * DIMENSION * num_bytes +
-                         i * num_bytes + byte]));
+          unsigned long long address =
+              base_address + b * DIMENSION * num_bytes + i * num_bytes + byte;
+          bits.set_slc(byte * 8,
+                       static_cast<ac_int<8, false>>(memory[address]));
         }
         data[i].setbits(bits);
       }
-      DLOG(memSource << " access at addr: " << memRequest.address
-                     << " data: " << data << std::endl);
+      DLOG("read addr: " << memRequest.address << " data: " << data
+                              << std::endl);
       dataResponse_fifo->write(data);
     }
   }
@@ -254,8 +250,47 @@ void Harness::sendMemoryResponse(
   }
 }
 
+void Harness::readSingleMemoryRequest(
+    CombinationalInterface<MemoryRequest> *addressRequest,
+    sc_fifo<INPUT_DATATYPE> *dataResponse_fifo) {
+  addressRequest->ResetRead();
+
+  wait();
+
+  while (true) {
+    MemoryRequest memRequest = addressRequest->Pop();
+
+    for (int b = 0; b < memRequest.burstSize; b++) {
+      INPUT_DATATYPE data;
+      ac_int<INPUT_DATATYPE::width, false> bits;
+      int num_bytes = INPUT_DATATYPE::width / 8;
+      unsigned long long base_address = memRequest.address;
+      for (int byte = 0; byte < num_bytes; byte++) {
+        unsigned long long address = base_address + b * num_bytes + byte;
+        bits.set_slc(byte * 8, static_cast<ac_int<8, false>>(memory[address]));
+      }
+      data.setbits(bits);
+      DLOG("read addr: " << memRequest.address << " data: " << data
+                              << std::endl);
+      dataResponse_fifo->write(data);
+    }
+  }
+}
+
+void Harness::sendSingleMemoryResponse(
+    sc_fifo<INPUT_DATATYPE> *dataResponse_fifo,
+    CombinationalInterface<INPUT_DATATYPE> *dataResponse) {
+  dataResponse->ResetWrite();
+
+  wait();
+
+  while (true) {
+    dataResponse->Push(dataResponse_fifo->read());
+  }
+}
+
 void Harness::readRequestInputs() {
-  readMemoryRequest(&inputAddressRequest, &inputDataResponse_fifo, "inputs");
+  readMemoryRequest(&inputAddressRequest, &inputDataResponse_fifo);
 }
 void Harness::sendResponseInputs() {
   sendMemoryResponse(&inputDataResponse_fifo, &inputDataResponse);
@@ -263,8 +298,7 @@ void Harness::sendResponseInputs() {
 
 void Harness::readRequestInputScale() {
 #if SUPPORT_MX
-  readMemoryRequest(&inputScaleAddressRequest, &inputScaleDataResponse_fifo,
-                    "inputs");
+  readMemoryRequest(&inputScaleAddressRequest, &inputScaleDataResponse_fifo);
 #endif
 }
 void Harness::sendResponseInputScale() {
@@ -274,7 +308,7 @@ void Harness::sendResponseInputScale() {
 }
 
 void Harness::readRequestWeights() {
-  readMemoryRequest(&weightAddressRequest, &weightDataResponse_fifo, "weights");
+  readMemoryRequest(&weightAddressRequest, &weightDataResponse_fifo);
 }
 void Harness::sendResponseWeights() {
   sendMemoryResponse(&weightDataResponse_fifo, &weightDataResponse);
@@ -282,8 +316,7 @@ void Harness::sendResponseWeights() {
 
 void Harness::readRequestWeightScale() {
 #if SUPPORT_MX
-  readMemoryRequest(&weightScaleAddressRequest, &weightScaleDataResponse_fifo,
-                    "weights");
+  readMemoryRequest(&weightScaleAddressRequest, &weightScaleDataResponse_fifo);
 #endif
 }
 void Harness::sendResponseWeightScale() {
@@ -293,31 +326,40 @@ void Harness::sendResponseWeightScale() {
 }
 
 void Harness::readRequestVector0() {
-  readMemoryRequest(&vectorFetch0AddressRequest, &vectorFetch0DataResponse_fifo,
-                    "vector0");
+  readMemoryRequest(&vectorFetch0AddressRequest,
+                    &vectorFetch0DataResponse_fifo);
 }
 void Harness::sendResponseVector0() {
   sendMemoryResponse(&vectorFetch0DataResponse_fifo, &vectorFetch0DataResponse);
 }
 
 void Harness::readRequestVector1() {
-  readMemoryRequest(&vectorFetch1AddressRequest, &vectorFetch1DataResponse_fifo,
-                    "vector1");
+  readMemoryRequest(&vectorFetch1AddressRequest,
+                    &vectorFetch1DataResponse_fifo);
 }
 void Harness::sendResponseVector1() {
   sendMemoryResponse(&vectorFetch1DataResponse_fifo, &vectorFetch1DataResponse);
 }
 
 void Harness::readRequestVector2() {
-  readMemoryRequest(&vectorFetch2AddressRequest, &vectorFetch2DataResponse_fifo,
-                    "vector2");
+  readMemoryRequest(&vectorFetch2AddressRequest,
+                    &vectorFetch2DataResponse_fifo);
 }
 void Harness::sendResponseVector2() {
   sendMemoryResponse(&vectorFetch2DataResponse_fifo, &vectorFetch2DataResponse);
 }
 
+void Harness::readRequestVector3() {
+  readSingleMemoryRequest(&vectorFetch3AddressRequest,
+                          &vectorFetch3DataResponse_fifo);
+}
+void Harness::sendResponseVector3() {
+  sendSingleMemoryResponse(&vectorFetch3DataResponse_fifo,
+                           &vectorFetch3DataResponse);
+}
+
 void Harness::readRequestBias() {
-  readMemoryRequest(&biasAddressRequest, &biasDataResponse_fifo, "bias");
+  readMemoryRequest(&biasAddressRequest, &biasDataResponse_fifo);
 }
 void Harness::sendResponseBias() {
   sendMemoryResponse(&biasDataResponse_fifo, &biasDataResponse);
@@ -363,7 +405,6 @@ void Harness::sendParams() {
       bool matrixParamsValid, vectorParamsValid;
 
       BaseParams *baseParam = accelerator_params.front();
-      currentMemoryMap = accelerator_memory_maps.front();
 
       MatrixParams *matrixParams = dynamic_cast<MatrixParams *>(baseParam);
       matrixParamsValid = matrixParams != NULL;
@@ -447,23 +488,30 @@ void Harness::storeVectorOutputs() {
 
   while (true) {
     Pack1D<OUTPUT_DATATYPE, OC_DIMENSION> data = vectorOutput.Pop();
-    ac_int<32, false> address = vectorOutputAddress.Pop();
-    DLOG("address: " << address << " data: " << data);
+    unsigned long long base_address = vectorOutputAddress.Pop();
+    DLOG("write address: " << base_address << " data: " << data);
     for (int i = 0; i < OC_DIMENSION; i++) {
-      char *memory =
-          currentMemoryMap.at("outputs") == SRAM ? sramMemory : rramMemory;
-
       ac_int<OUTPUT_DATATYPE::width, false> bits = data[i].bits_rep();
       for (int byte = 0; byte < OUTPUT_DATATYPE::width / 8; byte++) {
-        memory[address + i * OUTPUT_DATATYPE::width / 8 + byte] =
-            bits.slc<8>(byte * 8);
+        unsigned long long address =
+            base_address + i * OUTPUT_DATATYPE::width / 8 + byte;
+        memory[address] = bits.slc<8>(byte * 8);
       }
     }
   }
 }
+#endif
 
 void run_accelerator(std::vector<codegen::AcceleratorParam> params,
-                     char *sramMemory, char *rramMemory) {
-  Harness harness("harness", params, sramMemory, rramMemory);
+                     char *memory) {
+#ifdef CFLOAT
+  std::cerr
+      << "The SystemC model does not support the CFloat datatype. Only the "
+         "gold model should be used for CFloat."
+      << std::endl;
+  std::abort();
+#else
+  Harness harness("harness", params, memory);
   sc_start();
+#endif
 }

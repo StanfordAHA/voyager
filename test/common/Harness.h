@@ -9,9 +9,11 @@
 #include <vector>
 
 #include "AccelTypes.h"
-#include "Accelerator.h"
 #include "ArchitectureParams.h"
 #include "test/common/VerificationTypes.h"
+
+#ifndef CFLOAT
+#include "Accelerator.h"
 
 #ifdef SOC_COSIM
 #define CombinationalInterface LoggingCombinational
@@ -109,23 +111,26 @@ SC_MODULE(Harness) {
   CombinationalInterface<Pack1D<INPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
       vectorFetch2DataResponse);
 
+  CombinationalInterface<MemoryRequest> CCS_INIT_S1(vectorFetch3AddressRequest);
+  sc_fifo<INPUT_DATATYPE> vectorFetch3DataResponse_fifo;
+  CombinationalInterface<INPUT_DATATYPE> CCS_INIT_S1(vectorFetch3DataResponse);
+
   CombinationalInterface<Pack1D<INPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
       vectorOutput);
-  CombinationalInterface<ac_int<32, false> > CCS_INIT_S1(vectorOutputAddress);
+  CombinationalInterface<ac_int<64, false> > CCS_INIT_S1(vectorOutputAddress);
 
   Connections::SyncChannel CCS_INIT_S1(matrixUnitStartSignal);
   Connections::SyncChannel CCS_INIT_S1(matrixUnitDoneSignal);
   Connections::SyncChannel CCS_INIT_S1(vectorUnitStartSignal);
   Connections::SyncChannel CCS_INIT_S1(vectorUnitDoneSignal);
 
-  Harness(sc_module_name, std::vector<codegen::AcceleratorParam>, char *,
-          char *);
+  Harness(sc_module_name, std::vector<codegen::AcceleratorParam>, char *);
   SC_HAS_PROCESS(Harness);
 
  private:
   std::vector<codegen::AcceleratorParam> params;
   codegen::AcceleratorParam currentParams;
-  char *sramMemory, *rramMemory;
+  char *memory;
   AcceleratorMemoryMap currentMemoryMap;
 
 #ifdef SIM_Accelerator
@@ -137,13 +142,19 @@ SC_MODULE(Harness) {
   template <long unsigned int DIMENSION>
   void readMemoryRequest(
       CombinationalInterface<MemoryRequest> * addressRequest,
-      sc_fifo<Pack1D<INPUT_DATATYPE, DIMENSION> > * dataResponse_fifo,
-      std::string memSourceType);
+      sc_fifo<Pack1D<INPUT_DATATYPE, DIMENSION> > * dataResponse_fifo);
   template <long unsigned int DIMENSION>
   void sendMemoryResponse(
       sc_fifo<Pack1D<INPUT_DATATYPE, DIMENSION> > * dataResponse_fifo,
       CombinationalInterface<Pack1D<INPUT_DATATYPE, DIMENSION> > *
           dataResponse);
+
+  void readSingleMemoryRequest(
+      CombinationalInterface<MemoryRequest> * addressRequest,
+      sc_fifo<INPUT_DATATYPE> * dataResponse_fifo);
+  void sendSingleMemoryResponse(
+      sc_fifo<INPUT_DATATYPE> * dataResponse_fifo,
+      CombinationalInterface<INPUT_DATATYPE> * dataResponse);
 
   void readRequestInputs();
   void sendResponseInputs();
@@ -166,6 +177,9 @@ SC_MODULE(Harness) {
   void readRequestVector2();
   void sendResponseVector2();
 
+  void readRequestVector3();
+  void sendResponseVector3();
+
   void readRequestBias();
   void sendResponseBias();
 
@@ -174,3 +188,4 @@ SC_MODULE(Harness) {
   void storeScalarOutputs();
   void sendParams();
 };
+#endif

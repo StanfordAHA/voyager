@@ -2,6 +2,7 @@
 #include "src/Params.h"
 #include "test/common/VerificationTypes.h"
 #include "test/compiler/proto/param.pb.h"
+#include "test/toolchain/LayerNorm.h"
 #include "test/toolchain/MatrixOps.h"
 #include "test/toolchain/MatrixVectorMultiply.h"
 #include "test/toolchain/Pooling.h"
@@ -13,9 +14,15 @@ void MapOperation(const codegen::AcceleratorParam &param,
                   std::deque<BaseParams *> &mappedParams,
                   std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   if (param.has_matrix_param()) {
-    const auto &inputs = param.matrix_param().has_mx_input()
-                             ? param.matrix_param().mx_input().input()
-                             : param.matrix_param().input();
+    const auto matrix_param = param.matrix_param();
+    if (matrix_param.opcode() == "layer_norm") {
+      MapLayerNorm(param, mappedParams, opMemoryMaps);
+      return;
+    }
+
+    const auto &inputs = matrix_param.has_mx_input()
+                             ? matrix_param.mx_input().input()
+                             : matrix_param.input();
     int dim = 1;
     for (int i = 0; i < inputs.shape_size() - 1; i++) {
       dim *= inputs.shape(i);

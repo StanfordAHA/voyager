@@ -30,7 +30,7 @@ SC_MODULE(WeightController) {
   }
 
   static constexpr int LOOP_WIDTH =
-      (8 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION
+      (10 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION
                                                       : OC_DIMENSION)));
 
 #ifdef HYBRID_FP8
@@ -545,8 +545,9 @@ SC_MODULE(WeightController) {
 
                               if (params.WEIGHT_TRANSPOSE &&
                                   OC_DIMENSION > IC_DIMENSION) {
-                                address = (fy * FX * C * 2 * K1) + (fx * C * 2 * K1) +
-                                    (c + rep * NROWS) * K1 + k1;
+                                address = (fy * FX * C * 2 * K1) +
+                                          (fx * C * 2 * K1) +
+                                          (c + rep * NROWS) * K1 + k1;
                               }
                               readAddress[bankSel].Push(address);
                             }
@@ -781,9 +782,12 @@ SC_MODULE(WeightController) {
                             k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
                         ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
 
-                        MemoryRequest memRequest = {
-                            params.BIAS_OFFSET + k * (ACC_DTYPE::width / 8),
-                            OC_DIMENSION * (ACC_DTYPE::width / 8)};
+                        constexpr int num_words =
+                            ACC_DTYPE::width / DTYPE::width;
+
+                        unsigned long long baseAddress = params.BIAS_OFFSET;
+                        MemoryRequest memRequest = {baseAddress + k * num_words,
+                                                    OC_DIMENSION * num_words};
 
                         biasAddressRequest.Push(memRequest);
 

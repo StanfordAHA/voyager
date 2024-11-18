@@ -24,7 +24,7 @@
 bool run_sample(std::string model_name, std::string data_dir,
                 std::string sample,
                 std::vector<codegen::AcceleratorParam> params) {
-  std::vector<int> memory_sizes{SRAM_MEMORY_SIZE};
+  std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE};
   auto memory = std::make_unique<ArrayMemory>(memory_sizes);
   auto data_loader = std::make_unique<DataLoader>(memory.get(), false);
 

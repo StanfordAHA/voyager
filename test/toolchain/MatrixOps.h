@@ -7,22 +7,6 @@
 #include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/Common.h"
 
-inline std::vector<int> get_shape(const codegen::Tensor &tensor) {
-  auto repeated_field = tensor.shape();
-  return std::vector<int>(repeated_field.begin(), repeated_field.end());
-}
-
-inline int get_size(const std::vector<int> &shape) {
-  int size = 1;
-  for (const auto &dim : shape) size *= dim;
-  return size;
-}
-
-inline int get_size(const codegen::Tensor &tensor) {
-  const auto shape = get_shape(tensor);
-  return get_size(shape);
-}
-
 void set_addr_gen1(const codegen::Tensor &tensor, const Tiling &tiling,
                    AcceleratorMemoryMap &accelerator_memory_map,
                    VectorParams *vector_params) {
@@ -297,10 +281,25 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   const auto input = matrix_param.has_mx_input()
                          ? matrix_param.mx_input().input()
                          : matrix_param.input();
-  const auto permutation = input.permutation();
-  matrix_params->CONCAT_INPUT = permutation.opcode() == "permute";
-  // matrix_params->CONCAT_HEAD_WEIGHTS = false;
-  matrix_params->TRANPOSE_INPUTS = permutation.opcode() == "transpose";
+  if (input.has_permutation()) {
+    const auto permutation = input.permutation();
+    // This is hardcoded for Transformer head permutation
+    std::vector<int> dims(permutation.dims().begin(), permutation.dims().end());
+    bool is_permute = std::all_of(dims.begin(), dims.end(),
+                                  [](int x) { return x == 1 || x == 2; });
+
+    if (permutation.opcode() == "permute" ||
+        (permutation.opcode() == "transpose" && is_permute)) {
+      matrix_params->CONCAT_INPUT = true;
+    } else if (permutation.opcode() == "transpose") {
+      matrix_params->TRANPOSE_INPUTS = true;
+    }
+
+    if (matrix_params->CONCAT_INPUT) {
+      const auto unpermuted_shape = permutation.input_shape();
+      matrix_params->headSize = unpermuted_shape[unpermuted_shape.size() - 1];
+    }
+  }
 
   // bias
   const auto bias_memory = matrix_param.bias().memory();
@@ -348,8 +347,12 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   vector_params->DP_OUTPUT =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 
-  // TODO: Transformer qkv output permutation
-  vector_params->SPLIT_OUTPUT = param.output().has_permutation();
+  // Transformer head permutation
+  if (param.output().has_permutation()) {
+    vector_params->SPLIT_OUTPUT = true;
+    const auto permuted_shape = param.output().permutation().output_shape();
+    vector_params->headSize = permuted_shape[permuted_shape.size() - 1];
+  }
 
   VectorInstructions vinst;
   memset(&vinst, 0, sizeof(vinst));

@@ -30,6 +30,9 @@ SC_MODULE(VectorOpUnit) {
   Connections::In<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch1Output);
   Connections::In<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch2Output);
 
+  Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch3AddressRequest);
+  Connections::In<IO_DTYPE> CCS_INIT_S1(vectorFetch3DataResponse);
+
   Connections::Out<Pack1D<typename VEC_DTYPE::AccumulationDatatype, WIDTH> >
       CCS_INIT_S1(vectorOpUnitOutput);
 
@@ -121,6 +124,8 @@ SC_MODULE(VectorOpUnit) {
     broadcastReductionOpOutputOp0Src0.ResetRead();
     broadcastReductionOpOutputOp0Src1.ResetRead();
     broadcastReductionOpOutputOp3Src1.ResetRead();
+    vectorFetch3AddressRequest.Reset();
+    vectorFetch3DataResponse.Reset();
 
     wait();
 
@@ -295,6 +300,11 @@ SC_MODULE(VectorOpUnit) {
         }
         vmult<typename VEC_DTYPE::AccumulationDatatype, WIDTH>(op3Src0, op3Src1,
                                                                res3);
+        DLOG(op3Src0 << std::endl
+                     << " * " << std::endl
+                     << op3Src1 << std::endl
+                     << " = " << std::endl
+                     << res3);
       } else if (inst.vOp3 == VectorInstructions::vscaleexp) {
         ac_int<8, true> scaleVal;
         scaleVal = inst.immediate1;
@@ -307,13 +317,33 @@ SC_MODULE(VectorOpUnit) {
       // DLOG("res3: " << res3);
 
       /*
-       * Stage 4: relu
+       * Stage 4: relu and value mapping
        */
       if (inst.vOp4 == VectorInstructions::vrelu ||
           inst.vOp4 == VectorInstructions::vrelumask) {
         bool useMask = inst.vOp4 == VectorInstructions::vrelumask;
         vrelu<typename VEC_DTYPE::AccumulationDatatype, WIDTH>(res3, op0Src1,
                                                                useMask, res4);
+      } else if (inst.vOp4 == VectorInstructions::vmap) {
+        for (int i = 0; i < WIDTH; i++) {
+          DataTypes::bfloat16 value = res3[i];
+          uint offset = value.bits_rep().to_uint();
+
+          MemoryRequest memRequest = {inst.vmapOffset + offset * 2, 2};
+          vectorFetch3AddressRequest.Push(memRequest);
+
+          ac_int<16, false> bits = 0;
+          for (int j = 0; j < 2; j++) {
+            IO_DTYPE response = vectorFetch3DataResponse.Pop();
+            ac_int<16, false> bits_rep = response.bits_rep();
+            bits = bits | (bits_rep << (8 * j));
+          }
+
+          DataTypes::bfloat16 mappedValue;
+          mappedValue.setbits(bits);
+
+          res4[i] = mappedValue;
+        }
       } else {
         res4 = res3;
       }
@@ -554,7 +584,10 @@ SC_MODULE(VectorUnit) {
   Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
       vectorFetch2DataResponseConverted);
 
-  Connections::Out<ac_int<32, false> > CCS_INIT_S1(vectorOutputAddress);
+  Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch3AddressRequest);
+  Connections::In<IO_DTYPE> CCS_INIT_S1(vectorFetch3DataResponse);
+
+  Connections::Out<ac_int<64, false> > CCS_INIT_S1(vectorOutputAddress);
   Connections::Out<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(finalVectorOutput);
   Connections::Combinational<
       Pack1D<typename VEC_DTYPE::AccumulationDatatype, WIDTH> >
@@ -622,6 +655,8 @@ SC_MODULE(VectorUnit) {
     vectorOpUnit.vectorFetch1Output(vectorFetch1DataResponseConverted);
     vectorOpUnit.vectorFetch2Output(vectorFetch2DataResponseConverted);
     vectorOpUnit.vectorOpUnitOutput(vectorOpUnitOutput);
+    vectorOpUnit.vectorFetch3AddressRequest(vectorFetch3AddressRequest);
+    vectorOpUnit.vectorFetch3DataResponse(vectorFetch3DataResponse);
 
     maxpoolUnit.clk(clk);
     maxpoolUnit.rstn(rstn);

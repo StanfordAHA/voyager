@@ -8,10 +8,10 @@
 
 #include "src/ArchitectureParams.h"
 
-ArrayMemory::ArrayMemory(std::vector<int> sizes) : MemoryInterface() {
+ArrayMemory::ArrayMemory(std::vector<long long> sizes) : MemoryInterface() {
   memories.reserve(sizes.size());
   try {
-    for (int size : sizes) {
+    for (const auto size : sizes) {
       char* memory = new char[size];
       std::fill(memory, memory + size, 0);
       memories.push_back(memory);
@@ -126,7 +126,7 @@ std::any ArrayMemory::get_output(const codegen::AcceleratorParam& param) {
 }
 
 template <typename T>
-void ArrayMemory::read_tensor_from_memory(const int address,
+void ArrayMemory::read_tensor_from_memory(const long long address,
                                           const int partition, const int size,
                                           T* tensor) {
   char* memory = get_memory(partition) + address;
@@ -142,27 +142,11 @@ void ArrayMemory::read_tensor_from_memory(const int address,
   }
 }
 
-// TODO: clean this up. currently this is causing namespace conflicts. we need
-// to make this file .cc instead of .h
-inline std::vector<int> get_shape_2(const codegen::Tensor& tensor) {
-  auto repeated_field = tensor.shape();
-  return std::vector<int>(repeated_field.begin(), repeated_field.end());
-}
-
-inline int get_size_2(const std::vector<int>& shape) {
-  int size = 1;
-  for (const auto& dim : shape) size *= dim;
-  return size;
-}
-
-inline int get_size_2(const codegen::Tensor& tensor) {
-  const auto shape = get_shape_2(tensor);
-  return get_size_2(shape);
-}
-
 std::any ArrayMemory::get_tensor(const codegen::Tensor& tensor) {
   int partition = tensor.memory().partition();
-  int size = get_size_2(tensor);
+
+  int size = 1;
+  for (const auto &dim : tensor.shape()) size *= dim;
 
   if (size == 1) {  // for scalar, we get the arg from the file, not from memory
     const char* env_var = std::getenv("NETWORK");
@@ -221,8 +205,9 @@ std::any ArrayMemory::get_tensor(const codegen::Tensor& tensor) {
   }
 }
 
-void ArrayMemory::write_bytes_to_memory(const int address, const int partition,
-                                        const int size, const char* bytes) {
+void ArrayMemory::write_bytes_to_memory(const long long address,
+                                        const int partition, const int size,
+                                        const char* bytes) {
   auto memory = get_memory(partition);
   for (int i = 0; i < size; i++) {
     memory[address + i] = bytes[i];

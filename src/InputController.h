@@ -45,8 +45,8 @@ SC_MODULE(InputController) {
   }
 
   static constexpr int LOOP_WIDTH =
-      (8 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION
-                                                      : OC_DIMENSION)));
+      (10 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION
+                                                       : OC_DIMENSION)));
 
   SC_CTOR(InputController) {
     paramsDeserializer.clk(clk);
@@ -265,19 +265,21 @@ SC_MODULE(InputController) {
                         ac_int<32, false> baseAddress = y * X * C + x * C + c;
                         int burstSize = NROWS;
 
+                        ac_int<8, false> headSize = params.headSize;
+
                         if (params.REPLICATION) {
                           baseAddress = y * (X / packingFactor) * IC_DIMENSION +
                                         (x / packingFactor) * IC_DIMENSION + c;
                         }
                         if (params.CONCAT_INPUT && params.TRANPOSE_INPUTS) {
-                          baseAddress =
-                              (c + (x % 16)) * 32 +
-                              (((x / 16) * IC_DIMENSION) / 32 * C * 32) +
-                              (((x / 16) * IC_DIMENSION) % 32);
+                          baseAddress = (c + (x % 16)) * headSize +
+                                        (((x / 16) * IC_DIMENSION) / headSize *
+                                         C * headSize) +
+                                        (((x / 16) * IC_DIMENSION) % headSize);
                         } else {
                           if (params.CONCAT_INPUT) {
-                            baseAddress =
-                                ((c / 32) * X * 32) + (x * 32) + (c % 32);
+                            baseAddress = ((c / headSize) * X * headSize) +
+                                          (x * headSize) + (c % headSize);
                           }
                           if (params.TRANPOSE_INPUTS) {
                             baseAddress =
