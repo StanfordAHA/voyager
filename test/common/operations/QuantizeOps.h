@@ -98,3 +98,28 @@ DEQUANTIZED_TYPE* dequantize(std::any input, std::any scale, int size) {
 
   return dequantized_output;
 }
+
+template <typename DEQUANTIZED_TYPE>
+DEQUANTIZED_TYPE* dequantize_tensor(std::any input, std::any scale,
+                                    codegen::Tensor tensor) {
+  if (tensor.dtype() == "int32") {
+    return dequantize<DataTypes::int32, DEQUANTIZED_TYPE>(input, scale,
+                                                          get_size(tensor));
+  } else if (tensor.dtype() == "int24") {
+    return dequantize<DataTypes::int24, DEQUANTIZED_TYPE>(input, scale,
+                                                          get_size(tensor));
+  } else if (tensor.dtype() == "int8") {
+    return dequantize<DataTypes::int8, DEQUANTIZED_TYPE>(input, scale,
+                                                         get_size(tensor));
+  } else if (tensor.dtype() == "fp8_e4m3") {
+    return dequantize<DataTypes::e4m3, DEQUANTIZED_TYPE>(input, scale,
+                                                         get_size(tensor));
+  } else if (tensor.dtype() == "posit8_1") {
+    return dequantize<DataTypes::posit8, DEQUANTIZED_TYPE>(input, scale,
+                                                           get_size(tensor));
+  } else {
+    std::cerr << "No dequantization operation for dtype: " << tensor.dtype()
+              << std::endl;
+    std::abort();
+  }
+}

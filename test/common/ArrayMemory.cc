@@ -49,7 +49,7 @@ std::vector<std::any> ArrayMemory::get_args(
   std::vector<std::any> args;
   std::string output_node = "";
   if (param.has_matrix_param()) {
-    const codegen::MatrixParam& matrix_param = param.matrix_param();
+    const auto& matrix_param = param.matrix_param();
 
     if (matrix_param.has_mx_input()) {
       args.push_back(get_tensor(matrix_param.mx_input().input()));
@@ -72,14 +72,17 @@ std::vector<std::any> ArrayMemory::get_args(
     }
     output_node = matrix_param.name();
   } else if (param.has_pooling_param()) {
-    const codegen::PoolingParam& pooling_param = param.pooling_param();
+    const auto& pooling_param = param.pooling_param();
     args.push_back(get_tensor(pooling_param.input()));
   } else if (param.has_reduce_param()) {
-    const codegen::ReduceParam& reduce_param = param.reduce_param();
+    const auto& reduce_param = param.reduce_param();
     args.push_back(get_tensor(reduce_param.input()));
   } else if (param.has_reshape_param()) {
-    const codegen::ReshapeParam& reshape_param = param.reshape_param();
+    const auto& reshape_param = param.reshape_param();
     args.push_back(get_tensor(reshape_param.input()));
+  } else if (param.has_slicing_param()) {
+    const auto& slicing_param = param.slicing_param();
+    args.push_back(get_tensor(slicing_param.input()));
   } else if (param.vector_params_size() > 0) {
     const auto vector_param = param.vector_params(0);
     args.push_back(get_tensor(vector_param.input()));
@@ -146,7 +149,7 @@ std::any ArrayMemory::get_tensor(const codegen::Tensor& tensor) {
   int partition = tensor.memory().partition();
 
   int size = 1;
-  for (const auto &dim : tensor.shape()) size *= dim;
+  for (const auto& dim : tensor.shape()) size *= dim;
 
   if (size == 1) {  // for scalar, we get the arg from the file, not from memory
     const char* env_var = std::getenv("NETWORK");

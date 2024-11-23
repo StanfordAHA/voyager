@@ -176,8 +176,7 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
 
   // set outer loop values
   const auto weight = matrix_param.weight();
-  matrix_params->WEIGHT_TRANSPOSE =
-      weight.permutation().opcode() == "transpose";
+  matrix_params->WEIGHT_TRANSPOSE = weight.reshape().opcode() == "transpose";
   if (matrix_params->WEIGHT_TRANSPOSE) {
     // for tranpose, we need to enforce that the innermost loop is the
     // unrolled reduction loop
@@ -281,23 +280,23 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   const auto input = matrix_param.has_mx_input()
                          ? matrix_param.mx_input().input()
                          : matrix_param.input();
-  if (input.has_permutation()) {
-    const auto permutation = input.permutation();
+  if (input.has_reshape()) {
+    const auto reshape_param = input.reshape();
     // This is hardcoded for Transformer head permutation
-    std::vector<int> dims(permutation.dims().begin(), permutation.dims().end());
+    std::vector<int> dims(reshape_param.dims().begin(),
+                          reshape_param.dims().end());
     bool is_permute = std::all_of(dims.begin(), dims.end(),
                                   [](int x) { return x == 1 || x == 2; });
 
-    if (permutation.opcode() == "permute" ||
-        (permutation.opcode() == "transpose" && is_permute)) {
+    if (reshape_param.opcode() == "permute" || is_permute) {
       matrix_params->CONCAT_INPUT = true;
-    } else if (permutation.opcode() == "transpose") {
+    } else if (reshape_param.opcode() == "transpose") {
       matrix_params->TRANPOSE_INPUTS = true;
     }
 
     if (matrix_params->CONCAT_INPUT) {
-      const auto unpermuted_shape = permutation.input_shape();
-      matrix_params->headSize = unpermuted_shape[unpermuted_shape.size() - 1];
+      const auto input_shape = input.shape();
+      matrix_params->headSize = input_shape[input_shape.size() - 1];
     }
   }
 
@@ -348,9 +347,9 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 
   // Transformer head permutation
-  if (param.output().has_permutation()) {
+  if (param.output().has_reshape()) {
     vector_params->SPLIT_OUTPUT = true;
-    const auto permuted_shape = param.output().permutation().output_shape();
+    const auto permuted_shape = param.output().reshape().output_sizes();
     vector_params->headSize = permuted_shape[permuted_shape.size() - 1];
   }
 

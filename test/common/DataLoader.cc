@@ -37,9 +37,9 @@ void DataLoader::load_tensor(const codegen::Tensor& tensor,
     return;
   }
 
-  // std::cerr << "Loading tensor file " << filename << std::endl;
-  // std::cerr << "Datatype: " << tensor.dtype() << std::endl;
-  // std::cerr << "Offset: " << offset << std::endl;
+  std::cerr << "Loading tensor file " << filename << std::endl;
+  std::cerr << "Datatype: " << tensor.dtype() << std::endl;
+  std::cerr << "Offset: " << offset << std::endl;
 
   // number of elements packed into a single word for replication
   const int packing_factor = IC_DIMENSION / 4 * 3;
@@ -114,14 +114,17 @@ void DataLoader::load_inputs(const codegen::AcceleratorParam param,
     }
     output_node = matrix_param.name();
   } else if (param.has_pooling_param()) {
-    const codegen::PoolingParam& pooling_param = param.pooling_param();
+    const auto& pooling_param = param.pooling_param();
     load_tensor(pooling_param.input(), data_dir, true);
   } else if (param.has_reduce_param()) {
-    const codegen::ReduceParam& reduce_param = param.reduce_param();
+    const auto& reduce_param = param.reduce_param();
     load_tensor(reduce_param.input(), data_dir);
   } else if (param.has_reshape_param()) {
-    const codegen::ReshapeParam& reshape_param = param.reshape_param();
+    const auto& reshape_param = param.reshape_param();
     load_tensor(reshape_param.input(), data_dir);
+  } else if (param.has_slicing_param()) {
+    const auto& slicing_param = param.slicing_param();
+    load_tensor(slicing_param.input(), data_dir);
   } else if (param.vector_params_size() > 0) {
     const auto vector_param = param.vector_params(0);
     load_tensor(vector_param.input(), data_dir);

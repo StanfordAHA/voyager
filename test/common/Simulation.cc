@@ -73,7 +73,6 @@ Simulation::Simulation() {
   std::cout << "\n> Tolerance: " << tolerance;
   std::cout << "\n> Output dir: " << out_dir << "\n";
   std::cout << "> SRAM: " << SRAM_MEMORY_SIZE / 1024 << " KB\n";
-  std::cout << "> RRAM: " << RRAM_MEMORY_SIZE / 1024 << " KB\n";
 }
 
 Simulation::~Simulation() {
@@ -86,16 +85,15 @@ Simulation::~Simulation() {
 }
 
 void Simulation::load_data() {
-  std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE, RRAM_MEMORY_SIZE,
-                                      REFERENCE_MEMORY_SIZE};
+  std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE, REFERENCE_MEMORY_SIZE};
 
+  if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
+    memories["gold"] = new ArrayMemory(memory_sizes);
+    dataLoaders["gold"] = new DataLoader(memories["gold"], false);
+  }
   if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
     memories["systemc"] = new ArrayMemory(memory_sizes);
-    dataLoaders["systemc"] = new DataLoader(memories["systemc"], false);
-  }
-  if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
-    memories["accelerator"] = new ArrayMemory(memory_sizes);
-    dataLoaders["accelerator"] = new DataLoader(memories["accelerator"], true);
+    dataLoaders["systemc"] = new DataLoader(memories["systemc"], true);
   }
 
   std::string project_root = std::string(getenv("PROJECT_ROOT"));
@@ -146,16 +144,16 @@ void Simulation::run() {
   for (const auto& param : params) {
     std::cout << "Ideal runtime: " << get_ideal_runtime(param) << std::endl;
 
-    if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
-      auto memory = (ArrayMemory*)(memories["systemc"]);
+    if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
+      auto memory = (ArrayMemory*)(memories["gold"]);
       auto args = memory->get_args(param);
       run_gold_model(param, args);
     }
   }
 
-  // Run accelerator
-  if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
-    auto memory = (ArrayMemory*)(memories["accelerator"]);
+  // Run accelerator systemc test
+  if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
+    auto memory = (ArrayMemory*)(memories["systemc"]);
     run_accelerator(params, memory->memories[0]);
   }
 }
@@ -178,20 +176,35 @@ int Simulation::check_outputs() {
 
   bool file = std::find(sims.begin(), sims.end(), "file") != sims.end();
 
+  auto gold_memory = (ArrayMemory*)memories["gold"];
   auto systemc_memory = (ArrayMemory*)memories["systemc"];
-  auto accelerator_memory = (ArrayMemory*)memories["accelerator"];
 
   std::any output_tensor;
   std::any reference_output_tensor;
   std::string filename;
   std::string output_tensor_names[2];
 
-  if (systemc_memory && file) {
-    std::cout << "System C Gold Model vs. Pytorch" << std::endl;
+  if (gold_memory && file) {
+    std::cout << "C++ Gold Model vs. PyTorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
     filename = prefix + "systemc_vs_pytorch.txt";
 
     output_tensor_names[0] = "gold_model";
+    output_tensor = gold_memory->get_output(param);
+
+    output_tensor_names[1] = "file";
+    reference_output_tensor = gold_memory->get_reference_output(param);
+
+    has_valid_comp = true;
+  }
+
+  if (systemc_memory && file) {
+    std::cout << "System C vs. PyTorch" << std::endl;
+    std::cout << "(reveals bugs in accelerator or memory placement)"
+              << std::endl;
+    filename = prefix + "systemc_vs_pytorch.txt";
+
+    output_tensor_names[0] = "systemc";
     output_tensor = systemc_memory->get_output(param);
 
     output_tensor_names[1] = "file";
@@ -200,32 +213,17 @@ int Simulation::check_outputs() {
     has_valid_comp = true;
   }
 
-  if (accelerator_memory && file) {
-    std::cout << "Accelerator vs. System C Gold Model" << std::endl;
+  if (systemc_memory && gold_memory) {
+    std::cout << "System C vs. C++ Gold Model" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
-    filename = prefix + "accelerator_vs_pytorch.txt";
+    filename = prefix + "systemc_vs_gold.txt";
 
-    output_tensor_names[0] = "accelerator";
-    output_tensor = accelerator_memory->get_output(param);
-
-    output_tensor_names[1] = "file";
-    reference_output_tensor = accelerator_memory->get_reference_output(param);
-
-    has_valid_comp = true;
-  }
-
-  if (accelerator_memory && systemc_memory) {
-    std::cout << "Accelerator vs. System C Gold Model" << std::endl;
-    std::cout << "(reveals bugs in accelerator or memory placement)"
-              << std::endl;
-    filename = prefix + "accelerator_vs_systemc.txt";
-
-    output_tensor_names[0] = "accelerator";
-    output_tensor = accelerator_memory->get_output(param);
+    output_tensor_names[0] = "systemc";
+    output_tensor = systemc_memory->get_output(param);
 
     output_tensor_names[1] = "gold_model";
-    reference_output_tensor = systemc_memory->get_output(param);
+    reference_output_tensor = gold_memory->get_output(param);
 
     has_valid_comp = true;
   }

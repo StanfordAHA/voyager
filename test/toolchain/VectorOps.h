@@ -207,7 +207,7 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   vector_params->DP_OUTPUT =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 
-  if (param.output().has_permutation()) {
+  if (param.output().has_reshape()) {
     vector_params->SPLIT_OUTPUT =
         param.output().shape(1) < param.output().shape(2);
     vector_params->CONCAT_OUTPUT =

@@ -12,15 +12,15 @@ inline void relu(T &x) {
 }
 
 template <typename T>
-inline T * sqrt(T * tensor, const std::vector<int> &shape) {
+inline T *sqrt(T *tensor, const std::vector<int> &shape) {
   int result_size = get_size(shape);
-  T * result = new T[result_size];
+  T *result = new T[result_size];
 
   for (int i = 0; i < shape[0]; ++i) {
     for (int j = 0; j < shape[1]; ++j) {
       for (int k = 0; k < shape[2]; ++k) {
-	  result[i * shape[1] * shape[2] + j * shape[2] + k]
-	      = tensor[i * shape[1] * shape[2] + j * shape[2] + k].sqrt();
+        result[i * shape[1] * shape[2] + j * shape[2] + k] =
+            tensor[i * shape[1] * shape[2] + j * shape[2] + k].sqrt();
       }
     }
   }
@@ -47,7 +47,17 @@ inline bool are_broadcastable(const std::vector<int> &shape1,
 inline std::vector<int> broadcast_shape(const std::vector<int> &shape1,
                                         const std::vector<int> &shape2) {
   if (!are_broadcastable(shape1, shape2)) {
-    throw std::invalid_argument("Shapes are not broadcastable");
+    std::ostringstream error_message;
+    error_message << "Shapes are not broadcastable: [";
+    for (size_t i = 0; i < shape1.size(); ++i) {
+      error_message << shape1[i] << (i + 1 < shape1.size() ? ", " : "");
+    }
+    error_message << "] vs. [";
+    for (size_t i = 0; i < shape2.size(); ++i) {
+      error_message << shape2[i] << (i + 1 < shape2.size() ? ", " : "");
+    }
+    error_message << "]";
+    throw std::invalid_argument(error_message.str());
   }
 
   int n1 = shape1.size();

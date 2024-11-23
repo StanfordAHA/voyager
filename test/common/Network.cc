@@ -32,7 +32,7 @@ Network::Network(std::string& model) : model(model) {
 std::vector<codegen::AcceleratorParam> Network::get_params() {
   std::vector<codegen::AcceleratorParam> params;
   for (const auto& param : model_params.params()) {
-    if (!param.has_nop()) {
+    if (!param.has_nop_param()) {
       params.push_back(param);
     }
   }

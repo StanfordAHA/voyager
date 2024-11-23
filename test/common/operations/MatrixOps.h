@@ -377,7 +377,7 @@ template <typename INPUT_T, typename ACCUMULATE_T, typename INTERMEDIATE_T,
 inline VECTOR_T *matrix_vector_multiply(std::any input_tensor,
                                         std::any weight_tensor,
                                         std::any bias_tensor,
-                                        const codegen::MatrixParam &param) {
+                                        const codegen::MatrixOp &param) {
   const auto weight = param.weight();
   int K = weight.shape(0);
   int C = weight.shape(1);

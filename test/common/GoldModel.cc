@@ -10,6 +10,7 @@
 #include "test/common/operations/QuantizeOps.h"
 #include "test/common/operations/ReduceOps.h"
 #include "test/common/operations/ReshapeOps.h"
+#include "test/common/operations/SlicingOp.h"
 #include "test/common/operations/VectorOps.h"
 
 template <typename T>
@@ -79,8 +80,12 @@ void run_operation(const codegen::AcceleratorParam param,
 
   if (param.has_reshape_param()) {
     const auto &reshape_param = param.reshape_param();
-    const auto &input = reshape_param.input();
     output_tensor = permute<INPUT_T>(args[arg_index++], reshape_param);
+  }
+
+  if (param.has_slicing_param()) {
+    const auto &slicing_param = param.slicing_param();
+    output_tensor = slice<INPUT_T>(args[arg_index++], slicing_param);
   }
 
   if (param.matrix_param().opcode() == "layer_norm") {
@@ -105,8 +110,10 @@ void run_operation(const codegen::AcceleratorParam param,
     if (matrix_param.has_mx_input()) {
       input_scale = args[arg_index++];
     }
-    if (input.has_permutation()) {
+    if (input.has_reshape()) {
       input_tensor = permute<INPUT_T>(input_tensor, input);
+    } else if (input.has_slicing()) {
+      input_tensor = slice<INPUT_T>(input_tensor, input);
     }
 
     // Permute weight tensor
@@ -119,8 +126,10 @@ void run_operation(const codegen::AcceleratorParam param,
     if (matrix_param.has_mx_weight()) {
       weight_scale = args[arg_index++];
     }
-    if (weight.has_permutation()) {
+    if (weight.has_reshape()) {
       weight_tensor = permute<INPUT_T>(weight_tensor, weight);
+    } else if (weight.has_slicing()) {
+      weight_tensor = slice<INPUT_T>(weight_tensor, weight);
     }
 
     int dim = 1;
@@ -141,6 +150,13 @@ void run_operation(const codegen::AcceleratorParam param,
   } else if (param.vector_params_size() > 0) {
     // fetch the input of the first vector instruction
     output_tensor = args[arg_index++];
+
+    const auto vector_input = param.vector_params(0).input();
+    if (vector_input.has_reshape()) {
+      output_tensor = permute<INPUT_T>(output_tensor, vector_input);
+    } else if (vector_input.has_slicing()) {
+      output_tensor = slice<INPUT_T>(output_tensor, vector_input);
+    }
   }
 
   for (const auto &vector_param : param.vector_params()) {
@@ -176,33 +192,21 @@ void run_operation(const codegen::AcceleratorParam param,
                     << std::endl;
           std::abort();
         } else {
-          // A dequantize is needed
           VECTOR_T *scale = new VECTOR_T[1];
           scale[0] = other.scale() != 0 ? other.scale() : 1.0;
-          if (other.dtype() == "int32") {
-            other_tensor = dequantize<DataTypes::int32, VECTOR_T>(
-                args[arg_index++], scale, get_size(other));
-          } else if (other.dtype() == "int24") {
-            other_tensor = dequantize<DataTypes::int24, VECTOR_T>(
-                args[arg_index++], scale, get_size(other));
-          } else if (other.dtype() == "int8") {
-            other_tensor = dequantize<DataTypes::int8, VECTOR_T>(
-                args[arg_index++], scale, get_size(other));
-          } else if (other.dtype() == "fp8_e4m3") {
-            other_tensor = dequantize<DataTypes::e4m3, VECTOR_T>(
-                args[arg_index++], scale, get_size(other));
-          } else if (other.dtype() == "posit8_1") {
-            other_tensor = dequantize<DataTypes::posit8, VECTOR_T>(
-                args[arg_index++], scale, get_size(other));
-          } else {
-            std::cerr << "No dequantization operation for dtype: "
-                      << other.dtype() << std::endl;
-            std::abort();
-          }
+          other_tensor =
+              dequantize_tensor<VECTOR_T>(args[arg_index++], scale, other);
         }
       } else {
         other_tensor = std::any_cast<VECTOR_T *>(args[arg_index++]);
       }
+
+      if (other.has_reshape()) {
+        other_tensor = permute<VECTOR_T>(other_tensor, other);
+      } else if (other.has_slicing()) {
+        other_tensor = slice<VECTOR_T>(other_tensor, other);
+      }
+
       const auto other_shape = get_shape(other);
 
       output_tensor =
@@ -243,22 +247,8 @@ void run_operation(const codegen::AcceleratorParam param,
         output_tensor = dequantize<ACCUMULATION_BUFFER_T, VECTOR_T>(
             output_tensor, args[arg_index++], get_size(vector_param.input()));
       } else {
-        if (vector_param.input().dtype() == "int32") {
-          output_tensor = dequantize<DataTypes::int32, VECTOR_T>(
-              output_tensor, args[arg_index++], get_size(vector_param.input()));
-        } else if (vector_param.input().dtype() == "int24") {
-          output_tensor = dequantize<DataTypes::int24, VECTOR_T>(
-              output_tensor, args[arg_index++], get_size(vector_param.input()));
-        } else if (vector_param.input().dtype() == "int8") {
-          output_tensor = dequantize<DataTypes::int8, VECTOR_T>(
-              output_tensor, args[arg_index++], get_size(vector_param.input()));
-        } else if (vector_param.input().dtype() == "fp8_e4m3") {
-          output_tensor = dequantize<DataTypes::e4m3, VECTOR_T>(
-              output_tensor, args[arg_index++], get_size(vector_param.input()));
-        } else {
-          std::cerr << "No dequantization operation for dtype: "
-                    << vector_param.input().dtype() << std::endl;
-        }
+        output_tensor = dequantize_tensor<VECTOR_T>(
+            output_tensor, args[arg_index++], vector_param.input());
       }
     } else if (vector_param.opcode().rfind("vmap", 0) == 0) {
       const auto &input = vector_param.input();
@@ -270,7 +260,8 @@ void run_operation(const codegen::AcceleratorParam param,
           std::any_cast<DataTypes::bfloat16 *>(args[arg_index++]);
 
       for (int i = 0; i < size; i++) {
-        DataTypes::bfloat16 value = static_cast<DataTypes::bfloat16>(input_tensor[i]);
+        DataTypes::bfloat16 value =
+            static_cast<DataTypes::bfloat16>(input_tensor[i]);
         unsigned int index = value.bits_rep().to_uint();
         input_tensor[i] = static_cast<VECTOR_T>(value_map[index]);
       }
@@ -284,7 +275,7 @@ void run_operation(const codegen::AcceleratorParam param,
   }
 
   int output_size = get_size(param.output());
-  if (param.output().has_permutation()) {
+  if (param.output().has_reshape()) {
     if (param.output().dtype() == "bfloat16") {
       output_tensor = permute<DataTypes::bfloat16>(
           std::any_cast<DataTypes::bfloat16 *>(output_tensor), param.output());

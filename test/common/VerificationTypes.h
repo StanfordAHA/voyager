@@ -12,25 +12,10 @@
 #include "src/ArchitectureParams.h"
 #include "test/compiler/proto/param.pb.h"
 
-// By default we have 2MB of SRAM per MINOTAUR SoC
-// organized as 8x 256KB Banks with 2x 128KB Macros each
-// FIXME: use a larger memory partition for testing
-// #ifndef NUM_SRAM_BANKS
-// #define NUM_SRAM_BANKS 8
-// #endif
-// #define SRAM_MEMORY_SIZE (NUM_SRAM_BANKS * 256 * 1024)
 #ifndef NUM_SRAM_BANKS
 #define NUM_SRAM_BANKS 1024
 #endif
 #define SRAM_MEMORY_SIZE (NUM_SRAM_BANKS * 1024LL * 1024LL)
-
-// By default we have 12MB of RRAM per MINOTAUR SoC
-// organized as 12x 1MB Banks with 4x 256KB Macros each
-// 3x Superbanks and 4x Subbanks per Superbank
-#ifndef NUM_RRAM_BANKS
-#define NUM_RRAM_BANKS 64
-#endif
-#define RRAM_MEMORY_SIZE (NUM_RRAM_BANKS * 1024 * 1024)
 
 // Size of the reference memory used for verification in MB
 // Should be at least as large as the SRAM memory
@@ -780,17 +765,14 @@ inline Tiling get_linear_tiling(codegen::AcceleratorParam param) {
   const auto input = matrix_param.has_mx_input()
                          ? matrix_param.mx_input().input()
                          : matrix_param.input();
-  const auto input_shape = input.has_permutation()
-                               ? input.permutation().output_shape()
-                               : input.shape();
+  const auto input_shape =
+      input.has_reshape() ? input.reshape().output_sizes() : input.shape();
 
   const auto weight = matrix_param.has_mx_weight()
                           ? matrix_param.mx_weight().input()
                           : matrix_param.weight();
-
-  const auto weight_shape = weight.has_permutation()
-                                ? weight.permutation().output_shape()
-                                : weight.shape();
+  const auto weight_shape =
+      weight.has_reshape() ? weight.reshape().output_sizes() : weight.shape();
 
   // TODO: we should use OC_DIMENSION and IC_DIMENSION instead
   const int oc_dim = 16;
