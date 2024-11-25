@@ -89,7 +89,7 @@ if { $dc_gate_clock == True } {
 #-------------------------------------------------------------------------
 
 # Enable recovery and removal timing arcs
-set_app_var enable_recovery_removal_arcs true
+# set_app_var enable_recovery_removal_arcs true
 
 # Three-state nets are declared as Verilog "wire" instead of "tri." This
 # is useful in eliminating "assign" primitives and "tran" gates in the
