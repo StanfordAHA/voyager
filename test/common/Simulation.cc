@@ -59,8 +59,9 @@ Simulation::Simulation() {
     out_dir = "./test_outputs/";
   }
 
+  // Get list of operations to run
   network = new Network(model);
-  params = network->get_params(tests);
+  operations = network->get_operations(tests);
 
   std::cout << "Starting new simulation with config:";
   std::cout << "\n> Model: " << model;
@@ -100,13 +101,13 @@ void Simulation::load_data() {
                          std::string(getenv("CODEGEN_DIR")) + "/networks/" +
                          model + "/" + datatype + "/tensor_files";
 
-  const auto params_to_load = network->get_params(tests, false);
+  const auto params_to_load = network->get_operations(tests, false);
 
   for (const auto& [key, dataLoader] : dataLoaders) {
-    dataLoader->load_inputs(params_to_load.front(), data_dir);
-    dataLoader->load_outputs(params_to_load.back(), data_dir);
-    for (const auto& param : params_to_load) {
-      dataLoader->load_weights(param, data_dir);
+    dataLoader->load_inputs(operations.front().param, data_dir);
+    dataLoader->load_outputs(operations.back().param, data_dir);
+    for (const auto& operation : operations) {
+      dataLoader->load_weights(operation.param, data_dir);
     }
   }
 
@@ -141,38 +142,39 @@ int Simulation::get_ideal_runtime(const codegen::Operator& param) {
 
 void Simulation::run() {
   // Run gold models
-  for (const auto& param : params) {
-    std::cout << param.name() << " ideal runtime: " << get_ideal_runtime(param)
+  for (const auto& operation : operations) {
+    std::cout << "Ideal runtime: " << get_ideal_runtime(operation.param)
               << std::endl;
 
     if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
       auto memory = (ArrayMemory*)(memories["gold"]);
-      auto args = memory->get_args(param);
-      run_gold_model(param, args);
+      auto args = memory->get_args(operation.param);
+      run_gold_model(operation.param, args);
     }
   }
 
   // Run accelerator test
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
     auto memory = (ArrayMemory*)(memories["accelerator"]);
-    run_accelerator(params, memory->memories[0]);
+    run_accelerator(operations, memory->memories[0]);
   }
 }
 
 int Simulation::check_outputs() {
   std::string prefix;
-  if (params.size() == 1) {
-    prefix = out_dir + model + '.' + params.front().name() + '.';
+  if (operations.size() == 1) {
+    prefix = out_dir + model + '.' + operations.front().name + '.';
   } else {
-    prefix = out_dir + model + '.' + params.front().name() + "_to_" +
-             params.back().name() + '.';
+    prefix = out_dir + model + '.' + operations.front().name + "_to_" +
+             operations.back().name + '.';
   }
 
   bool has_valid_comp = false;
   double rel_err = 0.0;
 
-  const auto param = params.back();
-  const int size = get_size(param.output());
+  auto param = operations.back().param;
+  int size = 1;
+  for (const auto& dim : param.output().shape()) size *= dim;
 
   bool pytorch = std::find(sims.begin(), sims.end(), "pytorch") != sims.end();
 
