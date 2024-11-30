@@ -30,7 +30,8 @@ void save_tensor(char *output_bytes, std::any output_tensor, int size) {
 
 template <typename INPUT_T, typename ACCUMULATE_T, typename INTERMEDIATE_T,
           typename ACCUMULATION_BUFFER_T, typename SCALE_T, typename VECTOR_T>
-void run_operation(const codegen::Operator param, std::vector<std::any> args) {
+void run_operation(const Operation &operation, std::vector<std::any> args) {
+  const codegen::Operator param = operation.param;
   int arg_index = 0;
   std::any output_tensor;
 
@@ -147,7 +148,7 @@ void run_operation(const codegen::Operator param, std::vector<std::any> args) {
       output_tensor =
           gemm<INPUT_T, ACCUMULATE_T, INTERMEDIATE_T, ACCUMULATION_BUFFER_T,
                SCALE_T>(input_tensor, input_scale, weight_tensor, weight_scale,
-                        args[arg_index++], param);
+                        args[arg_index++], operation);
     }
   } else if (param.vector_ops_size() > 0) {
     // fetch the input of the first vector instruction
@@ -308,9 +309,8 @@ void run_operation(const codegen::Operator param, std::vector<std::any> args) {
   }
 }
 
-void run_gold_model(const codegen::Operator &param,
-                    std::vector<std::any> args) {
+void run_gold_model(const Operation &operation, std::vector<std::any> args) {
   run_operation<INPUT_DATATYPE, INTERMEDIATE_DTYPE, ACCUM_DATATYPE,
-                ACCUM_BUFFER_DATATYPE, MX_DATATYPE, VECTOR_DATATYPE>(param,
+                ACCUM_BUFFER_DATATYPE, MX_DATATYPE, VECTOR_DATATYPE>(operation,
                                                                      args);
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "test/common/Tiling.h"
 #include "test/common/operations/Common.h"
 
 #ifdef CHECK_PE
@@ -32,8 +33,8 @@ template <typename INPUT_T, typename ACCUMULATE_T, typename INTERMEDIATE_T,
 inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
                                    std::any weight_tensor,
                                    std::any weight_scale, std::any bias_tensor,
-                                   const codegen::Operator &param) {
-  const auto matrix_op = param.matrix_op();
+                                   const Operation &operation) {
+  const auto matrix_op = operation.param.matrix_op();
 
   bool is_mx = matrix_op.has_mx_input() && matrix_op.has_mx_weight();
 
@@ -55,21 +56,16 @@ inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
     bias = std::any_cast<ACCUMULATION_BUFFER_T *>(bias_tensor);
   }
 
-  Tiling tiling;
-  if (matrix_op.opcode() == "conv2d" || matrix_op.opcode() == "conv2d_mx") {
-    tiling = get_conv2d_tiling(param);
-  } else {
-    tiling = get_linear_tiling(param);
-  }
+  Tiling tiling = get_tiling(operation);
 
   int X = tiling.loops[0][tiling.x_loop_index[0]] *
           tiling.loops[1][tiling.x_loop_index[1]];
   int Y = tiling.loops[0][tiling.y_loop_index[0]] *
           tiling.loops[1][tiling.y_loop_index[1]];
   int C = tiling.loops[0][tiling.reduction_loop_index[0]] *
-          tiling.loops[1][tiling.reduction_loop_index[1]] * 16;
+          tiling.loops[1][tiling.reduction_loop_index[1]] * IC_DIMENSION;
   int K = tiling.loops[0][tiling.weight_loop_index[0]] *
-          tiling.loops[1][tiling.weight_loop_index[1]] * 16;
+          tiling.loops[1][tiling.weight_loop_index[1]] * OC_DIMENSION;
   int FX = tiling.loops[1][tiling.fx_index];
   int FY = tiling.loops[1][tiling.fy_index];
   int STRIDE = tiling.stride;
@@ -78,8 +74,6 @@ inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
     FX = 7;
     C = 3;
   }
-
-  adjust_tiling_for_dimension(tiling);
 
   int X0 = tiling.loops[1][tiling.x_loop_index[1]];
   int Y0 = tiling.loops[1][tiling.y_loop_index[1]];

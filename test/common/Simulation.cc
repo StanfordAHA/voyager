@@ -149,7 +149,7 @@ void Simulation::run() {
     if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
       auto memory = (ArrayMemory*)(memories["gold"]);
       auto args = memory->get_args(operation.param);
-      run_gold_model(operation.param, args);
+      run_gold_model(operation, args);
     }
   }
 

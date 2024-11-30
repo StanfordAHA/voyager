@@ -4,6 +4,7 @@
 #include "src/Params.h"
 #include "test/common/GoldModel.h"
 #include "test/common/Network.h"
+#include "test/common/Tiling.h"
 #include "test/common/VerificationTypes.h"
 #include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/Common.h"
@@ -100,107 +101,6 @@ void set_addr_gen2(const codegen::Tensor &tensor, const Tiling &tiling,
   vector_params->vec2DequantizeScale = scale.bits_rep();
 }
 
-Tiling GetTiling(const voyager::Tiling &tiling) {
-  Tiling accelerator_tiling;
-
-  for (int i = 0; i < 2; i++) {
-    for (int j = 0; j < 6; j++) {
-      accelerator_tiling.loops[i][j] = 1;
-    }
-  }
-
-  accelerator_tiling.fx_index = -1;
-  accelerator_tiling.fy_index = -1;
-  for (int i = 0; i < 2; i++) {
-    accelerator_tiling.x_loop_index[i] = -1;
-    accelerator_tiling.y_loop_index[i] = -1;
-    accelerator_tiling.reduction_loop_index[i] = -1;
-    accelerator_tiling.weight_loop_index[i] = -1;
-  }
-
-  // L1 level
-  for (int i = 0; i < tiling.level_tilings(0).loop_bounds_size(); i++) {
-    accelerator_tiling.loops[1][5 - i] =
-        tiling.level_tilings(0).loop_bounds(i).bound();
-    if (tiling.level_tilings(0).loop_bounds(i).loop() == voyager::Loop::FX) {
-      accelerator_tiling.fx_index = 5 - i;
-    } else if (tiling.level_tilings(0).loop_bounds(i).loop() ==
-               voyager::Loop::FY) {
-      accelerator_tiling.fy_index = 5 - i;
-    } else if (tiling.level_tilings(0).loop_bounds(i).loop() ==
-               voyager::Loop::OC) {
-      accelerator_tiling.weight_loop_index[1] = 5 - i;
-    } else if (tiling.level_tilings(0).loop_bounds(i).loop() ==
-               voyager::Loop::OX) {
-      accelerator_tiling.x_loop_index[1] = 5 - i;
-    } else if (tiling.level_tilings(0).loop_bounds(i).loop() ==
-               voyager::Loop::OY) {
-      accelerator_tiling.y_loop_index[1] = 5 - i;
-    }
-  }
-
-  // set any unset loop indices
-  for (int i = tiling.level_tilings(0).loop_bounds_size(); i < 5; i++) {
-    accelerator_tiling.loops[1][5 - i] = 1;
-    if (accelerator_tiling.fx_index == -1) {
-      accelerator_tiling.fx_index = 5 - i;
-    } else if (accelerator_tiling.fy_index == -1) {
-      accelerator_tiling.fy_index = 5 - i;
-    } else if (accelerator_tiling.weight_loop_index[1] == -1) {
-      accelerator_tiling.weight_loop_index[1] = 5 - i;
-    } else if (accelerator_tiling.x_loop_index[1] == -1) {
-      accelerator_tiling.x_loop_index[1] = 5 - i;
-    } else if (accelerator_tiling.y_loop_index[1] == -1) {
-      accelerator_tiling.y_loop_index[1] = 5 - i;
-    }
-  }
-
-  // set weight reuse loop index depending on if x or y are the innermost loops
-  if (accelerator_tiling.x_loop_index[1] == 5 ||
-      accelerator_tiling.y_loop_index[1] == 5) {
-    accelerator_tiling.weight_reuse_index[1] = 5;
-    accelerator_tiling.weight_reuse_index[0] = 5;
-  }
-  if (accelerator_tiling.x_loop_index[1] == 4 ||
-      accelerator_tiling.y_loop_index[1] == 4) {
-    accelerator_tiling.weight_reuse_index[0] = 4;
-  }
-
-  // set reduction loop
-  accelerator_tiling.reduction_loop_index[1] = 0;
-  accelerator_tiling.loops[1][0] =
-      tiling.level_tilings(1).loop_bounds(0).bound();
-
-  // L0 level (skip the first loop, since it is the reduction loop)
-  for (int i = 1; i < tiling.level_tilings(1).loop_bounds_size(); i++) {
-    accelerator_tiling.loops[0][3 - i] =
-        tiling.level_tilings(1).loop_bounds(i).bound();
-    if (tiling.level_tilings(1).loop_bounds(i).loop() == voyager::Loop::OC) {
-      accelerator_tiling.weight_loop_index[0] = 3 - i;
-    } else if (tiling.level_tilings(1).loop_bounds(i).loop() ==
-               voyager::Loop::OX) {
-      accelerator_tiling.x_loop_index[0] = 3 - i;
-    } else if (tiling.level_tilings(1).loop_bounds(i).loop() ==
-               voyager::Loop::OY) {
-      accelerator_tiling.y_loop_index[0] = 3 - i;
-    }
-  }
-
-  // set any unset loop indices
-  for (int i = tiling.level_tilings(1).loop_bounds_size() - 1; i < 3; i++) {
-    accelerator_tiling.loops[0][2 - i] = 1;
-    if (accelerator_tiling.weight_loop_index[0] == -1) {
-      accelerator_tiling.weight_loop_index[0] = 2 - i;
-    } else if (accelerator_tiling.x_loop_index[0] == -1) {
-      accelerator_tiling.x_loop_index[0] = 2 - i;
-    } else if (accelerator_tiling.y_loop_index[0] == -1) {
-      accelerator_tiling.y_loop_index[0] = 2 - i;
-    }
-  }
-
-  return accelerator_tiling;
-}
-
 void MapMatrixOperation(const Operation &operation,
                         std::deque<BaseParams *> &mappedParams,
                         std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
@@ -228,16 +128,12 @@ void MapMatrixOperation(const Operation &operation,
   int Y = tiling.loops[0][tiling.y_loop_index[0]] *
           tiling.loops[1][tiling.y_loop_index[1]];
   int C = tiling.loops[0][tiling.reduction_loop_index[0]] *
-          tiling.loops[1][tiling.reduction_loop_index[1]] * (16);
+          tiling.loops[1][tiling.reduction_loop_index[1]] * (IC_DIMENSION);
   int K = tiling.loops[0][tiling.weight_loop_index[0]] *
-          tiling.loops[1][tiling.weight_loop_index[1]] * (16);
+          tiling.loops[1][tiling.weight_loop_index[1]] * (OC_DIMENSION);
   int FX = tiling.loops[1][tiling.fx_index];
   int FY = tiling.loops[1][tiling.fy_index];
   int STRIDE = tiling.stride;
-
-  if (manual_tiling) {
-    adjust_tiling_for_dimension(tiling);
-  }
 
   std::cout << "Using tiling: " << std::endl << tiling << std::endl;
 
