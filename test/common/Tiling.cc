@@ -95,7 +95,7 @@ Tiling get_interstellar_tiling(const voyager::Tiling& tiling) {
   }
 
   // set any unset loop indices
-  for (int i = tiling.level_tilings(0).loop_bounds_size(); i < 5; i++) {
+  for (int i = tiling.level_tilings(0).loop_bounds_size(); i < 6; i++) {
     accelerator_tiling.loops[1][5 - i] = 1;
     if (accelerator_tiling.fx_index == -1) {
       accelerator_tiling.fx_index = 5 - i;
@@ -122,11 +122,6 @@ Tiling get_interstellar_tiling(const voyager::Tiling& tiling) {
       accelerator_tiling.y_loop_index[1] == 4) {
     accelerator_tiling.weight_reuse_index[0] = 4;
   }
-
-  // set reduction loop
-  accelerator_tiling.reduction_loop_index[1] = 0;
-  accelerator_tiling.loops[1][0] =
-      tiling.level_tilings(1).loop_bounds(0).bound();
 
   // L2 level
   for (int i = 0; i < tiling.level_tilings(1).loop_bounds_size(); i++) {
