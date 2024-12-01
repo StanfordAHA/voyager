@@ -54,8 +54,8 @@ set cycle10         [expr 0.10 * ${main_clock_period}]
 # Input/Output Delays
 #=========================================================================
 # main clock
-set_input_delay  $cycle20 -clock ${main_clock_name} [remove_from_collection [all_inputs] [get_ports "${main_clock_net}"] ]
+set_input_delay  $cycle20 -clock ${main_clock_name} [remove_from_collection [all_inputs] "rstn [get_ports ${main_clock_net}]" ]
 set_output_delay $cycle40 -clock ${main_clock_name} [all_outputs]
 
 # rstn is asynchronous
-set_input_delay $cycle30 -clock ${main_clock_name} [get_ports "rstn"]
+# set_input_delay $cycle30 -clock ${main_clock_name} [get_ports "rstn"]
