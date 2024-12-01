@@ -25,13 +25,14 @@ VCS_FLAGS="-sverilog \
 # exclude build directory and .stamp files
 cat $(find -L inputs \( -path "inputs/build" -prune \) -o \( -name "*.v" -not -name ".*" -print \)) >${VLOG_NAME}
 
-# copy over the netlist
+# copy over the netlist so that scverify makefile can find it
 ln -fs $(realpath ${VLOG_NAME}) inputs/build/Catapult/Accelerator/Accelerator.v1/${VLOG_NAME}
 
+# Workaround: see accelerator repo run_regression.py
 export LD_PRELOAD=${CONDA_PREFIX}/lib/libstdc++.so.6
 export PROJECT_ROOT=$(pwd)
 pushd inputs/build/Catapult/Accelerator/Accelerator.v1
-# Workaround: see accelerator repo run_regression.py
+
 # build simulator
 make -f scverify/Verify_concat_sim_rtl_v_vcs.mk build CODEGEN_DIR=test/compiler NETWORK=${network} TESTS=${layer} DATATYPE=${datatype} SIMS=${sims} CLOCK_PERIOD=${clock_period} NETLIST_LEAF=${sim_level} VCS_VLOGAN_OPTS="${VCS_FLAGS}" ${EXTRA_FLAGS}
 popd

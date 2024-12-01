@@ -241,8 +241,8 @@ def construct():
 
 
     g.connect_by_name(hls, synth)
-    g.connect(hls.o("design.v"), rtl_vcs_build.i("design.v"))
-    g.connect_by_name(hls, rtl_vcs_build)
+    g.connect(hls.o("build"), rtl_vcs_build.i("build"))
+    g.connect(hls.o("design.sim.v"), rtl_vcs_build.i("design.v"))
     g.connect_by_name(rtl_vcs_build, rtl_sim)
     g.connect_by_name(rtl_vcs_build, rtl_sim_namemap)
     g.connect_by_name(rtl_sim_namemap, synth)  # run.saif to generate namemap

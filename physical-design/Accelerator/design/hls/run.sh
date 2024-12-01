@@ -28,7 +28,6 @@ if [ "${waveform}" == "True" ]; then
 fi
 
 # generate RTL
-# note: make rtl would try to write to release folder as well, so I bypass it this way. Ugly, but works for now
 make -j8 Accelerator BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} OC_DIMENSION=${oc_dimension} IC_DIMENSION=${ic_dimension} INPUT_BUFFER_SIZE=${input_buffer_size} WEIGHT_BUFFER_SIZE=${weight_buffer_size} ACCUM_BUFFER_SIZE=${accum_buffer_size} CLOCK_PERIOD=${clock_period} TECHNOLOGY=${technology}
 
 # WARN: so far concat_rtl.v and concat_sim_rtl.v are identical, but may need to differentiate for synthesis and simulation
@@ -42,14 +41,22 @@ cd outputs
 ln -s ../build
 
 cp build/Catapult/Accelerator/Accelerator.v1/concat_rtl.v design.v
+cp build/Catapult/Accelerator/Accelerator.v1/concat_sim_rtl.v design.sim.v
 
 # Renaming modules
-modname=$(grep -oP "(?<=module )ProcessingElement\w*" design.v | tail -1)
-sed -i "s/\<$modname\>/ProcessingElement/g" design.v
-modname=$(grep -oP "(?<=module )SystolicArray\w*" design.v | tail -1)
-sed -i "s/\<$modname\>/SystolicArray/g" design.v
-modname=$(grep -oP "(?<=module )VectorUnit\w*" design.v | tail -1)
-sed -i "s/\<$modname\>/VectorUnit/g" design.v
+OLD_IFS=$IFS
+IFS=" "
+
+for vname in design.v design.sim.v; do
+  modname=$(grep -oP "(?<=module )ProcessingElement\w*" $vname | tail -1)
+  sed -i "s/\<$modname\>/ProcessingElement/g" $vname
+  modname=$(grep -oP "(?<=module )SystolicArray\w*" $vname | tail -1)
+  sed -i "s/\<$modname\>/SystolicArray/g" $vname
+  modname=$(grep -oP "(?<=module )VectorUnit\w*" $vname | tail -1)
+  sed -i "s/\<$modname\>/VectorUnit/g" $vname
+done
+
+IFS=$OLD_IFS
 
 cd ..
 
