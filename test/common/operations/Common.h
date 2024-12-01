@@ -14,23 +14,18 @@
 using INTERMEDIATE_DTYPE = ACCUM_DATATYPE::AccumulationDatatype;
 
 inline std::vector<int> get_shape(const codegen::Tensor &tensor) {
-  const auto repeated_field = tensor.shape();
-  std::vector<int> shape(repeated_field.begin(), repeated_field.end());
-
   if (tensor.has_reshape()) {
     const auto &param = tensor.reshape();
-    shape = {param.output_sizes().begin(), param.output_sizes().end()};
-  } else if (tensor.has_slicing()) {
-    const auto &param = tensor.slicing();
-    const int dim = param.dim();
-    const int start = param.start();
-    const int end = param.end();
-    const int step = param.step();
-    const int num_elements = (end - start) / step;
-    shape[dim] = num_elements;
+    return {param.output_sizes().begin(), param.output_sizes().end()};
   }
 
-  return shape;
+  if (tensor.has_slicing()) {
+    const auto &param = tensor.slicing();
+    return {param.output_sizes().begin(), param.output_sizes().end()};
+  }
+
+  const auto repeated_field = tensor.shape();
+  return {repeated_field.begin(), repeated_field.end()};
 }
 
 inline int get_size(const std::vector<int> &shape) {

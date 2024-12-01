@@ -1,10 +1,5 @@
 #pragma once
 
-#include "src/AccelTypes.h"
-#include "src/Params.h"
-#include "test/common/GoldModel.h"
-#include "test/common/VerificationTypes.h"
-#include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/Common.h"
 
 void MapLayerNorm(const codegen::AcceleratorParam &param,
@@ -13,7 +8,7 @@ void MapLayerNorm(const codegen::AcceleratorParam &param,
   const auto matrix_param = param.matrix_param();
   const auto input = matrix_param.input();
   const auto input_memory = input.memory();
-  const auto input_shape = squeeze_shape(get_shape(input));
+  const auto input_shape = squeeze_shape(get_tensor_shape(input));
 
   const int inner_dim = input_shape[0];
   const int outer_dim = input_shape[1];
@@ -32,28 +27,19 @@ void MapLayerNorm(const codegen::AcceleratorParam &param,
   memory_map["vector0"] = get_partition(input_memory.partition());
   vector_params->VECTOR_OFFSET = input_memory.offset();
   vector_params->addressGen0Mode = 2;
+  vector_params->addressGen0Broadcast = 0x000010;
 
-  for (int i = 0; i < 2; i++) {
-    vector_params->addressGen0InputYLoopIndex[i] = 0;
-    vector_params->addressGen0InputXLoopIndex[i] = 1;
-    vector_params->addressGen0WeightLoopIndex[i] = 2;
-  }
-
-  vector_params->addressGen0Loop[0][0] = 1;
-  vector_params->addressGen0Loop[0][1] = inner_dim;
-  vector_params->addressGen0Loop[0][2] = 1;
   // Fetch inputs twice, once for calculating mean and once for subtracting mean
-  vector_params->addressGen0Loop[1][0] = 2;
-  vector_params->addressGen0Loop[1][1] = 1;
+  for (int i = 0; i < 3; i++) {
+    vector_params->addressGen0Loop[0][i] = 1;
+  }
+  vector_params->addressGen0Loop[1][0] = inner_dim;
+  vector_params->addressGen0Loop[1][1] = 2;
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
 
   // Double precision
   vector_params->DP_VEC0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != input.dtype();
-
-  // Turn off unused address generators
-  vector_params->addressGen1Mode = 0;
-  vector_params->addressGen2Mode = 0;
 
   // Overwrite inputs
   vector_params->VECTOR_OUTPUT_OFFSET = input_memory.offset();
@@ -138,27 +124,18 @@ void MapLayerNorm(const codegen::AcceleratorParam &param,
   memory_map["vector0"] = get_partition(input_memory.partition());
   vector_params->VECTOR_OFFSET = input_memory.offset();
   vector_params->addressGen0Mode = 2;
+  vector_params->addressGen0Broadcast = 0x000010;
 
-  for (int i = 0; i < 2; i++) {
-    vector_params->addressGen0InputYLoopIndex[i] = 0;
-    vector_params->addressGen0InputXLoopIndex[i] = 1;
-    vector_params->addressGen0WeightLoopIndex[i] = 2;
-  }
-
-  vector_params->addressGen0Loop[0][0] = 1;
-  vector_params->addressGen0Loop[0][1] = inner_dim;
-  vector_params->addressGen0Loop[0][2] = 1;
   // Fetch inputs twice, once for calculating variance and once for division
-  vector_params->addressGen0Loop[1][0] = 2;
-  vector_params->addressGen0Loop[1][1] = 1;
+  for (int i = 0; i < 3; i++) {
+    vector_params->addressGen0Loop[0][i] = 1;
+  }
+  vector_params->addressGen0Loop[1][0] = inner_dim;
+  vector_params->addressGen0Loop[1][1] = 2;
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
 
   vector_params->DP_VEC0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != input.dtype();
-
-  // Turn off unused address generators
-  vector_params->addressGen1Mode = 0;
-  vector_params->addressGen2Mode = 0;
 
   // Overwrite inputs
   vector_params->VECTOR_OUTPUT_OFFSET = input_memory.offset();
@@ -242,14 +219,10 @@ void MapLayerNorm(const codegen::AcceleratorParam &param,
   vector_params = new VectorParams;
   vinstr_config = new VectorInstructionConfig;
 
+  // Fetch inputs
   memory_map["vector0"] = get_partition(input_memory.partition());
   vector_params->VECTOR_OFFSET = input_memory.offset();
   vector_params->addressGen0Mode = 2;
-  for (int i = 0; i < 2; i++) {
-    vector_params->addressGen0InputYLoopIndex[i] = 0;
-    vector_params->addressGen0InputXLoopIndex[i] = 1;
-    vector_params->addressGen0WeightLoopIndex[i] = 2;
-  }
 
   for (int i = 0; i < 3; i++) {
     vector_params->addressGen0Loop[0][i] = 1;

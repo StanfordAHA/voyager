@@ -5,9 +5,9 @@
 #include "test/toolchain/LayerNorm.h"
 #include "test/toolchain/MatrixOps.h"
 #include "test/toolchain/MatrixVectorMultiply.h"
+#include "test/toolchain/Microscaling.h"
 #include "test/toolchain/Pooling.h"
-#include "test/toolchain/ReduceOps.h"
-#include "test/toolchain/ReshapeOps.h"
+#include "test/toolchain/Softmax.h"
 #include "test/toolchain/VectorOps.h"
 
 void MapOperation(const codegen::AcceleratorParam &param,
@@ -34,12 +34,20 @@ void MapOperation(const codegen::AcceleratorParam &param,
       MapMatrixOperation(param, mappedParams, opMemoryMaps);
     }
   } else if (param.has_reduce_param()) {
-    MapReduceOperation(param, mappedParams, opMemoryMaps);
+    const auto &reduce_param = param.reduce_param();
+    if (reduce_param.opcode() == "softmax") {
+      MapSoftmax(param, mappedParams, opMemoryMaps);
+    } else if (reduce_param.opcode() == "calculate_mx_qparam") {
+      MapMXQparam(param, mappedParams, opMemoryMaps);
+    } else {
+      std::cerr << "Unsupported reduce instruction: " << reduce_param.opcode()
+                << std::endl;
+      exit(1);
+    }
   } else if (param.has_pooling_param()) {
     MapPoolingOperation(param, mappedParams, opMemoryMaps);
-  } else if (param.has_reshape_param()) {
-    MapReshapeOperation(param, mappedParams, opMemoryMaps);
-  } else if (param.vector_params_size() > 0) {
+  } else if (param.has_slicing_param() || param.has_reshape_param() ||
+             param.vector_params_size() > 0) {
     MapVectorOperations(param, mappedParams, opMemoryMaps);
   }
 }

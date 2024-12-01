@@ -74,26 +74,28 @@ SC_MODULE(MaxpoolUnit) {
                         loop_counters[1][params.outputXLoopIndex[1]];
                     ac_int<11, false> x1 =
                         loop_counters[0][params.outputXLoopIndex[0]];
-                    ac_int<11, false> X0 =
-                        params.outputLoops[1][params.outputXLoopIndex[1]];
-                    ac_int<11, false> X1 =
-                        params.outputLoops[0][params.outputXLoopIndex[0]];
                     ac_int<11, false> y0 =
                         loop_counters[1][params.outputYLoopIndex[1]];
                     ac_int<11, false> y1 =
                         loop_counters[0][params.outputYLoopIndex[0]];
+                    ac_int<11, false> k1 =
+                        loop_counters[1][params.outputWeightLoopIndex[1]];
+                    ac_int<11, false> k2 =
+                        loop_counters[0][params.outputWeightLoopIndex[0]];
+
+                    ac_int<11, false> X0 =
+                        params.outputLoops[1][params.outputXLoopIndex[1]];
+                    ac_int<11, false> X1 =
+                        params.outputLoops[0][params.outputXLoopIndex[0]];
                     ac_int<11, false> Y0 =
                         params.outputLoops[1][params.outputYLoopIndex[1]];
                     ac_int<11, false> Y1 =
                         params.outputLoops[0][params.outputYLoopIndex[0]];
-                    ac_int<11, false> k2 =
-                        loop_counters[0][params.outputWeightLoopIndex[0]];
-                    ac_int<11, false> K2 =
-                        params.outputLoops[0][params.outputWeightLoopIndex[0]];
-                    ac_int<11, false> k1 =
-                        loop_counters[1][params.outputWeightLoopIndex[1]];
                     ac_int<11, false> K1 =
                         params.outputLoops[1][params.outputWeightLoopIndex[1]];
+                    ac_int<11, false> K2 =
+                        params.outputLoops[0][params.outputWeightLoopIndex[0]];
+
                     ac_int<16, false> k = k2 * K1 * WIDTH + k1 * WIDTH;
                     ac_int<16, false> K = K2 * K1 * WIDTH;
 

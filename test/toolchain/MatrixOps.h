@@ -1,10 +1,5 @@
 #pragma once
 
-#include "src/AccelTypes.h"
-#include "src/Params.h"
-#include "test/common/GoldModel.h"
-#include "test/common/VerificationTypes.h"
-#include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/Common.h"
 
 void set_addr_gen1(const codegen::Tensor &tensor, const Tiling &tiling,
@@ -19,7 +14,6 @@ void set_addr_gen1(const codegen::Tensor &tensor, const Tiling &tiling,
   accelerator_memory_map["vector1"] = get_partition(memory.partition());
   vector_params->ADDRESS_GEN1_OFFSET = memory.offset();
   vector_params->addressGen1Mode = nonzero_dims == 1 ? 3 : 1;
-  // TODO: double precision
   vector_params->DP_VEC1 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != tensor.dtype();
 
@@ -66,7 +60,6 @@ void set_addr_gen2(const codegen::Tensor &tensor, const Tiling &tiling,
   accelerator_memory_map["vector2"] = get_partition(memory.partition());
   vector_params->ADDRESS_GEN2_OFFSET = memory.offset();
   vector_params->addressGen2Mode = nonzero_dims == 1 ? 3 : 1;
-  // TODO: double precision
   vector_params->DP_VEC2 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != tensor.dtype();
 

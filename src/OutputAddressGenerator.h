@@ -82,48 +82,90 @@ SC_MODULE(OutputAddressGenerator) {
                 for (loop_counters[1][2] = 0;
                      loop_counters[1][2] < loop_bounds[1][2];
                      loop_counters[1][2]++) {
-                  ac_int<11, false> x0 =
-                      loop_counters[1][params.outputXLoopIndex[1]];
-                  ac_int<11, false> x1 =
-                      loop_counters[0][params.outputXLoopIndex[0]];
-                  ac_int<11, false> X0 =
-                      loop_bounds[1][params.outputXLoopIndex[1]];
-                  ac_int<11, false> X1 =
-                      params.outputLoops[0][params.outputXLoopIndex[0]];
-                  ac_int<11, false> y0 =
-                      loop_counters[1][params.outputYLoopIndex[1]];
-                  ac_int<11, false> y1 =
-                      loop_counters[0][params.outputYLoopIndex[0]];
-                  ac_int<11, false> Y0 =
-                      loop_bounds[1][params.outputYLoopIndex[1]];
-                  ac_int<11, false> Y1 =
-                      params.outputLoops[0][params.outputYLoopIndex[0]];
-                  ac_int<11, false> k2 =
-                      loop_counters[0][params.outputWeightLoopIndex[0]];
-                  ac_int<11, false> K2 =
-                      params.outputLoops[0][params.outputWeightLoopIndex[0]];
-                  ac_int<11, false> k1 =
-                      loop_counters[1][params.outputWeightLoopIndex[1]];
-                  ac_int<11, false> K1 =
-                      params.outputLoops[1][params.outputWeightLoopIndex[1]];
-                  ac_int<16, false> k = k2 * K1 * WIDTH + k1 * WIDTH;
-                  ac_int<16, false> K = K2 * K1 * WIDTH;
+                  ac_int<32, false> baseAddress;
+                  if (params.outputAddressMode == 1) {
+                    ac_int<11, false> x0 =
+                        loop_counters[1][params.outputXLoopIndex[1]];
+                    ac_int<11, false> x1 =
+                        loop_counters[0][params.outputXLoopIndex[0]];
+                    ac_int<11, false> y0 =
+                        loop_counters[1][params.outputYLoopIndex[1]];
+                    ac_int<11, false> y1 =
+                        loop_counters[0][params.outputYLoopIndex[0]];
+                    ac_int<11, false> k1 =
+                        loop_counters[1][params.outputWeightLoopIndex[1]];
+                    ac_int<11, false> k2 =
+                        loop_counters[0][params.outputWeightLoopIndex[0]];
 
-                  ac_int<16, false> x = x0 + x1 * X0;
-                  ac_int<16, false> X = X0 * X1;
+                    ac_int<11, false> X0 =
+                        loop_bounds[1][params.outputXLoopIndex[1]];
+                    ac_int<11, false> X1 =
+                        loop_bounds[0][params.outputXLoopIndex[0]];
+                    ac_int<11, false> Y0 =
+                        loop_bounds[1][params.outputYLoopIndex[1]];
+                    ac_int<11, false> Y1 =
+                        loop_bounds[0][params.outputYLoopIndex[0]];
+                    ac_int<11, false> K2 =
+                        loop_bounds[0][params.outputWeightLoopIndex[0]];
+                    ac_int<11, false> K1 =
+                        loop_bounds[1][params.outputWeightLoopIndex[1]];
 
-                  ac_int<16, false> y = y0 + y1 * Y0;
-                  ac_int<16, false> Y = Y0 * Y1;
+                    ac_int<16, false> k = k2 * K1 * WIDTH + k1 * WIDTH;
+                    ac_int<16, false> K = K2 * K1 * WIDTH;
 
-                  ac_int<32, false> baseAddress = y * X * K + x * K + k;
-                  ac_int<8, false> headSize = params.headSize;
-                  if (params.SPLIT_OUTPUT) {
-                    baseAddress = ((k / headSize) * X * headSize) +
-                                  (x * headSize) + (k % headSize);
-                  } else if (params.CONCAT_OUTPUT) {
-                    baseAddress = ((k / headSize) * K) +
-                                  ((y % headSize) * K * 4) + (k % headSize) +
-                                  (y / headSize * K / 4);
+                    ac_int<16, false> x = x0 + x1 * X0;
+                    ac_int<16, false> X = X0 * X1;
+
+                    ac_int<16, false> y = y0 + y1 * Y0;
+                    ac_int<16, false> Y = Y0 * Y1;
+
+                    ac_int<8, false> headSize = params.headSize;
+                    if (params.SPLIT_OUTPUT) {
+                      baseAddress = ((k / headSize) * X * headSize) +
+                                    (x * headSize) + (k % headSize);
+                    } else if (params.CONCAT_OUTPUT) {
+                      baseAddress = ((k / headSize) * K) +
+                                    ((y % headSize) * K * 4) + (k % headSize) +
+                                    (y / headSize * K / 4);
+                    } else {
+                      baseAddress = y * X * K + x * K + k;
+                    }
+                  } else if (params.outputAddressMode == 2) {
+                    ac_int<11, false> loop_0 = loop_counters[0][0];
+                    ac_int<11, false> loop_1 = loop_counters[0][1];
+                    ac_int<11, false> loop_2 = loop_counters[0][2];
+                    ac_int<11, false> loop_3 = loop_counters[1][0];
+                    ac_int<11, false> loop_4 = loop_counters[1][1];
+                    ac_int<11, false> loop_5 = loop_counters[1][2];
+
+                    ac_int<11, false> loop_bound_0 = loop_bounds[0][0];
+                    ac_int<11, false> loop_bound_1 = loop_bounds[0][1];
+                    ac_int<11, false> loop_bound_2 = loop_bounds[0][2];
+                    ac_int<11, false> loop_bound_3 = loop_bounds[1][0];
+                    ac_int<11, false> loop_bound_4 = loop_bounds[1][1];
+                    ac_int<11, false> loop_bound_5 = loop_bounds[1][2];
+
+                    baseAddress =
+                        (loop_0 * loop_bound_1 * loop_bound_2 * loop_bound_3 *
+                             loop_bound_4 * loop_bound_5 +
+                         loop_1 * loop_bound_2 * loop_bound_3 * loop_bound_4 *
+                             loop_bound_5 +
+                         loop_2 * loop_bound_3 * loop_bound_4 * loop_bound_5 +
+                         loop_3 * loop_bound_4 * loop_bound_5 +
+                         loop_4 * loop_bound_5 + loop_5) *
+                        WIDTH;
+
+                    // std::cerr << "loops: " << loop_0 << " " << loop_1 << "
+                    // "
+                    //           << loop_2 << " " << loop_3 << " " << loop_4
+                    //           << " "
+                    //           << loop_5 << std::endl;
+                    // std::cerr << "bounds: " << loop_bound_0 << " "
+                    //           << loop_bound_1 << " " << loop_bound_2 << " "
+                    //           << loop_bound_3 << " " << loop_bound_4 << " "
+                    //           << loop_bound_5 << std::endl;
+                    // std::cerr << "Output address: " << baseAddress <<
+                    // std::endl;
                   }
 
                   if (params.DP_OUTPUT) {

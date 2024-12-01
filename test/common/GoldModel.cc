@@ -80,12 +80,12 @@ void run_operation(const codegen::AcceleratorParam param,
 
   if (param.has_reshape_param()) {
     const auto &reshape_param = param.reshape_param();
-    output_tensor = permute<INPUT_T>(args[arg_index++], reshape_param);
+    output_tensor = permute<VECTOR_T>(args[arg_index++], reshape_param);
   }
 
   if (param.has_slicing_param()) {
     const auto &slicing_param = param.slicing_param();
-    output_tensor = slice<INPUT_T>(args[arg_index++], slicing_param);
+    output_tensor = slice<VECTOR_T>(args[arg_index++], slicing_param);
   }
 
   if (param.matrix_param().opcode() == "layer_norm") {
@@ -153,9 +153,9 @@ void run_operation(const codegen::AcceleratorParam param,
 
     const auto vector_input = param.vector_params(0).input();
     if (vector_input.has_reshape()) {
-      output_tensor = permute<INPUT_T>(output_tensor, vector_input);
+      output_tensor = permute<VECTOR_T>(output_tensor, vector_input);
     } else if (vector_input.has_slicing()) {
-      output_tensor = slice<INPUT_T>(output_tensor, vector_input);
+      output_tensor = slice<VECTOR_T>(output_tensor, vector_input);
     }
   }
 

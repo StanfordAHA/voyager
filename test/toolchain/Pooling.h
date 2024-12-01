@@ -1,9 +1,5 @@
 #pragma once
 
-#include "src/AccelTypes.h"
-#include "src/Params.h"
-#include "test/common/VerificationTypes.h"
-#include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/Common.h"
 
 void MapPoolingOperation(const codegen::AcceleratorParam &param,
@@ -39,11 +35,6 @@ void MapPoolingOperation(const codegen::AcceleratorParam &param,
     vector_params->addressGen0InputYLoopIndex[i] = 1;
     vector_params->addressGen0WeightLoopIndex[i] = 0;
   }
-
-  vector_params->addressGen0Broadcast = false;
-
-  vector_params->addressGen1Mode = 0;
-  vector_params->addressGen2Mode = 0;
 
   // output
   const auto output_memory = param.output().memory();

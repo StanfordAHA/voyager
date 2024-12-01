@@ -202,7 +202,7 @@ def run_rtl_test(model, layer, output_folder):
                     env=env_vars,
                     stdout=stdout_file,
                     stderr=subprocess.STDOUT,
-                    timeout=3 * 60 * 60,
+                    timeout=20 * 60 * 60,
                 )
             except subprocess.TimeoutExpired:
                 print(f"Test {model}_{layer} timed out")

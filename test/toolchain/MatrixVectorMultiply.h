@@ -1,9 +1,5 @@
 #pragma once
 
-#include "src/AccelTypes.h"
-#include "src/Params.h"
-#include "test/common/VerificationTypes.h"
-#include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/Common.h"
 
 void MapMatrixVectorMultiply(const codegen::AcceleratorParam &param,
@@ -26,19 +22,15 @@ void MapMatrixVectorMultiply(const codegen::AcceleratorParam &param,
   const auto input_memory = matrix_param.input().memory();
   accelerator_memory_map["vector0"] = get_partition(input_memory.partition());
   vector_params->VECTOR_OFFSET = input_memory.offset();
-  vector_params->addressGen0Mode = 3;
+  vector_params->addressGen0Mode = 2;
+  vector_params->addressGen0Broadcast = 0x111110;
+
   for (int i = 0; i < 3; i++) {
     vector_params->addressGen0Loop[0][i] = 1;
   }
-  vector_params->addressGen0Loop[1][0] = output_dim;
-  vector_params->addressGen0Loop[1][1] = 1;
+  vector_params->addressGen0Loop[1][0] = 1;
+  vector_params->addressGen0Loop[1][1] = output_dim;
   vector_params->addressGen0Loop[1][2] = reduction_dim / OC_DIMENSION;
-
-  for (int i = 0; i < 2; i++) {
-    vector_params->addressGen0InputXLoopIndex[i] = 0;
-    vector_params->addressGen0InputYLoopIndex[i] = 1;
-    vector_params->addressGen0WeightLoopIndex[i] = 2;
-  }
 
   vector_params->DP_VEC0 = DataTypes::TypeName<INPUT_DATATYPE>::name() !=
                            matrix_param.input().dtype();
@@ -90,7 +82,6 @@ void MapMatrixVectorMultiply(const codegen::AcceleratorParam &param,
   const auto output_memory = param.output().memory();
   accelerator_memory_map["outputs"] = get_partition(output_memory.partition());
   vector_params->VECTOR_OUTPUT_OFFSET = output_memory.offset();
-  vector_params->SCALAR_OUTPUT_OFFSET = output_memory.offset();
   for (int i = 0; i < 3; i++) {
     vector_params->outputLoops[0][i] = 1;
   }
@@ -105,7 +96,6 @@ void MapMatrixVectorMultiply(const codegen::AcceleratorParam &param,
   }
 
   vector_params->SPLIT_OUTPUT = false;
-  // TODO: double precision
   vector_params->DP_OUTPUT =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 

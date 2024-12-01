@@ -1,10 +1,5 @@
 #pragma once
 
-#include "src/AccelTypes.h"
-#include "src/Params.h"
-#include "test/common/GoldModel.h"
-#include "test/common/VerificationTypes.h"
-#include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/Common.h"
 
 inline bool are_broadcastable(const std::vector<int> &shape1,
@@ -159,7 +154,9 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   VectorParams *vector_params = new VectorParams;
   AcceleratorMemoryMap accelerator_memory_map;
 
-  const auto vector_input = param.vector_params(0).input();
+  const auto vector_input = param.has_slicing_param()
+                                ? param.slicing_param().input()
+                                : param.vector_params(0).input();
   int numel = 1;
   for (int i = 0; i < vector_input.shape_size(); i++) {
     numel *= vector_input.shape(i);
@@ -168,41 +165,87 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   const auto input_memory = vector_input.memory();
   accelerator_memory_map["vector0"] = get_partition(input_memory.partition());
   vector_params->VECTOR_OFFSET = input_memory.offset();
-  vector_params->addressGen0Mode = 1;
-  vector_params->addressGen0Broadcast = false;
+  vector_params->addressGen0Mode = 2;
 
-  for (int i = 0; i < 3; i++) {
-    vector_params->addressGen0Loop[0][i] = 1;
-    vector_params->outputLoops[0][i] = 1;
+  auto loop_bounds = get_tensor_shape(vector_input);
+
+  // TODO: how to handle reshape operation loop bound adjustment?
+  if (!vector_input.has_reshape()) {
+    loop_bounds = split_loops(loop_bounds, 1024);
+    if (loop_bounds.size() > 6) {
+      throw std::invalid_argument("Too many dimensions for vector operations!");
+    }
+
+    loop_bounds = adjust_loop_indices(loop_bounds, OC_DIMENSION);
   }
 
-  const auto factorized_shape = decompose_loops(numel / OC_DIMENSION, 1024);
+  // Pad the shape to 6 dimensions with 1s
+  const int num_extra_dims = 6 - loop_bounds.size();
+  for (int i = 0; i < num_extra_dims; i++) {
+    loop_bounds.insert(loop_bounds.begin(), 1);
+  }
 
-  vector_params->addressGen0Loop[1][0] = factorized_shape[0];
-  vector_params->addressGen0Loop[1][1] = factorized_shape[1];
-  vector_params->addressGen0Loop[1][2] = factorized_shape[2];
+  vector_params->addressGen0Loop[0][0] = loop_bounds[0];
+  vector_params->addressGen0Loop[0][1] = loop_bounds[1];
+  vector_params->addressGen0Loop[0][2] = loop_bounds[2];
+  vector_params->addressGen0Loop[1][0] = loop_bounds[3];
+  vector_params->addressGen0Loop[1][1] = loop_bounds[4];
+  vector_params->addressGen0Loop[1][2] = loop_bounds[5] / OC_DIMENSION;
 
-  vector_params->outputLoops[1][0] = factorized_shape[0];
-  vector_params->outputLoops[1][1] = factorized_shape[1];
-  vector_params->outputLoops[1][2] = factorized_shape[2];
+  if (param.has_slicing_param() || vector_input.has_slicing()) {
+    const auto &slicing = param.has_slicing_param() ? param.slicing_param()
+                                                    : vector_input.slicing();
+    vector_params->addressGen0Reshape = 1;
+    vector_params->addressGen0Dim = slicing.dim() + num_extra_dims;
+    vector_params->addressGen0Start = slicing.start();
+    vector_params->addressGen0End = slicing.end();
+    vector_params->addressGen0Stride = slicing.step();
 
-  for (int i = 0; i < 2; i++) {
-    vector_params->addressGen0InputYLoopIndex[i] = 0;
-    vector_params->addressGen0InputXLoopIndex[i] = 1;
-    vector_params->addressGen0WeightLoopIndex[i] = 2;
-
-    vector_params->outputYLoopIndex[i] = 0;
-    vector_params->outputXLoopIndex[i] = 1;
-    vector_params->outputWeightLoopIndex[i] = 2;
+    // Last dimension needs to be scaled by OC_DIMENSION
+    if (vector_params->addressGen0Dim == 5) {
+      vector_params->addressGen0Start /= OC_DIMENSION;
+      vector_params->addressGen0End /= OC_DIMENSION;
+    }
+  } else if (param.has_reshape_param() || vector_input.has_reshape()) {
+    const auto &reshape = param.has_reshape_param() ? param.reshape_param()
+                                                    : vector_input.reshape();
+    vector_params->addressGen0Reshape = 2;
+    for (int i = 0; i < reshape.dims_size(); i++) {
+      vector_params->addressGen0AxisOrder[i + num_extra_dims] =
+          reshape.dims(i) + num_extra_dims;
+    }
   }
 
   // set double precision if the datatype is not the same as the input datatype
   vector_params->DP_VEC0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != vector_input.dtype();
 
-  const auto output_memory = param.output().memory();
+  const auto vector_output = param.output();
+
+  const auto output_memory = vector_output.memory();
   accelerator_memory_map["outputs"] = get_partition(output_memory.partition());
   vector_params->VECTOR_OUTPUT_OFFSET = output_memory.offset();
+  vector_params->outputAddressMode = 2;
+
+  auto output_shape = get_tensor_shape(vector_output);
+  output_shape = split_loops(output_shape, 1024);
+  if (output_shape.size() > 6) {
+    throw std::invalid_argument("Too many dimensions for vector operations!");
+  }
+
+  output_shape = adjust_loop_indices(output_shape, OC_DIMENSION);
+
+  const int padding = 6 - output_shape.size();
+  for (int i = 0; i < padding; i++) {
+    output_shape.insert(output_shape.begin(), 1);
+  }
+
+  vector_params->outputLoops[0][0] = output_shape[0];
+  vector_params->outputLoops[0][1] = output_shape[1];
+  vector_params->outputLoops[0][2] = output_shape[2];
+  vector_params->outputLoops[1][0] = output_shape[3];
+  vector_params->outputLoops[1][1] = output_shape[4];
+  vector_params->outputLoops[1][2] = output_shape[5] / OC_DIMENSION;
 
   vector_params->DP_OUTPUT =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
@@ -252,7 +295,7 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
           vector_params->outputQuantizeScale = immediate.bits_rep();
         }
       } else {  // microscaling
-        auto other_shape = get_shape(it->other());
+        auto other_shape = get_tensor_shape(it->other());
 
         // change other_shape to 2D tensor
         int total_size = 1;
@@ -325,8 +368,8 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
                 vinst.immediate1 = immediate.bits_rep();
               }
             } else {
-              const auto input_shape = get_shape(it->input());
-              const auto other_shape = get_shape(it->other());
+              const auto input_shape = get_input_shape(it->input());
+              const auto other_shape = get_input_shape(it->other());
               const auto output_shape =
                   squeeze_shape(broadcast_shape(input_shape, other_shape));
 

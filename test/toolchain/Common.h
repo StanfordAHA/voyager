@@ -5,6 +5,7 @@
 
 #include "src/Params.h"
 #include "test/common/VerificationTypes.h"
+#include "test/compiler/proto/param.pb.h"
 
 std::map<int, std::set<std::string>> vector_ops = {
     {0, {"add", "add_", "sub", "sub_", "mul", "mul_", "div", "div_"}},
@@ -72,9 +73,25 @@ void factorizeForAddressGen(const int dim, int *factors) {
   }
 }
 
-inline std::vector<int> get_shape(const codegen::Tensor &tensor) {
-  const auto repeated_field = tensor.shape();
+inline std::vector<int> get_tensor_shape(const codegen::Tensor &tensor) {
+  const auto repeated_field =
+      tensor.has_reshape() ? tensor.reshape().input_sizes() : tensor.shape();
   return std::vector<int>(repeated_field.begin(), repeated_field.end());
+}
+
+inline std::vector<int> get_input_shape(const codegen::Tensor &tensor) {
+  if (tensor.has_reshape()) {
+    const auto &param = tensor.reshape();
+    return {param.output_sizes().begin(), param.output_sizes().end()};
+  }
+
+  if (tensor.has_slicing()) {
+    const auto &param = tensor.slicing();
+    return {param.output_sizes().begin(), param.output_sizes().end()};
+  }
+
+  const auto repeated_field = tensor.shape();
+  return {repeated_field.begin(), repeated_field.end()};
 }
 
 inline std::vector<int> squeeze_shape(const std::vector<int> &input) {
@@ -94,24 +111,98 @@ inline int get_size(const std::vector<int> &shape) {
 }
 
 inline int get_size(const codegen::Tensor &tensor) {
-  const auto shape = get_shape(tensor);
+  const auto shape = get_tensor_shape(tensor);
   return get_size(shape);
 }
 
-int find_largest_divisor(int num, int limit) {
-  limit = std::min(limit, num);
-  for (int i = limit; i > 0; --i) {
-    if (num % i == 0) {
-      return i;
+std::vector<int> split_loops(std::vector<int> loops, int max_value) {
+  if (max_value <= 1) {
+    throw std::invalid_argument("max_value must be greater than 1.");
+  }
+
+  std::vector<int> result;
+
+  for (int value : loops) {
+    if (value <= max_value) {
+      result.push_back(value);
+    } else {
+      // Find two factors of value such that both are <= max_value
+      bool split_found = false;
+      for (int factor = std::sqrt(value); factor > 1; --factor) {
+        if (value % factor == 0) {
+          int other_factor = value / factor;
+          if (factor <= max_value && other_factor <= max_value) {
+            result.push_back(factor);
+            result.push_back(other_factor);
+            split_found = true;
+            break;
+          }
+        }
+      }
+
+      if (!split_found) {
+        throw std::runtime_error("Unable to split value " +
+                                 std::to_string(value) +
+                                 " into two factors <= max_value.");
+      }
     }
   }
-  return 1;  // If no divisor found, return 1
+
+  return result;
 }
 
-std::vector<int> decompose_loops(int N, int max_value) {
-  int k = find_largest_divisor(N, max_value);
-  int j = find_largest_divisor(N / k, max_value);
-  int i = N / (j * k);
+// Function to compute the prime factors of a given number
+std::vector<int> prime_factors(int n) {
+  std::vector<int> factors;
+  for (int i = 2; i <= n / i; ++i) {
+    while (n % i == 0) {
+      factors.push_back(i);
+      n /= i;
+    }
+  }
+  if (n > 1) {
+    factors.push_back(n);
+  }
+  return factors;
+}
 
-  return {i, j, k};
+/**
+ * Adjusts loop indices such that the prime factors of the target factor are
+ * distributed among the indices, starting from the rightmost index.
+ *
+ * @param loops A vector of integers representing the loop indices.
+ * @param target_factor An integer whose prime factors are to be distributed.
+ * @return A vector of adjusted loop indices.
+ * @throws std::runtime_error if the prime factors cannot be fully distributed.
+ */
+std::vector<int> adjust_loop_indices(const std::vector<int> &loops,
+                                     int target_factor) {
+  // Prime factorization of the target factor
+  std::vector<int> remaining_factors = prime_factors(target_factor);
+
+  // Result vector
+  std::vector<int> result = loops;
+
+  // Process from right to left
+  for (int i = result.size() - 1; i >= 0; --i) {
+    for (auto it = remaining_factors.begin(); it != remaining_factors.end();) {
+      int factor = *it;
+      if (result[i] % factor == 0) {
+        result[i] /= factor;  // Divide the current index by the factor
+        it = remaining_factors.erase(it);  // Remove the used factor
+      } else {
+        ++it;  // Move to the next factor
+      }
+    }
+  }
+
+  // If any factors remain unused, error out
+  if (!remaining_factors.empty()) {
+    throw std::runtime_error("Unused prime factors remain.");
+  }
+
+  // Multiply the rightmost index by the target factor
+  result[result.size() - 1] *= target_factor;
+
+  return result;
 }
