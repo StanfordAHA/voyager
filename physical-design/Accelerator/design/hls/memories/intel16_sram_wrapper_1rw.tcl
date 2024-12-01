@@ -9,7 +9,8 @@ OUTPUT_DIR       ./memories
 FILES {
   { FILENAME memories/intel16_sram_wrapper_1rw.v                       FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
   { FILENAME memories/ip224uhdlp1p11rf_512x32m4b2c1s0_t0r0p0d0a1m1h.v  FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
-  { FILENAME memories/ip224uhdlp1p11rf_1024x64m4b2c1s1_t0r0p0d0a1m1h.v FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
+  { FILENAME memories/ip224uhdlp1p11rf_1024x64m4b2c1s0_t0r0p0d0a1m1h.v FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
+  { FILENAME memories/ip224uhdlp1p11rf_2048x64m4b2c1s0_t0r0p0d0a1m1h.v FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
   { FILENAME memories/ip224uhdlp1p11rf_4096x64m4b2c1s1_t0r0p0d0a1m1h.v FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
   { FILENAME memories/ip224uhdlp1p11rf_8192x8m8b2c1s0_t0r0p0d0a1m1h.v  FILETYPE SystemVerilog MODELTYPE generic PARSE 1 PATHTYPE relative STATICFILE 1 VHDL_LIB_MAPS work }
 }

@@ -106,19 +106,22 @@ def construct():
     sram_1rw_512.set_name("sram-1rw-512")
     sram_1rw_1024 = sram.clone()
     sram_1rw_1024.set_name("sram-1rw-1024")
+    sram_1rw_2048 = sram.clone()
+    sram_1rw_2048.set_name("sram-1rw-2048")
     sram_1rw_4096 = sram.clone()
     sram_1rw_4096.set_name("sram-1rw-4096")
     sram_1rw_8192 = sram.clone()
     sram_1rw_8192.set_name("sram-1rw-8192")
 
     mem_nodes = {
-        sram_1r1w_1024: "ip224rfsbhpm1r1w1024x64m2",
         sram_1r1w_2048: "ip224rfsbhpm1r1w2048x32m4",
-        sram_1r1w_512:  "ip224rfsbhpm1r1w512x128m1",
-        sram_1r1w_256:  "ip224rfsbhpm1r1w256x128m1",
-        sram_1r1w_128:  "ip224rfsbhpm1r1w128x128m1",
+        sram_1r1w_1024: "ip224rfsbhpm1r1w1024x64m2",
+        sram_1r1w_512:  "ip224rfsbhpm1r1w512x64m1",
+        sram_1r1w_256:  "ip224rfsbhpm1r1w256x64m1",
+        sram_1r1w_128:  "ip224rfsbhpm1r1w128x64m1",
         sram_1rw_512:   "ip224uhdlp1p11rf_512x32m4b2c1s0_t0r0p0d0a1m1h",
-        sram_1rw_1024:  "ip224uhdlp1p11rf_1024x64m4b2c1s1_t0r0p0d0a1m1h",
+        sram_1rw_1024:  "ip224uhdlp1p11rf_1024x64m4b2c1s0_t0r0p0d0a1m1h",
+        sram_1rw_2048:  "ip224uhdlp1p11rf_2048x64m4b2c1s0_t0r0p0d0a1m1h",
         sram_1rw_4096:  "ip224uhdlp1p11rf_4096x64m4b2c1s1_t0r0p0d0a1m1h",
         sram_1rw_8192:  "ip224uhdlp1p11rf_8192x8m8b2c1s0_t0r0p0d0a1m1h",
     }
