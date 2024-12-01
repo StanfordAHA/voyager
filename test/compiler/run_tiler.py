@@ -248,18 +248,10 @@ def main():
     tilings = tiling_pb2.ModelTiling()
     for param in params.params:
         if param.HasField("matrix_param"):
-            input_shape = param.matrix_param.input.shape
-            if len(input_shape) == 4:
-                input_channels = input_shape[1]
-                height = input_shape[2]
-                width = input_shape[3]
-            else:
-                print(f"Unsupported input shape: {input_shape}, skipping")
-                continue
-
             weights_shape = param.matrix_param.weight.shape
             if len(weights_shape) == 4:
                 output_channels = weights_shape[0]
+                input_channels = weights_shape[1]
                 kernel_height = weights_shape[2]
                 kernel_width = weights_shape[3]
             else:
@@ -268,6 +260,14 @@ def main():
 
             if input_channels == 3:
                 print(f"Skipping input with {input_channels} channels")
+                continue
+
+            output_shape = param.output.shape
+            if len(output_shape) == 4:
+                height = output_shape[2]
+                width = output_shape[3]
+            else:
+                print(f"Unsupported output shape: {output_shape}, skipping")
                 continue
 
             stride = param.matrix_param.stride[0]
