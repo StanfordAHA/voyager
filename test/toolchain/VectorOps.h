@@ -154,13 +154,16 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   VectorParams *vector_params = new VectorParams;
   AcceleratorMemoryMap accelerator_memory_map;
 
-  const auto vector_input = param.has_slicing_param()
-                                ? param.slicing_param().input()
-                                : param.vector_params(0).input();
-  int numel = 1;
-  for (int i = 0; i < vector_input.shape_size(); i++) {
-    numel *= vector_input.shape(i);
+  codegen::Tensor vector_input;
+  if (param.has_slicing_param()) {
+    vector_input = param.slicing_param().input();
+  } else if (param.has_reshape_param()) {
+    vector_input = param.reshape_param().input();
+  } else {
+    vector_input = param.vector_params(0).input();
   }
+
+  const int numel = get_size(vector_input);
 
   const auto input_memory = vector_input.memory();
   accelerator_memory_map["vector0"] = get_partition(input_memory.partition());
@@ -346,12 +349,28 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
           vectorStage = stage + 1;
           if (it->opcode() == "vmap") {
             vinst.vmapOffset = it->other().memory().offset();
+          } else if (it->has_other_scalar()) {
+            std::cerr << "immediate: " << it->other_scalar() << std::endl;
+            VECTOR_DATATYPE immediate = it->other_scalar();
+
+            if (it->opcode() == "div" || it->opcode() == "div_") {
+              immediate = 1.0 / immediate;
+            }
+
+            if (stage == 0) {
+              vinst.vOp0Src1 = VectorInstructions::op0immediate;
+              vinst.immediate0 = immediate.bits_rep();
+            } else if (stage == 3) {
+              vinst.vOp3Src1 = VectorInstructions::op3immediate;
+              vinst.immediate1 = immediate.bits_rep();
+            } else if (stage == 5) {
+              vinst.immediate1 = immediate.bits_rep();
+            }
           } else if (it->has_other()) {
             const auto tensor_to_load =
                 output_node == it->other().node() ? it->input() : it->other();
             const int size = get_size(tensor_to_load);
             if (size == 1) {
-              // TODO: Ideally this should be stroed in the vector param.
               VECTOR_DATATYPE immediate = read_constant_param(tensor_to_load);
 
               if (it->opcode() == "div" || it->opcode() == "div_") {

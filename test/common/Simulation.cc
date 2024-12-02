@@ -42,7 +42,7 @@ Simulation::Simulation() {
 
   std::string sims_str(get_env_var("SIMS"));
   if (sims_str.empty()) {
-    sims_str = "fp32,file";
+    sims_str = "gold,pytorch";
   }
 
   split_string(sims_str, ',', std::back_inserter(sims));
@@ -91,9 +91,9 @@ void Simulation::load_data() {
     memories["gold"] = new ArrayMemory(memory_sizes);
     dataLoaders["gold"] = new DataLoader(memories["gold"], false);
   }
-  if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
-    memories["systemc"] = new ArrayMemory(memory_sizes);
-    dataLoaders["systemc"] = new DataLoader(memories["systemc"], true);
+  if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
+    memories["accelerator"] = new ArrayMemory(memory_sizes);
+    dataLoaders["accelerator"] = new DataLoader(memories["accelerator"], true);
   }
 
   std::string project_root = std::string(getenv("PROJECT_ROOT"));
@@ -151,9 +151,9 @@ void Simulation::run() {
     }
   }
 
-  // Run accelerator systemc test
-  if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
-    auto memory = (ArrayMemory*)(memories["systemc"]);
+  // Run accelerator test
+  if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
+    auto memory = (ArrayMemory*)(memories["accelerator"]);
     run_accelerator(params, memory->memories[0]);
   }
 }
@@ -170,60 +170,58 @@ int Simulation::check_outputs() {
   bool has_valid_comp = false;
   double rel_err = 0.0;
 
-  auto param = params.back();
-  int size = 1;
-  for (const auto& dim : param.output().shape()) size *= dim;
+  const auto param = params.back();
+  const int size = get_size(param.output());
 
-  bool file = std::find(sims.begin(), sims.end(), "file") != sims.end();
+  bool pytorch = std::find(sims.begin(), sims.end(), "pytorch") != sims.end();
 
   auto gold_memory = (ArrayMemory*)memories["gold"];
-  auto systemc_memory = (ArrayMemory*)memories["systemc"];
+  auto accel_memory = (ArrayMemory*)memories["accelerator"];
 
-  std::any output_tensor;
-  std::any reference_output_tensor;
   std::string filename;
-  std::string output_tensor_names[2];
+  std::any output1, output2;
+  std::string output_names[2];
 
-  if (gold_memory && file) {
-    std::cout << "C++ Gold Model vs. PyTorch" << std::endl;
+  if (gold_memory && pytorch) {
+    std::cout << "Gold Model vs. PyTorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
-    filename = prefix + "systemc_vs_pytorch.txt";
+    filename = prefix + "gold_vs_pytorch.txt";
 
-    output_tensor_names[0] = "gold_model";
-    output_tensor = gold_memory->get_output(param);
+    output_names[0] = "gold_model";
+    output1 = gold_memory->get_output(param);
 
-    output_tensor_names[1] = "file";
-    reference_output_tensor = gold_memory->get_reference_output(param);
-
-    has_valid_comp = true;
-  }
-
-  if (systemc_memory && file) {
-    std::cout << "System C vs. PyTorch" << std::endl;
-    std::cout << "(reveals bugs in accelerator or memory placement)"
-              << std::endl;
-    filename = prefix + "systemc_vs_pytorch.txt";
-
-    output_tensor_names[0] = "systemc";
-    output_tensor = systemc_memory->get_output(param);
-
-    output_tensor_names[1] = "file";
-    reference_output_tensor = systemc_memory->get_reference_output(param);
+    output_names[1] = "pytorch";
+    output2 = gold_memory->get_reference_output(param);
 
     has_valid_comp = true;
   }
 
-  if (systemc_memory && gold_memory) {
-    std::cout << "System C vs. C++ Gold Model" << std::endl;
+  if (accel_memory && pytorch) {
+    std::cout << "Accelerator vs. PyTorch" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
-    filename = prefix + "systemc_vs_gold.txt";
+    filename = prefix + "accelerator_vs_pytorch.txt";
 
-    output_tensor_names[0] = "systemc";
-    output_tensor = systemc_memory->get_output(param);
+    output_names[0] = "accelerator";
+    output1 = accel_memory->get_output(param);
 
-    output_tensor_names[1] = "gold_model";
-    reference_output_tensor = gold_memory->get_output(param);
+    output_names[1] = "pytorch";
+    output2 = accel_memory->get_reference_output(param);
+
+    has_valid_comp = true;
+  }
+
+  if (accel_memory && gold_memory) {
+    std::cout << "Accelerator vs. Gold Model" << std::endl;
+    std::cout << "(reveals bugs in accelerator or memory placement)"
+              << std::endl;
+    filename = prefix + "accelerator_vs_gold.txt";
+
+    output_names[0] = "accelerator";
+    output1 = accel_memory->get_output(param);
+
+    output_names[1] = "gold_model";
+    output2 = gold_memory->get_output(param);
 
     has_valid_comp = true;
   }
@@ -231,21 +229,21 @@ int Simulation::check_outputs() {
   if (has_valid_comp) {
     if (param.output().dtype() == "int8") {
       rel_err += compare_arrays<DataTypes::int8, DataTypes::int8>(
-          output_tensor, output_tensor_names[0], reference_output_tensor,
-          output_tensor_names[1], size, filename, false);
+          output1, output_names[0], output2, output_names[1], size, filename,
+          false);
     } else if (param.output().dtype() == "e8m0") {
       rel_err += compare_arrays<DataTypes::e8m0, DataTypes::e8m0>(
-          output_tensor, output_tensor_names[0], reference_output_tensor,
-          output_tensor_names[1], size, filename, false);
+          output1, output_names[0], output2, output_names[1], size, filename,
+          false);
     } else if (param.output().dtype() == "bfloat16") {
       rel_err += compare_arrays<DataTypes::bfloat16, DataTypes::bfloat16>(
-          output_tensor, output_tensor_names[0], reference_output_tensor,
-          output_tensor_names[1], size, filename, false);
+          output1, output_names[0], output2, output_names[1], size, filename,
+          false);
     } else {
       // if unspecified, we will assume it's INPUT_DATATYPE
       rel_err += compare_arrays<INPUT_DATATYPE, INPUT_DATATYPE>(
-          output_tensor, output_tensor_names[0], reference_output_tensor,
-          output_tensor_names[1], size, filename, false);
+          output1, output_names[0], output2, output_names[1], size, filename,
+          false);
     }
   }
 

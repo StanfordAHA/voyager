@@ -300,7 +300,7 @@ $(CC_BUILD_DIR)/AccuracyTester.o: test/common/AccuracyTester.cc src/PositTypes.h
 ###########################################################
 # Networks
 ###########################################################
-$(CC_BUILD_DIR)/Network.o: test/common/Network.cc test/compiler/proto/param.pb.h
+$(CC_BUILD_DIR)/Network.o: test/common/Network.cc test/compiler/proto/param.pb.cc
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 test/compiler/proto/param.pb.cc: quantized-training/src/quantized_training/codegen/param.proto

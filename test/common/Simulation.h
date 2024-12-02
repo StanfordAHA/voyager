@@ -12,6 +12,7 @@
 #include "src/ArchitectureParams.h"
 #include "test/common/ArrayMemory.h"
 #include "test/common/DataLoader.h"
+#include "test/common/operations/Common.h"
 #include "test/compiler/proto/param.pb.h"
 
 void run_accelerator(std::vector<codegen::AcceleratorParam> params,

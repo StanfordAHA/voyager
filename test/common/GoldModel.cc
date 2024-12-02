@@ -175,18 +175,21 @@ void run_operation(const codegen::AcceleratorParam param,
         relu(tensor[i]);
       }
     } else if (arithmetics.find(vector_param.opcode()) != arithmetics.end()) {
-      const auto &input = vector_param.other().has_memory()
-                              ? vector_param.input()
-                              : vector_param.other();
-      const auto &other = vector_param.other().has_memory()
-                              ? vector_param.other()
-                              : vector_param.input();
+      const bool use_input =
+          !vector_param.has_other() || vector_param.other().has_memory();
+      const auto &input =
+          use_input ? vector_param.input() : vector_param.other();
+      const auto &other =
+          use_input ? vector_param.other() : vector_param.input();
 
       VECTOR_T *input_tensor = std::any_cast<VECTOR_T *>(output_tensor);
       const auto input_shape = get_shape(input);
 
       VECTOR_T *other_tensor;
-      if (other.dtype() != input.dtype()) {
+      if (vector_param.has_other_scalar()) {
+        other_tensor = new VECTOR_T[1];
+        other_tensor[0] = vector_param.other_scalar();
+      } else if (other.dtype() != input.dtype()) {
         if constexpr (std::is_same<VECTOR_T, CFloat>::value) {
           std::cerr << "No quantization operations should be emitted for CFloat"
                     << std::endl;
@@ -207,7 +210,10 @@ void run_operation(const codegen::AcceleratorParam param,
         other_tensor = slice<VECTOR_T>(other_tensor, other);
       }
 
-      const auto other_shape = get_shape(other);
+      auto other_shape = get_shape(other);
+      if (vector_param.has_other_scalar()) {
+        other_shape = {1};
+      }
 
       output_tensor =
           perform_elwise_operation(input_tensor, input_shape, other_tensor,
