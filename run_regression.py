@@ -64,7 +64,7 @@ def run_gold_model_unit_test(model, layer, output_folder):
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
     env_vars["CLOCK_PERIOD"] = "1"
-    env_vars["SIMS"] = "gold,file"
+    env_vars["SIMS"] = "gold,pytorch"
 
     with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
         try:
@@ -126,7 +126,7 @@ def run_systemc_unit_test(model, layer, output_folder, fast):
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
     env_vars["CLOCK_PERIOD"] = "1"
-    env_vars["SIMS"] = "gold,systemc"
+    env_vars["SIMS"] = "gold,accelerator"
 
     with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
         try:
@@ -187,7 +187,7 @@ def run_rtl_test(model, layer, output_folder):
     env_vars = os.environ.copy()
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
-    env_vars["SIMS"] = "gold,systemc"
+    env_vars["SIMS"] = "gold,accelerator"
     # Workaround: vcs/catapult don't support GLIBCXX_3.4.30 in their libstdc++, and the tools hardcode the linker libraries in such an
     # order that their libs are used over the user specified ones. We need the newer version in order to run dependencies installed from conda.
     env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
@@ -275,7 +275,7 @@ def run_rtl_tests(layers, num_processes, results_folder):
         env_vars = os.environ.copy()
         env_vars["NETWORK"] = "resnet18"
         env_vars["TESTS"] = "submodule_0"
-        env_vars["SIMS"] = "systemc,accelerator"
+        env_vars["SIMS"] = "gold,accelerator"
         env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
 
         subprocess.run(
