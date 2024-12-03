@@ -198,7 +198,7 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   if (param.has_slicing_param() || vector_input.has_slicing()) {
     const auto &slicing = param.has_slicing_param() ? param.slicing_param()
                                                     : vector_input.slicing();
-    vector_params->addressGen0Reshape = 1;
+    vector_params->VECTOR_INPUT0_SLICING = true;
     vector_params->addressGen0Dim = slicing.dim() + num_extra_dims;
     vector_params->addressGen0Start = slicing.start();
     vector_params->addressGen0End = slicing.end();
@@ -212,7 +212,7 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   } else if (param.has_reshape_param() || vector_input.has_reshape()) {
     const auto &reshape = param.has_reshape_param() ? param.reshape_param()
                                                     : vector_input.reshape();
-    vector_params->addressGen0Reshape = 2;
+    vector_params->VECTOR_INPUT0_RESHAPE = true;
     for (int i = 0; i < reshape.dims_size(); i++) {
       vector_params->addressGen0AxisOrder[i + num_extra_dims] =
           reshape.dims(i) + num_extra_dims;

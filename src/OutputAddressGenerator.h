@@ -154,18 +154,6 @@ SC_MODULE(OutputAddressGenerator) {
                          loop_3 * loop_bound_4 * loop_bound_5 +
                          loop_4 * loop_bound_5 + loop_5) *
                         WIDTH;
-
-                    // std::cerr << "loops: " << loop_0 << " " << loop_1 << "
-                    // "
-                    //           << loop_2 << " " << loop_3 << " " << loop_4
-                    //           << " "
-                    //           << loop_5 << std::endl;
-                    // std::cerr << "bounds: " << loop_bound_0 << " "
-                    //           << loop_bound_1 << " " << loop_bound_2 << " "
-                    //           << loop_bound_3 << " " << loop_bound_4 << " "
-                    //           << loop_bound_5 << std::endl;
-                    // std::cerr << "Output address: " << baseAddress <<
-                    // std::endl;
                   }
 
                   if (params.DP_OUTPUT) {

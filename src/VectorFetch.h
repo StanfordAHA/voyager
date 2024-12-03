@@ -90,13 +90,13 @@ SC_MODULE(VectorFetchUnit) {
         }
       }
 
-      if (params.addressGen0Reshape == 1) {
+      if (params.VECTOR_INPUT0_SLICING) {
         int i = params.addressGen0Dim / 3;
         int j = params.addressGen0Dim % 3;
         loop_starts[i][j] = params.addressGen0Start;
         loop_ends[i][j] = params.addressGen0End;
         loop_strides[i][j] = params.addressGen0Stride;
-      } else if (params.addressGen0Reshape == 2) {
+      } else if (params.VECTOR_INPUT0_RESHAPE) {
 #pragma hls_unroll yes
         for (int dim = 0; dim < 6; dim++) {
           int i = dim / 3;
@@ -105,22 +105,6 @@ SC_MODULE(VectorFetchUnit) {
           int new_i = new_dim / 3;
           int new_j = new_dim % 3;
           loop_ends[i][j] = loop_bounds[new_i][new_j];
-        }
-
-        std::cerr << "original loop bounds: " << std::endl;
-        for (int i = 0; i < 2; i++) {
-          for (int j = 0; j < 3; j++) {
-            std::cerr << loop_bounds[i][j] << " ";
-          }
-          std::cerr << std::endl;
-        }
-
-        std::cerr << "loop bounds permuted: " << std::endl;
-        for (int i = 0; i < 2; i++) {
-          for (int j = 0; j < 3; j++) {
-            std::cerr << loop_ends[i][j] << " ";
-          }
-          std::cerr << std::endl;
         }
       }
 
@@ -221,7 +205,7 @@ SC_MODULE(VectorFetchUnit) {
                                                        : loop_bounds[1][2];
 
                     // Permute indices
-                    if (params.addressGen0Reshape == 2) {
+                    if (params.VECTOR_INPUT0_RESHAPE) {
                       ac_int<11, false> indices[6] = {loop_0, loop_1, loop_2,
                                                       loop_3, loop_4, loop_5};
                       ac_int<11, false> orig_indices[6];
@@ -248,16 +232,6 @@ SC_MODULE(VectorFetchUnit) {
                          loop_3 * loop_bound_4 * loop_bound_5 +
                          loop_4 * loop_bound_5 + loop_5) *
                         WIDTH;
-
-                    // std::cerr << "loops: " << loop_0 << " " << loop_1 << " "
-                    //           << loop_2 << " " << loop_3 << " " << loop_4 <<
-                    //           " "
-                    //           << loop_5 << std::endl;
-                    // std::cerr << "bounds: " << loop_bound_0 << " "
-                    //           << loop_bound_1 << " " << loop_bound_2 << " "
-                    //           << loop_bound_3 << " " << loop_bound_4 << " "
-                    //           << loop_bound_5 << std::endl;
-                    // std::cerr << "Read address: " << address << std::endl;
                   }
 
                   if (params.DP_VEC0) {
@@ -305,7 +279,7 @@ SC_MODULE(VectorFetchUnit) {
         }
       }
 
-      if (params.addressGen0Reshape == 1) {
+      if (params.VECTOR_INPUT0_SLICING) {
         int i = params.addressGen0Dim / 3;
         int j = params.addressGen0Dim % 3;
         loop_starts[i][j] = params.addressGen0Start;

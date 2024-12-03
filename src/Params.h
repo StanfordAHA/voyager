@@ -518,12 +518,15 @@ struct VectorParams : BaseParams {
     vec0DequantizeScale = 0;
     DP_VEC0 = false;
 
-    addressGen0Reshape = 0;
+    addressGen0Broadcast = 0;
+
+    VECTOR_INPUT0_SLICING = false;
     addressGen0Dim = 0;
     addressGen0Start = 0;
     addressGen0End = 0;
     addressGen0Stride = 0;
-    addressGen0Broadcast = 0;
+
+    VECTOR_INPUT0_RESHAPE = false;
     for (int i = 0; i < 6; i++) {
       addressGen0AxisOrder[i] = i;
     }
@@ -596,16 +599,17 @@ struct VectorParams : BaseParams {
   ac_int<16, false> vec0DequantizeScale;
   bool DP_VEC0;
 
-  ac_int<2, false> addressGen0Reshape;
+  // A vector where each bit represents if the corresponding dimension is
+  // broadcasted
+  ac_int<6, false> addressGen0Broadcast;
+
+  bool VECTOR_INPUT0_SLICING;
   ac_int<3, false> addressGen0Dim;
   ac_int<11, false> addressGen0Start;
   ac_int<11, false> addressGen0End;
   ac_int<11, false> addressGen0Stride;
 
-  // A vector where each bit represents if the corresponding dimension is
-  // broadcasted
-  ac_int<6, false> addressGen0Broadcast;
-
+  bool VECTOR_INPUT0_RESHAPE;
   ac_int<3, false> addressGen0AxisOrder[6];
 
   // Address Gen 1 (op0src1)
@@ -628,14 +632,6 @@ struct VectorParams : BaseParams {
   ac_int<3, false> addressGen2WeightLoopIndex[2];
   ac_int<16, false> vec2DequantizeScale;
   bool DP_VEC2;
-
-  // ac_int<2, false> addressGen2Reshape;
-  // ac_int<3, false> addressGen2Dim;
-  // ac_int<11, false> addressGen2Start;
-  // ac_int<11, false> addressGen2End;
-  // ac_int<11, false> addressGen2Stride;
-  // ac_int<6, false> addressGen2Broadcast;
-  // ac_int<3, false> addressGen2AxisOrder[6];
 
   unsigned long long VECTOR_OUTPUT_OFFSET;
   ac_int<11, false> outputLoops[2][3];
@@ -693,13 +689,15 @@ struct VectorParams : BaseParams {
     m & vec0DequantizeScale;
     m & DP_VEC0;
 
-    m & addressGen0Reshape;
+    m & addressGen0Broadcast;
+
+    m & VECTOR_INPUT0_SLICING;
     m & addressGen0Dim;
     m & addressGen0Start;
     m & addressGen0End;
     m & addressGen0Stride;
-    m & addressGen0Broadcast;
 
+    m & VECTOR_INPUT0_RESHAPE;
     for (int i = 0; i < 6; i++) {
       m& addressGen0AxisOrder[i];
     }
@@ -742,17 +740,6 @@ struct VectorParams : BaseParams {
     }
     m & vec2DequantizeScale;
     m & DP_VEC2;
-
-    // m & addressGen2Reshape;
-    // m & addressGen2Dim;
-    // m & addressGen2Start;
-    // m & addressGen2End;
-    // m & addressGen2Stride;
-    // m & addressGen2Broadcast;
-
-    // for (int i = 0; i < 6; i++) {
-    //   m& addressGen2AxisOrder[i];
-    // }
 
     m & VECTOR_OUTPUT_OFFSET;
     for (int i = 0; i < 2; i++) {
@@ -819,13 +806,17 @@ struct VectorParams : BaseParams {
     os << "addressGen0Mode: " << params.addressGen0Mode << std::endl;
     os << "vec0DequantizeScale: " << params.vec0DequantizeScale << std::endl;
 
-    os << "addressGen0Reshape: " << params.addressGen0Reshape << std::endl;
+    os << "addressGen0Broadcast: " << params.addressGen0Broadcast << std::endl;
+
+    os << "VECTOR_INPUT0_SLICING: " << params.VECTOR_INPUT0_SLICING
+       << std::endl;
     os << "addressGen0Dim: " << params.addressGen0Dim << std::endl;
     os << "addressGen0Start: " << params.addressGen0Start << std::endl;
     os << "addressGen0End: " << params.addressGen0End << std::endl;
     os << "addressGen0Stride: " << params.addressGen0Stride << std::endl;
-    os << "addressGen0Broadcast: " << params.addressGen0Broadcast << std::endl;
 
+    os << "VECTOR_INPUT0_RESHAPE: " << params.VECTOR_INPUT0_RESHAPE
+       << std::endl;
     for (int i = 0; i < 6; i++) {
       os << "addressGen0AxisOrder[" << i
          << "]: " << params.addressGen0AxisOrder[i] << std::endl;
