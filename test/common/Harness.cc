@@ -195,6 +195,8 @@ Harness::Harness(sc_module_name name, std::vector<Operation> operations,
   async_reset_signal_is(rstn, false);
 
   accessCounter = new AccessCounter();
+  accelerator.matrixUnit.inputBuffer.accessCounter = accessCounter;
+  accelerator.matrixUnit.weightBuffer.accessCounter = accessCounter;
 }
 
 void Harness::reset() {
@@ -470,6 +472,9 @@ void Harness::sendParams() {
                 << int(end.to_default_time_units() -
                        start.to_default_time_units())
                 << " ns" << std::endl;
+
+      accessCounter->print_summary(currentOperation.tiling,
+                                   currentOperation.has_valid_tiling);
 
       accelerator_memory_maps.pop_front();
     }

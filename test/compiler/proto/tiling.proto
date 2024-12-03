@@ -21,9 +21,16 @@ message LevelTiling {
   repeated LoopBound loop_bounds = 1;
 };
 
+message LevelAccessCount {
+  int32 input_access_count = 1;
+  int32 output_access_count = 2;
+  int32 weight_access_count = 3;
+};
+
 message Tiling {
   string name = 1;
   repeated LevelTiling level_tilings = 2;
+  repeated LevelAccessCount level_access_counts = 3;
 };
 
 message ModelTiling {

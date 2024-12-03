@@ -49,10 +49,6 @@ SC_MODULE(DoubleBuffer) {
 #endif
   }
 
-#ifndef __SYNTHESIS__
-  virtual void end_of_simulation() { accessCounter->print_summary(); }
-#endif
-
   void mem0Run() {
     writeRequest[0].Reset();
     writeControl[0].Reset();

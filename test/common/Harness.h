@@ -190,7 +190,5 @@ SC_MODULE(Harness) {
   void storeVectorOutputs();
   void storeScalarOutputs();
   void sendParams();
-
-  virtual void end_of_simulation();
 };
 #endif

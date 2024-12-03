@@ -287,6 +287,10 @@ def main():
                 architecture, layer, schedule, True
             )
 
+            total_cost, total_access_cost, access_list = (
+                interstellar.cost_model.get_cost(architecture, mapping, layer)
+            )
+
             interstellar.utils.print_tiling(mapping)
 
             tiling = tiling_pb2.Tiling()
@@ -309,6 +313,14 @@ def main():
                                 loop_index = interstellar.le.NUM
 
                 tiling.level_tilings.append(level_tiling)
+
+                access_count = tiling_pb2.LevelAccessCount()
+                access_count.input_access_count = access_list[level][0]
+                access_count.output_access_count = access_list[level][1]
+                access_count.weight_access_count = access_list[level][2]
+
+                tiling.level_access_counts.append(access_count)
+
             tilings.tilings.append(tiling)
 
         # write the tilings to a file
