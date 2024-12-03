@@ -8,5 +8,7 @@ catch {
   solution library add intel16_sram_wrapper_1rw
 } res
 
+puts $res
+
 set memories(1r1w) "intel16_sram_wrapper_1r1w.intel16_sram_wrapper_1r1w"
 set memories(1rw)  "intel16_sram_wrapper_1rw.intel16_sram_wrapper_1rw"
