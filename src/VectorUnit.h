@@ -181,7 +181,6 @@ SC_MODULE(VectorOpUnit) {
         for (int i = 0; i < WIDTH; i++) {
           op0Src0[i] = tmp[i];
         }
-
       } else if (inst.vInput == VectorInstructions::readFromAccumulation) {
         op0Src0 = accumulationOpOutput.Pop();
       } else if (inst.vInput == VectorInstructions::readFromReduce) {

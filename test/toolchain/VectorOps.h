@@ -163,7 +163,8 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
     vector_input = param.vector_params(0).input();
   }
 
-  const int numel = get_size(vector_input);
+  const auto vector_output = param.output();
+  const int numel = get_size(vector_output);
 
   const auto input_memory = vector_input.memory();
   accelerator_memory_map["vector0"] = get_partition(input_memory.partition());
@@ -222,8 +223,6 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   // set double precision if the datatype is not the same as the input datatype
   vector_params->DP_VEC0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != vector_input.dtype();
-
-  const auto vector_output = param.output();
 
   const auto output_memory = vector_output.memory();
   accelerator_memory_map["outputs"] = get_partition(output_memory.partition());

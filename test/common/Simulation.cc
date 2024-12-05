@@ -62,7 +62,10 @@ Simulation::Simulation() {
 
   // Get list of params to run
   auto network = new Network(model);
-  params = network->get_params(tests_list);
+  all_params = network->get_params(tests_list);
+
+  std::copy_if(all_params.begin(), all_params.end(), std::back_inserter(params),
+               [](const auto& param) { return !param.has_nop_param(); });
 
   std::cout << "Starting new simulation with config:";
   std::cout << "\n> Model: " << model;
@@ -103,9 +106,9 @@ void Simulation::load_data() {
                          model + "/" + datatype + "/tensor_files";
 
   for (const auto& [key, dataLoader] : dataLoaders) {
-    dataLoader->load_inputs(params.front(), data_dir);
-    dataLoader->load_outputs(params.back(), data_dir);
-    for (const auto& param : params) {
+    dataLoader->load_inputs(all_params.front(), data_dir);
+    dataLoader->load_outputs(all_params.back(), data_dir);
+    for (const auto& param : all_params) {
       dataLoader->load_weights(param, data_dir);
     }
   }
@@ -142,7 +145,8 @@ int Simulation::get_ideal_runtime(const codegen::AcceleratorParam& param) {
 void Simulation::run() {
   // Run gold models
   for (const auto& param : params) {
-    std::cout << "Ideal runtime: " << get_ideal_runtime(param) << std::endl;
+    std::cout << param.name() << " ideal runtime: " << get_ideal_runtime(param)
+              << std::endl;
 
     if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
       auto memory = (ArrayMemory*)(memories["gold"]);

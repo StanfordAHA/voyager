@@ -109,7 +109,7 @@ inline int get_size(const std::vector<int> &shape) {
 }
 
 inline int get_size(const codegen::Tensor &tensor) {
-  const auto shape = get_tensor_shape(tensor);
+  const auto shape = get_input_shape(tensor);
   return get_size(shape);
 }
 

@@ -30,20 +30,13 @@ Network::Network(std::string& model) : model(model) {
 }
 
 std::vector<codegen::AcceleratorParam> Network::get_params() {
-  std::vector<codegen::AcceleratorParam> params;
-  for (const auto& param : model_params.params()) {
-    if (!param.has_nop_param()) {
-      params.push_back(param);
-    }
-  }
-  return params;
+  return {model_params.params().begin(), model_params.params().end()};
 }
 
 std::vector<codegen::AcceleratorParam> Network::get_params(
     const std::vector<std::string>& names) {
   std::vector<codegen::AcceleratorParam> params;
-  std::vector<codegen::AcceleratorParam> all_params(
-      model_params.params().begin(), model_params.params().end());
+  const auto all_params = get_params();
 
   if (names.size() == 1) {
     for (const auto& param : all_params) {
@@ -53,18 +46,24 @@ std::vector<codegen::AcceleratorParam> Network::get_params(
       }
     }
   } else if (names.size() == 2) {
-    auto first_it = std::find_if(
-        all_params.begin(), all_params.end(),
-        [&names](const auto& param) { return param.name() == names[0]; });
-    auto last_it = std::find_if(all_params.rbegin(), all_params.rend(),
-                                [&names](const auto& param) {
-                                  return param.name() == names[1];
-                                })
-                       .base();
+    bool found_first = false;
+    bool found_second = false;
+    for (const auto& param : all_params) {
+      if (param.name() == names[0]) {
+        found_first = true;
+      }
+      if (found_first) {
+        params.push_back(param);
+      }
+      if (param.name() == names[1]) {
+        found_second = true;
+        break;
+      }
+    }
 
-    if (first_it != all_params.end() && last_it != all_params.begin() &&
-        first_it < last_it) {
-      params.assign(first_it, last_it);
+    if (!found_first || !found_second) {
+      std::cerr << "Invalid names provided" << std::endl;
+      exit(1);
     }
   } else {
     std::cerr << "Invalid number of names provided" << std::endl;

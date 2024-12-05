@@ -37,6 +37,7 @@ class Simulation {
   float tolerance = 0.1;
 
   std::vector<codegen::AcceleratorParam> params;
+  std::vector<codegen::AcceleratorParam> all_params;
   std::map<std::string, MemoryInterface *> memories;
   std::map<std::string, DataLoader *> dataLoaders;
 

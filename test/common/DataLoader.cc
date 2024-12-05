@@ -174,15 +174,26 @@ void DataLoader::load_weights(const codegen::AcceleratorParam param,
     }
   }
 
+  if (param.has_nop_param()) {
+    for (const auto& input : param.nop_param().inputs()) {
+      if (input.node().find("constant") != std::string::npos ||
+          input.node().find("arg") != std::string::npos) {
+        load_tensor(input, data_dir);
+      }
+    }
+  }
+
   for (const auto& vector_param : param.vector_params()) {
     if (vector_param.has_other()) {
       // Check both input and other tensors to see if they are parameters.
       const auto input = vector_param.input();
-      if (input.node().find("constant") != std::string::npos) {
+      if (input.node().find("constant") != std::string::npos ||
+          input.node().find("arg") != std::string::npos) {
         load_tensor(input, data_dir);
       }
       const auto other = vector_param.other();
-      if (other.node().find("constant") != std::string::npos) {
+      if (other.node().find("constant") != std::string::npos ||
+          other.node().find("arg") != std::string::npos) {
         load_tensor(other, data_dir);
       }
     }
