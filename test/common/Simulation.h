@@ -12,6 +12,7 @@
 #include "src/ArchitectureParams.h"
 #include "test/common/ArrayMemory.h"
 #include "test/common/DataLoader.h"
+#include "test/common/Network.h"
 #include "test/common/operations/Common.h"
 #include "test/compiler/proto/param.pb.h"
 
@@ -33,7 +34,7 @@ class Simulation {
   std::string model;
   std::string out_dir;
   float tolerance = 0.1;
-  std::vector<std::string> tests_list;
+  std::vector<std::string> tests;
   std::vector<std::string> sims;
 
   Network *network;
