@@ -410,12 +410,30 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
 
           // increment the stage for the next operation
           vectorStage = stage + 1;
-          if (it->has_other()) {
+          if (it->opcode() == "vmap") {
+            vinst.vmapOffset = it->other().memory().offset();
+          } else if (it->has_other_scalar()) {
+            std::cerr << "immediate: " << it->other_scalar() << std::endl;
+            VECTOR_DATATYPE immediate = it->other_scalar();
+
+            if (it->opcode() == "div" || it->opcode() == "div_") {
+              immediate = 1.0 / immediate;
+            }
+
+            if (stage == 0) {
+              vinst.vOp0Src1 = VectorInstructions::op0immediate;
+              vinst.immediate0 = immediate.bits_rep();
+            } else if (stage == 3) {
+              vinst.vOp3Src1 = VectorInstructions::op3immediate;
+              vinst.immediate1 = immediate.bits_rep();
+            } else if (stage == 5) {
+              vinst.immediate1 = immediate.bits_rep();
+            }
+          } else if (it->has_other()) {
             const auto tensor_to_load =
                 output_node == it->other().node() ? it->input() : it->other();
             const int size = get_size(tensor_to_load);
             if (size == 1) {
-              // TODO: Ideally this should be stroed in the vector param.
               VECTOR_DATATYPE immediate = read_constant_param(tensor_to_load);
 
               if (it->opcode() == "div" || it->opcode() == "div_") {

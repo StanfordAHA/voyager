@@ -226,7 +226,6 @@ SC_MODULE(VectorOpUnit) {
                      << op0Src1 << std::endl
                      << " = " << std::endl
                      << res0);
-
       } else {
         res0 = op0Src0;
       }

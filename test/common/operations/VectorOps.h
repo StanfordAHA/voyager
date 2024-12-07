@@ -98,8 +98,7 @@ inline void perform_elwise_op_recursivly(
     } else if (operation == "mul" || operation == "mul_") {
       result[offset_res] = tensor1[offset1] * tensor2[offset2];
     } else if (operation == "div" || operation == "div_") {
-      T immediate = tensor2[offset2];
-      immediate.reciprocal();
+      T immediate = 1.0 / tensor2[offset2];
       result[offset_res] = tensor1[offset1] * immediate;
     } else {
       throw std::invalid_argument("Invalid operation: " + operation);
