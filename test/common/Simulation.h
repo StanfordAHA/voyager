@@ -30,11 +30,11 @@ class Simulation {
   int get_ideal_runtime(const codegen::AcceleratorParam &param);
 
  protected:
-  std::vector<std::string> sims;
   std::string model;
-  std::string tests;
   std::string out_dir;
   float tolerance = 0.1;
+  std::vector<std::string> tests_list;
+  std::vector<std::string> sims;
 
   Network *network;
   std::vector<codegen::AcceleratorParam> params;

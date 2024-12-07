@@ -29,12 +29,11 @@ Simulation::Simulation() {
     model = "resnet18";
   }
 
-  tests = get_env_var("TESTS");
+  std::string tests = get_env_var("TESTS");
   if (tests.empty()) {
     tests = "submodule_0";
   }
 
-  std::vector<std::string> tests_list;
   split_string(tests, ',', std::back_inserter(tests_list));
   if (tests_list.size() > 2) {
     throw std::runtime_error("Incorrect number of tests specified.");
@@ -61,7 +60,7 @@ Simulation::Simulation() {
   }
 
   network = new Network(model);
-  params = network->get_params();
+  params = network->get_params(tests_list);
 
   std::cout << "Starting new simulation with config:";
   std::cout << "\n> Model: " << model;
@@ -101,12 +100,12 @@ void Simulation::load_data() {
                          std::string(getenv("CODEGEN_DIR")) + "/networks/" +
                          model + "/" + datatype + "/tensor_files";
 
-  const auto all_params = network->get_all_params();
+  const auto params_to_load = network->get_params(tests_list, false);
 
   for (const auto& [key, dataLoader] : dataLoaders) {
-    dataLoader->load_inputs(all_params.front(), data_dir);
-    dataLoader->load_outputs(all_params.back(), data_dir);
-    for (const auto& param : all_params) {
+    dataLoader->load_inputs(params_to_load.front(), data_dir);
+    dataLoader->load_outputs(params_to_load.back(), data_dir);
+    for (const auto& param : params_to_load) {
       dataLoader->load_weights(param, data_dir);
     }
   }

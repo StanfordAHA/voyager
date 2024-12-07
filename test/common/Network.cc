@@ -29,11 +29,11 @@ Network::Network(std::string& model) : model(model) {
   }
 }
 
-std::vector<codegen::AcceleratorParam> Network::get_all_params() {
-  return {model_params.params().begin(), model_params.params().end()};
-}
+std::vector<codegen::AcceleratorParam> Network::get_params(bool filter_nop) {
+  if (!filter_nop) {
+    return {model_params.params().begin(), model_params.params().end()};
+  }
 
-std::vector<codegen::AcceleratorParam> Network::get_params() {
   std::vector<codegen::AcceleratorParam> params;
   for (const auto& param : model_params.params()) {
     if (!param.has_nop_param()) {
@@ -44,10 +44,13 @@ std::vector<codegen::AcceleratorParam> Network::get_params() {
 }
 
 std::vector<codegen::AcceleratorParam> Network::get_params(
-    const std::vector<std::string>& names) {
+    const std::vector<std::string>& names, bool filter_nop) {
+  const auto all_params = get_params(filter_nop);
+
   std::vector<codegen::AcceleratorParam> params;
+
   if (names.size() == 1) {
-    for (const auto& param : model_params.params()) {
+    for (const auto& param : all_params) {
       if (param.name() == names[0]) {
         params.push_back(param);
         break;
@@ -56,7 +59,7 @@ std::vector<codegen::AcceleratorParam> Network::get_params(
   } else if (names.size() == 2) {
     bool found_first = false;
     bool found_second = false;
-    for (const auto& param : model_params.params()) {
+    for (const auto& param : all_params) {
       if (param.name() == names[0]) {
         found_first = true;
       }
