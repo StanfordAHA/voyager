@@ -113,17 +113,17 @@ void Simulation::load_data() {
   std::cout << "Data loaded successfully" << std::endl;
 }
 
-int Simulation::get_ideal_runtime(const codegen::AcceleratorParam& param) {
+int Simulation::get_ideal_runtime(const codegen::Operator& param) {
   long cycles;
-  if (param.has_matrix_param()) {
+  if (param.has_matrix_op()) {
     // the total number of operations is X*Y*C*FX*FY*K.
     long num_ops = 1;
 
     for (const auto& dim : param.output().shape()) num_ops *= dim;  // X * Y * K
 
     // skip the first dimension (K) since it is already accounted for
-    for (int i = 1; i < param.matrix_param().weight().shape_size(); i++) {
-      num_ops *= param.matrix_param().weight().shape(i);  // FX * FY * C
+    for (int i = 1; i < param.matrix_op().weight().shape_size(); i++) {
+      num_ops *= param.matrix_op().weight().shape(i);  // FX * FY * C
     }
 
     cycles = num_ops / (IC_DIMENSION * OC_DIMENSION);

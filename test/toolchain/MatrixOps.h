@@ -94,13 +94,12 @@ void set_addr_gen2(const codegen::Tensor &tensor, const Tiling &tiling,
   vector_params->vec2DequantizeScale = scale.bits_rep();
 }
 
-void MapMatrixOperation(const codegen::AcceleratorParam &param,
+void MapMatrixOperation(const codegen::Operator &param,
                         std::deque<BaseParams *> &mappedParams,
                         std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   Tiling tiling;
-  const auto matrix_param = param.matrix_param();
-  if (matrix_param.opcode() == "conv2d" ||
-      matrix_param.opcode() == "conv2d_mx") {
+  const auto matrix_op = param.matrix_op();
+  if (matrix_op.opcode() == "conv2d" || matrix_op.opcode() == "conv2d_mx") {
     tiling = get_conv2d_tiling(param);
   } else {
     tiling = get_linear_tiling(param);
@@ -123,24 +122,24 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   AcceleratorMemoryMap accelerator_memory_map;
 
   // matrix tiling
-  const auto input_memory = matrix_param.has_mx_input()
-                                ? matrix_param.mx_input().input().memory()
-                                : matrix_param.input().memory();
+  const auto input_memory = matrix_op.has_mx_input()
+                                ? matrix_op.mx_input().input().memory()
+                                : matrix_op.input().memory();
   accelerator_memory_map["inputs"] = get_partition(input_memory.partition());
   matrix_params->INPUT_OFFSET = input_memory.offset();
 
-  if (matrix_param.has_mx_input()) {
+  if (matrix_op.has_mx_input()) {
     matrix_params->INPUT_SCALE_OFFSET =
-        matrix_param.mx_input().scale().memory().offset();
+        matrix_op.mx_input().scale().memory().offset();
   }
-  const auto weight_memory = matrix_param.has_mx_weight()
-                                 ? matrix_param.mx_weight().input().memory()
-                                 : matrix_param.weight().memory();
+  const auto weight_memory = matrix_op.has_mx_weight()
+                                 ? matrix_op.mx_weight().input().memory()
+                                 : matrix_op.weight().memory();
   accelerator_memory_map["weights"] = get_partition(weight_memory.partition());
 
-  if (matrix_param.has_mx_weight()) {
+  if (matrix_op.has_mx_weight()) {
     matrix_params->WEIGHT_SCALE_OFFSET =
-        matrix_param.mx_weight().scale().memory().offset();
+        matrix_op.mx_weight().scale().memory().offset();
   }
 
   matrix_params->WEIGHT_OFFSET = weight_memory.offset();
@@ -168,7 +167,7 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
       tiling.weight_loop_index[0];
 
   // set outer loop values
-  const auto weight = matrix_param.weight();
+  const auto weight = matrix_op.weight();
   matrix_params->WEIGHT_TRANSPOSE = weight.reshape().opcode() == "transpose";
   if (matrix_params->WEIGHT_TRANSPOSE) {
     // for tranpose, we need to enforce that the innermost loop is the
@@ -270,20 +269,18 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   matrix_params->ACC_FROM_ACC = false;
 
   // Permute input for transformer attention outputs
-  const auto input = matrix_param.has_mx_input()
-                         ? matrix_param.mx_input().input()
-                         : matrix_param.input();
+  const auto input = matrix_op.has_mx_input() ? matrix_op.mx_input().input()
+                                              : matrix_op.input();
   if (input.has_reshape()) {
-    const auto reshape_param = input.reshape();
+    const auto reshape_op = input.reshape();
     // This is hardcoded for Transformer head permutation
-    std::vector<int> dims(reshape_param.dims().begin(),
-                          reshape_param.dims().end());
+    std::vector<int> dims(reshape_op.dims().begin(), reshape_op.dims().end());
     bool is_permute = std::all_of(dims.begin(), dims.end(),
                                   [](int x) { return x == 1 || x == 2; });
 
-    if (reshape_param.opcode() == "permute" || is_permute) {
+    if (reshape_op.opcode() == "permute" || is_permute) {
       matrix_params->CONCAT_INPUT = true;
-    } else if (reshape_param.opcode() == "transpose") {
+    } else if (reshape_op.opcode() == "transpose") {
       matrix_params->TRANPOSE_INPUTS = true;
     }
 
@@ -294,13 +291,13 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   }
 
   // bias
-  const auto bias_memory = matrix_param.bias().memory();
-  matrix_params->BIAS = matrix_param.has_bias();
+  const auto bias_memory = matrix_op.bias().memory();
+  matrix_params->BIAS = matrix_op.has_bias();
   matrix_params->BIAS_OFFSET = bias_memory.offset();
   accelerator_memory_map["bias"] = get_partition(bias_memory.partition());
 
-  matrix_params->MX = matrix_param.opcode() == "conv2d_mx" ||
-                      matrix_param.opcode() == "linear_mx";
+  matrix_params->MX =
+      matrix_op.opcode() == "conv2d_mx" || matrix_op.opcode() == "linear_mx";
 
   // vector instructions
   VectorParams *vector_params = new VectorParams;
@@ -354,9 +351,9 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   vinst.vDest = VectorInstructions::vWriteOut;
 
   auto vinst_mappings = get_vector_instruction_mapping();
-  auto it = param.vector_params().begin();
-  bool has_vector_params = it != param.vector_params().end();
-  std::string output_node = matrix_param.name();
+  auto it = param.vector_ops().begin();
+  bool has_vector_params = it != param.vector_ops().end();
+  std::string output_node = matrix_op.name();
 
   int vectorStage = 0;
   while (has_vector_params) {
@@ -373,7 +370,7 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
 
         bool is_mx_based_design = ACCUM_DATATYPE::is_floating_point !=
                                   ACCUM_BUFFER_DATATYPE::is_floating_point;
-        if (is_mx_based_design && !matrix_param.has_mx_input()) {
+        if (is_mx_based_design && !matrix_op.has_mx_input()) {
           vinst.vDequantize = true;
         }
       } else if (opcode.rfind("quantize", 0) == 0) {
@@ -387,8 +384,8 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
       }
 
       for (int stage = vectorStage; stage < 5; stage++) {
-        bool matched =
-            vector_ops[stage].find(opcode) != vector_ops[stage].end();
+        bool matched = vector_unit_stages[stage].find(opcode) !=
+                       vector_unit_stages[stage].end();
 
         std::cerr << "stage: " << stage << "  opcode: " << opcode
                   << "  matched: " << matched << std::endl;
@@ -469,11 +466,11 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
 
     output_node = it->name();
     ++it;
-    has_vector_params = it != param.vector_params().end();
+    has_vector_params = it != param.vector_ops().end();
   }
 
   // check that no more vector instructions are present
-  if (it != param.vector_params().end()) {
+  if (it != param.vector_ops().end()) {
     std::cerr << "Error: unsupported vector fusion pattern" << std::endl;
     exit(1);
   }

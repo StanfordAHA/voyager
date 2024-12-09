@@ -124,12 +124,12 @@ SC_MODULE(Harness) {
   Connections::SyncChannel CCS_INIT_S1(vectorUnitStartSignal);
   Connections::SyncChannel CCS_INIT_S1(vectorUnitDoneSignal);
 
-  Harness(sc_module_name, std::vector<codegen::AcceleratorParam>, char *);
+  Harness(sc_module_name, std::vector<codegen::Operator>, char *);
   SC_HAS_PROCESS(Harness);
 
  private:
-  std::vector<codegen::AcceleratorParam> params;
-  codegen::AcceleratorParam currentParams;
+  std::vector<codegen::Operator> params;
+  codegen::Operator currentParams;
   char *memory;
   AcceleratorMemoryMap currentMemoryMap;
 

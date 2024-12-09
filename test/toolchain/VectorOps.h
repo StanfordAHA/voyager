@@ -148,19 +148,19 @@ void set_vector_addr_gen2(const codegen::Tensor &tensor,
   vector_params->vec2DequantizeScale = scale.bits_rep();
 }
 
-void MapVectorOperations(const codegen::AcceleratorParam &param,
+void MapVectorOperations(const codegen::Operator &param,
                          std::deque<BaseParams *> &mappedParams,
                          std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   VectorParams *vector_params = new VectorParams;
   AcceleratorMemoryMap accelerator_memory_map;
 
   codegen::Tensor vector_input;
-  if (param.has_slicing_param()) {
-    vector_input = param.slicing_param().input();
-  } else if (param.has_reshape_param()) {
-    vector_input = param.reshape_param().input();
+  if (param.has_slicing_op()) {
+    vector_input = param.slicing_op().input();
+  } else if (param.has_reshape_op()) {
+    vector_input = param.reshape_op().input();
   } else {
-    vector_input = param.vector_params(0).input();
+    vector_input = param.vector_ops(0).input();
   }
 
   const auto vector_output = param.output();
@@ -196,9 +196,9 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   vector_params->addressGen0Loop[1][1] = loop_bounds[4];
   vector_params->addressGen0Loop[1][2] = loop_bounds[5] / OC_DIMENSION;
 
-  if (param.has_slicing_param() || vector_input.has_slicing()) {
-    const auto &slicing = param.has_slicing_param() ? param.slicing_param()
-                                                    : vector_input.slicing();
+  if (param.has_slicing_op() || vector_input.has_slicing()) {
+    const auto &slicing =
+        param.has_slicing_op() ? param.slicing_op() : vector_input.slicing();
     vector_params->VECTOR_INPUT0_SLICING = true;
     vector_params->addressGen0Dim = slicing.dim() + num_extra_dims;
     vector_params->addressGen0Start = slicing.start();
@@ -210,9 +210,9 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
       vector_params->addressGen0Start /= OC_DIMENSION;
       vector_params->addressGen0End /= OC_DIMENSION;
     }
-  } else if (param.has_reshape_param() || vector_input.has_reshape()) {
-    const auto &reshape = param.has_reshape_param() ? param.reshape_param()
-                                                    : vector_input.reshape();
+  } else if (param.has_reshape_op() || vector_input.has_reshape()) {
+    const auto &reshape =
+        param.has_reshape_op() ? param.reshape_op() : vector_input.reshape();
     vector_params->VECTOR_INPUT0_RESHAPE = true;
     for (int i = 0; i < reshape.dims_size(); i++) {
       vector_params->addressGen0AxisOrder[i + num_extra_dims] =
@@ -273,8 +273,8 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   vinst.vDest = VectorInstructions::vWriteOut;
 
   auto vinst_mappings = get_vector_instruction_mapping();
-  auto it = param.vector_params().begin();
-  bool has_vector_params = it != param.vector_params().end();
+  auto it = param.vector_ops().begin();
+  bool has_vector_params = it != param.vector_ops().end();
   std::string output_node = "";
 
   int vectorStage = 0;
@@ -326,8 +326,8 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
       }
 
       for (int stage = vectorStage; stage < 5; stage++) {
-        bool matched =
-            vector_ops[stage].find(opcode) != vector_ops[stage].end();
+        bool matched = vector_unit_stages[stage].find(opcode) !=
+                       vector_unit_stages[stage].end();
         std::cerr << "stage: " << stage << "  opcode: " << opcode
                   << "  matched: " << matched << std::endl;
         if (matched) {
@@ -410,11 +410,11 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
 
     output_node = it->name();
     ++it;
-    has_vector_params = it != param.vector_params().end();
+    has_vector_params = it != param.vector_ops().end();
   }
 
   // check that no more vector instructions are present
-  if (it != param.vector_params().end()) {
+  if (it != param.vector_ops().end()) {
     std::cerr << "Error: unsupported vector fusion pattern" << std::endl;
     exit(1);
   }

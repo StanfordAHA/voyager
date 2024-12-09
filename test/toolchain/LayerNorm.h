@@ -2,11 +2,11 @@
 
 #include "test/toolchain/Common.h"
 
-void MapLayerNorm(const codegen::AcceleratorParam &param,
+void MapLayerNorm(const codegen::Operator &param,
                   std::deque<BaseParams *> &mappedParams,
                   std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
-  const auto matrix_param = param.matrix_param();
-  const auto input = matrix_param.input();
+  const auto matrix_op = param.matrix_op();
+  const auto input = matrix_op.input();
   const auto input_memory = input.memory();
   const auto input_shape = squeeze_shape(get_tensor_shape(input));
 
@@ -235,7 +235,7 @@ void MapLayerNorm(const codegen::AcceleratorParam &param,
       DataTypes::TypeName<INPUT_DATATYPE>::name() != input.dtype();
 
   // Fetch weights
-  const auto weight_memory = matrix_param.weight().memory();
+  const auto weight_memory = matrix_op.weight().memory();
   memory_map["vector1"] = get_partition(weight_memory.partition());
   vector_params->ADDRESS_GEN1_OFFSET = weight_memory.offset();
   vector_params->addressGen1Mode = 3;
@@ -253,12 +253,12 @@ void MapLayerNorm(const codegen::AcceleratorParam &param,
   vector_params->addressGen1Loops[1][1] = inner_dim;
   vector_params->addressGen1Loops[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->DP_VEC1 = DataTypes::TypeName<INPUT_DATATYPE>::name() !=
-                           matrix_param.weight().dtype();
+  vector_params->DP_VEC1 =
+      DataTypes::TypeName<INPUT_DATATYPE>::name() != matrix_op.weight().dtype();
 
   // Fetch bias
-  if (matrix_param.has_bias()) {
-    const auto bias_memory = matrix_param.bias().memory();
+  if (matrix_op.has_bias()) {
+    const auto bias_memory = matrix_op.bias().memory();
     memory_map["vector2"] = get_partition(bias_memory.partition());
     vector_params->ADDRESS_GEN2_OFFSET = bias_memory.offset();
     vector_params->addressGen2Mode = 3;
@@ -306,7 +306,7 @@ void MapLayerNorm(const codegen::AcceleratorParam &param,
   instr2.vOp0 = VectorInstructions::vmult;
   instr2.vOp1 = VectorInstructions::nop;
   instr2.vOp2 = VectorInstructions::nop;
-  if (matrix_param.has_bias()) {
+  if (matrix_op.has_bias()) {
     instr2.vOp3Src1 = VectorInstructions::readNormalInterface;
     instr2.vOp3 = VectorInstructions::vadd;
   } else {

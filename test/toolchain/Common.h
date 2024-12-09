@@ -7,12 +7,13 @@
 #include "test/common/VerificationTypes.h"
 #include "test/compiler/proto/param.pb.h"
 
-std::map<int, std::set<std::string>> vector_ops = {
+std::map<int, std::set<std::string>> vector_unit_stages = {
     {0, {"add", "add_", "sub", "sub_", "mul", "mul_", "div", "div_"}},
     {1, {"exp"}},
     {2, {}},
     {3, {"add", "add_", "mul", "mul_", "div", "div_", "square"}},
-    {4, {"relu", "relu_", "vmap"}}};
+    {4, {"relu", "relu_", "vmap"}},
+};
 
 std::map<std::string, unsigned int> get_vector_instruction_mapping() {
   std::map<std::string, unsigned int> mapping;

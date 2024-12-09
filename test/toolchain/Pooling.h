@@ -2,7 +2,7 @@
 
 #include "test/toolchain/Common.h"
 
-void MapPoolingOperation(const codegen::AcceleratorParam &param,
+void MapPoolingOperation(const codegen::Operator &param,
                          std::deque<BaseParams *> &mappedParams,
                          std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   VectorParams *vector_params = new VectorParams;
@@ -10,18 +10,18 @@ void MapPoolingOperation(const codegen::AcceleratorParam &param,
       new VectorInstructionConfig;
   AcceleratorMemoryMap accelerator_memory_map;
 
-  const auto pooling_param = param.pooling_param();
+  const auto pooling_op = param.pooling_op();
   const auto tiling = get_pooling_tiling(param);
   int output_dim = param.output().shape(1);
 
   // input
-  const auto input_memory = pooling_param.input().memory();
+  const auto input_memory = pooling_op.input().memory();
   accelerator_memory_map["vector0"] = get_partition(input_memory.partition());
   vector_params->VECTOR_OFFSET = input_memory.offset();
   vector_params->addressGen0Mode = 1;
   // set double precision if the datatype is not the same as the input datatype
-  vector_params->DP_VEC0 = DataTypes::TypeName<INPUT_DATATYPE>::name() !=
-                           pooling_param.input().dtype();
+  vector_params->DP_VEC0 =
+      DataTypes::TypeName<INPUT_DATATYPE>::name() != pooling_op.input().dtype();
 
   for (int i = 0; i < 2; i++) {
     vector_params->addressGen0Loop[i][0] =
@@ -59,7 +59,7 @@ void MapPoolingOperation(const codegen::AcceleratorParam &param,
   const int inst_count = tiling.loops[1][tiling.y_loop_index[1]] *
                          tiling.loops[1][tiling.x_loop_index[1]];
 
-  bool is_max_pool = pooling_param.opcode().find("max") != std::string::npos;
+  bool is_max_pool = pooling_op.opcode().find("max") != std::string::npos;
 
   // perform max/sum reduction
   VectorInstructions vinst0;

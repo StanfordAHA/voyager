@@ -30,28 +30,27 @@ void save_tensor(char *output_bytes, std::any output_tensor, int size) {
 
 template <typename INPUT_T, typename ACCUMULATE_T, typename INTERMEDIATE_T,
           typename ACCUMULATION_BUFFER_T, typename SCALE_T, typename VECTOR_T>
-void run_operation(const codegen::AcceleratorParam param,
-                   std::vector<std::any> args) {
+void run_operation(const codegen::Operator param, std::vector<std::any> args) {
   int arg_index = 0;
   std::any output_tensor;
 
-  if (param.has_reduce_param()) {
-    const auto &reduce_param = param.reduce_param();
-    if (reduce_param.opcode() == "softmax") {
-      const auto &input = reduce_param.input();
+  if (param.has_reduce_op()) {
+    const auto &reduce_op = param.reduce_op();
+    if (reduce_op.opcode() == "softmax") {
+      const auto &input = reduce_op.input();
       const auto input_shape = get_shape(input);
       output_tensor = softmax<VECTOR_T>(args[arg_index++], input_shape);
-    } else if (reduce_param.opcode() == "sum") {
-      const auto &input = reduce_param.input();
+    } else if (reduce_op.opcode() == "sum") {
+      const auto &input = reduce_op.input();
       const auto input_shape = get_shape(input);
 
       std::vector<int> dims;
-      for (int dim : reduce_param.dim()) {
+      for (int dim : reduce_op.dim()) {
         dims.push_back(dim);
       }
 
       output_tensor = sum<VECTOR_T>(args[arg_index++], input_shape, dims);
-    } else if (reduce_param.opcode() == "calculate_mx_qparam") {
+    } else if (reduce_op.opcode() == "calculate_mx_qparam") {
       if (param.output().dtype() != "e8m0") {
         std::runtime_error(
             "Unsupported output dtype for calculate_mx_qparam: " +
@@ -64,50 +63,48 @@ void run_operation(const codegen::AcceleratorParam param,
         std::abort();
       } else {
         output_tensor = calculate_mx_qparam<VECTOR_T, DataTypes::e8m0>(
-            args[arg_index++], reduce_param);
+            args[arg_index++], reduce_op);
       }
     } else {
-      std::cerr << "Unsupported reduce instruction: " << reduce_param.opcode()
+      std::cerr << "Unsupported reduce instruction: " << reduce_op.opcode()
                 << std::endl;
       exit(1);
     }
   }
 
-  if (param.has_pooling_param()) {
-    const auto input = param.pooling_param().input();
+  if (param.has_pooling_op()) {
+    const auto input = param.pooling_op().input();
     output_tensor = pooling<VECTOR_T>(args[arg_index++], param);
   }
 
-  if (param.has_reshape_param()) {
-    const auto &reshape_param = param.reshape_param();
-    output_tensor = permute<VECTOR_T>(args[arg_index++], reshape_param);
+  if (param.has_reshape_op()) {
+    const auto &reshape_op = param.reshape_op();
+    output_tensor = permute<VECTOR_T>(args[arg_index++], reshape_op);
   }
 
-  if (param.has_slicing_param()) {
-    const auto &slicing_param = param.slicing_param();
-    output_tensor = slice<VECTOR_T>(args[arg_index++], slicing_param);
+  if (param.has_slicing_op()) {
+    const auto &slicing_op = param.slicing_op();
+    output_tensor = slice<VECTOR_T>(args[arg_index++], slicing_op);
   }
 
-  if (param.matrix_param().opcode() == "layer_norm") {
-    const auto &matrix_param = param.matrix_param();
-    output_tensor =
-        layer_norm<VECTOR_T>(args[0], args[1], args[2], matrix_param);
-  } else if (param.has_matrix_param()) {
-    const auto &matrix_param = param.matrix_param();
+  if (param.matrix_op().opcode() == "layer_norm") {
+    const auto &matrix_op = param.matrix_op();
+    output_tensor = layer_norm<VECTOR_T>(args[0], args[1], args[2], matrix_op);
+  } else if (param.has_matrix_op()) {
+    const auto &matrix_op = param.matrix_op();
 
-    if (matrix_param.opcode() == "conv2d" && matrix_param.groups() != 1) {
+    if (matrix_op.opcode() == "conv2d" && matrix_op.groups() != 1) {
       std::cerr << "Grouped convolution is not supported" << std::endl;
       std::abort();
     }
 
     // Permute input tensor
-    const auto &input = matrix_param.has_mx_input()
-                            ? matrix_param.mx_input().input()
-                            : matrix_param.input();
+    const auto &input = matrix_op.has_mx_input() ? matrix_op.mx_input().input()
+                                                 : matrix_op.input();
 
     std::any input_tensor = args[arg_index++];
     std::any input_scale = nullptr;
-    if (matrix_param.has_mx_input()) {
+    if (matrix_op.has_mx_input()) {
       input_scale = args[arg_index++];
     }
     if (input.has_reshape()) {
@@ -117,13 +114,13 @@ void run_operation(const codegen::AcceleratorParam param,
     }
 
     // Permute weight tensor
-    const auto &weight = matrix_param.has_mx_weight()
-                             ? matrix_param.mx_weight().input()
-                             : matrix_param.weight();
+    const auto &weight = matrix_op.has_mx_weight()
+                             ? matrix_op.mx_weight().input()
+                             : matrix_op.weight();
 
     std::any weight_tensor = args[arg_index++];
     std::any weight_scale = nullptr;
-    if (matrix_param.has_mx_weight()) {
+    if (matrix_op.has_mx_weight()) {
       weight_scale = args[arg_index++];
     }
     if (weight.has_reshape()) {
@@ -140,18 +137,18 @@ void run_operation(const codegen::AcceleratorParam param,
     if (dim == 1) {
       output_tensor = matrix_vector_multiply<INPUT_T, ACCUMULATE_T,
                                              INTERMEDIATE_T, VECTOR_T>(
-          input_tensor, weight_tensor, args[arg_index++], matrix_param);
+          input_tensor, weight_tensor, args[arg_index++], matrix_op);
     } else {
       output_tensor =
           gemm<INPUT_T, ACCUMULATE_T, INTERMEDIATE_T, ACCUMULATION_BUFFER_T,
                SCALE_T>(input_tensor, input_scale, weight_tensor, weight_scale,
                         args[arg_index++], param);
     }
-  } else if (param.vector_params_size() > 0) {
+  } else if (param.vector_ops_size() > 0) {
     // fetch the input of the first vector instruction
     output_tensor = args[arg_index++];
 
-    const auto vector_input = param.vector_params(0).input();
+    const auto vector_input = param.vector_ops(0).input();
     if (vector_input.has_reshape()) {
       output_tensor = permute<VECTOR_T>(output_tensor, vector_input);
     } else if (vector_input.has_slicing()) {
@@ -159,7 +156,7 @@ void run_operation(const codegen::AcceleratorParam param,
     }
   }
 
-  for (const auto &vector_param : param.vector_params()) {
+  for (const auto &vector_param : param.vector_ops()) {
     if (vector_param.opcode().rfind("sqrt", 0) == 0) {
       VECTOR_T *input_tensor = std::any_cast<VECTOR_T *>(output_tensor);
       output_tensor = sqrt(input_tensor, get_shape(vector_param.input()));
@@ -306,7 +303,7 @@ void run_operation(const codegen::AcceleratorParam param,
   }
 }
 
-void run_gold_model(const codegen::AcceleratorParam &param,
+void run_gold_model(const codegen::Operator &param,
                     std::vector<std::any> args) {
   run_operation<INPUT_DATATYPE, INTERMEDIATE_DTYPE, ACCUM_DATATYPE,
                 ACCUM_BUFFER_DATATYPE, MX_DATATYPE, VECTOR_DATATYPE>(param,

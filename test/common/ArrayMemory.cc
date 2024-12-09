@@ -44,59 +44,58 @@ char* ArrayMemory::get_memory(int partition) {
   return memories[partition];
 }
 
-std::vector<std::any> ArrayMemory::get_args(
-    const codegen::AcceleratorParam& param) {
+std::vector<std::any> ArrayMemory::get_args(const codegen::Operator& param) {
   std::vector<std::any> args;
   std::string output_node = "";
-  if (param.has_matrix_param()) {
-    const auto& matrix_param = param.matrix_param();
+  if (param.has_matrix_op()) {
+    const auto& matrix_op = param.matrix_op();
 
-    if (matrix_param.has_mx_input()) {
-      args.push_back(get_tensor(matrix_param.mx_input().input()));
-      args.push_back(get_tensor(matrix_param.mx_input().scale()));
+    if (matrix_op.has_mx_input()) {
+      args.push_back(get_tensor(matrix_op.mx_input().input()));
+      args.push_back(get_tensor(matrix_op.mx_input().scale()));
     } else {
-      args.push_back(get_tensor(matrix_param.input()));
+      args.push_back(get_tensor(matrix_op.input()));
     }
 
-    if (matrix_param.has_mx_weight()) {
-      args.push_back(get_tensor(matrix_param.mx_weight().input()));
-      args.push_back(get_tensor(matrix_param.mx_weight().scale()));
+    if (matrix_op.has_mx_weight()) {
+      args.push_back(get_tensor(matrix_op.mx_weight().input()));
+      args.push_back(get_tensor(matrix_op.mx_weight().scale()));
     } else {
-      args.push_back(get_tensor(matrix_param.weight()));
+      args.push_back(get_tensor(matrix_op.weight()));
     }
 
-    if (matrix_param.has_bias()) {
-      args.push_back(get_tensor(matrix_param.bias()));
+    if (matrix_op.has_bias()) {
+      args.push_back(get_tensor(matrix_op.bias()));
     } else {
       args.push_back(nullptr);
     }
-    output_node = matrix_param.name();
-  } else if (param.has_pooling_param()) {
-    const auto& pooling_param = param.pooling_param();
-    args.push_back(get_tensor(pooling_param.input()));
-  } else if (param.has_reduce_param()) {
-    const auto& reduce_param = param.reduce_param();
-    args.push_back(get_tensor(reduce_param.input()));
-  } else if (param.has_reshape_param()) {
-    const auto& reshape_param = param.reshape_param();
-    args.push_back(get_tensor(reshape_param.input()));
-  } else if (param.has_slicing_param()) {
-    const auto& slicing_param = param.slicing_param();
-    args.push_back(get_tensor(slicing_param.input()));
-  } else if (param.vector_params_size() > 0) {
-    const auto vector_param = param.vector_params(0);
-    args.push_back(get_tensor(vector_param.input()));
+    output_node = matrix_op.name();
+  } else if (param.has_pooling_op()) {
+    const auto& pooling_op = param.pooling_op();
+    args.push_back(get_tensor(pooling_op.input()));
+  } else if (param.has_reduce_op()) {
+    const auto& reduce_op = param.reduce_op();
+    args.push_back(get_tensor(reduce_op.input()));
+  } else if (param.has_reshape_op()) {
+    const auto& reshape_op = param.reshape_op();
+    args.push_back(get_tensor(reshape_op.input()));
+  } else if (param.has_slicing_op()) {
+    const auto& slicing_op = param.slicing_op();
+    args.push_back(get_tensor(slicing_op.input()));
+  } else if (param.vector_ops_size() > 0) {
+    const auto vector_op = param.vector_ops(0);
+    args.push_back(get_tensor(vector_op.input()));
   }
 
-  for (auto& vector_param : param.vector_params()) {
-    if (vector_param.has_other()) {
+  for (auto& vector_op : param.vector_ops()) {
+    if (vector_op.has_other()) {
       // Check whether input or other is the output of the last operation.
-      const auto input = vector_param.input();
-      const auto other = vector_param.other();
+      const auto input = vector_op.input();
+      const auto other = vector_op.other();
       const auto tensor_to_load = other.node() == output_node ? input : other;
       args.push_back(get_tensor(tensor_to_load));
     }
-    output_node = vector_param.name();
+    output_node = vector_op.name();
   }
 
   // Add the output tensor to the list of arguments
@@ -113,8 +112,7 @@ std::vector<std::any> ArrayMemory::get_args(
  * The reference output tensor is stored at the last partition with an offset of
  * 0.
  */
-std::any ArrayMemory::get_reference_output(
-    const codegen::AcceleratorParam& param) {
+std::any ArrayMemory::get_reference_output(const codegen::Operator& param) {
   codegen::Tensor output_tensor;
   output_tensor.CopyFrom(param.output());
   auto memory = output_tensor.mutable_memory();
@@ -123,7 +121,7 @@ std::any ArrayMemory::get_reference_output(
   return get_tensor(output_tensor);
 }
 
-std::any ArrayMemory::get_output(const codegen::AcceleratorParam& param) {
+std::any ArrayMemory::get_output(const codegen::Operator& param) {
   codegen::Tensor output_tensor = param.output();
   return get_tensor(output_tensor);
 }

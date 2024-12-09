@@ -7,14 +7,14 @@
 using namespace std;
 using namespace google::protobuf;
 
-Network::Network(std::string& model) : model(model) {
+Network::Network(std::string& model_path) {
   project_root = std::string(getenv("PROJECT_ROOT"));
   std::string datatype = std::string(getenv("DATATYPE"));
 
   // Open the file
   std::string filename = project_root + "/" +
                          std::string(getenv("CODEGEN_DIR")) + "/networks/" +
-                         model + "/" + datatype + "/params.txt";
+                         model_path + "/" + datatype + "/model.txt";
 
   if (!std::filesystem::exists(filename)) {
     throw std::runtime_error("Error: File " + filename + " does not exist.");
@@ -24,30 +24,30 @@ Network::Network(std::string& model) : model(model) {
   buffer << input.rdbuf();
   std::string text_str = buffer.str();
 
-  if (!TextFormat::ParseFromString(text_str, &model_params)) {
+  if (!TextFormat::ParseFromString(text_str, &model)) {
     std::cerr << "Failed to parse text file." << std::endl;
   }
 }
 
-std::vector<codegen::AcceleratorParam> Network::get_params(bool filter_nop) {
+std::vector<codegen::Operator> Network::get_params(bool filter_nop) {
   if (!filter_nop) {
-    return {model_params.params().begin(), model_params.params().end()};
+    return {model.ops().begin(), model.ops().end()};
   }
 
-  std::vector<codegen::AcceleratorParam> params;
-  for (const auto& param : model_params.params()) {
-    if (!param.has_nop_param()) {
+  std::vector<codegen::Operator> params;
+  for (const auto& param : model.ops()) {
+    if (!param.has_nop()) {
       params.push_back(param);
     }
   }
   return params;
 }
 
-std::vector<codegen::AcceleratorParam> Network::get_params(
+std::vector<codegen::Operator> Network::get_params(
     const std::vector<std::string>& names, bool filter_nop) {
   const auto all_params = get_params(filter_nop);
 
-  std::vector<codegen::AcceleratorParam> params;
+  std::vector<codegen::Operator> params;
 
   if (names.size() == 1) {
     for (const auto& param : all_params) {

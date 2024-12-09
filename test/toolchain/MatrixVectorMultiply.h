@@ -2,7 +2,7 @@
 
 #include "test/toolchain/Common.h"
 
-void MapMatrixVectorMultiply(const codegen::AcceleratorParam &param,
+void MapMatrixVectorMultiply(const codegen::Operator &param,
                              std::deque<BaseParams *> &mappedParams,
                              std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   VectorParams *vector_params = new VectorParams;
@@ -10,8 +10,8 @@ void MapMatrixVectorMultiply(const codegen::AcceleratorParam &param,
       new VectorInstructionConfig;
   AcceleratorMemoryMap accelerator_memory_map;
 
-  const auto matrix_param = param.matrix_param();
-  const auto weights = matrix_param.weight();
+  const auto matrix_op = param.matrix_op();
+  const auto weights = matrix_op.weight();
   int output_dim = weights.shape(0);
   int reduction_dim = weights.shape(1);
 
@@ -19,7 +19,7 @@ void MapMatrixVectorMultiply(const codegen::AcceleratorParam &param,
   output_dim = (output_dim + OC_DIMENSION - 1) / OC_DIMENSION * OC_DIMENSION;
 
   // input is a vector of size reduction_dim
-  const auto input_memory = matrix_param.input().memory();
+  const auto input_memory = matrix_op.input().memory();
   accelerator_memory_map["vector0"] = get_partition(input_memory.partition());
   vector_params->VECTOR_OFFSET = input_memory.offset();
   vector_params->addressGen0Mode = 2;
@@ -32,8 +32,8 @@ void MapMatrixVectorMultiply(const codegen::AcceleratorParam &param,
   vector_params->addressGen0Loop[1][1] = output_dim;
   vector_params->addressGen0Loop[1][2] = reduction_dim / OC_DIMENSION;
 
-  vector_params->DP_VEC0 = DataTypes::TypeName<INPUT_DATATYPE>::name() !=
-                           matrix_param.input().dtype();
+  vector_params->DP_VEC0 =
+      DataTypes::TypeName<INPUT_DATATYPE>::name() != matrix_op.input().dtype();
 
   // weights is a matrix of output_dim x reduction_dim
   const auto weights_memory = weights.memory();
@@ -54,11 +54,11 @@ void MapMatrixVectorMultiply(const codegen::AcceleratorParam &param,
   }
 
   // TODO: double precision
-  vector_params->DP_VEC1 = DataTypes::TypeName<INPUT_DATATYPE>::name() !=
-                           matrix_param.weight().dtype();
+  vector_params->DP_VEC1 =
+      DataTypes::TypeName<INPUT_DATATYPE>::name() != matrix_op.weight().dtype();
 
   // bias
-  const auto bias_memory = matrix_param.bias().memory();
+  const auto bias_memory = matrix_op.bias().memory();
   accelerator_memory_map["vector2"] = get_partition(bias_memory.partition());
   vector_params->ADDRESS_GEN2_OFFSET = bias_memory.offset();
   vector_params->addressGen2Mode = 3;
@@ -75,8 +75,8 @@ void MapMatrixVectorMultiply(const codegen::AcceleratorParam &param,
     vector_params->addressGen2WeightLoopIndex[i] = 2;
   }
 
-  vector_params->DP_VEC2 = DataTypes::TypeName<INPUT_DATATYPE>::name() !=
-                           matrix_param.bias().dtype();
+  vector_params->DP_VEC2 =
+      DataTypes::TypeName<INPUT_DATATYPE>::name() != matrix_op.bias().dtype();
 
   // output
   const auto output_memory = param.output().memory();

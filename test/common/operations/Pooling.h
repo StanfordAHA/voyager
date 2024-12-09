@@ -3,11 +3,11 @@
 #include "test/common/operations/Common.h"
 
 template <typename T>
-T *pooling(std::any input_tensor, const codegen::AcceleratorParam &param) {
-  const auto &pooling_param = param.pooling_param();
-  int input_height = pooling_param.input().shape(2);
-  int input_width = pooling_param.input().shape(3);
-  int input_depth = pooling_param.input().shape(1);
+T *pooling(std::any input_tensor, const codegen::Operator &param) {
+  const auto &pooling_op = param.pooling_op();
+  int input_height = pooling_op.input().shape(2);
+  int input_width = pooling_op.input().shape(3);
+  int input_depth = pooling_op.input().shape(1);
 
   T *inputs = std::any_cast<T *>(input_tensor);
 
@@ -17,21 +17,21 @@ T *pooling(std::any input_tensor, const codegen::AcceleratorParam &param) {
   int output_height;
   int output_width;
   // Adaptive pooling has output_size set
-  if (pooling_param.output_size_size() > 0) {
-    output_height = pooling_param.output_size(0);
-    output_width = pooling_param.output_size(1);
+  if (pooling_op.output_size_size() > 0) {
+    output_height = pooling_op.output_size(0);
+    output_width = pooling_op.output_size(1);
     stride = input_height / output_height;
     kernel_size = input_height - (output_height - 1) * stride;
     padding = 0;
   } else {
-    stride = pooling_param.stride(0);
-    kernel_size = pooling_param.kernel_size(0);
-    padding = pooling_param.padding(0);
+    stride = pooling_op.stride(0);
+    kernel_size = pooling_op.kernel_size(0);
+    padding = pooling_op.padding(0);
     output_height = (input_height + 2 * padding - kernel_size) / stride + 1;
     output_width = (input_width + 2 * padding - kernel_size) / stride + 1;
   }
 
-  bool is_max_pool = pooling_param.opcode().find("max") != std::string::npos;
+  bool is_max_pool = pooling_op.opcode().find("max") != std::string::npos;
 
   T *output = new T[output_height * output_width * input_depth];
 

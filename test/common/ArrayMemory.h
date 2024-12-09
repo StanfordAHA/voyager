@@ -16,9 +16,9 @@ class ArrayMemory : public MemoryInterface {
 
   char* get_memory(const int partition);
   std::any get_tensor(const codegen::Tensor& tensor);
-  std::vector<std::any> get_args(const codegen::AcceleratorParam& param);
-  std::any get_output(const codegen::AcceleratorParam& param);
-  std::any get_reference_output(const codegen::AcceleratorParam& param);
+  std::vector<std::any> get_args(const codegen::Operator& param);
+  std::any get_output(const codegen::Operator& param);
+  std::any get_reference_output(const codegen::Operator& param);
 
   template <typename T>
   void read_tensor_from_memory(const long long address, const int partition,

@@ -2,7 +2,7 @@
 
 #include "test/toolchain/Common.h"
 
-void MapMXQparam(const codegen::AcceleratorParam &param,
+void MapMXQparam(const codegen::Operator &param,
                  std::deque<BaseParams *> &mappedParams,
                  std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   // send to reduce unit, configure to calculate max exponent value
@@ -11,18 +11,18 @@ void MapMXQparam(const codegen::AcceleratorParam &param,
       new VectorInstructionConfig;
   AcceleratorMemoryMap accelerator_memory_map;
 
-  const auto &reduce_param = param.reduce_param();
-  const auto vector_input = reduce_param.input();
+  const auto &reduce_op = param.reduce_op();
+  const auto vector_input = reduce_op.input();
 
-  int mx_axis = reduce_param.dim(0);
+  int mx_axis = reduce_op.dim(0);
   if (mx_axis == -1) {
-    mx_axis = reduce_param.input().shape().size() - 1;
+    mx_axis = reduce_op.input().shape().size() - 1;
   }
-  int reduction_dim_size = reduce_param.input().shape(mx_axis);
+  int reduction_dim_size = reduce_op.input().shape(mx_axis);
 
   int tensor_dim_size = 1;
-  for (int i = 0; i < reduce_param.input().shape().size(); i++) {
-    tensor_dim_size *= reduce_param.input().shape(i);
+  for (int i = 0; i < reduce_op.input().shape().size(); i++) {
+    tensor_dim_size *= reduce_op.input().shape(i);
   }
   tensor_dim_size /= reduction_dim_size;
 

@@ -2,7 +2,7 @@
 
 #include "test/toolchain/Common.h"
 
-void MapSoftmax(const codegen::AcceleratorParam &param,
+void MapSoftmax(const codegen::Operator &param,
                 std::deque<BaseParams *> &mappedParams,
                 std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   VectorParams *vector_params = new VectorParams;
@@ -10,8 +10,8 @@ void MapSoftmax(const codegen::AcceleratorParam &param,
       new VectorInstructionConfig;
   AcceleratorMemoryMap accelerator_memory_map;
 
-  const auto &reduce_param = param.reduce_param();
-  const auto vector_input = reduce_param.input();
+  const auto &reduce_op = param.reduce_op();
+  const auto vector_input = reduce_op.input();
 
   int input_dim = 1;
   for (int i = 0; i < vector_input.shape_size() - 1; i++) {

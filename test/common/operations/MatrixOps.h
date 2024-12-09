@@ -32,32 +32,31 @@ template <typename INPUT_T, typename ACCUMULATE_T, typename INTERMEDIATE_T,
 inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
                                    std::any weight_tensor,
                                    std::any weight_scale, std::any bias_tensor,
-                                   const codegen::AcceleratorParam &param) {
-  const auto matrix_param = param.matrix_param();
+                                   const codegen::Operator &param) {
+  const auto matrix_op = param.matrix_op();
 
-  bool is_mx = matrix_param.has_mx_input() && matrix_param.has_mx_weight();
+  bool is_mx = matrix_op.has_mx_input() && matrix_op.has_mx_weight();
 
   INPUT_T *inputs = std::any_cast<INPUT_T *>(input_tensor);
   SCALE_T *input_scales;
-  if (matrix_param.has_mx_input()) {
+  if (matrix_op.has_mx_input()) {
     input_scales = std::any_cast<SCALE_T *>(input_scale);
   }
 
   INPUT_T *weights = std::any_cast<INPUT_T *>(weight_tensor);
   SCALE_T *weight_scales;
-  if (matrix_param.has_mx_weight()) {
+  if (matrix_op.has_mx_weight()) {
     weight_scales = std::any_cast<SCALE_T *>(weight_scale);
   }
 
   // bias is assumed to be in ACCUMULATION_BUFFER_T
   ACCUMULATION_BUFFER_T *bias = nullptr;
-  if (matrix_param.has_bias()) {
+  if (matrix_op.has_bias()) {
     bias = std::any_cast<ACCUMULATION_BUFFER_T *>(bias_tensor);
   }
 
   Tiling tiling;
-  if (matrix_param.opcode() == "conv2d" ||
-      matrix_param.opcode() == "conv2d_mx") {
+  if (matrix_op.opcode() == "conv2d" || matrix_op.opcode() == "conv2d_mx") {
     tiling = get_conv2d_tiling(param);
   } else {
     tiling = get_linear_tiling(param);
@@ -111,9 +110,9 @@ inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
     assert(tiling.loops[1][j] != 0);
   }
 
-  bool input_double_precision = is_double_precision(matrix_param.input());
-  bool weight_double_precision = is_double_precision(matrix_param.weight());
-  bool bias_double_precision = is_double_precision(matrix_param.bias());
+  bool input_double_precision = is_double_precision(matrix_op.input());
+  bool weight_double_precision = is_double_precision(matrix_op.weight());
+  bool bias_double_precision = is_double_precision(matrix_op.bias());
 
   constexpr bool is_mx_based_design = ACCUMULATE_T::is_floating_point !=
                                       ACCUMULATION_BUFFER_T::is_floating_point;
@@ -129,7 +128,7 @@ inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
   // initialize to bias
   for (int i = 0; i < X * Y; i++) {
     for (int k = 0; k < K; k++) {
-      if (matrix_param.has_bias()) {
+      if (matrix_op.has_bias()) {
         outputs[i * K + k] = bias[k];
       } else {
         outputs[i * K + k] = ACCUMULATION_BUFFER_T(0.0);
@@ -358,14 +357,14 @@ inline ACCUMULATION_BUFFER_T *gemm(std::any input_tensor, std::any input_scale,
   }
 
   delete[] inputs;
-  if (matrix_param.has_mx_input()) {
+  if (matrix_op.has_mx_input()) {
     delete[] input_scales;
   }
   delete[] weights;
-  if (matrix_param.has_mx_weight()) {
+  if (matrix_op.has_mx_weight()) {
     delete[] weight_scales;
   }
-  if (matrix_param.has_bias()) {
+  if (matrix_op.has_bias()) {
     delete[] bias;
   }
 

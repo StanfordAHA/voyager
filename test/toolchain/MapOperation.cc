@@ -10,19 +10,18 @@
 #include "test/toolchain/Softmax.h"
 #include "test/toolchain/VectorOps.h"
 
-void MapOperation(const codegen::AcceleratorParam &param,
+void MapOperation(const codegen::Operator &param,
                   std::deque<BaseParams *> &mappedParams,
                   std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
-  if (param.has_matrix_param()) {
-    const auto matrix_param = param.matrix_param();
-    if (matrix_param.opcode() == "layer_norm") {
+  if (param.has_matrix_op()) {
+    const auto matrix_op = param.matrix_op();
+    if (matrix_op.opcode() == "layer_norm") {
       MapLayerNorm(param, mappedParams, opMemoryMaps);
       return;
     }
 
-    const auto &inputs = matrix_param.has_mx_input()
-                             ? matrix_param.mx_input().input()
-                             : matrix_param.input();
+    const auto &inputs = matrix_op.has_mx_input() ? matrix_op.mx_input().input()
+                                                  : matrix_op.input();
     int dim = 1;
     for (int i = 0; i < inputs.shape_size() - 1; i++) {
       dim *= inputs.shape(i);
@@ -33,21 +32,21 @@ void MapOperation(const codegen::AcceleratorParam &param,
     } else {
       MapMatrixOperation(param, mappedParams, opMemoryMaps);
     }
-  } else if (param.has_reduce_param()) {
-    const auto &reduce_param = param.reduce_param();
-    if (reduce_param.opcode() == "softmax") {
+  } else if (param.has_reduce_op()) {
+    const auto &reduce_op = param.reduce_op();
+    if (reduce_op.opcode() == "softmax") {
       MapSoftmax(param, mappedParams, opMemoryMaps);
-    } else if (reduce_param.opcode() == "calculate_mx_qparam") {
+    } else if (reduce_op.opcode() == "calculate_mx_qparam") {
       MapMXQparam(param, mappedParams, opMemoryMaps);
     } else {
-      std::cerr << "Unsupported reduce instruction: " << reduce_param.opcode()
+      std::cerr << "Unsupported reduce instruction: " << reduce_op.opcode()
                 << std::endl;
       exit(1);
     }
-  } else if (param.has_pooling_param()) {
+  } else if (param.has_pooling_op()) {
     MapPoolingOperation(param, mappedParams, opMemoryMaps);
-  } else if (param.has_slicing_param() || param.has_reshape_param() ||
-             param.vector_params_size() > 0) {
+  } else if (param.has_slicing_op() || param.has_reshape_op() ||
+             param.vector_ops_size() > 0) {
     MapVectorOperations(param, mappedParams, opMemoryMaps);
   }
 }

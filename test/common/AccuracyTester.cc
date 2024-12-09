@@ -22,69 +22,54 @@
 
 /* Run inference on a single sample and return correct classification. */
 bool run_sample(std::string model_name, std::string data_dir,
-                std::string sample,
-                std::vector<codegen::AcceleratorParam> params) {
+                std::string sample, codegen::Model model) {
   std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE};
   auto memory = std::make_unique<ArrayMemory>(memory_sizes);
   auto data_loader = std::make_unique<DataLoader>(memory.get(), false);
 
   int num_classes;
-  auto matrix_param = params.front().matrix_param();
-  codegen::Tensor input;
-  if (params.front().has_matrix_param()) {
-    input = params.front().matrix_param().input();
-  } else if (params.front().has_reduce_param()) {
-    input = params.front().reduce_param().input();
-  } else {
-    input = params.front().vector_params(0).input();
-  }
-  std::string sample_dir = data_dir + "/" + sample;
-  if (model_name == "mobilebert") {
+  if (model_name == "mobilebert" || model_name == "bert") {
     num_classes = 2;
-    data_loader->load_tensor(input, sample_dir);
-
-    // Load attention mask
-    bool found_param = false;
-    for (const auto& param : params) {
-      for (const auto& vector_param : param.vector_params()) {
-        if (vector_param.has_other() &&
-            vector_param.other().node() == "arg1_1") {
-          data_loader->load_tensor(vector_param.other(), sample_dir);
-          found_param = true;
-          break;
-        }
-      }
-      if (found_param) {
-        break;
-      }
-    }
-
-    if (!found_param) {
-      throw std::runtime_error("Error: Could not find attention mask.");
-    }
   } else if (model_name == "resnet18" || model_name == "resnet50") {
     num_classes = 1000;
-    data_loader->load_tensor(input, sample_dir, true);
+  } else {
+    throw std::runtime_error("Error: Model not supported.");
+  }
+
+  float logits[num_classes];
+
+  // Load inputs and parameters
+  bool transpose = model_name == "resnet18" || model_name == "resnet50";
+
+  std::string inputs_dir = data_dir + "/" + sample;
+  for (const auto& tensor : model.inputs()) {
+    data_loader->load_tensor(tensor, inputs_dir, transpose);
   }
 
   std::string params_dir = std::string(getenv("CODEGEN_DIR")) + "/networks/" +
                            model_name + "/" + std::getenv("DATATYPE") +
                            "/tensor_files";
-
-  for (const auto& param : params) {
-    data_loader->load_weights(param, params_dir);
+  for (const auto& tensor : model.parameters()) {
+    // Fully connected layer, or linear ops with input of a 1D tensor, is run
+    // on the vector unit. Its weight does not need to be transposed. We check
+    // if an op is a FC by checking its output dimension. This should be
+    // improved in the future.
+    bool transpose_weight = tensor.shape(0) != num_classes;
+    data_loader->load_tensor(tensor, params_dir, transpose_weight);
   }
 
   // Run inference
-  for (const auto& param : params) {
-    auto args = memory->get_args(param);
-    run_gold_model(param, args);
+  for (const auto& param : model.ops()) {
+    if (!param.has_nop()) {
+      auto args = memory->get_args(param);
+      run_gold_model(param, args);
+    }
   }
 
   // Extract final output
-  float logits[num_classes];
-  auto output = memory->get_output(params.back());
-  if (params.back().output().dtype() == "bfloat16") {
+  const auto last_op = model.ops(model.ops_size() - 1);
+  const auto output = memory->get_output(last_op);
+  if (last_op.output().dtype() == "bfloat16") {
     auto output_ptr = std::any_cast<DataTypes::bfloat16*>(output);
     for (int i = 0; i < num_classes; i++) {
       logits[i] = output_ptr[i];
@@ -143,8 +128,6 @@ int main(int argc, char* argv[]) {
   std::cout << "Number of threads: " << num_threads << std::endl;
 
   Network network(model_name);
-  auto params = network.get_params();
-  std::cout << "Number of params: " << params.size() << std::endl;
 
   if (!std::filesystem::exists(data_dir)) {
     throw std::runtime_error("Error: Path does not exist.");
@@ -192,7 +175,8 @@ int main(int argc, char* argv[]) {
         break;
       }
       results.push_back(std::async(std::launch::async, run_sample, model_name,
-                                   data_dir, dataset[sample_index], params));
+                                   data_dir, dataset[sample_index],
+                                   network.model));
     }
 
     for (int i = 0; i < results.size(); i++) {
@@ -203,6 +187,8 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << "Accuracy: " << num_correct << "/" << num_finished << " ("
-              << (float)num_correct / num_finished * 100 << "%)" << std::endl;
+              << std::fixed << std::setprecision(2)
+              << (static_cast<float>(num_correct) / num_finished * 100) << "%)"
+              << std::endl;
   }
 }
