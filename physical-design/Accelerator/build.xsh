@@ -14,7 +14,6 @@ build_params = {
     "input_buffer_size": 1024,
     "weight_buffer_size": 1024,
     "accum_buffer_size": 1024,
-    "technology": "intel16",
 }
 
 sim_params = {
@@ -33,6 +32,7 @@ sweep_params = {
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir", type=str, default="", help="Directory to create the build. Default is used if omitted")
+    parser.add_argument("--technology", type=str, default=None, required=True)
     parser.add_argument("--datatype", type=str, default=None)
     parser.add_argument("--ic", type=int, default=None, help="IC dimension")
     parser.add_argument("--oc", type=int, default=None, help="OC dimension")
@@ -92,6 +92,7 @@ if __name__ == "__main__":
         f.write(f"build_params = {build_params}\n")
         f.write(f"sim_params = {sim_params}\n")
         f.write(f"sweep_params = {sweep_params}\n")
+        f.write(f"technology = \"{args.technology}\"\n")
 
     dirname = args.dir if args.dir else f"build-{build_params['datatype']}-{build_params['ic_dimension']}x{build_params['oc_dimension']}-{build_params['input_buffer_size']}x{build_params['weight_buffer_size']}x{build_params['accum_buffer_size']}-{build_params['clock_period']}ns"
     print(f"Creating directory \"{dirname}\"...")
@@ -106,4 +107,3 @@ if __name__ == "__main__":
     # if build_params['clock_period'] == 1:
     #     mflowgen param update -k clock_period -v 1.1 -s 7
     #     print(f"Step 7 clock period updated. Please make sure it's the hls stage.")
-

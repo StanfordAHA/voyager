@@ -5,11 +5,19 @@
 
 import os
 import sys
+import yaml
 
 from mflowgen.components import Graph, Step
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..")) # for params
-from params import build_params, sim_params, sweep_params
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))  # for params
+from params import build_params, sim_params, sweep_params, technology
+
+# load technology specific parameters
+with open(
+    os.path.join(os.environ["PD_HOME"], "technology", technology + ".yml"),
+    "r",
+) as f:
+    tech_params = yaml.safe_load(f)
 
 
 def construct():
@@ -19,27 +27,23 @@ def construct():
     # Parameters
     # -----------------------------------------------------------------------
 
-    adk_name = "intel16-adk"
-    adk_view = "multivt"
-
     design_name = "Accelerator"
 
     parameters = {
         "construct_path": __file__,
         "design_name": design_name,
-        "adk": adk_name,
-        "adk_view": adk_view,
-        "adk_stdcell": "b15_7t_108pp",
-        "adk_libmodel": "nldm",
+        "adk": tech_params["adk_name"],
+        "adk_view": tech_params["adk_view"],
         "nthreads": 16,
         # Synthesis
         "flatten_effort": 2,  # honors manual no-ungrouping
-        "topographical": True, # get spef from synthesis
+        "topographical": True,  # get spef from synthesis
         # Hold fixing
         "signoff_engine": True,
         "hold_target_slack": 0.100,
         # Power
         "saif_instance": "sc_main/harness/accelerator/ccs_rtl/dut_inst",
+        "technology": technology,
     }
 
     # -----------------------------------------------------------------------
@@ -48,7 +52,8 @@ def construct():
 
     this_dir = os.path.dirname(os.path.abspath(__file__))
     # ADK
-    g.set_adk(adk_name)
+    g.sys_path.append(os.path.join(os.environ["PD_HOME"], "technology", "adks"))
+    g.set_adk(tech_params["adk_name"])
     adk = g.get_adk_step()
 
     # Steps
@@ -61,17 +66,17 @@ def construct():
     # codegen = Step(this_dir + "/codegen")
     vcs_build = Step(this_dir + "/vcs-build")
     rtl_vcs_build = vcs_build.clone()
-    rtl_vcs_build.set_name( 'rtl-vcs-build')
+    rtl_vcs_build.set_name("rtl-vcs-build")
     syn_vcs_build = vcs_build.clone()
-    syn_vcs_build.set_name( 'syn-vcs-build')
+    syn_vcs_build.set_name("syn-vcs-build")
     sim = Step(this_dir + "/sim")
     rtl_sim = sim.clone()
-    rtl_sim.set_name( 'rtl-sim')
+    rtl_sim.set_name("rtl-sim")
     # this is a hack for param sweeping for RTL sim. We only feed the namemap to Synth from this step
     rtl_sim_namemap = sim.clone()
-    rtl_sim_namemap.set_name('rtl-sim-namemap')
+    rtl_sim_namemap.set_name("rtl-sim-namemap")
     syn_sim = sim.clone()
-    syn_sim.set_name( 'syn-sim' )
+    syn_sim.set_name("syn-sim")
     # Synthesis
     # synth = Step(this_dir + "/cadence-genus-synthesis")
     synth = Step(this_dir + "/../../common/synopsys-dc-synthesis")
@@ -79,9 +84,9 @@ def construct():
     ptpx = Step(this_dir + "/../../common/synopsys-ptpx")
     ptpx_rtl = ptpx.clone()
     ptpx_syn = ptpx.clone()
-    ptpx_rtl.set_name('ptpx-rtl')
-    ptpx_syn.set_name('ptpx-syn')
-    
+    ptpx_rtl.set_name("ptpx-rtl")
+    ptpx_syn.set_name("ptpx-syn")
+
     # Customization
     custom_hack_synth_sdc = Step(this_dir + "/custom-hack-synth-sdc")
     custom_dc_synth = Step(this_dir + "/custom-dc-synthesis")
@@ -116,16 +121,15 @@ def construct():
     mem_nodes = {
         sram_1r1w_2048: "ip224rfsbhpm1r1w2048x32m4",
         sram_1r1w_1024: "ip224rfsbhpm1r1w1024x64m2",
-        sram_1r1w_512:  "ip224rfsbhpm1r1w512x64m1",
-        sram_1r1w_256:  "ip224rfsbhpm1r1w256x64m1",
-        sram_1r1w_128:  "ip224rfsbhpm1r1w128x64m1",
-        sram_1rw_512:   "ip224uhdlp1p11rf_512x32m4b2c1s0_t0r0p0d0a1m1h",
-        sram_1rw_1024:  "ip224uhdlp1p11rf_1024x64m4b2c1s0_t0r0p0d0a1m1h",
-        sram_1rw_2048:  "ip224uhdlp1p11rf_2048x64m4b2c1s0_t0r0p0d0a1m1h",
-        sram_1rw_4096:  "ip224uhdlp1p11rf_4096x64m4b2c1s1_t0r0p0d0a1m1h",
-        sram_1rw_8192:  "ip224uhdlp1p11rf_8192x8m8b2c1s0_t0r0p0d0a1m1h",
+        sram_1r1w_512: "ip224rfsbhpm1r1w512x64m1",
+        sram_1r1w_256: "ip224rfsbhpm1r1w256x64m1",
+        sram_1r1w_128: "ip224rfsbhpm1r1w128x64m1",
+        sram_1rw_512: "ip224uhdlp1p11rf_512x32m4b2c1s0_t0r0p0d0a1m1h",
+        sram_1rw_1024: "ip224uhdlp1p11rf_1024x64m4b2c1s0_t0r0p0d0a1m1h",
+        sram_1rw_2048: "ip224uhdlp1p11rf_2048x64m4b2c1s0_t0r0p0d0a1m1h",
+        sram_1rw_4096: "ip224uhdlp1p11rf_4096x64m4b2c1s1_t0r0p0d0a1m1h",
+        sram_1rw_8192: "ip224uhdlp1p11rf_8192x8m8b2c1s0_t0r0p0d0a1m1h",
     }
-
 
     all_mem_types = set()
     for mem in mem_nodes.values():
@@ -154,7 +158,6 @@ def construct():
         ]:
             step.extend_inputs([f"{mem}-typical.db", f"{mem}-wc.db", f"{mem}-bc.db"])
 
-
         for step in [
             synth,
         ]:
@@ -163,12 +166,8 @@ def construct():
                 [f"{mem}-typical.db", f"{mem}-wc.db", f"{mem}-bc.db", f"{mem}.lef"]
             )
 
-        for step in [
-            hls
-        ]:
-            step.extend_inputs(
-                [f"{mem}.v"]
-            )
+        for step in [hls]:
+            step.extend_inputs([f"{mem}.v"])
 
         # signoff.extend_inputs([f"{mem}.oas"])
         # lvs.extend_inputs([f"{mem}.sp"])
@@ -232,7 +231,6 @@ def construct():
     g.connect_by_name(adk, ptpx_rtl)
     g.connect_by_name(adk, ptpx_syn)
 
-
     # Connect memory to required nodes
     for mem in mem_nodes.keys():
         g.connect_by_name(mem, hls)
@@ -242,7 +240,6 @@ def construct():
         g.connect_by_name(mem, ptpx_rtl)
         g.connect_by_name(mem, ptpx_syn)
 
-
     g.connect_by_name(hls, synth)
     g.connect(hls.o("build"), rtl_vcs_build.i("build"))
     g.connect(hls.o("design.sim.v"), rtl_vcs_build.i("design.v"))
@@ -250,7 +247,7 @@ def construct():
     g.connect_by_name(rtl_vcs_build, rtl_sim_namemap)
     g.connect_by_name(rtl_sim_namemap, synth)  # run.saif to generate namemap
     g.connect_by_name(constraints, synth)
-    g.connect_by_name(custom_dc_synth, synth) # overwrite scripts
+    g.connect_by_name(custom_dc_synth, synth)  # overwrite scripts
     g.connect_by_name(synth, custom_hack_synth_sdc)
     g.connect_by_name(synth, syn_vcs_build)
     g.connect(hls.o("build"), syn_vcs_build.i("build"))
@@ -269,7 +266,7 @@ def construct():
 
     # Remove unwanted postconditions
     conditions = synth.get_postconditions()
-    new_conditions = conditions[0:2] #remove search for error line
+    new_conditions = conditions[0:2]  # remove search for error line
     new_conditions = new_conditions + conditions[3:8]
     synth.set_postconditions(new_conditions)
 
@@ -287,20 +284,30 @@ def construct():
         node.update_params({"memory_name": mem})
 
     # RTL simulation
-    rtl_vcs_build.update_params( {"sim_level": "rtl"} )
-    rtl_sim.update_params( {"sim_level": "rtl"} )
-    rtl_sim_namemap.update_params( {"sim_level": "rtl"} )
+    rtl_vcs_build.update_params({"sim_level": "rtl"})
+    rtl_sim.update_params({"sim_level": "rtl"})
+    rtl_sim_namemap.update_params({"sim_level": "rtl"})
 
     # Post-syn simulation
-    syn_vcs_build.update_params( {"sim_level": "syn"} )
-    syn_sim.update_params( {"sim_level": "syn"} )
+    syn_vcs_build.update_params({"sim_level": "syn"})
+    syn_sim.update_params({"sim_level": "syn"})
 
-    ptpx_rtl.update_params( { 'corner': 'typical', "default_clock_buffer": "lib224_b15_7t_108pp_clk_lvt_tttt_0p800v_25c_tttt_ctyp_nldm/b15cbf000ah1n08x5"} )
-    ptpx_syn.update_params( { 'corner': 'typical', "default_clock_buffer": "lib224_b15_7t_108pp_clk_lvt_tttt_0p800v_25c_tttt_ctyp_nldm/b15cbf000ah1n08x5"} )
+    ptpx_rtl.update_params(
+        {
+            "corner": "typical",
+            "default_clock_buffer": tech_params["default_clock_buffer"],
+        }
+    )
+    ptpx_syn.update_params(
+        {
+            "corner": "typical",
+            "default_clock_buffer": tech_params["default_clock_buffer"],
+        }
+    )
 
     # Parameter Sweep
     # Sweep over design configs
-    
+
     # NOTE: mflowgen has a bug. If two inputs of a node are independent branches off a node we swept,
     #       the parameter space gets cross multipled even though we only swept a single parameter. The
     #       correct behavior is to only take the upstream with the same parameter value.
@@ -310,8 +317,8 @@ def construct():
 
     # Cannot really think of any easy way to solve this, unless we don't sweep tests and run simulation in one node, but ptpx will be difficult
     # We have to use sweep_params["tests"] to determine the different combinations, and
-    # sweep (or maybe clone) ptpx using that. Explicitly change the input it's looking for to the specific fsdb name. 
-    # The only thing is parameter doesn't support dict. If we want to make this work, we need a dumber 
+    # sweep (or maybe clone) ptpx using that. Explicitly change the input it's looking for to the specific fsdb name.
+    # The only thing is parameter doesn't support dict. If we want to make this work, we need a dumber
     # ways to specify the sweep parameters (tests).
 
     # codegen: need to generate data for all networks involved
@@ -334,4 +341,3 @@ def construct():
 if __name__ == "__main__":
     g = construct()
     g.plot()
-
