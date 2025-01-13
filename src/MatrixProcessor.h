@@ -378,7 +378,7 @@ SC_MODULE(MatrixProcessor) {
             // we need to load in a new bias every time the weight loop index
             // changes
             bool readBias = true;
-          LOOP_6_UNROLL:
+#pragma hls_unroll yes
             for (int i = 0; i < 4; i++) {
               readBias =
                   readBias && (loop_counters[1][biasReuseIndices[i]] == 0);
@@ -573,9 +573,9 @@ SC_MODULE(MatrixProcessor) {
         const MatrixParams params = accumulationBufferParams.Pop();
         ac_int<8, false> loop_counters[2][6];
         ac_int<8, false> loop_bounds[2][6];
-      LOOP_0_UNROLL:
+#pragma hls_unroll yes
         for (int i = 0; i < 2; i++) {
-        LOOP_1_UNROLL:
+#pragma hls_unroll yes
           for (int j = 0; j < 6; j++) {
             loop_counters[i][j] = 0;
             loop_bounds[i][j] = params.loops[i][j];
@@ -616,7 +616,6 @@ SC_MODULE(MatrixProcessor) {
 
           Pack1D<ACCUM_BUFFER_TYPE, NCOLS> previous_accumulation;
 
-// intentionally not labeled with LOOP_2_UNROLL as it gets optimized away
 #pragma hls_unroll yes
           for (int i = 0; i < NCOLS; i++) {
             previous_accumulation.value[i].setZero();
@@ -625,7 +624,7 @@ SC_MODULE(MatrixProcessor) {
           if (firstAccumulation) {
             if (params.BIAS) {
               bool readBias = true;
-            LOOP_2_UNROLL:
+#pragma hls_unroll yes
               for (int i = 0; i < 4; i++) {
                 readBias =
                     readBias && (loop_counters[1][biasReuseIndices[i]] == 0);
@@ -680,7 +679,7 @@ SC_MODULE(MatrixProcessor) {
 
           Pack1D<ACCUM_BUFFER_TYPE, NCOLS> scaled_outputs;
 
-        LOOP_3_UNROLL:
+#pragma hls_unroll yes
           for (int i = 0; i < NCOLS; i++) {
             IDTYPE scale = inputScale[0] + weightScales[i];
             // CCS_LOG("scale: " << scale);
@@ -734,9 +733,9 @@ SC_MODULE(MatrixProcessor) {
 
           step++;
           loop_counters[1][5]++;
-        LOOP_4_UNROLL:
+#pragma hls_unroll yes
           for (int i = 1; i >= 0; i--) {
-          LOOP_5_UNROLL:
+#pragma hls_unroll yes
             for (int j = 5; j >= 0; j--) {
               if (loop_counters[i][j] == params.loops[i][j]) {
                 loop_counters[i][j] = 0;

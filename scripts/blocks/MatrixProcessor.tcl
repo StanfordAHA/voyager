@@ -56,13 +56,6 @@ proc pre_architect {} {
     set memory_width [expr $ACCUM_DATATYPE_WIDTH * $OC_DIMENSION]
     directive set $accumulation_buffer_path:rsc -MAP_TO_MODULE $memories(1r1w)
   }
-
-  # Unroll loops that were not unrolled due to if constexpr bug
-  set loops [directive get /$full_block_name_stripped/.../LOOP_*_UNROLL -match glob -return path]
-  puts $loops
-  foreach loop $loops {
-    directive set $loop -UNROLL yes
-  }
 }
 
 proc pre_extract {} {
