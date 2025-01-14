@@ -1,10 +1,5 @@
 #pragma once
 
-#include "src/AccelTypes.h"
-#include "src/Params.h"
-#include "test/common/GoldModel.h"
-#include "test/common/VerificationTypes.h"
-#include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/Common.h"
 
 void set_addr_gen1(const codegen::Tensor &tensor, const Tiling &tiling,
@@ -19,7 +14,6 @@ void set_addr_gen1(const codegen::Tensor &tensor, const Tiling &tiling,
   accelerator_memory_map["vector1"] = get_partition(memory.partition());
   vector_params->ADDRESS_GEN1_OFFSET = memory.offset();
   vector_params->addressGen1Mode = nonzero_dims == 1 ? 3 : 1;
-  // TODO: double precision
   vector_params->DP_VEC1 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != tensor.dtype();
 
@@ -66,7 +60,6 @@ void set_addr_gen2(const codegen::Tensor &tensor, const Tiling &tiling,
   accelerator_memory_map["vector2"] = get_partition(memory.partition());
   vector_params->ADDRESS_GEN2_OFFSET = memory.offset();
   vector_params->addressGen2Mode = nonzero_dims == 1 ? 3 : 1;
-  // TODO: double precision
   vector_params->DP_VEC2 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != tensor.dtype();
 
@@ -101,13 +94,12 @@ void set_addr_gen2(const codegen::Tensor &tensor, const Tiling &tiling,
   vector_params->vec2DequantizeScale = scale.bits_rep();
 }
 
-void MapMatrixOperation(const codegen::AcceleratorParam &param,
+void MapMatrixOperation(const codegen::Operator &param,
                         std::deque<BaseParams *> &mappedParams,
                         std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   Tiling tiling;
-  const auto matrix_param = param.matrix_param();
-  if (matrix_param.opcode() == "conv2d" ||
-      matrix_param.opcode() == "conv2d_mx") {
+  const auto matrix_op = param.matrix_op();
+  if (matrix_op.opcode() == "conv2d" || matrix_op.opcode() == "conv2d_mx") {
     tiling = get_conv2d_tiling(param);
   } else {
     tiling = get_linear_tiling(param);
@@ -130,24 +122,24 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   AcceleratorMemoryMap accelerator_memory_map;
 
   // matrix tiling
-  const auto input_memory = matrix_param.has_mx_input()
-                                ? matrix_param.mx_input().input().memory()
-                                : matrix_param.input().memory();
+  const auto input_memory = matrix_op.has_mx_input()
+                                ? matrix_op.mx_input().input().memory()
+                                : matrix_op.input().memory();
   accelerator_memory_map["inputs"] = get_partition(input_memory.partition());
   matrix_params->INPUT_OFFSET = input_memory.offset();
 
-  if (matrix_param.has_mx_input()) {
+  if (matrix_op.has_mx_input()) {
     matrix_params->INPUT_SCALE_OFFSET =
-        matrix_param.mx_input().scale().memory().offset();
+        matrix_op.mx_input().scale().memory().offset();
   }
-  const auto weight_memory = matrix_param.has_mx_weight()
-                                 ? matrix_param.mx_weight().input().memory()
-                                 : matrix_param.weight().memory();
+  const auto weight_memory = matrix_op.has_mx_weight()
+                                 ? matrix_op.mx_weight().input().memory()
+                                 : matrix_op.weight().memory();
   accelerator_memory_map["weights"] = get_partition(weight_memory.partition());
 
-  if (matrix_param.has_mx_weight()) {
+  if (matrix_op.has_mx_weight()) {
     matrix_params->WEIGHT_SCALE_OFFSET =
-        matrix_param.mx_weight().scale().memory().offset();
+        matrix_op.mx_weight().scale().memory().offset();
   }
 
   matrix_params->WEIGHT_OFFSET = weight_memory.offset();
@@ -175,9 +167,8 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
       tiling.weight_loop_index[0];
 
   // set outer loop values
-  const auto weight = matrix_param.weight();
-  matrix_params->WEIGHT_TRANSPOSE =
-      weight.permutation().opcode() == "transpose";
+  const auto weight = matrix_op.weight();
+  matrix_params->WEIGHT_TRANSPOSE = weight.reshape().opcode() == "transpose";
   if (matrix_params->WEIGHT_TRANSPOSE) {
     // for tranpose, we need to enforce that the innermost loop is the
     // unrolled reduction loop
@@ -278,37 +269,39 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   matrix_params->ACC_FROM_ACC = false;
 
   // Permute input for transformer attention outputs
-  const auto input = matrix_param.has_mx_input()
-                         ? matrix_param.mx_input().input()
-                         : matrix_param.input();
-  if (input.has_permutation()) {
-    const auto permutation = input.permutation();
+  const auto input = matrix_op.has_mx_input() ? matrix_op.mx_input().input()
+                                              : matrix_op.input();
+  if (input.has_reshape()) {
+    const auto reshape_op = input.reshape();
     // This is hardcoded for Transformer head permutation
-    std::vector<int> dims(permutation.dims().begin(), permutation.dims().end());
+    std::vector<int> dims(reshape_op.dims().begin(), reshape_op.dims().end());
     bool is_permute = std::all_of(dims.begin(), dims.end(),
                                   [](int x) { return x == 1 || x == 2; });
 
-    if (permutation.opcode() == "permute" ||
-        (permutation.opcode() == "transpose" && is_permute)) {
+    if (reshape_op.opcode() == "permute" || is_permute) {
       matrix_params->CONCAT_INPUT = true;
-    } else if (permutation.opcode() == "transpose") {
+    } else if (reshape_op.opcode() == "transpose") {
       matrix_params->TRANPOSE_INPUTS = true;
     }
 
     if (matrix_params->CONCAT_INPUT) {
-      const auto unpermuted_shape = permutation.input_shape();
-      matrix_params->headSize = unpermuted_shape[unpermuted_shape.size() - 1];
+      const auto input_shape = input.shape();
+      double result = std::log2(input_shape[input_shape.size() - 1]);
+      if (std::fmod(result, 1.0) != 0.0) {
+        throw std::runtime_error("Result is not an integer!");
+      }
+      matrix_params->headSizeInPowerOfTwo = result;
     }
   }
 
   // bias
-  const auto bias_memory = matrix_param.bias().memory();
-  matrix_params->BIAS = matrix_param.has_bias();
+  const auto bias_memory = matrix_op.bias().memory();
+  matrix_params->BIAS = matrix_op.has_bias();
   matrix_params->BIAS_OFFSET = bias_memory.offset();
   accelerator_memory_map["bias"] = get_partition(bias_memory.partition());
 
-  matrix_params->MX = matrix_param.opcode() == "conv2d_mx" ||
-                      matrix_param.opcode() == "linear_mx";
+  matrix_params->MX =
+      matrix_op.opcode() == "conv2d_mx" || matrix_op.opcode() == "linear_mx";
 
   // vector instructions
   VectorParams *vector_params = new VectorParams;
@@ -348,10 +341,14 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 
   // Transformer head permutation
-  if (param.output().has_permutation()) {
+  if (param.output().has_reshape()) {
     vector_params->SPLIT_OUTPUT = true;
-    const auto permuted_shape = param.output().permutation().output_shape();
-    vector_params->headSize = permuted_shape[permuted_shape.size() - 1];
+    const auto permuted_shape = param.output().reshape().output_sizes();
+    double result = std::log2(permuted_shape[permuted_shape.size() - 1]);
+    if (std::fmod(result, 1.0) != 0.0) {
+      throw std::runtime_error("Result is not an integer!");
+    }
+    vector_params->headSizeInPowerOfTwo = result;
   }
 
   VectorInstructions vinst;
@@ -362,9 +359,9 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
   vinst.vDest = VectorInstructions::vWriteOut;
 
   auto vinst_mappings = get_vector_instruction_mapping();
-  auto it = param.vector_params().begin();
-  bool has_vector_params = it != param.vector_params().end();
-  std::string output_node = matrix_param.name();
+  auto it = param.vector_ops().begin();
+  bool has_vector_params = it != param.vector_ops().end();
+  std::string output_node = matrix_op.name();
 
   int vectorStage = 0;
   while (has_vector_params) {
@@ -381,7 +378,7 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
 
         bool is_mx_based_design = ACCUM_DATATYPE::is_floating_point !=
                                   ACCUM_BUFFER_DATATYPE::is_floating_point;
-        if (is_mx_based_design && !matrix_param.has_mx_input()) {
+        if (is_mx_based_design && !matrix_op.has_mx_input()) {
           vinst.vDequantize = true;
         }
       } else if (opcode.rfind("quantize", 0) == 0) {
@@ -395,8 +392,8 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
       }
 
       for (int stage = vectorStage; stage < 5; stage++) {
-        bool matched =
-            vector_ops[stage].find(opcode) != vector_ops[stage].end();
+        bool matched = vector_unit_stages[stage].find(opcode) !=
+                       vector_unit_stages[stage].end();
 
         std::cerr << "stage: " << stage << "  opcode: " << opcode
                   << "  matched: " << matched << std::endl;
@@ -418,12 +415,30 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
 
           // increment the stage for the next operation
           vectorStage = stage + 1;
-          if (it->has_other()) {
+          if (it->opcode() == "vmap") {
+            vinst.vmapOffset = it->other().memory().offset();
+          } else if (it->has_other_scalar()) {
+            std::cerr << "immediate: " << it->other_scalar() << std::endl;
+            VECTOR_DATATYPE immediate = it->other_scalar();
+
+            if (it->opcode() == "div" || it->opcode() == "div_") {
+              immediate = 1.0 / immediate;
+            }
+
+            if (stage == 0) {
+              vinst.vOp0Src1 = VectorInstructions::op0immediate;
+              vinst.immediate0 = immediate.bits_rep();
+            } else if (stage == 3) {
+              vinst.vOp3Src1 = VectorInstructions::op3immediate;
+              vinst.immediate1 = immediate.bits_rep();
+            } else if (stage == 5) {
+              vinst.immediate1 = immediate.bits_rep();
+            }
+          } else if (it->has_other()) {
             const auto tensor_to_load =
                 output_node == it->other().node() ? it->input() : it->other();
             const int size = get_size(tensor_to_load);
             if (size == 1) {
-              // TODO: Ideally this should be stroed in the vector param.
               VECTOR_DATATYPE immediate = read_constant_param(tensor_to_load);
 
               if (it->opcode() == "div" || it->opcode() == "div_") {
@@ -459,11 +474,11 @@ void MapMatrixOperation(const codegen::AcceleratorParam &param,
 
     output_node = it->name();
     ++it;
-    has_vector_params = it != param.vector_params().end();
+    has_vector_params = it != param.vector_ops().end();
   }
 
   // check that no more vector instructions are present
-  if (it != param.vector_params().end()) {
+  if (it != param.vector_ops().end()) {
     std::cerr << "Error: unsupported vector fusion pattern" << std::endl;
     exit(1);
   }

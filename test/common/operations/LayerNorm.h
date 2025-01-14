@@ -4,7 +4,7 @@
 
 template <typename T>
 inline T *layer_norm(std::any input_tensor, std::any weight_tensor,
-                     std::any bias_tensor, const codegen::MatrixParam &param) {
+                     std::any bias_tensor, const codegen::MatrixOp &param) {
   T *inputs = std::any_cast<T *>(input_tensor);
   T *weights = param.has_weight() ? std::any_cast<T *>(weight_tensor) : nullptr;
   T *bias = param.has_bias() ? std::any_cast<T *>(bias_tensor) : nullptr;

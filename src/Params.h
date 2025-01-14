@@ -55,7 +55,7 @@ struct MatrixParams : BaseParams {
     CONCAT_HEAD_WEIGHTS = false;
     TRANPOSE_INPUTS = false;
 
-    headSize = 32;
+    headSizeInPowerOfTwo = 32;
   }
 #endif
 
@@ -85,7 +85,7 @@ struct MatrixParams : BaseParams {
   ac_int<3, false> weightAddressGenFyIndex;
 
   ac_int<2, false> STRIDE;
-  ac_int<8, false> headSize;
+  ac_int<8, false> headSizeInPowerOfTwo;
 
   bool WEIGHT_TRANSPOSE;
   bool REPLICATION;
@@ -148,7 +148,7 @@ struct MatrixParams : BaseParams {
     m & weightAddressGenFxIndex;
     m & weightAddressGenFyIndex;
     m & STRIDE;
-    m & headSize;
+    m & headSizeInPowerOfTwo;
     m & WEIGHT_TRANSPOSE;
     m & REPLICATION;
     m & STORE_IN_ACC;
@@ -229,7 +229,7 @@ struct MatrixParams : BaseParams {
     os << "BIAS: " << params.BIAS << std::endl;
     os << "BIAS_OFFSET: " << params.BIAS_OFFSET << std::endl;
     os << "MX: " << params.MX << std::endl;
-    os << "headSize: " << params.headSize << std::endl;
+    os << "headSizeInPowerOfTwo: " << params.headSizeInPowerOfTwo << std::endl;
     return os;
   }
 
@@ -281,7 +281,7 @@ struct MatrixParams : BaseParams {
 
     if (lhs.MX != rhs.MX) return false;
 
-    if (lhs.headSize != rhs.headSize) return false;
+    if (lhs.headSizeInPowerOfTwo != rhs.headSizeInPowerOfTwo) return false;
 
     // If all members are equal, return true
     return true;
@@ -469,10 +469,19 @@ struct VectorInstructions {
     os << "vOp3: " << params.vOp3 << std::endl;
     os << "vOp4: " << params.vOp4 << std::endl;
     os << "vmapOffset: " << params.vmapOffset << std::endl;
+    os << "vOp5: " << params.vOp5 << std::endl;
+    os << "vAccumulatePush: " << params.vAccumulatePush << std::endl;
     os << "vDest: " << params.vDest << std::endl;
     os << "rCount: " << params.rCount << std::endl;
     os << "rOp: " << params.rOp << std::endl;
+    os << "rSqrt: " << params.rSqrt << std::endl;
+    os << "rReciprocal: " << params.rReciprocal << std::endl;
+    os << "rMax1: " << params.rMax1 << std::endl;
+    os << "rDuplicate: " << params.rDuplicate << std::endl;
     os << "rDest: " << params.rDest << std::endl;
+    os << "rBroadcast: " << params.rBroadcast << std::endl;
+    os << "immediate0: " << params.immediate0 << std::endl;
+    os << "immediate1: " << params.immediate1 << std::endl;
     return os;
   }
 
@@ -510,7 +519,26 @@ struct VectorParams : BaseParams {
         addressGen0Loop[i][j] = 0;
       }
     }
+    for (int i = 0; i < 2; i++) {
+      addressGen0InputXLoopIndex[i] = 0;
+      addressGen0InputYLoopIndex[i] = 0;
+      addressGen0WeightLoopIndex[i] = 0;
+    }
+    vec0DequantizeScale = 0;
     DP_VEC0 = false;
+
+    addressGen0Broadcast = 0;
+
+    VECTOR_INPUT0_SLICING = false;
+    addressGen0Dim = 0;
+    addressGen0Start = 0;
+    addressGen0End = 0;
+    addressGen0Stride = 0;
+
+    VECTOR_INPUT0_RESHAPE = false;
+    for (int i = 0; i < 6; i++) {
+      addressGen0AxisOrder[i] = i;
+    }
 
     ADDRESS_GEN1_OFFSET = 0;
     for (int i = 0; i < 2; i++) {
@@ -523,6 +551,7 @@ struct VectorParams : BaseParams {
       addressGen1InputYLoopIndex[i] = 0;
       addressGen1WeightLoopIndex[i] = 0;
     }
+    vec1DequantizeScale = 0;
     DP_VEC1 = false;
     BROADCAST_VEC1_SCALE = false;
 
@@ -537,11 +566,10 @@ struct VectorParams : BaseParams {
       addressGen2InputYLoopIndex[i] = 0;
       addressGen2WeightLoopIndex[i] = 0;
     }
+    vec2DequantizeScale = 0;
     DP_VEC2 = false;
 
     VECTOR_OUTPUT_OFFSET = 0;
-    SCALAR_OUTPUT_OFFSET = 0;
-
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
         outputLoops[i][j] = 0;
@@ -552,82 +580,102 @@ struct VectorParams : BaseParams {
       outputYLoopIndex[i] = 0;
       outputWeightLoopIndex[i] = 0;
     }
+    DP_OUTPUT = false;
+
+    addressGen0Mode = 0;
+    addressGen1Mode = 0;
+    addressGen2Mode = 0;
+    outputAddressMode = 1;
+
+    headSizeInPowerOfTwo = 32;
     SPLIT_OUTPUT = false;
     CONCAT_OUTPUT = false;
 
-    DP_OUTPUT = false;
     OUTPUT_QUANTIZE = false;
     OUTPUT_QUANTIZE_MX = false;
 
-    addressGen0Mode = 0;
-    addressGen0Broadcast = false;
-    addressGen0BroadcastCount = 0;
-    addressGen1Mode = 0;
-    addressGen2Mode = 0;
     MAXPOOL = false;
     AVGPOOL = false;
-    headSize = 32;
   }
 #endif
 
   // Address Gen 0 (vector input)
   unsigned long long VECTOR_OFFSET;
-  ac_int<11, false> addressGen0Loop[2][3];  // tiled 2d tensor
+  ac_int<11, false> addressGen0Loop[2][3];
   ac_int<3, false> addressGen0InputXLoopIndex[2];
   ac_int<3, false> addressGen0InputYLoopIndex[2];
   ac_int<3, false> addressGen0WeightLoopIndex[2];
-  bool DP_VEC0;
   ac_int<16, false> vec0DequantizeScale;
+  bool DP_VEC0;
 
-  // Address Gen 1 (residual/op0src1)
+  // A vector where each bit represents if the corresponding dimension is
+  // broadcasted
+  ac_int<6, false> addressGen0Broadcast;
+
+  bool VECTOR_INPUT0_SLICING;
+  ac_int<3, false> addressGen0Dim;
+  ac_int<11, false> addressGen0Start;
+  ac_int<11, false> addressGen0End;
+  ac_int<11, false> addressGen0Stride;
+
+  bool VECTOR_INPUT0_RESHAPE;
+  ac_int<3, false> addressGen0AxisOrder[6];
+
+  // Address Gen 1 (op0src1)
   unsigned long long ADDRESS_GEN1_OFFSET;
   ac_int<11, false> addressGen1Loops[2][3];
   ac_int<3, false> addressGen1InputXLoopIndex[2];
   ac_int<3, false> addressGen1InputYLoopIndex[2];
   ac_int<3, false> addressGen1WeightLoopIndex[2];
-  bool DP_VEC1;
   ac_int<16, false> vec1DequantizeScale;
+  bool DP_VEC1;
+
   bool BROADCAST_VEC1_SCALE;
   ac_int<8, false> vec1BroadcastCount;
 
-  // Address Gen 2 (bias/op3src1)
+  // Address Gen 2 (op3src1)
   unsigned long long ADDRESS_GEN2_OFFSET;
   ac_int<11, false> addressGen2Loops[2][3];
   ac_int<3, false> addressGen2InputXLoopIndex[2];
   ac_int<3, false> addressGen2InputYLoopIndex[2];
   ac_int<3, false> addressGen2WeightLoopIndex[2];
-  bool DP_VEC2;
   ac_int<16, false> vec2DequantizeScale;
+  bool DP_VEC2;
 
   unsigned long long VECTOR_OUTPUT_OFFSET;
-  unsigned long long SCALAR_OUTPUT_OFFSET;
-
   ac_int<11, false> outputLoops[2][3];
   ac_int<3, false> outputXLoopIndex[2];
   ac_int<3, false> outputYLoopIndex[2];
   ac_int<3, false> outputWeightLoopIndex[2];
-  bool SPLIT_OUTPUT;
-  bool CONCAT_OUTPUT;
-  ac_int<8, false> headSize;
-
-  bool DP_OUTPUT;
-  bool OUTPUT_QUANTIZE;
   ac_int<16, false> outputQuantizeScale;
-  bool OUTPUT_QUANTIZE_MX;
+  bool DP_OUTPUT;
 
-  // 1: 3d-tensor, 2: 2d-tensor, 3: 1d-tensor
   ac_int<2, false> addressGen0Mode;
-  bool addressGen0Broadcast;
-  ac_int<10, false> addressGen0BroadcastCount;
   ac_int<2, false> addressGen1Mode;
   ac_int<2, false> addressGen2Mode;
+  ac_int<2, false> outputAddressMode;
+
+  // Transformer head permutation
+  ac_int<4, false> headSizeInPowerOfTwo;
+  bool SPLIT_OUTPUT;
+  bool CONCAT_OUTPUT;
+
+  bool OUTPUT_QUANTIZE;
+  bool OUTPUT_QUANTIZE_MX;
+
   bool MAXPOOL;
   bool AVGPOOL;
 
+  // Each address generator has a 64-bit offset, 6 11-bit loop boundaries, 6
+  // 3-bit loop indices, a 16-bit dequantize scale and a double precision
+  // boolean flag
+  static const unsigned int address_gen_width = 64 + 6 * 11 + 6 * 3 + 16 + 1;
+
+  // 4 address generators + 4 2-bit generator mode + 7 boolean flags + 8-bit
+  // head size + 8-bit broadcast count + addr generator 0 start, end, stride,
+  // and misc values
   static const unsigned int width =
-      5 * 64 /* OFFSETS */ + 4 * 6 * 11 /* Loops */ +
-      3 * 6 * 4 /* Loop indices */ + 12 * 1 /* Bools */ + 10 + 3 * 2 +
-      16 * 4 /* Dequantize scale */ + 8 + 8 /* Transformer head dimension */;
+      4 * address_gen_width + 4 * 2 + 7 + 4 + 8 + 62;
 
 #ifndef NO_SYSC
   template <unsigned int Size>
@@ -647,8 +695,22 @@ struct VectorParams : BaseParams {
     for (int i = 0; i < 2; i++) {
       m& addressGen0WeightLoopIndex[i];
     }
-    m & DP_VEC0;
     m & vec0DequantizeScale;
+    m & DP_VEC0;
+
+    m & addressGen0Broadcast;
+
+    m & VECTOR_INPUT0_SLICING;
+    m & addressGen0Dim;
+    m & addressGen0Start;
+    m & addressGen0End;
+    m & addressGen0Stride;
+
+    m & VECTOR_INPUT0_RESHAPE;
+    for (int i = 0; i < 6; i++) {
+      m& addressGen0AxisOrder[i];
+    }
+
     m & ADDRESS_GEN1_OFFSET;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
@@ -664,13 +726,13 @@ struct VectorParams : BaseParams {
     for (int i = 0; i < 2; i++) {
       m& addressGen1WeightLoopIndex[i];
     }
-    m & DP_VEC1;
     m & vec1DequantizeScale;
+    m & DP_VEC1;
+
     m & BROADCAST_VEC1_SCALE;
     m & vec1BroadcastCount;
 
     m & ADDRESS_GEN2_OFFSET;
-
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
         m& addressGen2Loops[i][j];
@@ -685,10 +747,10 @@ struct VectorParams : BaseParams {
     for (int i = 0; i < 2; i++) {
       m& addressGen2WeightLoopIndex[i];
     }
-    m & DP_VEC2;
     m & vec2DequantizeScale;
+    m & DP_VEC2;
+
     m & VECTOR_OUTPUT_OFFSET;
-    m & SCALAR_OUTPUT_OFFSET;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
         m& outputLoops[i][j];
@@ -703,18 +765,21 @@ struct VectorParams : BaseParams {
     for (int i = 0; i < 2; i++) {
       m& outputWeightLoopIndex[i];
     }
-    m & SPLIT_OUTPUT;
-    m & CONCAT_OUTPUT;
-    m & headSize;
-    m & DP_OUTPUT;
-    m & OUTPUT_QUANTIZE;
     m & outputQuantizeScale;
-    m & OUTPUT_QUANTIZE_MX;
+    m & DP_OUTPUT;
+
     m & addressGen0Mode;
-    m & addressGen0Broadcast;
-    m & addressGen0BroadcastCount;
     m & addressGen1Mode;
     m & addressGen2Mode;
+    m & outputAddressMode;
+
+    m & headSizeInPowerOfTwo;
+    m & SPLIT_OUTPUT;
+    m & CONCAT_OUTPUT;
+
+    m & OUTPUT_QUANTIZE;
+    m & OUTPUT_QUANTIZE_MX;
+
     m & MAXPOOL;
     m & AVGPOOL;
   }
@@ -748,9 +813,24 @@ struct VectorParams : BaseParams {
     }
     os << "DP_VEC0: " << params.DP_VEC0 << std::endl;
     os << "addressGen0Mode: " << params.addressGen0Mode << std::endl;
+    os << "vec0DequantizeScale: " << params.vec0DequantizeScale << std::endl;
+
     os << "addressGen0Broadcast: " << params.addressGen0Broadcast << std::endl;
-    os << "addressGen0BroadcastCount: " << params.addressGen0BroadcastCount
+
+    os << "VECTOR_INPUT0_SLICING: " << params.VECTOR_INPUT0_SLICING
        << std::endl;
+    os << "addressGen0Dim: " << params.addressGen0Dim << std::endl;
+    os << "addressGen0Start: " << params.addressGen0Start << std::endl;
+    os << "addressGen0End: " << params.addressGen0End << std::endl;
+    os << "addressGen0Stride: " << params.addressGen0Stride << std::endl;
+
+    os << "VECTOR_INPUT0_RESHAPE: " << params.VECTOR_INPUT0_RESHAPE
+       << std::endl;
+    for (int i = 0; i < 6; i++) {
+      os << "addressGen0AxisOrder[" << i
+         << "]: " << params.addressGen0AxisOrder[i] << std::endl;
+    }
+
     os << "ADDRESS_GEN1_OFFSET: " << params.ADDRESS_GEN1_OFFSET << std::endl;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
@@ -772,6 +852,7 @@ struct VectorParams : BaseParams {
     }
     os << "DP_VEC1: " << params.DP_VEC1 << std::endl;
     os << "addressGen1Mode: " << params.addressGen1Mode << std::endl;
+
     os << "ADDRESS_GEN2_OFFSET: " << params.ADDRESS_GEN2_OFFSET << std::endl;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
@@ -793,8 +874,16 @@ struct VectorParams : BaseParams {
     }
     os << "DP_VEC2: " << params.DP_VEC2 << std::endl;
     os << "addressGen2Mode: " << params.addressGen2Mode << std::endl;
+
+    // os << "addressGen2Reshape: " << params.addressGen2Reshape << std::endl;
+    // os << "addressGen2Dim: " << params.addressGen2Dim << std::endl;
+    // os << "addressGen2Start: " << params.addressGen2Start << std::endl;
+    // os << "addressGen2End: " << params.addressGen2End << std::endl;
+    // os << "addressGen2Stride: " << params.addressGen2Stride << std::endl;
+    // os << "addressGen2Broadcast: " << params.addressGen2Broadcast <<
+    // std::endl;
+
     os << "VECTOR_OUTPUT_OFFSET: " << params.VECTOR_OUTPUT_OFFSET << std::endl;
-    os << "SCALAR_OUTPUT_OFFSET: " << params.SCALAR_OUTPUT_OFFSET << std::endl;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
         os << "outputLoops[" << i << "][" << j
@@ -813,10 +902,13 @@ struct VectorParams : BaseParams {
       os << "outputWeightLoopIndex[" << i
          << "]: " << params.outputWeightLoopIndex[i] << std::endl;
     }
+    os << "DP_OUTPUT: " << params.DP_OUTPUT << std::endl;
+    os << "outputAddressMode: " << params.outputAddressMode << std::endl;
+
+    os << "headSizeInPowerOfTwo: " << params.headSizeInPowerOfTwo << std::endl;
     os << "SPLIT_OUTPUT: " << params.SPLIT_OUTPUT << std::endl;
     os << "CONCAT_OUTPUT: " << params.CONCAT_OUTPUT << std::endl;
-    os << "headSize: " << params.headSize << std::endl;
-    os << "DP_OUTPUT: " << params.DP_OUTPUT << std::endl;
+
     os << "MAXPOOL: " << params.MAXPOOL << std::endl;
     os << "AVGPOOL: " << params.AVGPOOL << std::endl;
     return os;
@@ -894,7 +986,6 @@ struct VectorParams : BaseParams {
 
     // Compare output and other members
     if (lhs.VECTOR_OUTPUT_OFFSET != rhs.VECTOR_OUTPUT_OFFSET) return false;
-    if (lhs.SCALAR_OUTPUT_OFFSET != rhs.SCALAR_OUTPUT_OFFSET) return false;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 3; j++) {
         if (lhs.outputLoops[i][j] != rhs.outputLoops[i][j]) return false;
@@ -915,9 +1006,7 @@ struct VectorParams : BaseParams {
 
     // Compare address generation modes and pooling settings
     if (lhs.addressGen0Mode != rhs.addressGen0Mode) return false;
-    if (lhs.addressGen0Broadcast != rhs.addressGen0Broadcast) return false;
-    if (lhs.addressGen0BroadcastCount != rhs.addressGen0BroadcastCount)
-      return false;
+    // if (lhs.addressGen0Broadcast != rhs.addressGen0Broadcast) return false;
     if (lhs.addressGen1Mode != rhs.addressGen1Mode) return false;
     if (lhs.addressGen2Mode != rhs.addressGen2Mode) return false;
     if (lhs.MAXPOOL != rhs.MAXPOOL) return false;

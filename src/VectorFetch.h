@@ -75,73 +75,163 @@ SC_MODULE(VectorFetchUnit) {
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_bounds[2][3];
+      ac_int<11, false> loop_starts[2][3];
+      ac_int<11, false> loop_ends[2][3];
+      ac_int<11, false> loop_strides[2][3];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
 #pragma hls_unroll yes
         for (int j = 0; j < 3; j++) {
           loop_bounds[i][j] = params.addressGen0Loop[i][j];
+          loop_starts[i][j] = 0;
+          loop_ends[i][j] = params.addressGen0Loop[i][j];
+          loop_strides[i][j] = 1;
+        }
+      }
+
+      if (params.VECTOR_INPUT0_SLICING) {
+        int i = params.addressGen0Dim / 3;
+        int j = params.addressGen0Dim % 3;
+        loop_starts[i][j] = params.addressGen0Start;
+        loop_ends[i][j] = params.addressGen0End;
+        loop_strides[i][j] = params.addressGen0Stride;
+      } else if (params.VECTOR_INPUT0_RESHAPE) {
+#pragma hls_unroll yes
+        for (int dim = 0; dim < 6; dim++) {
+          int i = dim / 3;
+          int j = dim % 3;
+          int new_dim = params.addressGen0AxisOrder[dim];
+          int new_i = new_dim / 3;
+          int new_j = new_dim % 3;
+          loop_ends[i][j] = loop_bounds[new_i][new_j];
         }
       }
 
 #pragma hls_pipeline_init_interval 1
-      for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
-           loop_counters[0][0]++) {
-        for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
-             loop_counters[0][1]++) {
-          for (loop_counters[0][2] = 0; loop_counters[0][2] < loop_bounds[0][2];
-               loop_counters[0][2]++) {
-            for (loop_counters[1][0] = 0;
-                 loop_counters[1][0] < loop_bounds[1][0];
-                 loop_counters[1][0]++) {
-              for (loop_counters[1][1] = 0;
-                   loop_counters[1][1] < loop_bounds[1][1];
-                   loop_counters[1][1]++) {
-                for (loop_counters[1][2] = 0;
-                     loop_counters[1][2] < loop_bounds[1][2];
-                     loop_counters[1][2]++) {
-                  ac_int<11, false> x0 =
-                      loop_counters[1][params.addressGen0InputXLoopIndex[1]];
-                  ac_int<11, false> x1 =
-                      loop_counters[0][params.addressGen0InputXLoopIndex[0]];
-                  ac_int<11, false> y0 =
-                      loop_counters[1][params.addressGen0InputYLoopIndex[1]];
-                  ac_int<11, false> y1 =
-                      loop_counters[0][params.addressGen0InputYLoopIndex[0]];
-                  ac_int<11, false> k0 =
-                      loop_counters[1][params.addressGen0WeightLoopIndex[1]];
-                  ac_int<11, false> k1 =
-                      loop_counters[0][params.addressGen0WeightLoopIndex[0]];
-
-                  ac_int<11, false> X0 =
-                      loop_bounds[1][params.addressGen0InputXLoopIndex[1]];
-                  ac_int<11, false> X1 =
-                      loop_bounds[0][params.addressGen0InputXLoopIndex[0]];
-                  ac_int<11, false> Y0 =
-                      loop_bounds[1][params.addressGen0InputYLoopIndex[1]];
-                  ac_int<11, false> Y1 =
-                      loop_bounds[0][params.addressGen0InputYLoopIndex[0]];
-                  ac_int<11, false> K0 =
-                      loop_bounds[1][params.addressGen0WeightLoopIndex[1]];
-                  ac_int<11, false> K1 =
-                      loop_bounds[0][params.addressGen0WeightLoopIndex[0]];
-
-                  ac_int<16, false> k = k1 * K0 * WIDTH + k0 * WIDTH;
-                  ac_int<16, false> K = K1 * K0 * WIDTH;
-
-                  ac_int<16, false> x = x1 * X0 + x0;
-                  ac_int<16, false> X = X1 * X0;
-
-                  ac_int<16, false> y = y1 * Y0 + y0;
-                  ac_int<16, false> Y = Y1 * Y0;
-
+      for (loop_counters[0][0] = loop_starts[0][0];
+           loop_counters[0][0] < loop_ends[0][0];
+           loop_counters[0][0] += loop_strides[0][0]) {
+        for (loop_counters[0][1] = loop_starts[0][1];
+             loop_counters[0][1] < loop_ends[0][1];
+             loop_counters[0][1] += loop_strides[0][1]) {
+          for (loop_counters[0][2] = loop_starts[0][2];
+               loop_counters[0][2] < loop_ends[0][2];
+               loop_counters[0][2] += loop_strides[0][2]) {
+            for (loop_counters[1][0] = loop_starts[1][0];
+                 loop_counters[1][0] < loop_ends[1][0];
+                 loop_counters[1][0] += loop_strides[1][0]) {
+              for (loop_counters[1][1] = loop_starts[1][1];
+                   loop_counters[1][1] < loop_ends[1][1];
+                   loop_counters[1][1] += loop_strides[1][1]) {
+                for (loop_counters[1][2] = loop_starts[1][2];
+                     loop_counters[1][2] < loop_ends[1][2];
+                     loop_counters[1][2] += loop_strides[1][2]) {
                   ac_int<32, false> address;
                   if (params.addressGen0Mode == 1) {
+                    ac_int<11, false> x0 =
+                        loop_counters[1][params.addressGen0InputXLoopIndex[1]];
+                    ac_int<11, false> x1 =
+                        loop_counters[0][params.addressGen0InputXLoopIndex[0]];
+                    ac_int<11, false> y0 =
+                        loop_counters[1][params.addressGen0InputYLoopIndex[1]];
+                    ac_int<11, false> y1 =
+                        loop_counters[0][params.addressGen0InputYLoopIndex[0]];
+                    ac_int<11, false> k0 =
+                        loop_counters[1][params.addressGen0WeightLoopIndex[1]];
+                    ac_int<11, false> k1 =
+                        loop_counters[0][params.addressGen0WeightLoopIndex[0]];
+
+                    ac_int<11, false> X0 =
+                        loop_bounds[1][params.addressGen0InputXLoopIndex[1]];
+                    ac_int<11, false> X1 =
+                        loop_bounds[0][params.addressGen0InputXLoopIndex[0]];
+                    ac_int<11, false> Y0 =
+                        loop_bounds[1][params.addressGen0InputYLoopIndex[1]];
+                    ac_int<11, false> Y1 =
+                        loop_bounds[0][params.addressGen0InputYLoopIndex[0]];
+                    ac_int<11, false> K0 =
+                        loop_bounds[1][params.addressGen0WeightLoopIndex[1]];
+                    ac_int<11, false> K1 =
+                        loop_bounds[0][params.addressGen0WeightLoopIndex[0]];
+
+                    ac_int<16, false> k = k1 * K0 * WIDTH + k0 * WIDTH;
+                    ac_int<16, false> K = K1 * K0 * WIDTH;
+
+                    ac_int<16, false> x = x1 * X0 + x0;
+                    ac_int<16, false> X = X1 * X0;
+
+                    ac_int<16, false> y = y1 * Y0 + y0;
+                    ac_int<16, false> Y = Y1 * Y0;
+
                     address = y * X * K + x * K + k;
                   } else if (params.addressGen0Mode == 2) {
-                    address = x * K + k;
-                  } else if (params.addressGen0Mode == 3) {
-                    address = k;
+                    ac_int<11, false> loop_0 = params.addressGen0Broadcast[0]
+                                                   ? ac_int<11, false>(0)
+                                                   : loop_counters[0][0];
+                    ac_int<11, false> loop_1 = params.addressGen0Broadcast[1]
+                                                   ? ac_int<11, false>(0)
+                                                   : loop_counters[0][1];
+                    ac_int<11, false> loop_2 = params.addressGen0Broadcast[2]
+                                                   ? ac_int<11, false>(0)
+                                                   : loop_counters[0][2];
+                    ac_int<11, false> loop_3 = params.addressGen0Broadcast[3]
+                                                   ? ac_int<11, false>(0)
+                                                   : loop_counters[1][0];
+                    ac_int<11, false> loop_4 = params.addressGen0Broadcast[4]
+                                                   ? ac_int<11, false>(0)
+                                                   : loop_counters[1][1];
+                    ac_int<11, false> loop_5 = params.addressGen0Broadcast[5]
+                                                   ? ac_int<11, false>(0)
+                                                   : loop_counters[1][2];
+
+                    ac_int<11, false> loop_bound_0 =
+                        params.addressGen0Broadcast[0] ? ac_int<11, false>(1)
+                                                       : loop_bounds[0][0];
+                    ac_int<11, false> loop_bound_1 =
+                        params.addressGen0Broadcast[1] ? ac_int<11, false>(1)
+                                                       : loop_bounds[0][1];
+                    ac_int<11, false> loop_bound_2 =
+                        params.addressGen0Broadcast[2] ? ac_int<11, false>(1)
+                                                       : loop_bounds[0][2];
+                    ac_int<11, false> loop_bound_3 =
+                        params.addressGen0Broadcast[3] ? ac_int<11, false>(1)
+                                                       : loop_bounds[1][0];
+                    ac_int<11, false> loop_bound_4 =
+                        params.addressGen0Broadcast[4] ? ac_int<11, false>(1)
+                                                       : loop_bounds[1][1];
+                    ac_int<11, false> loop_bound_5 =
+                        params.addressGen0Broadcast[5] ? ac_int<11, false>(1)
+                                                       : loop_bounds[1][2];
+
+                    // Permute indices
+                    if (params.VECTOR_INPUT0_RESHAPE) {
+                      ac_int<11, false> indices[6] = {loop_0, loop_1, loop_2,
+                                                      loop_3, loop_4, loop_5};
+                      ac_int<11, false> orig_indices[6];
+
+                      for (int i = 0; i < 6; i++) {
+                        orig_indices[params.addressGen0AxisOrder[i]] =
+                            indices[i];
+                      }
+
+                      loop_0 = orig_indices[0];
+                      loop_1 = orig_indices[1];
+                      loop_2 = orig_indices[2];
+                      loop_3 = orig_indices[3];
+                      loop_4 = orig_indices[4];
+                      loop_5 = orig_indices[5];
+                    }
+
+                    address =
+                        (loop_0 * loop_bound_1 * loop_bound_2 * loop_bound_3 *
+                             loop_bound_4 * loop_bound_5 +
+                         loop_1 * loop_bound_2 * loop_bound_3 * loop_bound_4 *
+                             loop_bound_5 +
+                         loop_2 * loop_bound_3 * loop_bound_4 * loop_bound_5 +
+                         loop_3 * loop_bound_4 * loop_bound_5 +
+                         loop_4 * loop_bound_5 + loop_5) *
+                        WIDTH;
                   }
 
                   if (params.DP_VEC0) {
@@ -174,18 +264,48 @@ SC_MODULE(VectorFetchUnit) {
     while (true) {
       VectorParams params = dataResponse0Params.Pop();
 
+      ac_int<11, false> loop_counters[2][3];
+      ac_int<11, false> loop_starts[2][3];
+      ac_int<11, false> loop_ends[2][3];
+      ac_int<11, false> loop_strides[2][3];
+
+#pragma hls_unroll yes
+      for (int i = 0; i < 2; i++) {
+#pragma hls_unroll yes
+        for (int j = 0; j < 3; j++) {
+          loop_starts[i][j] = 0;
+          loop_ends[i][j] = params.addressGen0Loop[i][j];
+          loop_strides[i][j] = 1;
+        }
+      }
+
+      if (params.VECTOR_INPUT0_SLICING) {
+        int i = params.addressGen0Dim / 3;
+        int j = params.addressGen0Dim % 3;
+        loop_starts[i][j] = params.addressGen0Start;
+        loop_ends[i][j] = params.addressGen0End;
+        loop_strides[i][j] = params.addressGen0Stride;
+      }
+
 #pragma hls_pipeline_init_interval 1
-      for (ac_int<11, false> i0 = 0; i0 < params.addressGen0Loop[0][0]; i0++) {
-        for (ac_int<11, false> j0 = 0; j0 < params.addressGen0Loop[0][1];
-             j0++) {
-          for (ac_int<11, false> k0 = 0; k0 < params.addressGen0Loop[0][2];
-               k0++) {
-            for (ac_int<11, false> i1 = 0; i1 < params.addressGen0Loop[1][0];
-                 i1++) {
-              for (ac_int<11, false> j1 = 0; j1 < params.addressGen0Loop[1][1];
-                   j1++) {
-                for (ac_int<11, false> k1 = 0;
-                     k1 < params.addressGen0Loop[1][2]; k1++) {
+      for (loop_counters[0][0] = loop_starts[0][0];
+           loop_counters[0][0] < loop_ends[0][0];
+           loop_counters[0][0] += loop_strides[0][0]) {
+        for (loop_counters[0][1] = loop_starts[0][1];
+             loop_counters[0][1] < loop_ends[0][1];
+             loop_counters[0][1] += loop_strides[0][1]) {
+          for (loop_counters[0][2] = loop_starts[0][2];
+               loop_counters[0][2] < loop_ends[0][2];
+               loop_counters[0][2] += loop_strides[0][2]) {
+            for (loop_counters[1][0] = loop_starts[1][0];
+                 loop_counters[1][0] < loop_ends[1][0];
+                 loop_counters[1][0] += loop_strides[1][0]) {
+              for (loop_counters[1][1] = loop_starts[1][1];
+                   loop_counters[1][1] < loop_ends[1][1];
+                   loop_counters[1][1] += loop_strides[1][1]) {
+                for (loop_counters[1][2] = loop_starts[1][2];
+                     loop_counters[1][2] < loop_ends[1][2];
+                     loop_counters[1][2] += loop_strides[1][2]) {
                   Pack1D<VEC_DTYPE, WIDTH> fullPrecisionDataResponse;
                   if (params.DP_VEC0) {
                     // combine multiple IO_DTYPE into one VEC_DTYPE
@@ -241,31 +361,40 @@ SC_MODULE(VectorFetchUnit) {
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_bounds[2][3];
+      ac_int<11, false> loop_starts[2][3];
+      ac_int<11, false> loop_ends[2][3];
+      ac_int<11, false> loop_strides[2][3];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
 #pragma hls_unroll yes
         for (int j = 0; j < 3; j++) {
           loop_bounds[i][j] = params.addressGen1Loops[i][j];
+          loop_starts[i][j] = 0;
+          loop_ends[i][j] = params.addressGen1Loops[i][j];
+          loop_strides[i][j] = 1;
         }
       }
 
 #pragma hls_pipeline_init_interval 1
-      for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
-           loop_counters[0][0]++) {
-        for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
-             loop_counters[0][1]++) {
-          for (loop_counters[0][2] = 0; loop_counters[0][2] < loop_bounds[0][2];
-               loop_counters[0][2]++) {
-            for (loop_counters[1][0] = 0;
-                 loop_counters[1][0] < loop_bounds[1][0];
-                 loop_counters[1][0]++) {
-              for (loop_counters[1][1] = 0;
-                   loop_counters[1][1] < loop_bounds[1][1];
-                   loop_counters[1][1]++) {
-                for (loop_counters[1][2] = 0;
-                     loop_counters[1][2] < loop_bounds[1][2];
-                     loop_counters[1][2]++) {
+      for (loop_counters[0][0] = loop_starts[0][0];
+           loop_counters[0][0] < loop_ends[0][0];
+           loop_counters[0][0] += loop_strides[0][0]) {
+        for (loop_counters[0][1] = loop_starts[0][1];
+             loop_counters[0][1] < loop_ends[0][1];
+             loop_counters[0][1] += loop_strides[0][1]) {
+          for (loop_counters[0][2] = loop_starts[0][2];
+               loop_counters[0][2] < loop_ends[0][2];
+               loop_counters[0][2] += loop_strides[0][2]) {
+            for (loop_counters[1][0] = loop_starts[1][0];
+                 loop_counters[1][0] < loop_ends[1][0];
+                 loop_counters[1][0] += loop_strides[1][0]) {
+              for (loop_counters[1][1] = loop_starts[1][1];
+                   loop_counters[1][1] < loop_ends[1][1];
+                   loop_counters[1][1] += loop_strides[1][1]) {
+                for (loop_counters[1][2] = loop_starts[1][2];
+                     loop_counters[1][2] < loop_ends[1][2];
+                     loop_counters[1][2] += loop_strides[1][2]) {
                   ac_int<11, false> x0 =
                       loop_counters[1][params.addressGen1InputXLoopIndex[1]];
                   ac_int<11, false> x1 =
@@ -345,31 +474,40 @@ SC_MODULE(VectorFetchUnit) {
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_bounds[2][3];
+      ac_int<11, false> loop_starts[2][3];
+      ac_int<11, false> loop_ends[2][3];
+      ac_int<11, false> loop_strides[2][3];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
 #pragma hls_unroll yes
         for (int j = 0; j < 3; j++) {
           loop_bounds[i][j] = params.addressGen1Loops[i][j];
+          loop_starts[i][j] = 0;
+          loop_ends[i][j] = params.addressGen1Loops[i][j];
+          loop_strides[i][j] = 1;
         }
       }
 
 #pragma hls_pipeline_init_interval 1
-      for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
-           loop_counters[0][0]++) {
-        for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
-             loop_counters[0][1]++) {
-          for (loop_counters[0][2] = 0; loop_counters[0][2] < loop_bounds[0][2];
-               loop_counters[0][2]++) {
-            for (loop_counters[1][0] = 0;
-                 loop_counters[1][0] < loop_bounds[1][0];
-                 loop_counters[1][0]++) {
-              for (loop_counters[1][1] = 0;
-                   loop_counters[1][1] < loop_bounds[1][1];
-                   loop_counters[1][1]++) {
-                for (loop_counters[1][2] = 0;
-                     loop_counters[1][2] < loop_bounds[1][2];
-                     loop_counters[1][2]++) {
+      for (loop_counters[0][0] = loop_starts[0][0];
+           loop_counters[0][0] < loop_ends[0][0];
+           loop_counters[0][0] += loop_strides[0][0]) {
+        for (loop_counters[0][1] = loop_starts[0][1];
+             loop_counters[0][1] < loop_ends[0][1];
+             loop_counters[0][1] += loop_strides[0][1]) {
+          for (loop_counters[0][2] = loop_starts[0][2];
+               loop_counters[0][2] < loop_ends[0][2];
+               loop_counters[0][2] += loop_strides[0][2]) {
+            for (loop_counters[1][0] = loop_starts[1][0];
+                 loop_counters[1][0] < loop_ends[1][0];
+                 loop_counters[1][0] += loop_strides[1][0]) {
+              for (loop_counters[1][1] = loop_starts[1][1];
+                   loop_counters[1][1] < loop_ends[1][1];
+                   loop_counters[1][1] += loop_strides[1][1]) {
+                for (loop_counters[1][2] = loop_starts[1][2];
+                     loop_counters[1][2] < loop_ends[1][2];
+                     loop_counters[1][2] += loop_strides[1][2]) {
                   Pack1D<VEC_DTYPE, WIDTH> fullPrecisionDataResponse;
                   if (params.DP_VEC1) {
                     // combine multiple IO_DTYPE into one VEC_DTYPE
@@ -443,31 +581,40 @@ SC_MODULE(VectorFetchUnit) {
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_bounds[2][3];
+      ac_int<11, false> loop_starts[2][3];
+      ac_int<11, false> loop_ends[2][3];
+      ac_int<11, false> loop_strides[2][3];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
 #pragma hls_unroll yes
         for (int j = 0; j < 3; j++) {
           loop_bounds[i][j] = params.addressGen2Loops[i][j];
+          loop_starts[i][j] = 0;
+          loop_ends[i][j] = params.addressGen2Loops[i][j];
+          loop_strides[i][j] = 1;
         }
       }
 
 #pragma hls_pipeline_init_interval 1
-      for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
-           loop_counters[0][0]++) {
-        for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
-             loop_counters[0][1]++) {
-          for (loop_counters[0][2] = 0; loop_counters[0][2] < loop_bounds[0][2];
-               loop_counters[0][2]++) {
-            for (loop_counters[1][0] = 0;
-                 loop_counters[1][0] < loop_bounds[1][0];
-                 loop_counters[1][0]++) {
-              for (loop_counters[1][1] = 0;
-                   loop_counters[1][1] < loop_bounds[1][1];
-                   loop_counters[1][1]++) {
-                for (loop_counters[1][2] = 0;
-                     loop_counters[1][2] < loop_bounds[1][2];
-                     loop_counters[1][2]++) {
+      for (loop_counters[0][0] = loop_starts[0][0];
+           loop_counters[0][0] < loop_ends[0][0];
+           loop_counters[0][0] += loop_strides[0][0]) {
+        for (loop_counters[0][1] = loop_starts[0][1];
+             loop_counters[0][1] < loop_ends[0][1];
+             loop_counters[0][1] += loop_strides[0][1]) {
+          for (loop_counters[0][2] = loop_starts[0][2];
+               loop_counters[0][2] < loop_ends[0][2];
+               loop_counters[0][2] += loop_strides[0][2]) {
+            for (loop_counters[1][0] = loop_starts[1][0];
+                 loop_counters[1][0] < loop_ends[1][0];
+                 loop_counters[1][0] += loop_strides[1][0]) {
+              for (loop_counters[1][1] = loop_starts[1][1];
+                   loop_counters[1][1] < loop_ends[1][1];
+                   loop_counters[1][1] += loop_strides[1][1]) {
+                for (loop_counters[1][2] = loop_starts[1][2];
+                     loop_counters[1][2] < loop_ends[1][2];
+                     loop_counters[1][2] += loop_strides[1][2]) {
                   ac_int<11, false> x0 =
                       loop_counters[1][params.addressGen2InputXLoopIndex[1]];
                   ac_int<11, false> x1 =
@@ -546,31 +693,40 @@ SC_MODULE(VectorFetchUnit) {
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_bounds[2][3];
+      ac_int<11, false> loop_starts[2][3];
+      ac_int<11, false> loop_ends[2][3];
+      ac_int<11, false> loop_strides[2][3];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
 #pragma hls_unroll yes
         for (int j = 0; j < 3; j++) {
           loop_bounds[i][j] = params.addressGen2Loops[i][j];
+          loop_starts[i][j] = 0;
+          loop_ends[i][j] = params.addressGen2Loops[i][j];
+          loop_strides[i][j] = 1;
         }
       }
 
 #pragma hls_pipeline_init_interval 1
-      for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
-           loop_counters[0][0]++) {
-        for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
-             loop_counters[0][1]++) {
-          for (loop_counters[0][2] = 0; loop_counters[0][2] < loop_bounds[0][2];
-               loop_counters[0][2]++) {
-            for (loop_counters[1][0] = 0;
-                 loop_counters[1][0] < loop_bounds[1][0];
-                 loop_counters[1][0]++) {
-              for (loop_counters[1][1] = 0;
-                   loop_counters[1][1] < loop_bounds[1][1];
-                   loop_counters[1][1]++) {
-                for (loop_counters[1][2] = 0;
-                     loop_counters[1][2] < loop_bounds[1][2];
-                     loop_counters[1][2]++) {
+      for (loop_counters[0][0] = loop_starts[0][0];
+           loop_counters[0][0] < loop_ends[0][0];
+           loop_counters[0][0] += loop_strides[0][0]) {
+        for (loop_counters[0][1] = loop_starts[0][1];
+             loop_counters[0][1] < loop_ends[0][1];
+             loop_counters[0][1] += loop_strides[0][1]) {
+          for (loop_counters[0][2] = loop_starts[0][2];
+               loop_counters[0][2] < loop_ends[0][2];
+               loop_counters[0][2] += loop_strides[0][2]) {
+            for (loop_counters[1][0] = loop_starts[1][0];
+                 loop_counters[1][0] < loop_ends[1][0];
+                 loop_counters[1][0] += loop_strides[1][0]) {
+              for (loop_counters[1][1] = loop_starts[1][1];
+                   loop_counters[1][1] < loop_ends[1][1];
+                   loop_counters[1][1] += loop_strides[1][1]) {
+                for (loop_counters[1][2] = loop_starts[1][2];
+                     loop_counters[1][2] < loop_ends[1][2];
+                     loop_counters[1][2] += loop_strides[1][2]) {
                   Pack1D<VEC_DTYPE, WIDTH> fullPrecisionDataResponse;
                   if (params.DP_VEC2) {
                     constexpr int num_words =

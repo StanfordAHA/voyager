@@ -9,7 +9,6 @@ import re
 
 
 def print_test_results(test_results, layers, output_folder):
-    print(test_results)
     columns = ["Model", "Layer", "Status", "Runtime", "Ideal"]
     if len(test_results[0]) == 3:
         columns = columns[:3]
@@ -37,14 +36,14 @@ def print_test_results(test_results, layers, output_folder):
         failed = model_df[model_df["Status"] == False]
 
         print("Passed:")
-        print(passed["Layer"].to_string(index=False) if not passed.empty else "None")
+        print(passed["Layer"].to_string(index=False) if not passed.empty else "None", flush=True)
         print("Failed:")
-        print(failed["Layer"].to_string(index=False) if not failed.empty else "None")
+        print(failed["Layer"].to_string(index=False) if not failed.empty else "None", flush=True)
 
         # if runtime column exists, print runtime of each layer
         if "Runtime" in model_df.columns:
             print("Runtime:")
-            print(model_df[["Layer", "Runtime"]].to_string(index=False))
+            print(model_df[["Layer", "Runtime"]].to_string(index=False), flush=True)
 
     # concatentate all sorted model DataFrames into a single DataFrame and save to pickle
     pd.concat(sorted_df).to_pickle(f"{output_folder}/test_results.pkl")
@@ -64,7 +63,7 @@ def run_gold_model_unit_test(model, layer, output_folder):
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
     env_vars["CLOCK_PERIOD"] = "1"
-    env_vars["SIMS"] = "systemc,file"
+    env_vars["SIMS"] = "gold,pytorch"
 
     with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
         try:
@@ -73,7 +72,7 @@ def run_gold_model_unit_test(model, layer, output_folder):
                 env=env_vars,
                 stdout=stdout_file,
                 stderr=subprocess.STDOUT,
-                timeout=1 * 30,
+                timeout=5 * 60,
             )
         except subprocess.TimeoutExpired:
             print(f"Test {model}_{layer} timed out")
@@ -126,7 +125,7 @@ def run_systemc_unit_test(model, layer, output_folder, fast):
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
     env_vars["CLOCK_PERIOD"] = "1"
-    env_vars["SIMS"] = "systemc,accelerator"
+    env_vars["SIMS"] = "gold,accelerator"
 
     with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
         try:
@@ -187,7 +186,7 @@ def run_rtl_test(model, layer, output_folder):
     env_vars = os.environ.copy()
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
-    env_vars["SIMS"] = "systemc,accelerator"
+    env_vars["SIMS"] = "gold,accelerator"
     # Workaround: vcs/catapult don't support GLIBCXX_3.4.30 in their libstdc++, and the tools hardcode the linker libraries in such an
     # order that their libs are used over the user specified ones. We need the newer version in order to run dependencies installed from conda.
     env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
@@ -202,7 +201,7 @@ def run_rtl_test(model, layer, output_folder):
                     env=env_vars,
                     stdout=stdout_file,
                     stderr=subprocess.STDOUT,
-                    timeout=3 * 60 * 60,
+                    timeout=4 * 60 * 60,
                 )
             except subprocess.TimeoutExpired:
                 print(f"Test {model}_{layer} timed out")
@@ -240,7 +239,7 @@ def run_rtl_test(model, layer, output_folder):
             [
                 "grep",
                 "-oP",
-                "(?<=Ideal runtime: ).\d+",
+                "(?<=ideal runtime: ).\d+",
                 f"{output_folder}/{model}_{layer}.log",
             ],
             stdout=subprocess.PIPE,
@@ -253,13 +252,14 @@ def run_rtl_test(model, layer, output_folder):
     return (model, layer, success, runtime, ideal)
 
 
-def run_rtl_tests(layers, num_processes, results_folder):
+def run_rtl_tests(layers, num_processes, results_folder, keep_build=False):
     check_environment_vars(
         ["DATATYPE", "IC_DIMENSION", "OC_DIMENSION", "TECHNOLOGY", "CLOCK_PERIOD"]
     )
 
     # clean old build
-    subprocess.run(["make", "clean-catapult"], env=os.environ)
+    if not keep_build:
+        subprocess.run(["make", "clean-catapult"], env=os.environ)
 
     # generate RTL
     with open(f"{results_folder}/rtl_generation.log", "w") as stdout_file:
@@ -270,12 +270,21 @@ def run_rtl_tests(layers, num_processes, results_folder):
             stderr=subprocess.STDOUT,
         )
 
+    # Generate ResNet18 model
+    env_vars = os.environ.copy()
+    subprocess.run(
+        [
+            "make",
+            f"{env_vars['CODEGEN_DIR']}/networks/resnet18/{env_vars['DATATYPE']}/model.txt"
+        ],
+        env=os.environ
+    )
+
     # build VCS simulation binary
     with open(f"{results_folder}/vcs_build.log", "w") as stdout_file:
-        env_vars = os.environ.copy()
         env_vars["NETWORK"] = "resnet18"
         env_vars["TESTS"] = "submodule_0"
-        env_vars["SIMS"] = "systemc,accelerator"
+        env_vars["SIMS"] = "gold,accelerator"
         env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
 
         subprocess.run(
@@ -503,6 +512,16 @@ def main():
         required=True,
         help="Number of processes to run in parallel",
     )
+    parser.add_argument(
+        "--tests",
+        default=None,
+        help="Comma separated list of tests to run (e.g. test1,test2)",
+    )
+    parser.add_argument(
+        "--keep_build",
+        action="store_true",
+        help="Keep the generated rtl and use it to run rtl tests",
+    )
     args = parser.parse_args()
 
     args.models = [s.strip() for s in args.models.split(",")]
@@ -517,22 +536,26 @@ def main():
 
     # Add codegen layers
     layers = {}
-    for network in args.models:
-        env_vars = os.environ.copy()
-        env_vars["NETWORK"] = network
-        subprocess.run(["make", "network-proto"], env=env_vars)
-        with open(
-            f"test/compiler/networks/{network}/{os.environ['DATATYPE']}/layers.txt",
-            "r",
-        ) as f:
-            layers[network] = f.read().splitlines()
+    if args.tests is None:
+        for network in args.models:
+            env_vars = os.environ.copy()
+            env_vars["NETWORK"] = network
+            subprocess.run(["make", "network-proto"], env=env_vars)
+            with open(
+                f"test/compiler/networks/{network}/{os.environ['DATATYPE']}/layers.txt",
+                "r",
+            ) as f:
+                layers[network] = f.read().splitlines()
+    else:
+        assert len(args.models) == 1, "Only one model can be specified when using --tests"
+        layers[args.models[0]] = args.tests.split(",")
 
     if args.sims == "systemc" or args.sims == "fast-systemc":
         success = run_systemc_tests(
             layers, args.num_processes, results_folder, args.sims == "fast-systemc"
         )
     elif args.sims == "rtl":
-        success = run_rtl_tests(layers, args.num_processes, results_folder)
+        success = run_rtl_tests(layers, args.num_processes, results_folder, args.keep_build)
     elif args.sims == "gold_model":
         success = run_gold_model_tests(layers, args.num_processes, results_folder)
     elif args.sims == "accuracy":

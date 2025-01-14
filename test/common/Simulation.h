@@ -12,10 +12,11 @@
 #include "src/ArchitectureParams.h"
 #include "test/common/ArrayMemory.h"
 #include "test/common/DataLoader.h"
+#include "test/common/Network.h"
+#include "test/common/operations/Common.h"
 #include "test/compiler/proto/param.pb.h"
 
-void run_accelerator(std::vector<codegen::AcceleratorParam> params,
-                     char *memory);
+void run_accelerator(std::vector<codegen::Operator> params, char *memory);
 
 class Simulation {
  public:
@@ -26,16 +27,17 @@ class Simulation {
   void run();
   int check_outputs();
   void print_help();
-  int get_ideal_runtime(const codegen::AcceleratorParam &param);
+  int get_ideal_runtime(const codegen::Operator &param);
 
  protected:
-  std::vector<std::string> sims;
   std::string model;
-  std::string tests;
   std::string out_dir;
   float tolerance = 0.1;
+  std::vector<std::string> tests;
+  std::vector<std::string> sims;
 
-  std::vector<codegen::AcceleratorParam> params;
+  Network *network;
+  std::vector<codegen::Operator> params;
   std::map<std::string, MemoryInterface *> memories;
   std::map<std::string, DataLoader *> dataLoaders;
 

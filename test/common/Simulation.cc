@@ -29,20 +29,19 @@ Simulation::Simulation() {
     model = "resnet18";
   }
 
-  tests = get_env_var("TESTS");
-  if (tests.empty()) {
-    tests = "submodule_0";
+  std::string tests_str(get_env_var("TESTS"));
+  if (tests_str.empty()) {
+    tests_str = "submodule_0";
   }
 
-  std::vector<std::string> tests_list;
-  split_string(tests, ',', std::back_inserter(tests_list));
-  if (tests_list.size() > 2) {
+  split_string(tests_str, ',', std::back_inserter(tests));
+  if (tests.size() > 2) {
     throw std::runtime_error("Incorrect number of tests specified.");
   }
 
   std::string sims_str(get_env_var("SIMS"));
   if (sims_str.empty()) {
-    sims_str = "fp32,file";
+    sims_str = "gold,pytorch";
   }
 
   split_string(sims_str, ',', std::back_inserter(sims));
@@ -60,20 +59,18 @@ Simulation::Simulation() {
     out_dir = "./test_outputs/";
   }
 
-  // Get list of params to run
-  auto network = new Network(model);
-  params = network->get_params(tests_list);
+  network = new Network(model);
+  params = network->get_params(tests);
 
   std::cout << "Starting new simulation with config:";
   std::cout << "\n> Model: " << model;
   std::cout << "\n> Tests: ";
-  for (const std::string& t : tests_list) std::cout << t << ' ';
+  for (const std::string& t : tests) std::cout << t << ' ';
   std::cout << "\n> Sims: ";
   for (const std::string& s : sims) std::cout << s << ' ';
   std::cout << "\n> Tolerance: " << tolerance;
   std::cout << "\n> Output dir: " << out_dir << "\n";
   std::cout << "> SRAM: " << SRAM_MEMORY_SIZE / 1024 << " KB\n";
-  std::cout << "> RRAM: " << RRAM_MEMORY_SIZE / 1024 << " KB\n";
 }
 
 Simulation::~Simulation() {
@@ -86,12 +83,11 @@ Simulation::~Simulation() {
 }
 
 void Simulation::load_data() {
-  std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE, RRAM_MEMORY_SIZE,
-                                      REFERENCE_MEMORY_SIZE};
+  std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE, REFERENCE_MEMORY_SIZE};
 
-  if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
-    memories["systemc"] = new ArrayMemory(memory_sizes);
-    dataLoaders["systemc"] = new DataLoader(memories["systemc"], false);
+  if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
+    memories["gold"] = new ArrayMemory(memory_sizes);
+    dataLoaders["gold"] = new DataLoader(memories["gold"], false);
   }
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
     memories["accelerator"] = new ArrayMemory(memory_sizes);
@@ -104,10 +100,12 @@ void Simulation::load_data() {
                          std::string(getenv("CODEGEN_DIR")) + "/networks/" +
                          model + "/" + datatype + "/tensor_files";
 
+  const auto params_to_load = network->get_params(tests, false);
+
   for (const auto& [key, dataLoader] : dataLoaders) {
-    dataLoader->load_inputs(params.front(), data_dir);
-    dataLoader->load_outputs(params.back(), data_dir);
-    for (const auto& param : params) {
+    dataLoader->load_inputs(params_to_load.front(), data_dir);
+    dataLoader->load_outputs(params_to_load.back(), data_dir);
+    for (const auto& param : params_to_load) {
       dataLoader->load_weights(param, data_dir);
     }
   }
@@ -115,17 +113,17 @@ void Simulation::load_data() {
   std::cout << "Data loaded successfully" << std::endl;
 }
 
-int Simulation::get_ideal_runtime(const codegen::AcceleratorParam& param) {
+int Simulation::get_ideal_runtime(const codegen::Operator& param) {
   long cycles;
-  if (param.has_matrix_param()) {
+  if (param.has_matrix_op()) {
     // the total number of operations is X*Y*C*FX*FY*K.
     long num_ops = 1;
 
     for (const auto& dim : param.output().shape()) num_ops *= dim;  // X * Y * K
 
     // skip the first dimension (K) since it is already accounted for
-    for (int i = 1; i < param.matrix_param().weight().shape_size(); i++) {
-      num_ops *= param.matrix_param().weight().shape(i);  // FX * FY * C
+    for (int i = 1; i < param.matrix_op().weight().shape_size(); i++) {
+      num_ops *= param.matrix_op().weight().shape(i);  // FX * FY * C
     }
 
     cycles = num_ops / (IC_DIMENSION * OC_DIMENSION);
@@ -144,16 +142,17 @@ int Simulation::get_ideal_runtime(const codegen::AcceleratorParam& param) {
 void Simulation::run() {
   // Run gold models
   for (const auto& param : params) {
-    std::cout << "Ideal runtime: " << get_ideal_runtime(param) << std::endl;
+    std::cout << param.name() << " ideal runtime: " << get_ideal_runtime(param)
+              << std::endl;
 
-    if (std::find(sims.begin(), sims.end(), "systemc") != sims.end()) {
-      auto memory = (ArrayMemory*)(memories["systemc"]);
+    if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
+      auto memory = (ArrayMemory*)(memories["gold"]);
       auto args = memory->get_args(param);
       run_gold_model(param, args);
     }
   }
 
-  // Run accelerator
+  // Run accelerator test
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
     auto memory = (ArrayMemory*)(memories["accelerator"]);
     run_accelerator(params, memory->memories[0]);
@@ -172,60 +171,58 @@ int Simulation::check_outputs() {
   bool has_valid_comp = false;
   double rel_err = 0.0;
 
-  auto param = params.back();
-  int size = 1;
-  for (const auto& dim : param.output().shape()) size *= dim;
+  const auto param = params.back();
+  const int size = get_size(param.output());
 
-  bool file = std::find(sims.begin(), sims.end(), "file") != sims.end();
+  bool pytorch = std::find(sims.begin(), sims.end(), "pytorch") != sims.end();
 
-  auto systemc_memory = (ArrayMemory*)memories["systemc"];
-  auto accelerator_memory = (ArrayMemory*)memories["accelerator"];
+  auto gold_memory = (ArrayMemory*)memories["gold"];
+  auto accel_memory = (ArrayMemory*)memories["accelerator"];
 
-  std::any output_tensor;
-  std::any reference_output_tensor;
   std::string filename;
-  std::string output_tensor_names[2];
+  std::any output1, output2;
+  std::string output_names[2];
 
-  if (systemc_memory && file) {
-    std::cout << "System C Gold Model vs. Pytorch" << std::endl;
+  if (gold_memory && pytorch) {
+    std::cout << "Gold Model vs. PyTorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
-    filename = prefix + "systemc_vs_pytorch.txt";
+    filename = prefix + "gold_vs_pytorch.txt";
 
-    output_tensor_names[0] = "gold_model";
-    output_tensor = systemc_memory->get_output(param);
+    output_names[0] = "gold_model";
+    output1 = gold_memory->get_output(param);
 
-    output_tensor_names[1] = "file";
-    reference_output_tensor = systemc_memory->get_reference_output(param);
+    output_names[1] = "pytorch";
+    output2 = gold_memory->get_reference_output(param);
 
     has_valid_comp = true;
   }
 
-  if (accelerator_memory && file) {
-    std::cout << "Accelerator vs. System C Gold Model" << std::endl;
+  if (accel_memory && pytorch) {
+    std::cout << "Accelerator vs. PyTorch" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
     filename = prefix + "accelerator_vs_pytorch.txt";
 
-    output_tensor_names[0] = "accelerator";
-    output_tensor = accelerator_memory->get_output(param);
+    output_names[0] = "accelerator";
+    output1 = accel_memory->get_output(param);
 
-    output_tensor_names[1] = "file";
-    reference_output_tensor = accelerator_memory->get_reference_output(param);
+    output_names[1] = "pytorch";
+    output2 = accel_memory->get_reference_output(param);
 
     has_valid_comp = true;
   }
 
-  if (accelerator_memory && systemc_memory) {
-    std::cout << "Accelerator vs. System C Gold Model" << std::endl;
+  if (accel_memory && gold_memory) {
+    std::cout << "Accelerator vs. Gold Model" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
-    filename = prefix + "accelerator_vs_systemc.txt";
+    filename = prefix + "accelerator_vs_gold.txt";
 
-    output_tensor_names[0] = "accelerator";
-    output_tensor = accelerator_memory->get_output(param);
+    output_names[0] = "accelerator";
+    output1 = accel_memory->get_output(param);
 
-    output_tensor_names[1] = "gold_model";
-    reference_output_tensor = systemc_memory->get_output(param);
+    output_names[1] = "gold_model";
+    output2 = gold_memory->get_output(param);
 
     has_valid_comp = true;
   }
@@ -233,21 +230,21 @@ int Simulation::check_outputs() {
   if (has_valid_comp) {
     if (param.output().dtype() == "int8") {
       rel_err += compare_arrays<DataTypes::int8, DataTypes::int8>(
-          output_tensor, output_tensor_names[0], reference_output_tensor,
-          output_tensor_names[1], size, filename, false);
+          output1, output_names[0], output2, output_names[1], size, filename,
+          false);
     } else if (param.output().dtype() == "e8m0") {
       rel_err += compare_arrays<DataTypes::e8m0, DataTypes::e8m0>(
-          output_tensor, output_tensor_names[0], reference_output_tensor,
-          output_tensor_names[1], size, filename, false);
+          output1, output_names[0], output2, output_names[1], size, filename,
+          false);
     } else if (param.output().dtype() == "bfloat16") {
       rel_err += compare_arrays<DataTypes::bfloat16, DataTypes::bfloat16>(
-          output_tensor, output_tensor_names[0], reference_output_tensor,
-          output_tensor_names[1], size, filename, false);
+          output1, output_names[0], output2, output_names[1], size, filename,
+          false);
     } else {
       // if unspecified, we will assume it's INPUT_DATATYPE
       rel_err += compare_arrays<INPUT_DATATYPE, INPUT_DATATYPE>(
-          output_tensor, output_tensor_names[0], reference_output_tensor,
-          output_tensor_names[1], size, filename, false);
+          output1, output_names[0], output2, output_names[1], size, filename,
+          false);
     }
   }
 

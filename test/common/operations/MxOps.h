@@ -4,7 +4,7 @@
 
 template <typename INPUT_T, typename OUTPUT_T>
 OUTPUT_T* calculate_mx_qparam(std::any input_tensor,
-                              const codegen::ReduceParam& param) {
+                              const codegen::ReduceOp& param) {
   INPUT_T* inputs = std::any_cast<INPUT_T*>(input_tensor);
 
   int mx_axis = param.dim(0);

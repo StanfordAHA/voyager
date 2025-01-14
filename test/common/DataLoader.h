@@ -18,11 +18,11 @@ class DataLoader {
  public:
   DataLoader(MemoryInterface*, bool);
 
-  void load_inputs(const codegen::AcceleratorParam param, std::string data_dir,
+  void load_inputs(const codegen::Operator param, std::string data_dir,
                    bool random_data = false);
-  void load_weights(const codegen::AcceleratorParam param, std::string data_dir,
+  void load_weights(const codegen::Operator param, std::string data_dir,
                     bool random_data = false);
-  void load_outputs(const codegen::AcceleratorParam param,
+  void load_outputs(const codegen::Operator param,
                     std::string data_dir);
   void load_tensor(const codegen::Tensor& tensor, std::string data_dir,
                    bool transpose = false, bool replication = false);

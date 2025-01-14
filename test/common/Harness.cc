@@ -45,8 +45,8 @@ void register_interface(
 // void copy_output(void *sram, int size, int data_size);
 #endif
 
-Harness::Harness(sc_module_name name,
-                 std::vector<codegen::AcceleratorParam> params, char *memory)
+Harness::Harness(sc_module_name name, std::vector<codegen::Operator> params,
+                 char *memory)
     : sc_module(name),
       clk("clk", std::stod(std::getenv("CLOCK_PERIOD")), SC_NS, 0.5, 0, SC_NS,
           true),
@@ -231,7 +231,7 @@ void Harness::readMemoryRequest(
         data[i].setbits(bits);
       }
       DLOG("read addr: " << memRequest.address << " data: " << data
-                              << std::endl);
+                         << std::endl);
       dataResponse_fifo->write(data);
     }
   }
@@ -271,7 +271,7 @@ void Harness::readSingleMemoryRequest(
       }
       data.setbits(bits);
       DLOG("read addr: " << memRequest.address << " data: " << data
-                              << std::endl);
+                         << std::endl);
       dataResponse_fifo->write(data);
     }
   }
@@ -502,8 +502,7 @@ void Harness::storeVectorOutputs() {
 }
 #endif
 
-void run_accelerator(std::vector<codegen::AcceleratorParam> params,
-                     char *memory) {
+void run_accelerator(std::vector<codegen::Operator> params, char *memory) {
 #ifdef CFLOAT
   std::cerr
       << "The SystemC model does not support the CFloat datatype. Only the "

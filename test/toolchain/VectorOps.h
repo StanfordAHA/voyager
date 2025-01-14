@@ -1,10 +1,5 @@
 #pragma once
 
-#include "src/AccelTypes.h"
-#include "src/Params.h"
-#include "test/common/GoldModel.h"
-#include "test/common/VerificationTypes.h"
-#include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/Common.h"
 
 inline bool are_broadcastable(const std::vector<int> &shape1,
@@ -153,61 +148,108 @@ void set_vector_addr_gen2(const codegen::Tensor &tensor,
   vector_params->vec2DequantizeScale = scale.bits_rep();
 }
 
-void MapVectorOperations(const codegen::AcceleratorParam &param,
+void MapVectorOperations(const codegen::Operator &param,
                          std::deque<BaseParams *> &mappedParams,
                          std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   VectorParams *vector_params = new VectorParams;
   AcceleratorMemoryMap accelerator_memory_map;
 
-  const auto vector_input = param.vector_params(0).input();
-  int numel = 1;
-  for (int i = 0; i < vector_input.shape_size(); i++) {
-    numel *= vector_input.shape(i);
+  codegen::Tensor vector_input;
+  if (param.has_slicing_op()) {
+    vector_input = param.slicing_op().input();
+  } else if (param.has_reshape_op()) {
+    vector_input = param.reshape_op().input();
+  } else {
+    vector_input = param.vector_ops(0).input();
   }
+
+  const auto vector_output = param.output();
+  const int numel = get_size(vector_output);
 
   const auto input_memory = vector_input.memory();
   accelerator_memory_map["vector0"] = get_partition(input_memory.partition());
   vector_params->VECTOR_OFFSET = input_memory.offset();
-  vector_params->addressGen0Mode = 1;
-  vector_params->addressGen0Broadcast = false;
+  vector_params->addressGen0Mode = 2;
 
-  for (int i = 0; i < 3; i++) {
-    vector_params->addressGen0Loop[0][i] = 1;
-    vector_params->outputLoops[0][i] = 1;
+  auto loop_bounds = get_tensor_shape(vector_input);
+
+  // TODO: how to handle reshape operation loop bound adjustment?
+  if (!vector_input.has_reshape()) {
+    loop_bounds = split_loops(loop_bounds, 1024);
+    loop_bounds = adjust_loop_indices(loop_bounds, OC_DIMENSION);
   }
 
-  const auto factorized_shape = decompose_loops(numel / OC_DIMENSION, 1024);
+  // Pad the shape to 6 dimensions with 1s
+  const int num_extra_dims = pad_shape_to_ndim(loop_bounds, 6);
 
-  vector_params->addressGen0Loop[1][0] = factorized_shape[0];
-  vector_params->addressGen0Loop[1][1] = factorized_shape[1];
-  vector_params->addressGen0Loop[1][2] = factorized_shape[2];
+  vector_params->addressGen0Loop[0][0] = loop_bounds[0];
+  vector_params->addressGen0Loop[0][1] = loop_bounds[1];
+  vector_params->addressGen0Loop[0][2] = loop_bounds[2];
+  vector_params->addressGen0Loop[1][0] = loop_bounds[3];
+  vector_params->addressGen0Loop[1][1] = loop_bounds[4];
+  vector_params->addressGen0Loop[1][2] = loop_bounds[5] / OC_DIMENSION;
 
-  vector_params->outputLoops[1][0] = factorized_shape[0];
-  vector_params->outputLoops[1][1] = factorized_shape[1];
-  vector_params->outputLoops[1][2] = factorized_shape[2];
+  if (param.has_slicing_op() || vector_input.has_slicing()) {
+    const auto &slicing =
+        param.has_slicing_op() ? param.slicing_op() : vector_input.slicing();
+    vector_params->VECTOR_INPUT0_SLICING = true;
+    vector_params->addressGen0Dim = slicing.dim() + num_extra_dims;
+    vector_params->addressGen0Start = slicing.start();
+    vector_params->addressGen0End = slicing.end();
+    vector_params->addressGen0Stride = slicing.step();
 
-  for (int i = 0; i < 2; i++) {
-    vector_params->addressGen0InputYLoopIndex[i] = 0;
-    vector_params->addressGen0InputXLoopIndex[i] = 1;
-    vector_params->addressGen0WeightLoopIndex[i] = 2;
-
-    vector_params->outputYLoopIndex[i] = 0;
-    vector_params->outputXLoopIndex[i] = 1;
-    vector_params->outputWeightLoopIndex[i] = 2;
+    // Last dimension needs to be scaled by OC_DIMENSION
+    if (vector_params->addressGen0Dim == 5) {
+      vector_params->addressGen0Start /= OC_DIMENSION;
+      vector_params->addressGen0End /= OC_DIMENSION;
+    }
+  } else if (param.has_reshape_op() || vector_input.has_reshape()) {
+    const auto &reshape =
+        param.has_reshape_op() ? param.reshape_op() : vector_input.reshape();
+    vector_params->VECTOR_INPUT0_RESHAPE = true;
+    if (reshape.opcode() == "permute") {
+      for (int i = 0; i < reshape.dims_size(); i++) {
+        vector_params->addressGen0AxisOrder[i + num_extra_dims] =
+            reshape.dims(i) + num_extra_dims;
+      }
+    } else {
+      throw std::invalid_argument("Unsupported reshape operation!");
+    }
   }
 
   // set double precision if the datatype is not the same as the input datatype
   vector_params->DP_VEC0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != vector_input.dtype();
 
-  const auto output_memory = param.output().memory();
+  const auto output_memory = vector_output.memory();
   accelerator_memory_map["outputs"] = get_partition(output_memory.partition());
   vector_params->VECTOR_OUTPUT_OFFSET = output_memory.offset();
+  vector_params->outputAddressMode = 2;
+
+  auto output_shape = get_tensor_shape(vector_output);
+  output_shape = split_loops(output_shape, 1024);
+  if (output_shape.size() > 6) {
+    throw std::invalid_argument("Too many dimensions for vector operations!");
+  }
+
+  output_shape = adjust_loop_indices(output_shape, OC_DIMENSION);
+
+  const int padding = 6 - output_shape.size();
+  for (int i = 0; i < padding; i++) {
+    output_shape.insert(output_shape.begin(), 1);
+  }
+
+  vector_params->outputLoops[0][0] = output_shape[0];
+  vector_params->outputLoops[0][1] = output_shape[1];
+  vector_params->outputLoops[0][2] = output_shape[2];
+  vector_params->outputLoops[1][0] = output_shape[3];
+  vector_params->outputLoops[1][1] = output_shape[4];
+  vector_params->outputLoops[1][2] = output_shape[5] / OC_DIMENSION;
 
   vector_params->DP_OUTPUT =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 
-  if (param.output().has_permutation()) {
+  if (param.output().has_reshape()) {
     vector_params->SPLIT_OUTPUT =
         param.output().shape(1) < param.output().shape(2);
     vector_params->CONCAT_OUTPUT =
@@ -228,8 +270,8 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
   vinst.vDest = VectorInstructions::vWriteOut;
 
   auto vinst_mappings = get_vector_instruction_mapping();
-  auto it = param.vector_params().begin();
-  bool has_vector_params = it != param.vector_params().end();
+  auto it = param.vector_ops().begin();
+  bool has_vector_params = it != param.vector_ops().end();
   std::string output_node = "";
 
   int vectorStage = 0;
@@ -252,7 +294,7 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
           vector_params->outputQuantizeScale = immediate.bits_rep();
         }
       } else {  // microscaling
-        auto other_shape = get_shape(it->other());
+        auto other_shape = get_tensor_shape(it->other());
 
         // change other_shape to 2D tensor
         int total_size = 1;
@@ -281,8 +323,8 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
       }
 
       for (int stage = vectorStage; stage < 5; stage++) {
-        bool matched =
-            vector_ops[stage].find(opcode) != vector_ops[stage].end();
+        bool matched = vector_unit_stages[stage].find(opcode) !=
+                       vector_unit_stages[stage].end();
         std::cerr << "stage: " << stage << "  opcode: " << opcode
                   << "  matched: " << matched << std::endl;
         if (matched) {
@@ -303,12 +345,28 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
           vectorStage = stage + 1;
           if (it->opcode() == "vmap") {
             vinst.vmapOffset = it->other().memory().offset();
+          } else if (it->has_other_scalar()) {
+            std::cerr << "immediate: " << it->other_scalar() << std::endl;
+            VECTOR_DATATYPE immediate = it->other_scalar();
+
+            if (it->opcode() == "div" || it->opcode() == "div_") {
+              immediate = 1.0 / immediate;
+            }
+
+            if (stage == 0) {
+              vinst.vOp0Src1 = VectorInstructions::op0immediate;
+              vinst.immediate0 = immediate.bits_rep();
+            } else if (stage == 3) {
+              vinst.vOp3Src1 = VectorInstructions::op3immediate;
+              vinst.immediate1 = immediate.bits_rep();
+            } else if (stage == 5) {
+              vinst.immediate1 = immediate.bits_rep();
+            }
           } else if (it->has_other()) {
             const auto tensor_to_load =
                 output_node == it->other().node() ? it->input() : it->other();
             const int size = get_size(tensor_to_load);
             if (size == 1) {
-              // TODO: Ideally this should be stroed in the vector param.
               VECTOR_DATATYPE immediate = read_constant_param(tensor_to_load);
 
               if (it->opcode() == "div" || it->opcode() == "div_") {
@@ -325,8 +383,8 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
                 vinst.immediate1 = immediate.bits_rep();
               }
             } else {
-              const auto input_shape = get_shape(it->input());
-              const auto other_shape = get_shape(it->other());
+              const auto input_shape = get_input_shape(it->input());
+              const auto other_shape = get_input_shape(it->other());
               const auto output_shape =
                   squeeze_shape(broadcast_shape(input_shape, other_shape));
 
@@ -349,11 +407,11 @@ void MapVectorOperations(const codegen::AcceleratorParam &param,
 
     output_node = it->name();
     ++it;
-    has_vector_params = it != param.vector_params().end();
+    has_vector_params = it != param.vector_ops().end();
   }
 
   // check that no more vector instructions are present
-  if (it != param.vector_params().end()) {
+  if (it != param.vector_ops().end()) {
     std::cerr << "Error: unsupported vector fusion pattern" << std::endl;
     exit(1);
   }

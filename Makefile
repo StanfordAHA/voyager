@@ -300,7 +300,7 @@ $(CC_BUILD_DIR)/AccuracyTester.o: test/common/AccuracyTester.cc src/PositTypes.h
 ###########################################################
 # Networks
 ###########################################################
-$(CC_BUILD_DIR)/Network.o: test/common/Network.cc test/compiler/proto/param.pb.h
+$(CC_BUILD_DIR)/Network.o: test/common/Network.cc test/compiler/proto/param.pb.cc
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 test/compiler/proto/param.pb.cc: quantized-training/src/quantized_training/codegen/param.proto
@@ -310,7 +310,7 @@ $(CC_BUILD_DIR)/param.pb.o: test/compiler/proto/param.pb.cc
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 .PHONY: network-proto
-network-proto: $(CODEGEN_DIR)/networks/$(NETWORK)/$(DATATYPE)/params.pb test/compiler/proto/param.pb.cc
+network-proto: $(CODEGEN_DIR)/networks/$(NETWORK)/$(DATATYPE)/model.txt test/compiler/proto/param.pb.cc
 
 include codegen.mk
 

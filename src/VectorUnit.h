@@ -181,7 +181,6 @@ SC_MODULE(VectorOpUnit) {
         for (int i = 0; i < WIDTH; i++) {
           op0Src0[i] = tmp[i];
         }
-
       } else if (inst.vInput == VectorInstructions::readFromAccumulation) {
         op0Src0 = accumulationOpOutput.Pop();
       } else if (inst.vInput == VectorInstructions::readFromReduce) {
@@ -219,6 +218,11 @@ SC_MODULE(VectorOpUnit) {
         }
         vadd<typename VEC_DTYPE::AccumulationDatatype, WIDTH>(op0Src0, op0Src1,
                                                               res0);
+        DLOG(op0Src0 << std::endl
+                     << " + " << std::endl
+                     << op0Src1 << std::endl
+                     << " = " << std::endl
+                     << res0);
       } else if (inst.vOp0 == VectorInstructions::vmult) {
         vmult<typename VEC_DTYPE::AccumulationDatatype, WIDTH>(op0Src0, op0Src1,
                                                                res0);
@@ -227,7 +231,6 @@ SC_MODULE(VectorOpUnit) {
                      << op0Src1 << std::endl
                      << " = " << std::endl
                      << res0);
-
       } else {
         res0 = op0Src0;
       }
@@ -496,14 +499,16 @@ SC_MODULE(VectorOpUnit) {
 
           prevResult.setbits(scaledExp);
         }
+
         if (!inst.rDuplicate) {
           res[index] = prevResult;
         } else {
           scalarResult = prevResult;
         }
-        // CCS_LOG("Reduction " << index << "/" << iterationCount << " : "
-        //                      << prevResult << std::endl
-        //                      << res);
+
+        DLOG("Reduction " << index << "/" << iterationCount << " : "
+                          << prevResult << std::endl
+                          << res);
       }
 
       if (inst.rSqrt) {
