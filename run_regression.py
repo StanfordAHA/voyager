@@ -246,7 +246,7 @@ def run_rtl_test(model, layer, output_folder):
             [
                 "grep",
                 "-oP",
-                "(?<=Matrix unit.+ideal runtime: ).\d+",
+                "(?<=matrix unit ideal runtime: ).\d+",
                 f"{output_folder}/{model}_{layer}.log",
             ],
             stdout=subprocess.PIPE,
@@ -261,7 +261,7 @@ def run_rtl_test(model, layer, output_folder):
                 [
                     "grep",
                     "-oP",
-                    "(?<=Vector unit.+ideal runtime: ).\d+",
+                    "(?<=vector unit ideal runtime: ).\d+",
                     f"{output_folder}/{model}_{layer}.log",
                 ],
                 stdout=subprocess.PIPE,

@@ -127,13 +127,13 @@ void Simulation::print_ideal_runtime(const codegen::Operator& param) {
     }
 
     cycles = num_ops / (IC_DIMENSION * OC_DIMENSION);
-    std::cout << "Matrix unit, " << param.name() << ", ideal runtime: ";
+    std::cout << param.name() << ", matrix unit ideal runtime: ";
   } else {
     long num_ops = 1;
     for (const auto& dim : param.output().shape()) num_ops *= dim;
 
     cycles = num_ops / OC_DIMENSION;
-    std::cout << "Vector unit, " << param.name() << ", ideal runtime: ";
+    std::cout << param.name() << ", vector unit ideal runtime: ";
   }
   // read CLOCK_PERIOD from environment
   int clock_period =
