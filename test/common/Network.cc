@@ -28,24 +28,30 @@ Network::Network(std::string& model_name) {
     std::cerr << "Failed to parse text file." << std::endl;
   }
 
-  filename = project_root + "/" + std::string(getenv("CODEGEN_DIR")) +
-             "/networks/" + model_name + "/" + datatype + "/tilings.txtpb";
-  std::ifstream input2(filename);
-  if (!input2.is_open()) {
-    std::cerr << "Error: File " << filename << " does not exist." << std::endl;
-    exit(1);
-  }
-
-  std::string content = std::string((std::istreambuf_iterator<char>(input2)),
-                                    std::istreambuf_iterator<char>());
-  voyager::ModelTiling model_tiling;
-  if (!TextFormat::ParseFromString(content, &model_tiling)) {
-    std::cerr << "Failed to parse text file." << std::endl;
-  }
-
   std::map<std::string, voyager::Tiling> tiling_map;
-  for (const auto& tiling : model_tiling.tilings()) {
-    tiling_map[tiling.name()] = tiling;
+  filename = project_root + "/" + std::string(getenv("CODEGEN_DIR")) +
+             "/networks/" + model_name + "/" + datatype + "/" +
+             std::string(getenv("IC_DIMENSION")) + "x" +
+             std::string(getenv("OC_DIMENSION")) + "_" +
+             std::string(getenv("INPUT_BUFFER_SIZE")) + "x" +
+             std::string(getenv("WEIGHT_BUFFER_SIZE")) + "x" +
+             std::string(getenv("ACCUM_BUFFER_SIZE")) + "/" + "/tilings.txtpb";
+
+  bool tilings_exist = std::filesystem::exists(filename);
+  if (tilings_exist) {
+    std::ifstream input2(filename);
+    std::string content = std::string((std::istreambuf_iterator<char>(input2)),
+                                      std::istreambuf_iterator<char>());
+    voyager::ModelTiling model_tiling;
+    if (!TextFormat::ParseFromString(content, &model_tiling)) {
+      std::cerr << "Failed to parse text file." << std::endl;
+    }
+
+    for (const auto& tiling : model_tiling.tilings()) {
+      tiling_map[tiling.name()] = tiling;
+    }
+  } else {
+    std::cerr << "Tilings file does not exist." << std::endl;
   }
 
   for (const auto& param : model.ops()) {

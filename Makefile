@@ -325,7 +325,7 @@ $(CC_BUILD_DIR)/tiling.pb.o: test/compiler/proto/tiling.pb.cc
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 .PHONY: network-proto
-network-proto: $(CODEGEN_DIR)/networks/$(NETWORK)/$(DATATYPE)/model.txt test/compiler/proto/param.pb.cc test/compiler/proto/tiling_pb2.py test/compiler/proto/tiling.pb.cc
+network-proto: $(CODEGEN_DIR)/networks/$(NETWORK)/$(DATATYPE)/model.txt test/compiler/proto/param.pb.cc test/compiler/proto/tiling_pb2.py test/compiler/proto/tiling.pb.cc $(CODEGEN_DIR)/networks/$(NETWORK)/$(DATATYPE)/$(IC_DIMENSION)x$(OC_DIMENSION)_$(INPUT_BUFFER_SIZE)x$(WEIGHT_BUFFER_SIZE)x$(ACCUM_BUFFER_SIZE)/tilings.txtpb
 
 include codegen.mk
 
@@ -350,6 +350,6 @@ clean-rtl-sim: check_env_var
 
 clean-protos:
 	rm -rf $(CODEGEN_DIR)/networks/*
-	rm -rf test/compiler/proto/param.pb.*
+	rm -rf test/compiler/proto/*.pb.*
 
 .PHONY: clean clean-test clean-catapult clean-rtl-sim

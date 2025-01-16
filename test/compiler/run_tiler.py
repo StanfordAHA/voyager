@@ -325,16 +325,17 @@ def main():
         schedule["schedule_hint"], schedule["partition_loops"]
     )
 
-    # read the params.pb file
-    params = param_pb2.ModelParams()
-    with open(f"{args.codegen_dir}/params.pb", "rb") as f:
-        params.ParseFromString(f.read())
+    # read the model.txt file
+    with open(f"{args.codegen_dir}/model.txt", "r") as f:
+        contents = f.read()
+    params = param_pb2.Model()
+    text_format.Parse(contents, params)
 
     # generate tilings for all matrix operations
     tilings = tiling_pb2.ModelTiling()
-    for param in params.params:
-        if param.HasField("matrix_param"):
-            weights_shape = param.matrix_param.weight.shape
+    for param in params.ops:
+        if param.HasField("matrix_op") and param.matrix_op.opcode != "linear":
+            weights_shape = param.matrix_op.weight.shape
             if len(weights_shape) == 4:
                 # convolution
                 output_channels = weights_shape[0]
@@ -370,10 +371,10 @@ def main():
                 print(f"Unsupported output shape: {output_shape}, skipping")
                 continue
 
-            if len(param.matrix_param.stride) == 0:
+            if len(param.matrix_op.stride) == 0:
                 stride = 1
             else:
-                stride = param.matrix_param.stride[0]
+                stride = param.matrix_op.stride[0]
 
             layer = interstellar.Layer(
                 nifm=input_channels,
@@ -385,6 +386,8 @@ def main():
                 wstd=stride,
                 hstd=stride,
             )
+
+            print(f"Finding tiling for {param.name}")
 
             cost, runtime, mapping, perf = interstellar.optimizer.opt_optimizer(
                 architecture, layer, schedule, calculate_runtime, True
@@ -428,7 +431,10 @@ def main():
             tilings.tilings.append(tiling)
 
         # write the tilings to a file
-        with open(f"{args.codegen_dir}/tilings.txtpb", "w") as f:
+        with open(
+            f"{args.codegen_dir}/{args.IC_dimension}x{args.OC_dimension}_{args.input_buffer_size}x{args.weight_buffer_size}x{args.accum_buffer_size}/tilings.txtpb",
+            "w",
+        ) as f:
             f.write(text_format.MessageToString(tilings))
 
 
