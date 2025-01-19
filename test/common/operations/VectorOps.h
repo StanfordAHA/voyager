@@ -9,8 +9,8 @@ using namespace ac_math;
 
 const std::set<std::string> activations = {"relu",  "relu_", "gelu",
                                            "gelu_", "silu",  "silu_"};
-const std::set<std::string> arithmetics = {"add",  "add_", "sub",
-                                           "sub_", "mul",  "mul_"};
+const std::set<std::string> arithmetics = {"add", "add_", "sub", "sub_",
+                                           "mul", "mul_", "div", "div_"};
 
 template <typename T>
 inline void relu(T &x) {
