@@ -35,14 +35,18 @@ Tiling get_tiling(const Operation& operation) {
   Tiling tiling;
   const auto matrix_op = param.matrix_op();
   if (manual_tiling || !operation.has_valid_tiling) {
-    if (matrix_op.opcode() == "conv2d") {
+    if (matrix_op.opcode() == "conv2d" || matrix_op.opcode() == "conv2d_mx") {
       tiling = get_conv2d_tiling(param);
     } else {
       tiling = get_linear_tiling(param);
     }
   } else {
     tiling = get_interstellar_tiling(operation.tiling);
-    tiling.stride = matrix_op.stride(0);
+    if (matrix_op.stride_size() > 0) {
+      tiling.stride = matrix_op.stride(0);
+    } else {
+      tiling.stride = 1;
+    }
   }
 
   if (manual_tiling) {
@@ -128,7 +132,8 @@ Tiling get_interstellar_tiling(const voyager::Tiling& tiling) {
 
   // L2 level
   int offset = 0;
-  if (tiling.level_tilings(1).loop_bounds(0).loop() != voyager::Loop::IC) {
+  if (tiling.level_tilings(1).loop_bounds_size() > 0 &&
+      tiling.level_tilings(1).loop_bounds(0).loop() != voyager::Loop::IC) {
     // if the first loop is not IC, then we need to manually set the IC loop to
     // 1
     accelerator_tiling.loops[0][3] = 1;
