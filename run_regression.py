@@ -451,6 +451,13 @@ def run_accuracy(model, dataset, num_processes, output_folder):
         env_vars = os.environ.copy()
         env_vars["NETWORK"] = model
 
+        if "INPUT_BUFFER_SIZE" not in env_vars:
+            env_vars["INPUT_BUFFER_SIZE"] = "1024"
+        if "WEIGHT_BUFFER_SIZE" not in env_vars:
+            env_vars["WEIGHT_BUFFER_SIZE"] = "1024"
+        if "ACCUM_BUFFER_SIZE" not in env_vars:
+            env_vars["ACCUM_BUFFER_SIZE"] = "1024"
+
         try:
             subprocess.run(
                 [
