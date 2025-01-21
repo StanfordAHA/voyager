@@ -1,0 +1,22 @@
+name: sim
+
+inputs:
+  - build
+
+outputs:
+  - run.saif
+
+commands:
+  - ln -sf ../../../accel-src/test
+  - sh run.sh
+
+parameters:
+  clock_period: 5
+  sim_level: rtl 
+  # These parameters just need to exist for building the simulator
+  network: resnet18
+  layer: submodule_5
+  datatype: undefined
+  sims: accelerator,systemc
+  waveform: False
+  use_saif: True

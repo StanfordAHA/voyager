@@ -1,0 +1,3 @@
+adk_name: intel16-adk
+adk_view: multivt
+default_clock_buffer: lib224_b15_7t_108pp_clk_lvt_tttt_0p800v_25c_tttt_ctyp_nldm/b15cbf000ah1n08x5
