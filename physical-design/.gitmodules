@@ -1,3 +1,0 @@
-[submodule "accel-src"]
-  path = accel-src
-  url = git@code.stanford.edu:tsmc40r/brainpower/accelerator.git
