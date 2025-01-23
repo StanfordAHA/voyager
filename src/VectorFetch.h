@@ -91,19 +91,20 @@ SC_MODULE(VectorFetchUnit) {
       }
 
       if (params.VECTOR_INPUT0_SLICING) {
-        int i = params.addressGen0Dim / 3;
-        int j = params.addressGen0Dim % 3;
+        int slice_dim = params.addressGen0Dim;
+        int i = slice_dim >= 3 ? 1 : 0;
+        int j = slice_dim >= 3 ? slice_dim - 3 : slice_dim;
         loop_starts[i][j] = params.addressGen0Start;
         loop_ends[i][j] = params.addressGen0End;
         loop_strides[i][j] = params.addressGen0Stride;
       } else if (params.VECTOR_INPUT0_RESHAPE) {
 #pragma hls_unroll yes
         for (int dim = 0; dim < 6; dim++) {
-          int i = dim / 3;
-          int j = dim % 3;
+          int i = dim >= 3 ? 1 : 0;
+          int j = dim >= 3 ? dim - 3 : dim;
           int new_dim = params.addressGen0AxisOrder[dim];
-          int new_i = new_dim / 3;
-          int new_j = new_dim % 3;
+          int new_i = new_dim >= 3 ? 1 : 0;
+          int new_j = new_dim >= 3 ? new_dim - 3 : new_dim;
           loop_ends[i][j] = loop_bounds[new_i][new_j];
         }
       }
@@ -245,10 +246,32 @@ SC_MODULE(VectorFetchUnit) {
                         WIDTH * (IO_DTYPE::width / 8)};
                     vectorFetch0AddressRequest.Push(memRequest);
                   }
+
+                  if (loop_counters[1][2] >=
+                      loop_bounds[1][2] - loop_strides[1][2]) {
+                    break;
+                  }
+                }
+                if (loop_counters[1][1] >=
+                    loop_bounds[1][1] - loop_strides[1][1]) {
+                  break;
                 }
               }
+              if (loop_counters[1][0] >=
+                  loop_bounds[1][0] - loop_strides[1][0]) {
+                break;
+              }
+            }
+            if (loop_counters[0][2] >= loop_bounds[0][2] - loop_strides[0][2]) {
+              break;
             }
           }
+          if (loop_counters[0][1] >= loop_bounds[0][1] - loop_strides[0][1]) {
+            break;
+          }
+        }
+        if (loop_counters[0][0] >= loop_bounds[0][0] - loop_strides[0][0]) {
+          break;
         }
       }
     }
@@ -328,10 +351,31 @@ SC_MODULE(VectorFetchUnit) {
                   }
                   vectorFetch0DataResponseBroadcasted.Push(
                       fullPrecisionDataResponse);
+
+                  if (loop_counters[1][2] >=
+                      loop_ends[1][2] - loop_strides[1][2]) {
+                    break;
+                  }
+                }
+                if (loop_counters[1][1] >=
+                    loop_ends[1][1] - loop_strides[1][1]) {
+                  break;
                 }
               }
+              if (loop_counters[1][0] >= loop_ends[1][0] - loop_strides[1][0]) {
+                break;
+              }
+            }
+            if (loop_counters[0][2] >= loop_ends[0][2] - loop_strides[0][2]) {
+              break;
             }
           }
+          if (loop_counters[0][1] >= loop_ends[0][1] - loop_strides[0][1]) {
+            break;
+          }
+        }
+        if (loop_counters[0][0] >= loop_ends[0][0] - loop_strides[0][0]) {
+          break;
         }
       }
     }
@@ -439,10 +483,31 @@ SC_MODULE(VectorFetchUnit) {
                         WIDTH * (IO_DTYPE::width / 8)};
                     vectorFetch1AddressRequest.Push(memRequest);
                   }
+
+                  if (loop_counters[1][2] >=
+                      loop_ends[1][2] - loop_strides[1][2]) {
+                    break;
+                  }
+                }
+                if (loop_counters[1][1] >=
+                    loop_ends[1][1] - loop_strides[1][1]) {
+                  break;
                 }
               }
+              if (loop_counters[1][0] >= loop_ends[1][0] - loop_strides[1][0]) {
+                break;
+              }
+            }
+            if (loop_counters[0][2] >= loop_ends[0][2] - loop_strides[0][2]) {
+              break;
             }
           }
+          if (loop_counters[0][1] >= loop_ends[0][1] - loop_strides[0][1]) {
+            break;
+          }
+        }
+        if (loop_counters[0][0] >= loop_ends[0][0] - loop_strides[0][0]) {
+          break;
         }
       }
     }
@@ -546,10 +611,31 @@ SC_MODULE(VectorFetchUnit) {
 #ifdef SUPPORT_MX
                   }
 #endif
+
+                  if (loop_counters[1][2] >=
+                      loop_ends[1][2] - loop_strides[1][2]) {
+                    break;
+                  }
+                }
+                if (loop_counters[1][1] >=
+                    loop_ends[1][1] - loop_strides[1][1]) {
+                  break;
                 }
               }
+              if (loop_counters[1][0] >= loop_ends[1][0] - loop_strides[1][0]) {
+                break;
+              }
+            }
+            if (loop_counters[0][2] >= loop_ends[0][2] - loop_strides[0][2]) {
+              break;
             }
           }
+          if (loop_counters[0][1] >= loop_ends[0][1] - loop_strides[0][1]) {
+            break;
+          }
+        }
+        if (loop_counters[0][0] >= loop_ends[0][0] - loop_strides[0][0]) {
+          break;
         }
       }
     }
@@ -657,10 +743,31 @@ SC_MODULE(VectorFetchUnit) {
                         WIDTH * (IO_DTYPE::width / 8)};
                     vectorFetch2AddressRequest.Push(memRequest);
                   }
+
+                  if (loop_counters[1][2] >=
+                      loop_ends[1][2] - loop_strides[1][2]) {
+                    break;
+                  }
+                }
+                if (loop_counters[1][1] >=
+                    loop_ends[1][1] - loop_strides[1][1]) {
+                  break;
                 }
               }
+              if (loop_counters[1][0] >= loop_ends[1][0] - loop_strides[1][0]) {
+                break;
+              }
+            }
+            if (loop_counters[0][2] >= loop_ends[0][2] - loop_strides[0][2]) {
+              break;
             }
           }
+          if (loop_counters[0][1] >= loop_ends[0][1] - loop_strides[0][1]) {
+            break;
+          }
+        }
+        if (loop_counters[0][0] >= loop_ends[0][0] - loop_strides[0][0]) {
+          break;
         }
       }
     }
@@ -733,10 +840,31 @@ SC_MODULE(VectorFetchUnit) {
                   }
                   vectorFetch2DataResponseConverted.Push(
                       fullPrecisionDataResponse);
+
+                  if (loop_counters[1][2] >=
+                      loop_ends[1][2] - loop_strides[1][2]) {
+                    break;
+                  }
+                }
+                if (loop_counters[1][1] >=
+                    loop_ends[1][1] - loop_strides[1][1]) {
+                  break;
                 }
               }
+              if (loop_counters[1][0] >= loop_ends[1][0] - loop_strides[1][0]) {
+                break;
+              }
+            }
+            if (loop_counters[0][2] >= loop_ends[0][2] - loop_strides[0][2]) {
+              break;
             }
           }
+          if (loop_counters[0][1] >= loop_ends[0][1] - loop_strides[0][1]) {
+            break;
+          }
+        }
+        if (loop_counters[0][0] >= loop_ends[0][0] - loop_strides[0][0]) {
+          break;
         }
       }
     }

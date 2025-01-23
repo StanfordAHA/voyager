@@ -145,7 +145,9 @@ class Int {
   template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
             ac_q_mode Q>
   operator StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>() const {
-    StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> f(int_val);
+    using FloatType = StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>;
+    FloatType f;
+    f.float_val = typename FloatType::ac_float_rep(int_val);
     return f;
   }
 
