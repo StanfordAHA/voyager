@@ -1,0 +1,7 @@
+name: custom-dc-synthesis
+
+outputs:
+  - make-path-groups.tcl
+  - compile-options.tcl
+  - designer-interface.tcl
+  - reporting.tcl

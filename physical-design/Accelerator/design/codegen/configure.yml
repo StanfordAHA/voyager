@@ -1,0 +1,20 @@
+name: codegen
+
+inputs:
+  - build
+
+outputs:
+  - build
+
+commands:
+  - ln -sf ../../../accel-src/test
+  - ln -sf ../../../accel-src/quantized-training
+  - ln -sf ../../../accel-src/Makefile
+  - ln -sf ../../../accel-src/codegen.mk
+  - sh run.sh
+
+parameters:
+  # These parameters just need to exist for building the simulator
+  network: resnet
+  datatype: undefined
+
