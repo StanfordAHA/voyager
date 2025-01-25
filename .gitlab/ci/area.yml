@@ -52,3 +52,16 @@ Area (ProcessingElement, INT8, TSMC40, 5):
     - cd physical-design/ProcessingElement
     - ./build.xsh --technology tsmc40 --clock 5 --datatype INT8 --dir build
     - cd build && make
+
+Area (Accelerator, E4M3, TSMC40, 5):
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - physical-design/Accelerator/build/Accelerator.mapped.area.rpt
+    expire_in: 1 month
+  script:
+    - *pd_setup
+    - cd physical-design/Accelerator
+    - ./build.xsh --technology tsmc40 --clock 5 --datatype E4M3 --ic 16 --oc 16 --dir build
+    - cd build && make

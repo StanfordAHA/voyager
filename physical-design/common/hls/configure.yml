@@ -18,3 +18,4 @@ parameters:
   clock_period: 2.0
   datatype: None
   technology: generic
+  design_name: None
