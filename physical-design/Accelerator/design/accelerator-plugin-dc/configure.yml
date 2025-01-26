@@ -1,7 +1,6 @@
-name: custom-dc-synthesis
+name: accelerator-plugin-dc
 
 outputs:
   - make-path-groups.tcl
   - compile-options.tcl
-  - designer-interface.tcl
   - reporting.tcl

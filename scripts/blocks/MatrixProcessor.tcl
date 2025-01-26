@@ -52,7 +52,7 @@ proc pre_architect {} {
   }
   directive set $accumulation_buffer_path -WORD_WIDTH [expr $ACCUM_DATATYPE_WIDTH * $OC_DIMENSION]
 
-  if {$TECHNOLOGY != "generic"} {
+  if {$TECHNOLOGY != "generic" && $TECHNOLOGY != "tsmc40"} {
     set memory_width [expr $ACCUM_DATATYPE_WIDTH * $OC_DIMENSION]
     directive set $accumulation_buffer_path:rsc -MAP_TO_MODULE [get_memory_name 0 $ACCUM_BUFFER_SIZE $memory_width]
   }

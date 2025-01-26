@@ -53,7 +53,7 @@ proc pre_architect {} {
   directive set /Accelerator/$double_buffer_stripped/$double_buffer_stripped:mem0Run/mem0Run/mem0.value.$C_DATA_REP_NAME -WORD_WIDTH $memory_width
   directive set /Accelerator/$double_buffer_stripped/$double_buffer_stripped:mem1Run/mem1Run/mem1.value.$C_DATA_REP_NAME -WORD_WIDTH $memory_width
 
-  if {$TECHNOLOGY != "generic"} {
+  if {$TECHNOLOGY != "generic" && $TECHNOLOGY != "tsmc40"} {
     directive set /Accelerator/$double_buffer_stripped/$double_buffer_stripped:mem0Run/mem0Run/mem0.value.$C_DATA_REP_NAME:rsc -MAP_TO_MODULE [get_memory_name 1 $INPUT_BUFFER_SIZE $memory_width]
     directive set /Accelerator/$double_buffer_stripped/$double_buffer_stripped:mem1Run/mem1Run/mem1.value.$C_DATA_REP_NAME:rsc -MAP_TO_MODULE [get_memory_name 1 $INPUT_BUFFER_SIZE $memory_width]
   }
@@ -68,7 +68,7 @@ proc pre_architect {} {
     directive set /Accelerator/$double_buffer_stripped/$double_buffer_stripped:mem0Run/mem0Run/mem0.value.$C_DATA_REP_NAME -WORD_WIDTH $memory_width
     directive set /Accelerator/$double_buffer_stripped/$double_buffer_stripped:mem1Run/mem1Run/mem1.value.$C_DATA_REP_NAME -WORD_WIDTH $memory_width
 
-    if {$TECHNOLOGY != "generic"} {
+    if {$TECHNOLOGY != "generic" && $TECHNOLOGY != "tsmc40"} {
       directive set /Accelerator/$double_buffer_stripped/$double_buffer_stripped:mem0Run/mem0Run/mem0.value.$C_DATA_REP_NAME:rsc -MAP_TO_MODULE [get_memory_name 1 $WEIGHT_BUFFER_SIZE $memory_width]
       directive set /Accelerator/$double_buffer_stripped/$double_buffer_stripped:mem1Run/mem1Run/mem1.value.$C_DATA_REP_NAME:rsc -MAP_TO_MODULE [get_memory_name 1 $WEIGHT_BUFFER_SIZE $memory_width]
     }
