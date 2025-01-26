@@ -20,7 +20,7 @@ proc pre_libraries {} {
 }
 
 proc pre_assembly {} {
-  global IO_DATATYPE DATATYPE ACCUM_DATATYPE VECTOR_DATATYPE IC_DIMENSION OC_DIMENSION ACCUM_BUFFER_DATATYPE SUPPORT_MX SCALE_DATATYPE ACCUM_BUFFER_SIZE
+  global IO_DATATYPE DATATYPE ACCUM_DATATYPE VECTOR_DATATYPE IC_DIMENSION OC_DIMENSION ACCUM_BUFFER_DATATYPE SCALE_DATATYPE SUPPORT_MX ACCUM_BUFFER_SIZE
   set MP_IO_DATATYPE $IO_DATATYPE
   if {$DATATYPE == "HYBRID_FP8"} {
     set MP_IO_DATATYPE "F9"
@@ -70,8 +70,14 @@ proc pre_architect {} {
     }
 
   if {$SUPPORT_MX == true} {
-    set weight_scale_controller "WeightScaleController<$SCALE_DATATYPE,$ACCUM_BUFFER_DATATYPE,$IC_DIMENSION,$OC_DIMENSION>"
-    directive set /Accelerator/$weight_scale_controller/$weight_scale_controller:transposer/transposer/while:if:transposeBuffer.$C_DATA_REP_NAME:rsc -MAP_TO_MODULE {[Register]}
+    global SCALE_DATATYPE SCALE_C_DATA_REP_NAME SCALE_DATATYPE_WIDTH
+
+    set weight_scale_controller "WeightScaleController<$SCALE_DATATYPE,$IC_DIMENSION,$OC_DIMENSION>"
+    directive set /Accelerator/$weight_scale_controller/$weight_scale_controller:transposer/transposer/while:if:transposeBuffer.$SCALE_C_DATA_REP_NAME:rsc -MAP_TO_MODULE {[Register]}
+
+    set weight_scale_double_buffer "DoubleBuffer<$SCALE_DATATYPE,$OC_DIMENSION,$WEIGHT_BUFFER_SIZE>"
+    directive set /Accelerator/$weight_scale_double_buffer/$weight_scale_double_buffer:mem0Run/mem0Run/mem0.value.$SCALE_C_DATA_REP_NAME -WORD_WIDTH [expr $SCALE_DATATYPE_WIDTH*$OC_DIMENSION]
+    directive set /Accelerator/$weight_scale_double_buffer/$weight_scale_double_buffer:mem1Run/mem1Run/mem1.value.$SCALE_C_DATA_REP_NAME -WORD_WIDTH [expr $SCALE_DATATYPE_WIDTH*$OC_DIMENSION]
   }
 
 }

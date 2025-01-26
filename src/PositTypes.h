@@ -143,8 +143,8 @@ class Posit {
 
   ac_int<nbits, false> bits_rep() { return bits; }
 
-  void setbits(int i) { bits = i; }
-  void setZero() { bits = 0; }
+  void set_bits(int i) { bits = i; }
+  void set_zero() { bits = 0; }
   bool isZero() const { return bits == 0; }
 
   void sqrt() { throw "Posit sqrt function not implemented."; }
@@ -185,7 +185,7 @@ class Posit {
     using FloatType = StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>;
     FloatType f;
     if (isZero()) {
-      f.setZero();
+      f.set_zero();
     } else {
       bool sign;
       int scale;
@@ -269,7 +269,7 @@ Posit<nbits, es> exponential(Posit<nbits, es> val) {
   assert(nbits == 16 && es == 1);
 
   Posit<nbits, es> min_exp;
-  min_exp.setbits(0x9e00);
+  min_exp.set_bits(0x9e00);
 
   if (val < min_exp) {
     Posit<nbits, es> zero;
@@ -284,7 +284,7 @@ Posit<nbits, es> exponential(Posit<nbits, es> val) {
   es0Posit.reciprocal();
 
   Posit<16, 0> neg_one;
-  neg_one.setbits(0xc000);
+  neg_one.set_bits(0xc000);
 
   return Posit<nbits, es>(es0Posit + neg_one);
 }

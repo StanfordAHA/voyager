@@ -227,7 +227,7 @@ void Harness::readMemoryRequest(
           bits.set_slc(byte * 8,
                        static_cast<ac_int<8, false>>(memory[address]));
         }
-        data[i].setbits(bits);
+        data[i].set_bits(bits);
       }
       DLOG("read addr: " << memRequest.address << " data: " << data
                          << std::endl);
@@ -268,7 +268,7 @@ void Harness::readSingleMemoryRequest(
         uint64_t address = base_address + b * num_bytes + byte;
         bits.set_slc(byte * 8, static_cast<ac_int<8, false>>(memory[address]));
       }
-      data.setbits(bits);
+      data.set_bits(bits);
       DLOG("read addr: " << memRequest.address << " data: " << data
                          << std::endl);
       dataResponse_fifo->write(data);

@@ -45,12 +45,12 @@ class CFloat {
     if (mask.float_val == 0) float_val = 0;
   }
 
-  void setbits(int i) {
+  void set_bits(int i) {
     uint32_t float_bits = i;
     float_val = *reinterpret_cast<float *>(&float_bits);
   }
 
-  void setZero() { float_val = 0; }
+  void set_zero() { float_val = 0; }
 
   void custom_converted_reciprocal() { this->reciprocal(); }
 

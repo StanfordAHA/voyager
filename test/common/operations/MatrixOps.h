@@ -207,7 +207,7 @@ inline Buffer *gemm(std::any input_tensor, std::any input_scale,
                                 oc0;
                           }
                           Input input;
-                          input.setZero();
+                          input.set_zero();
                           Input weight = weights[weight_addr];
                           pe_checker.addReference(pe_num, input, weight,
                                                   outputs[output_addr]);

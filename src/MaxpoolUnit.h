@@ -124,13 +124,13 @@ SC_MODULE(MaxpoolUnit) {
                           uncastedOutputPixel, outputPixel, scale);
                     } else if (params.OUTPUT_QUANTIZE) {
                       VEC_DTYPE scale;
-                      scale.setbits(params.outputQuantizeScale);
+                      scale.set_bits(params.outputQuantizeScale);
                       vquantize<VEC_DTYPE, IO_DTYPE, VEC_DTYPE, WIDTH>(
                           uncastedOutputPixel, outputPixel, scale);
                     } else {
 #pragma hls_unroll yes
                       for (int i = 0; i < WIDTH; i++) {
-                        outputPixel[i].setbits(
+                        outputPixel[i].set_bits(
                             uncastedOutputPixel[i].bits_rep());
                       }
                     }

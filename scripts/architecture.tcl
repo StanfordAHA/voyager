@@ -226,13 +226,15 @@ if { $DATATYPE == "P8_1" } {
   set PE_WEIGHT_DATATYPE "Int<8, true>::Decoded"
   set PE_PSUM_DATATYPE "Int<32, true>::Decoded"
   set ACCUM_BUFFER_DATATYPE "F16"
+  set SCALE_DATATYPE "E8M0"
   set C_DATA_REP_NAME "int_val"
   set ACC_BUF_C_DATA_REP_NAME "float_val.d"
-  set SCALE_DATATYPE "E8M0"
+  set SCALE_C_DATA_REP_NAME "d"
 
   set SUPPORT_MX true
   set IO_DATATYPE_WIDTH 8
   set ACCUM_DATATYPE_WIDTH 16
+  set SCALE_DATATYPE_WIDTH 8
 } else {
     puts "Invalid DATATYPE"
     exit 1

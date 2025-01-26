@@ -170,7 +170,7 @@ SC_MODULE(VectorOpUnit) {
         }
       } else if (inst.vOp0Src1 == VectorInstructions::op0immediate) {
         VEC_DTYPE immediate;
-        immediate.setbits(inst.immediate0);
+        immediate.set_bits(inst.immediate0);
 
 #pragma hls_unroll yes
         for (int i = 0; i < WIDTH; i++) {
@@ -251,7 +251,7 @@ SC_MODULE(VectorOpUnit) {
         }
       } else if (inst.vOp3Src1 == VectorInstructions::op3immediate) {
         VEC_DTYPE immediate;
-        immediate.setbits(inst.immediate1);
+        immediate.set_bits(inst.immediate1);
 
 #pragma hls_unroll yes
         for (int i = 0; i < WIDTH; i++) {
@@ -314,7 +314,7 @@ SC_MODULE(VectorOpUnit) {
           }
 
           DataTypes::bfloat16 mappedValue;
-          mappedValue.setbits(bits);
+          mappedValue.set_bits(bits);
 
           res4[i] = mappedValue;
         }
@@ -351,7 +351,7 @@ SC_MODULE(VectorOpUnit) {
 
 #pragma hls_unroll yes
       for (int i = 0; i < WIDTH; i++) {
-        accum[i].setZero();
+        accum[i].set_zero();
       }
 
 #pragma hls_pipeline_init_interval 1
@@ -452,7 +452,7 @@ SC_MODULE(VectorOpUnit) {
           // FIXME: 6 is hardcoded for INT8
           ac_int<VEC_DTYPE::exponent_width, true> scaledExp = prevExpResult - 6;
 
-          prevResult.setbits(scaledExp);
+          prevResult.set_bits(scaledExp);
         }
 
         if (!inst.rDuplicate) {

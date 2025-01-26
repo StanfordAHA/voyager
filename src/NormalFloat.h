@@ -70,9 +70,9 @@ class NormalFloat {
 
   ac_int<nbits, false> bits_rep() { return encoding; }
 
-  void setbits(int i) { encoding = i; }
+  void set_bits(int i) { encoding = i; }
 
-  void setZero() { encoding = 7; }
+  void set_zero() { encoding = 7; }
 
   template <int wdth, bool sgnd>
   operator Int<wdth, sgnd>() const {

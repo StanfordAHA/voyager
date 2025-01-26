@@ -349,7 +349,7 @@ SC_MODULE(MatrixProcessor) {
         Pack1D<ODTYPE, NCOLS> psum;
 #pragma hls_unroll yes
         for (int i = 0; i < NCOLS; i++) {
-          psum.value[i].setZero();
+          psum.value[i].set_zero();
         }
 
         if constexpr (!IS_MX) {
@@ -615,7 +615,7 @@ SC_MODULE(MatrixProcessor) {
 
 #pragma hls_unroll yes
           for (int i = 0; i < NCOLS; i++) {
-            previous_accumulation.value[i].setZero();
+            previous_accumulation.value[i].set_zero();
           }
 
           if (firstAccumulation) {

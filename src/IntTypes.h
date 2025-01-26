@@ -51,9 +51,9 @@ class Int {
     if (mask.int_val == 0) int_val = 0;
   }
 
-  void setbits(int i) { int_val = i; }
+  void set_bits(int i) { int_val = i; }
 
-  void setZero() { int_val = 0; }
+  void set_zero() { int_val = 0; }
 
   void custom_converted_reciprocal() { this->reciprocal(); }
 

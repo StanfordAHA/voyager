@@ -146,7 +146,7 @@ void ArrayMemory::read_tensor_from_memory(const long long address,
     }
 
     bits = bits >> offset;
-    tensor[i].setbits(bits.template slc<T::width>(0));
+    tensor[i].set_bits(bits.template slc<T::width>(0));
   }
 }
 

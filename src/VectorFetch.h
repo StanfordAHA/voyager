@@ -583,7 +583,7 @@ SC_MODULE(VectorFetchUnit) {
                     if (params.BROADCAST_VEC1_SCALE) {
 #pragma hls_unroll yes
                       for (int i = 0; i < WIDTH; i++) {
-                        fullPrecisionDataResponse[i].setbits(
+                        fullPrecisionDataResponse[i].set_bits(
                             response[i].bits_rep());
                       }
                     } else {
@@ -602,7 +602,7 @@ SC_MODULE(VectorFetchUnit) {
                       for (int count = 0; count < params.vec1BroadcastCount;
                            count++) {
                         Scale scale;
-                        scale.setbits(fullPrecisionDataResponse[i].bits_rep());
+                        scale.set_bits(fullPrecisionDataResponse[i].bits_rep());
                         vectorFetch1Scale.Push(scale);
                       }
                     }

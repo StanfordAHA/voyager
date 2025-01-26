@@ -40,12 +40,20 @@ class UFloat {
 
   ac_int<W, true> bits_rep() { return d; }
 
-  void setbits(const ac_int<W, true> &rhs) { d = rhs; }
-
-  void setZero() { d = 0; }
+  void set_bits(const ac_int<W, true> &rhs) { d = rhs; }
+  void set_zero() { d = 0; }
+  void set_one() { d = ac_float_rep::one().data(); }
 
   UFloat operator*(const UFloat &rhs) const {
-    return to_ac_float() * rhs.to_ac_float();
+    if constexpr (W == E) {
+      int exp = d + rhs.d - ac_float_rep::exp_bias;
+      ac_int<E, true> e_r = exp;
+      UFloat result;
+      result.set_bits(e_r);
+      return result;
+    } else {
+      return to_ac_float() * rhs.to_ac_float();
+    }
   }
 
 #ifndef __SYNTHESIS__

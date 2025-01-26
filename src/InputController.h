@@ -495,7 +495,7 @@ SC_MODULE(InputController) {
                             (full_y >= STRIDE * Y0 * Y1)) {
 #pragma hls_unroll yes
                           for (int dims = 0; dims < NRows; dims++) {
-                            data[dims].setZero();
+                            data[dims].set_zero();
                           }
                         } else {
                           data = transposeOut.Pop();

@@ -58,9 +58,9 @@ class StdFloat {
     if (mask.float_val.d == 0) float_val = float_val.zero();
   }
 
-  void setbits(int i) { float_val.d = i; }
+  void set_bits(int i) { float_val.d = i; }
 
-  void setZero() { float_val = float_val.zero(); }
+  void set_zero() { float_val = float_val.zero(); }
 
   void custom_converted_reciprocal() { this->reciprocal(); }
 

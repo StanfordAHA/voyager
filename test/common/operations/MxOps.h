@@ -45,7 +45,7 @@ Scale* calculate_mx_qparam(std::any input_tensor,
       // FIXME: 6 is hardcoded for INT8
       ac_int<Input::exponent_width, true> scaled_exponent = max_exponent - 6;
 
-      outputs[index].setbits(scaled_exponent);
+      outputs[index].set_bits(scaled_exponent);
     }
   }
 

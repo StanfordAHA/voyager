@@ -65,12 +65,12 @@ class Float{
         if (mask == 0) float_val = 0;
     }
 
-    void setbits(int i) { float_val = i; }
+    void set_bits(int i) { float_val = i; }
 
 
-    // void setbits(Float<mantissa, exp> i) { float_val = i; }
+    // void set_bits(Float<mantissa, exp> i) { float_val = i; }
 
-    void setZero(){
+    void set_zero(){
         float_val = 0;
     }
 

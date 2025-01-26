@@ -109,7 +109,7 @@ template <typename Input, typename Output, int Width>
 void vdequantize(Pack1D<Input, Width>& op0, Pack1D<Output, Width>& res,
                  ac_int<Output::width, false> scale_bits) {
   Output scale;
-  scale.setbits(scale_bits);
+  scale.set_bits(scale_bits);
 
 #pragma hls_unroll yes
   for (int i = 0; i < Width; i++) {
