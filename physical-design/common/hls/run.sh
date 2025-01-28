@@ -5,9 +5,9 @@ mkdir -p ${CATAPULT_BUILD_DIR}
 
 
 make network-proto NETWORK=resnet18 DATATYPE=${datatype}
-make ProcessingElement BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} OC_DIMENSION=16 IC_DIMENSION=16 INPUT_BUFFER_SIZE=1024 WEIGHT_BUFFER_SIZE=1024 ACCUM_BUFFER_SIZE=1024 CLOCK_PERIOD=${clock_period} TECHNOLOGY=${technology}
+make -j8 ${design_name} BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} DATATYPE=${datatype} OC_DIMENSION=16 IC_DIMENSION=16 INPUT_BUFFER_SIZE=1024 WEIGHT_BUFFER_SIZE=1024 ACCUM_BUFFER_SIZE=1024 CLOCK_PERIOD=${clock_period} TECHNOLOGY=${technology}
 
-[[ -f ${CATAPULT_BUILD_DIR}/ProcessingElement/ProcessingElement.v1/concat_rtl.v ]] || {
+[[ -f ${CATAPULT_BUILD_DIR}/${design_name}/${design_name}.v1/concat_rtl.v ]] || {
   echo "Error: RTL generation failed"
   exit 1
 }
@@ -15,7 +15,7 @@ make ProcessingElement BUILD_DIR=build CATAPULT_BUILD_DIR=${CATAPULT_BUILD_DIR} 
 cd outputs
 ln -s ../build
 
-cp build/Catapult/ProcessingElement/ProcessingElement.v1/concat_rtl.v design.v
+cp build/Catapult/${design_name}/${design_name}.v1/concat_rtl.v design.v
 
 # Renaming modules
 OLD_IFS=$IFS

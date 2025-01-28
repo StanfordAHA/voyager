@@ -1,0 +1,7 @@
+name: memories
+
+commands:
+  - bash run.sh
+
+outputs:
+  - memories

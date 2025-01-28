@@ -58,6 +58,7 @@ if __name__ == "__main__":
     build_params["input_buffer_size"] = args.input if args.input else build_params["input_buffer_size"]
     build_params["weight_buffer_size"] = args.weight if args.weight else build_params["weight_buffer_size"]
     build_params["accum_buffer_size"] = args.accum if args.accum else build_params["accum_buffer_size"]
+    build_params["technology"] = args.technology
     if args.no_sweep and args.sweep:
         print("Cannot have both --no-sweep and --sweep. Defaulting to sweep.")
         exit(1)
@@ -66,27 +67,7 @@ if __name__ == "__main__":
     sim_params["use_saif"] = False if args.fsdb else sim_params["use_saif"]
 
     # Make sure the dataset for default network is generated
-    if not os.path.exists(f"../accel-src/test/compiler/networks/{sim_params['network']}/{build_params['datatype']}"):
-        print(f"Generating dataset for {sim_params['network']} {build_params['datatype']}...")
-        pushd ../accel-src/
-        make network-proto NETWORK=@(sim_params['network']) DATATYPE=@(build_params['datatype'])
-        popd
 
-    # Get the unique layers for each network for parameter sweep
-    if sim_params["sweep"]:
-      print(f"Collecting parameter sweeping layers...")
-      networks = ["resnet18", "resnet50", "mobilebert_encoder"]
-      for network in networks:
-        # Make sure all required dataset is generated
-        if not os.path.exists(f"../accel-src/test/compiler/networks/{network}/{build_params['datatype']}"):
-            print(f"Generating dataset for {network} {build_params['datatype']}...")
-            pushd ../accel-src/
-            make network-proto NETWORK=@(network) DATATYPE=@(build_params['datatype'])
-            popd
-
-      layers = collect_layers(networks, build_params["datatype"])
-      for network in networks:
-          sweep_params["tests"][network] = list(layers[network]) # only the keys - layer names
 
     with open(f"{os.path.dirname(__file__)}/params.py", "w") as f:
         f.write(f"build_params = {build_params}\n")
