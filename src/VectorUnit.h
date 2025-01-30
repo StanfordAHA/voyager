@@ -429,7 +429,7 @@ SC_MODULE(VectorOpUnit) {
         } else if (inst.rOp == VectorInstructions::rmxscale) {
           typedef ac_int<VEC_DTYPE::exponent_width, false> exp_type_t;
 
-          exp_type_t prevExpResult;
+          exp_type_t prevExpResult = 0;
           for (int i = 0; i < inst.rCount; i++) {
             Pack1D<VEC_DTYPE, WIDTH> op = reductionOpInput.Pop();
 
@@ -449,8 +449,13 @@ SC_MODULE(VectorOpUnit) {
             prevExpResult = result;
           }
 
-          // FIXME: 6 is hardcoded for INT8
+          // TODO: use the max value of IO_DTYPE
+          // constexpr int offset = floor(log2(IO_DTYPE::max()));
           ac_int<VEC_DTYPE::exponent_width, true> scaledExp = prevExpResult - 6;
+
+          if (prevExpResult == 0) {
+            scaledExp = 127;
+          }
 
           prevResult.set_bits(scaledExp);
         }

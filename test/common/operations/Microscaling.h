@@ -31,9 +31,10 @@ Scale* calculate_mx_qparam(std::any input_tensor,
 
     if constexpr (Scale::width == Scale::exponent_width) {
       int power_of_two = floor(log2(max_value)) - floor(log2(Output::max()));
-      outputs[i] = pow(2, power_of_two);
+      outputs[i] = max_value == 0 ? 1 : pow(2, power_of_two);
     } else {
-      outputs[i] = max_value / static_cast<float>(Output::max());
+      float scale = max_value / static_cast<float>(Output::max());
+      outputs[i] = max_value == 0 ? 1 : scale;
     }
   }
 
