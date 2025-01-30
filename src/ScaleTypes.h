@@ -13,6 +13,7 @@ class UFloat {
   typedef ac_std_float<W + 1, E> ac_float_rep;
 
   static constexpr unsigned int width = W;
+  static constexpr unsigned int exponent_width = E;
 
   ac_int_rep d;
 

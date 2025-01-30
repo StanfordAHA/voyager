@@ -7,12 +7,11 @@
 // but with more emphasis on a lightweight implementation.
 
 #pragma once
-#include <stdint.h>
-// #include <ac_float.h>
 #include <ac_int.h>
 #include <ac_math/ac_inverse_sqrt_pwl.h>
 #include <ac_math/ac_sqrt_pwl.h>
 #include <ac_std_float.h>
+#include <stdint.h>
 
 inline int max(int a, int b) { return a > b ? a : b; }
 
@@ -136,16 +135,21 @@ class Posit {
 #endif
 
   template <int nbits2, int es2>
-  Posit(const Posit<nbits2, es2> &input);
+  Posit(const Posit<nbits2, es2> &other);
 
   template <int mantissa, int exp>
-  Posit(const StdFloat<mantissa, exp> &input);
+  Posit(const StdFloat<mantissa, exp> &other);
 
   ac_int<nbits, false> bits_rep() { return bits; }
 
+  static Decoded max() {
+    Posit<nbits, es> max;
+    max.set_bits((1 << nbits) - 1);
+    return max;
+  }
+
   void set_bits(int i) { bits = i; }
   void set_zero() { bits = 0; }
-  bool isZero() const { return bits == 0; }
 
   void sqrt() { throw "Posit sqrt function not implemented."; }
 
@@ -184,7 +188,7 @@ class Posit {
   operator StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>() const {
     using FloatType = StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>;
     FloatType f;
-    if (isZero()) {
+    if (bits == 0) {
       f.set_zero();
     } else {
       bool sign;
@@ -240,25 +244,25 @@ Posit<nbits, es>::Posit(const float f) {
 
 template <int nbits, int es>
 template <int nbits2, int es2>
-Posit<nbits, es>::Posit(const Posit<nbits2, es2> &input) {
-  typename Posit<nbits2, es2>::Decoded tmp(input);
+Posit<nbits, es>::Posit(const Posit<nbits2, es2> &other) {
+  typename Posit<nbits2, es2>::Decoded tmp(other);
   *this = tmp;
 }
 
 template <int nbits, int es>
 template <int mantissa, int exp>
-Posit<nbits, es>::Posit(const StdFloat<mantissa, exp> &input) {
-  if (input.float_val.d == 0) {
+Posit<nbits, es>::Posit(const StdFloat<mantissa, exp> &other) {
+  if (other.float_val.d == 0) {
     bits = 0;
   } else {
     const int e_width = StdFloat<mantissa, exp>::ac_float_rep::e_width;
     const int mant_bits = StdFloat<mantissa, exp>::ac_float_rep::mant_bits;
     const int exp_bias = StdFloat<mantissa, exp>::ac_float_rep::exp_bias;
 
-    bool sign = input.float_val.signbit();
+    bool sign = other.float_val.signbit();
     ac_int<e_width, true> scale =
-        input.float_val.d.template slc<e_width>(mant_bits) - exp_bias;
-    ac_int<mant_bits, false> fraction = input.float_val.d;
+        other.float_val.d.template slc<e_width>(mant_bits) - exp_bias;
+    ac_int<mant_bits, false> fraction = other.float_val.d;
     convert_<nbits, es, mant_bits>(sign, scale, fraction, bits);
   }
 }

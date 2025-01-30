@@ -48,7 +48,6 @@ class NormalFloat {
   typedef ac_int<nbits, false> ac_int_rep;
 
   static constexpr unsigned int width = nbits;
-  static constexpr float max_value = (1 << ibits) - 1;
 
   typedef Int<ibits + 1, true> Decoded;
 
@@ -70,6 +69,8 @@ class NormalFloat {
       const StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &input);
 
   ac_int<nbits, false> bits_rep() { return encoding; }
+
+  static Decoded max() { return (1 << ibits) - 1; }
 
   void set_bits(int i) { encoding = i; }
 

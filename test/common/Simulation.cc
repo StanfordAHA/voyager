@@ -85,13 +85,16 @@ Simulation::~Simulation() {
 void Simulation::load_data() {
   std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE, REFERENCE_MEMORY_SIZE};
 
+  bool is_cnn = model == "resnet18" || model == "resnet50";
+
   if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
     memories["gold"] = new ArrayMemory(memory_sizes);
-    dataLoaders["gold"] = new DataLoader(memories["gold"], false);
+    dataLoaders["gold"] = new DataLoader(memories["gold"], false, is_cnn);
   }
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
     memories["accelerator"] = new ArrayMemory(memory_sizes);
-    dataLoaders["accelerator"] = new DataLoader(memories["accelerator"], true);
+    dataLoaders["accelerator"] =
+        new DataLoader(memories["accelerator"], true, is_cnn);
   }
 
   std::string project_root = std::string(getenv("PROJECT_ROOT"));

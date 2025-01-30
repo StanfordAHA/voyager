@@ -8,24 +8,18 @@
 
 template <typename T1, typename T2>
 inline void fused_multiply_add(T1 a, T1 b, T2 &c) {
-#ifdef HYBRID_FP8
-  HYBRID_TYPE hybrid_a(a);
-  HYBRID_TYPE hybrid_b(b);
-  c = hybrid_a.fma(hybrid_b, c);
-#else
   typename T1::Decoded v1 = a;
   typename T1::Decoded v2 = b;
   c = v1.fma(v2, c);
-#endif
 }
 
 template <typename Input, typename Psum, typename Buffer, typename Scale>
 inline Buffer *gemm(std::any input_tensor, std::any input_scale,
                     std::any weight_tensor, std::any weight_scale,
                     std::any bias_tensor, const codegen::Operator &param) {
-  const auto matrix_op = param.matrix_op();
+  LOG("Performing GEMM");
 
-  bool is_mx = matrix_op.has_mx_input() && matrix_op.has_mx_weight();
+  const auto matrix_op = param.matrix_op();
 
   Input *inputs = std::any_cast<Input *>(input_tensor);
   Scale *input_scales;
@@ -102,19 +96,15 @@ inline Buffer *gemm(std::any input_tensor, std::any input_scale,
     C = 3;
   }
 
-#if SUPPORT_MX
-  bool is_mx_based_design = true;
-#else
-  bool is_mx_based_design = false;
-#endif
-
   Buffer *outputs = new Buffer[X * Y * K];
 
+#if SUPPORT_MX
   // only used for replication on MX-based designs
   Psum *accumulations = new Psum[X * Y * K];
   for (int i = 0; i < X * Y * K; i++) {
     accumulations[i] = Psum(0.0);
   }
+#endif
 
   // initialize to bias
   for (int i = 0; i < X * Y; i++) {
@@ -163,12 +153,11 @@ inline Buffer *gemm(std::any input_tensor, std::any input_scale,
                       int k = (k1 * K0 + k0) * OC_DIMENSION + oc0;
                       int output_addr = y * X * K + x * K + k;
 
-                      Psum psum;
-                      if (is_mx || is_mx_based_design) {
-                        psum = Psum(0.0);
-                      } else {
-                        psum = outputs[output_addr];
-                      }
+#if SUPPORT_MX
+                      Psum psum = Psum(0.0);
+#else
+                      Psum psum = outputs[output_addr];
+#endif
 
                       for (int ic0 = 0; ic0 < IC_unroll; ic0++) {
                         int c = c0 * IC_unroll + ic0;
@@ -215,7 +204,9 @@ inline Buffer *gemm(std::any input_tensor, std::any input_scale,
                         }
                       }
 
-                      if (is_mx) {
+#if SUPPORT_MX
+                      if (matrix_op.has_mx_input() &&
+                          matrix_op.has_mx_weight()) {
                         // only perform scaling if within bounds
                         if (STRIDE * x + fx >= 0 &&
                             STRIDE * x + fx < STRIDE * X &&
@@ -239,12 +230,13 @@ inline Buffer *gemm(std::any input_tensor, std::any input_scale,
 
                           Scale input_scale = input_scales[input_scale_addr];
                           Scale weight_scale = weight_scales[weight_scale_addr];
-                          Buffer scale = static_cast<Buffer>(input_scale.to_ac_float()) *
-                                         static_cast<Buffer>(weight_scale.to_ac_float());
+                          Buffer scale =
+                              static_cast<Buffer>(input_scale.to_ac_float()) *
+                              static_cast<Buffer>(weight_scale.to_ac_float());
                           outputs[output_addr] +=
                               static_cast<Buffer>(psum) * scale;
                         }
-                      } else if (is_mx_based_design) {
+                      } else {
                         if (tiling.replication) {
                           accumulations[output_addr] += psum;
                           if (IC_DIMENSION == 4) {
@@ -284,24 +276,25 @@ inline Buffer *gemm(std::any input_tensor, std::any input_scale,
                           Buffer scaled_psum = static_cast<Buffer>(psum);
                           outputs[output_addr] += scaled_psum;
                         }
-                      } else {
-                        outputs[output_addr] = static_cast<Psum>(psum);
-
-                        if (tiling.replication) {
-                          if (IC_DIMENSION == 16) {
-                            if (counters[1][tiling.fx_index] == 3 ||
-                                counters[1][tiling.fx_index] == 6) {
-                              outputs[output_addr] = static_cast<Buffer>(psum);
-                            }
-                          } else if (IC_DIMENSION == 32) {
-                            if (counters[1][tiling.fx_index] == 6) {
-                              outputs[output_addr] = static_cast<Buffer>(psum);
-                            }
-                          }
-                        } else {
-                          outputs[output_addr] = static_cast<Buffer>(psum);
-                        }
                       }
+#else
+                      outputs[output_addr] = static_cast<Psum>(psum);
+
+                      if (tiling.replication) {
+                        if (IC_DIMENSION == 16) {
+                          if (counters[1][tiling.fx_index] == 3 ||
+                              counters[1][tiling.fx_index] == 6) {
+                            outputs[output_addr] = static_cast<Buffer>(psum);
+                          }
+                        } else if (IC_DIMENSION == 32) {
+                          if (counters[1][tiling.fx_index] == 6) {
+                            outputs[output_addr] = static_cast<Buffer>(psum);
+                          }
+                        }
+                      } else {
+                        outputs[output_addr] = static_cast<Buffer>(psum);
+                      }
+#endif
                     }
                   }
                 }
@@ -312,6 +305,8 @@ inline Buffer *gemm(std::any input_tensor, std::any input_scale,
       }
     }
   }
+
+  LOG("GEMM done");
 
   delete[] inputs;
   if (matrix_op.has_mx_input()) {

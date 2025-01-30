@@ -2,7 +2,6 @@
 
 // clang-format off
 #include <ac_int.h>
-// #include <ac_sc.h>
 // clang-format on
 #include <ac_math/ac_inverse_sqrt_pwl.h>
 #include <ac_math/ac_pow_pwl.h>
@@ -16,7 +15,6 @@ class Int {
   typedef ac_int<W, S> ac_int_rep;
 
   static constexpr unsigned int width = W;
-  static constexpr float max_value = (1 << (W - 1)) - 1;
 
   typedef Int<W, S> Decoded;
   typedef ac_fixed<2 * W, W, true> ac_int_to_fixed_rep;
@@ -31,16 +29,18 @@ class Int {
 #endif
 
   template <int W2, bool S2>
-  Int(const ac_int<W2, S2> &rhs);
+  Int(const ac_int<W2, S2> &other);
 
   template <int W2, bool S2>
-  Int(const Int<W2, S2> &input);
+  Int(const Int<W2, S2> &other);
 
   template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
             ac_q_mode Q>
-  Int(const StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &input);
+  Int(const StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &other);
 
   ac_int<W, false> bits_rep() { return int_val; }
+
+  static Decoded max() { return S ? (1 << (W - 1)) - 1 : (1 << W) - 1; }
 
   void negate() { int_val = -int_val; }
 
@@ -169,22 +169,22 @@ Int<W, S>::Int(const float val) {
 
 template <int W, bool S>
 template <int W2, bool S2>
-Int<W, S>::Int(const ac_int<W2, S2> &rhs) {
-  int_val = ac_int_rep(rhs);
+Int<W, S>::Int(const ac_int<W2, S2> &other) {
+  int_val = ac_int_rep(other);
 }
 
 template <int W, bool S>
 template <int W2, bool S2>
-Int<W, S>::Int(const Int<W2, S2> &input) {
-  int_val = static_cast<ac_int_rep>(input);
+Int<W, S>::Int(const Int<W2, S2> &other) {
+  int_val = static_cast<ac_int_rep>(other.int_val);
 }
 
 template <int W, bool S>
 template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
           ac_q_mode Q>
 Int<W, S>::Int(
-    const StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &input) {
-  int_val = input.float_val.template convert_to_ac_int<W, S>();
+    const StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &other) {
+  int_val = other.float_val.template convert_to_ac_int<W, S>();
 }
 
 template <int W, bool S>

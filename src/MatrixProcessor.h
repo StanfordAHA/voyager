@@ -678,7 +678,8 @@ SC_MODULE(MatrixProcessor) {
 
 #pragma hls_unroll yes
           for (int i = 0; i < NCOLS; i++) {
-            Scale scale = inputScale[0] * weightScales[i];
+            AccumBuffer scale = static_cast<AccumBuffer>(inputScale[0]) *
+                                static_cast<AccumBuffer>(weightScales[i]);
             scaled_outputs[i] = static_cast<AccumBuffer>(outputs[i]);
             if (params.MX) {
               scaled_outputs[i] = scaled_outputs[i] * scale;

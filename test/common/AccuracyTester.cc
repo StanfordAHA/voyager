@@ -25,7 +25,9 @@ bool run_sample(std::string model_name, std::string data_dir,
                 std::string sample, codegen::Model model) {
   std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE};
   auto memory = std::make_unique<ArrayMemory>(memory_sizes);
-  auto data_loader = std::make_unique<DataLoader>(memory.get(), false);
+
+  bool is_cnn = model_name == "resnet18" || model_name == "resnet50";
+  auto data_loader = std::make_unique<DataLoader>(memory.get(), false, is_cnn);
 
   int num_classes;
   if (model_name == "mobilebert" || model_name == "bert") {
@@ -62,7 +64,8 @@ bool run_sample(std::string model_name, std::string data_dir,
   for (const auto& param : model.ops()) {
     if (!param.has_nop()) {
       auto args = memory->get_args(param);
-      run_gold_model(param, args);
+      std::any outputs = run_gold_model(param, args);
+      memory->write_tensor(param.output(), outputs);
     }
   }
 

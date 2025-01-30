@@ -3,8 +3,8 @@
 #include "xtensor/xadapt.hpp"
 #include "xtensor/xarray.hpp"
 
-DataLoader::DataLoader(ArrayMemory* memory_interface, bool is_dut)
-    : memory_interface(memory_interface), is_dut(is_dut) {}
+DataLoader::DataLoader(ArrayMemory* memory, bool is_dut, bool is_cnn)
+    : memory(memory), is_dut(is_dut), is_cnn(is_cnn) {}
 
 void DataLoader::load_tensor(const codegen::Tensor& tensor,
                              std::string data_dir, bool transpose,
@@ -36,9 +36,8 @@ void DataLoader::load_tensor(const codegen::Tensor& tensor,
     }
   }
 
-  auto memory = tensor.memory();
-  int partition = memory.partition();
-  long long offset = memory.offset();
+  int partition = tensor.memory().partition();
+  uint64_t offset = tensor.memory().offset();
 
   std::cerr << "Loading tensor file " << filename << std::endl;
   std::cerr << "Datatype: " << tensor.dtype() << std::endl;
@@ -54,27 +53,27 @@ void DataLoader::load_tensor(const codegen::Tensor& tensor,
   int address = 0;
   for (auto it = array.begin(); it != array.end(); ++it) {
     if (tensor.dtype() == "int8") {
-      memory_interface->write_data_to_memory<DataTypes::int8>(offset, partition,
-                                                              address, *it);
+      memory->write_data_to_memory<DataTypes::int8>(offset, partition, address,
+                                                    *it);
     } else if (tensor.dtype() == "bfloat16") {
-      memory_interface->write_data_to_memory<DataTypes::bfloat16>(
-          offset, partition, address, *it);
+      memory->write_data_to_memory<DataTypes::bfloat16>(offset, partition,
+                                                        address, *it);
     } else if (tensor.dtype() == "int24") {
-      memory_interface->write_data_to_memory<DataTypes::int24>(
-          offset, partition, address, *it);
+      memory->write_data_to_memory<DataTypes::int24>(offset, partition, address,
+                                                     *it);
     } else if (tensor.dtype() == "int32") {
-      memory_interface->write_data_to_memory<DataTypes::int32>(
-          offset, partition, address, *it);
+      memory->write_data_to_memory<DataTypes::int32>(offset, partition, address,
+                                                     *it);
     } else if (tensor.dtype() == "e8m0") {
-      memory_interface->write_data_to_memory<DataTypes::e8m0>(offset, partition,
-                                                              address, *it);
+      memory->write_data_to_memory<DataTypes::e8m0>(offset, partition, address,
+                                                    *it);
     } else if (tensor.dtype() == "fp8_e5m3") {
-      memory_interface->write_data_to_memory<DataTypes::fp8_e5m3>(
-          offset, partition, address, *it);
+      memory->write_data_to_memory<DataTypes::fp8_e5m3>(offset, partition,
+                                                        address, *it);
     } else {
       // if unspecified, we will assume it's INPUT_DATATYPE
-      memory_interface->write_data_to_memory<INPUT_DATATYPE>(offset, partition,
-                                                             address, *it);
+      memory->write_data_to_memory<INPUT_DATATYPE>(offset, partition, address,
+                                                   *it);
     }
 
     address++;
@@ -121,10 +120,10 @@ void DataLoader::load_inputs(const codegen::Operator param,
     output_node = matrix_op.name();
   } else if (param.has_pooling_op()) {
     const auto& pooling_op = param.pooling_op();
-    load_tensor(pooling_op.input(), data_dir, true);
+    load_tensor(pooling_op.input(), data_dir, is_cnn);
   } else if (param.has_reduce_op()) {
     const auto& reduce_op = param.reduce_op();
-    load_tensor(reduce_op.input(), data_dir);
+    load_tensor(reduce_op.input(), data_dir, is_cnn);
   } else if (param.has_reshape_op()) {
     const auto& reshape_op = param.reshape_op();
     load_tensor(reshape_op.input(), data_dir);
@@ -133,7 +132,7 @@ void DataLoader::load_inputs(const codegen::Operator param,
     load_tensor(slicing_op.input(), data_dir);
   } else if (param.vector_ops_size() > 0) {
     const auto vector_op = param.vector_ops(0);
-    load_tensor(vector_op.input(), data_dir);
+    load_tensor(vector_op.input(), data_dir, is_cnn);
   }
 
   for (const auto& vector_op : param.vector_ops()) {
@@ -144,7 +143,7 @@ void DataLoader::load_inputs(const codegen::Operator param,
       const auto other = vector_op.other();
       const auto tensor_to_load = other.node() == output_node ? input : other;
       if (tensor_to_load.node().find("constant") == std::string::npos) {
-        load_tensor(tensor_to_load, data_dir);
+        load_tensor(tensor_to_load, data_dir, is_cnn);
       }
     }
     output_node = vector_op.name();
@@ -210,13 +209,11 @@ void DataLoader::load_outputs(const codegen::Operator param,
                               std::string data_dir) {
   codegen::Tensor output_tensor;
   output_tensor.CopyFrom(param.output());
-  auto memory = output_tensor.mutable_memory();
   // always store output in the last memory partition with 0 offset
-  memory->set_partition(-1);
-  memory->set_offset(0);
-  bool transpose = param.matrix_op().opcode() == "conv2d" ||
-                   param.matrix_op().opcode() == "conv2d_mx" ||
-                   param.has_pooling_op();
+  output_tensor.mutable_memory()->set_partition(-1);
+  output_tensor.mutable_memory()->set_offset(0);
+  std::string opcode = param.matrix_op().opcode();
+  bool transpose = is_cnn && opcode != "linear" && opcode != "linear_mx";
   load_tensor(output_tensor, data_dir, transpose);
 }
 

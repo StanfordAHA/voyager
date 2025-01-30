@@ -16,7 +16,7 @@
 
 class DataLoader {
  public:
-  DataLoader(ArrayMemory*, bool);
+  DataLoader(ArrayMemory*, bool, bool);
 
   void load_inputs(const codegen::Operator param, std::string data_dir,
                    bool random_data = false);
@@ -29,7 +29,8 @@ class DataLoader {
   float* read_tensor_from_file(const std::string& filename, int size);
 
  private:
-  ArrayMemory* memory_interface;
+  ArrayMemory* memory;
   // special addressing is sometimes needed for DUT memory (ex. replication)
   bool is_dut;
+  bool is_cnn;
 };

@@ -80,7 +80,7 @@ else
 endif
 
 ifeq ($(DEBUG), 1)
-	override BASE_FLAGS += -DDEBUG_LOG -g -ggdb
+	override BASE_FLAGS += -DDEBUG -g -ggdb
 else
 	override BASE_FLAGS += -O3
 endif

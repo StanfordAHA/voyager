@@ -7,47 +7,51 @@
 
 using namespace ac_math;
 
-const std::set<std::string> activations = {"relu",  "relu_", "gelu",
-                                           "gelu_", "silu",  "silu_"};
+const std::set<std::string> unary_ops = {"relu", "relu_", "gelu", "gelu_",
+                                         "silu", "silu_", "sqrt", "sqrt_"};
 const std::set<std::string> arithmetics = {"add", "add_", "sub", "sub_",
                                            "mul", "mul_", "div", "div_"};
 
 template <typename T>
-inline void relu(T &x) {
-  x.relu();
-}
-
-template <typename T>
-inline void gelu(T &i) {
+inline T gelu(T i) {
   typedef ac_fixed<9, 4, false, AC_RND, AC_SAT> input_type;
   typedef ac_fixed<64, 32, false, AC_RND, AC_SAT> output_type;
   input_type x = static_cast<float>(i);
-  i = ac_gelu_pwl<output_type>(x);
+  return ac_gelu_pwl<output_type>(x);
 }
 
 template <typename T>
-inline void silu(T &i) {
+inline T silu(T i) {
   typedef ac_fixed<15, 7, true, AC_RND, AC_SAT> input_type;
   typedef ac_fixed<30, 3, false, AC_RND, AC_SAT> output_type;
   input_type x = static_cast<float>(i);
   output_type y = ac_sigmoid_pwl<output_type>(x);
-  i = x * y;
+  return x * y;
 }
 
 template <typename T>
-inline T *sqrt(T *tensor, const std::vector<int> &shape) {
-  int result_size = get_size(shape);
+inline T *perform_unary_operation(T *tensor, const codegen::VectorOp op) {
+  int result_size = get_size(op.input());
   T *result = new T[result_size];
 
-  for (int i = 0; i < shape[0]; ++i) {
-    for (int j = 0; j < shape[1]; ++j) {
-      for (int k = 0; k < shape[2]; ++k) {
-        result[i * shape[1] * shape[2] + j * shape[2] + k] =
-            tensor[i * shape[1] * shape[2] + j * shape[2] + k].sqrt();
-      }
+  for (int i = 0; i < result_size; ++i) {
+    if (op.opcode() == "relu" || op.opcode() == "relu_") {
+      T zero = T(0);
+      result[i] = tensor[i] < zero ? zero : tensor[i];
+    } else if (op.opcode() == "gelu" || op.opcode() == "gelu_") {
+      result[i] = gelu(tensor[i]);
+    } else if (op.opcode() == "silu" || op.opcode() == "silu_") {
+      result[i] = silu(tensor[i]);
+    } else if (op.opcode() == "sqrt" || op.opcode() == "sqrt_") {
+      result[i] = tensor[i].sqrt();
+    } else {
+      std::cerr << "Unsupported vector instruction: " << op.opcode()
+                << std::endl;
+      std::abort();
     }
   }
 
+  delete[] tensor;
   return result;
 }
 
