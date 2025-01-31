@@ -17,22 +17,23 @@ SC_MODULE(Accelerator) {
   MatrixUnit CCS_INIT_S1(matrixUnit);
   Connections::In<int> CCS_INIT_S1(serialMatrixParamsIn);
   Connections::Out<MemoryRequest> CCS_INIT_S1(inputAddressRequest);
-  Connections::In<Pack1D<INPUT_DATATYPE, IC_DIMENSION> > CCS_INIT_S1(
+  Connections::In<Pack1D<INPUT_DATATYPE, IC_DIMENSION>> CCS_INIT_S1(
       inputDataResponse);
 #if SUPPORT_MX
   Connections::Out<MemoryRequest> CCS_INIT_S1(inputScaleAddressRequest);
-  Connections::In<Pack1D<SCALE_DATATYPE, 1> > CCS_INIT_S1(inputScaleDataResponse);
+  Connections::In<Pack1D<INPUT_DATATYPE, 1>> CCS_INIT_S1(
+      inputScaleDataResponse);
   Connections::Out<MemoryRequest> CCS_INIT_S1(weightScaleAddressRequest);
-  Connections::In<Pack1D<SCALE_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
+  Connections::In<Pack1D<INPUT_DATATYPE, OC_DIMENSION>> CCS_INIT_S1(
       weightScaleDataResponse);
 #endif
   Connections::Out<MemoryRequest> CCS_INIT_S1(weightAddressRequest);
-  Connections::In<Pack1D<INPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
+  Connections::In<Pack1D<INPUT_DATATYPE, OC_DIMENSION>> CCS_INIT_S1(
       weightDataResponse);
   Connections::Out<MemoryRequest> CCS_INIT_S1(biasAddressRequest);
-  Connections::In<Pack1D<INPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
+  Connections::In<Pack1D<INPUT_DATATYPE, OC_DIMENSION>> CCS_INIT_S1(
       biasDataResponse);
-  Connections::Combinational<Pack1D<ACCUM_BUFFER_DATATYPE, OC_DIMENSION> >
+  Connections::Combinational<Pack1D<ACCUM_BUFFER_DATATYPE, OC_DIMENSION>>
       CCS_INIT_S1(outputsFromSystolicArray);
   Connections::SyncOut CCS_INIT_S1(matrixUnitStartSignal);
   Connections::SyncOut CCS_INIT_S1(matrixUnitDoneSignal);
@@ -48,19 +49,20 @@ SC_MODULE(Accelerator) {
 #endif
   Connections::In<int> CCS_INIT_S1(serialVectorParamsIn);
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch0AddressRequest);
-  Connections::In<Pack1D<OUTPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
+  Connections::In<Pack1D<OUTPUT_DATATYPE, OC_DIMENSION>> CCS_INIT_S1(
       vectorFetch0DataResponse);
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch1AddressRequest);
-  Connections::In<Pack1D<OUTPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
+  Connections::In<Pack1D<OUTPUT_DATATYPE, OC_DIMENSION>> CCS_INIT_S1(
       vectorFetch1DataResponse);
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch2AddressRequest);
-  Connections::In<Pack1D<OUTPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
+  Connections::In<Pack1D<OUTPUT_DATATYPE, OC_DIMENSION>> CCS_INIT_S1(
       vectorFetch2DataResponse);
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch3AddressRequest);
-  Connections::In<OUTPUT_DATATYPE> CCS_INIT_S1(vectorFetch3DataResponse);
-  Connections::Out<Pack1D<OUTPUT_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
+  Connections::In<Pack1D<INPUT_DATATYPE, 16 / INPUT_DATATYPE::width>>
+      CCS_INIT_S1(vectorFetch3DataResponse);
+  Connections::Out<Pack1D<OUTPUT_DATATYPE, OC_DIMENSION>> CCS_INIT_S1(
       vectorOutput);
-  Connections::Out<ac_int<64, false> > CCS_INIT_S1(vectorOutputAddress);
+  Connections::Out<ac_int<64, false>> CCS_INIT_S1(vectorOutputAddress);
 
   Connections::SyncOut CCS_INIT_S1(vectorUnitStartSignal);
   Connections::SyncOut CCS_INIT_S1(vectorUnitDoneSignal);

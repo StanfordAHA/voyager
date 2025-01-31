@@ -529,7 +529,7 @@ struct VectorParams : BaseParams {
       addressGen0WeightLoopIndex[i] = 0;
     }
     vec0DequantizeScale = 0;
-    DP_VEC0 = false;
+    fetch_vector_type_0 = false;
 
     addressGen0Broadcast = 0;
 
@@ -556,8 +556,8 @@ struct VectorParams : BaseParams {
       addressGen1WeightLoopIndex[i] = 0;
     }
     vec1DequantizeScale = 0;
-    DP_VEC1 = false;
-    BROADCAST_VEC1_SCALE = false;
+    fetch_vector_type_1 = false;
+    fetch_scale_type_1 = false;
 
     ADDRESS_GEN2_OFFSET = 0;
     for (int i = 0; i < 2; i++) {
@@ -571,7 +571,7 @@ struct VectorParams : BaseParams {
       addressGen2WeightLoopIndex[i] = 0;
     }
     vec2DequantizeScale = 0;
-    DP_VEC2 = false;
+    fetch_vector_type_2 = false;
 
     VECTOR_OUTPUT_OFFSET = 0;
     for (int i = 0; i < 2; i++) {
@@ -584,7 +584,7 @@ struct VectorParams : BaseParams {
       outputYLoopIndex[i] = 0;
       outputWeightLoopIndex[i] = 0;
     }
-    DP_OUTPUT = false;
+    output_vector_type = false;
 
     addressGen0Mode = 0;
     addressGen1Mode = 0;
@@ -610,7 +610,7 @@ struct VectorParams : BaseParams {
   ac_int<3, false> addressGen0InputYLoopIndex[2];
   ac_int<3, false> addressGen0WeightLoopIndex[2];
   ac_int<16, false> vec0DequantizeScale;
-  bool DP_VEC0;
+  bool fetch_vector_type_0;
 
   // A vector where each bit represents if the corresponding dimension is
   // broadcasted
@@ -632,10 +632,9 @@ struct VectorParams : BaseParams {
   ac_int<3, false> addressGen1InputYLoopIndex[2];
   ac_int<3, false> addressGen1WeightLoopIndex[2];
   ac_int<16, false> vec1DequantizeScale;
-  bool DP_VEC1;
-
-  bool BROADCAST_VEC1_SCALE;
-  ac_int<8, false> vec1BroadcastCount;
+  bool fetch_vector_type_1;
+  bool fetch_scale_type_1;
+  ac_int<8, false> mx_block_size;
 
   // Address Gen 2 (op3src1)
   unsigned long long ADDRESS_GEN2_OFFSET;
@@ -644,7 +643,7 @@ struct VectorParams : BaseParams {
   ac_int<3, false> addressGen2InputYLoopIndex[2];
   ac_int<3, false> addressGen2WeightLoopIndex[2];
   ac_int<16, false> vec2DequantizeScale;
-  bool DP_VEC2;
+  bool fetch_vector_type_2;
 
   unsigned long long VECTOR_OUTPUT_OFFSET;
   ac_int<11, false> outputLoops[2][3];
@@ -652,7 +651,7 @@ struct VectorParams : BaseParams {
   ac_int<3, false> outputYLoopIndex[2];
   ac_int<3, false> outputWeightLoopIndex[2];
   ac_int<16, false> outputQuantizeScale;
-  bool DP_OUTPUT;
+  bool output_vector_type;
 
   ac_int<2, false> addressGen0Mode;
   ac_int<2, false> addressGen1Mode;
@@ -700,7 +699,7 @@ struct VectorParams : BaseParams {
       m& addressGen0WeightLoopIndex[i];
     }
     m & vec0DequantizeScale;
-    m & DP_VEC0;
+    m & fetch_vector_type_0;
 
     m & addressGen0Broadcast;
 
@@ -731,10 +730,10 @@ struct VectorParams : BaseParams {
       m& addressGen1WeightLoopIndex[i];
     }
     m & vec1DequantizeScale;
-    m & DP_VEC1;
+    m & fetch_vector_type_1;
 
-    m & BROADCAST_VEC1_SCALE;
-    m & vec1BroadcastCount;
+    m & fetch_scale_type_1;
+    m & mx_block_size;
 
     m & ADDRESS_GEN2_OFFSET;
     for (int i = 0; i < 2; i++) {
@@ -752,7 +751,7 @@ struct VectorParams : BaseParams {
       m& addressGen2WeightLoopIndex[i];
     }
     m & vec2DequantizeScale;
-    m & DP_VEC2;
+    m & fetch_vector_type_2;
 
     m & VECTOR_OUTPUT_OFFSET;
     for (int i = 0; i < 2; i++) {
@@ -770,7 +769,7 @@ struct VectorParams : BaseParams {
       m& outputWeightLoopIndex[i];
     }
     m & outputQuantizeScale;
-    m & DP_OUTPUT;
+    m & output_vector_type;
 
     m & addressGen0Mode;
     m & addressGen1Mode;
@@ -815,7 +814,7 @@ struct VectorParams : BaseParams {
       os << "addressGen0WeightLoopIndex[" << i
          << "]: " << params.addressGen0WeightLoopIndex[i] << std::endl;
     }
-    os << "DP_VEC0: " << params.DP_VEC0 << std::endl;
+    os << "fetch_vector_type_0: " << params.fetch_vector_type_0 << std::endl;
     os << "addressGen0Mode: " << params.addressGen0Mode << std::endl;
     os << "vec0DequantizeScale: " << params.vec0DequantizeScale << std::endl;
 
@@ -854,7 +853,10 @@ struct VectorParams : BaseParams {
       os << "addressGen1WeightLoopIndex[" << i
          << "]: " << params.addressGen1WeightLoopIndex[i] << std::endl;
     }
-    os << "DP_VEC1: " << params.DP_VEC1 << std::endl;
+    os << "vec1DequantizeScale: " << params.vec1DequantizeScale << std::endl;
+    os << "fetch_vector_type_1: " << params.fetch_vector_type_1 << std::endl;
+    os << "fetch_scale_type_1: " << params.fetch_scale_type_1 << std::endl;
+    os << "mx_block_size: " << params.mx_block_size << std::endl;
     os << "addressGen1Mode: " << params.addressGen1Mode << std::endl;
 
     os << "ADDRESS_GEN2_OFFSET: " << params.ADDRESS_GEN2_OFFSET << std::endl;
@@ -876,7 +878,8 @@ struct VectorParams : BaseParams {
       os << "addressGen2WeightLoopIndex[" << i
          << "]: " << params.addressGen2WeightLoopIndex[i] << std::endl;
     }
-    os << "DP_VEC2: " << params.DP_VEC2 << std::endl;
+    os << "vec2DequantizeScale: " << params.vec2DequantizeScale << std::endl;
+    os << "fetch_vector_type_2: " << params.fetch_vector_type_2 << std::endl;
     os << "addressGen2Mode: " << params.addressGen2Mode << std::endl;
 
     os << "VECTOR_OUTPUT_OFFSET: " << params.VECTOR_OUTPUT_OFFSET << std::endl;
@@ -898,7 +901,7 @@ struct VectorParams : BaseParams {
       os << "outputWeightLoopIndex[" << i
          << "]: " << params.outputWeightLoopIndex[i] << std::endl;
     }
-    os << "DP_OUTPUT: " << params.DP_OUTPUT << std::endl;
+    os << "output_vector_type: " << params.output_vector_type << std::endl;
     os << "outputAddressMode: " << params.outputAddressMode << std::endl;
 
     os << "headSizeInPowerOfTwo: " << params.headSizeInPowerOfTwo << std::endl;
@@ -934,7 +937,7 @@ struct VectorParams : BaseParams {
           rhs.addressGen0WeightLoopIndex[i])
         return false;
     }
-    if (lhs.DP_VEC0 != rhs.DP_VEC0) return false;
+    if (lhs.fetch_vector_type_0 != rhs.fetch_vector_type_0) return false;
     if (lhs.vec0DequantizeScale != rhs.vec0DequantizeScale) return false;
 
     // Compare Address Gen 1 members
@@ -956,10 +959,10 @@ struct VectorParams : BaseParams {
           rhs.addressGen1WeightLoopIndex[i])
         return false;
     }
-    if (lhs.DP_VEC1 != rhs.DP_VEC1) return false;
+    if (lhs.fetch_vector_type_1 != rhs.fetch_vector_type_1) return false;
     if (lhs.vec1DequantizeScale != rhs.vec1DequantizeScale) return false;
-    if (lhs.BROADCAST_VEC1_SCALE != rhs.BROADCAST_VEC1_SCALE) return false;
-    if (lhs.vec1BroadcastCount != rhs.vec1BroadcastCount) return false;
+    if (lhs.fetch_scale_type_1 != rhs.fetch_scale_type_1) return false;
+    if (lhs.mx_block_size != rhs.mx_block_size) return false;
 
     // Compare Address Gen 2 members
     if (lhs.ADDRESS_GEN2_OFFSET != rhs.ADDRESS_GEN2_OFFSET) return false;
@@ -980,7 +983,7 @@ struct VectorParams : BaseParams {
           rhs.addressGen2WeightLoopIndex[i])
         return false;
     }
-    if (lhs.DP_VEC2 != rhs.DP_VEC2) return false;
+    if (lhs.fetch_vector_type_2 != rhs.fetch_vector_type_2) return false;
     if (lhs.vec2DequantizeScale != rhs.vec2DequantizeScale) return false;
 
     // Compare output and other members
@@ -998,7 +1001,7 @@ struct VectorParams : BaseParams {
     }
     if (lhs.SPLIT_OUTPUT != rhs.SPLIT_OUTPUT) return false;
     if (lhs.CONCAT_OUTPUT != rhs.CONCAT_OUTPUT) return false;
-    if (lhs.DP_OUTPUT != rhs.DP_OUTPUT) return false;
+    if (lhs.output_vector_type != rhs.output_vector_type) return false;
     if (lhs.OUTPUT_QUANTIZE != rhs.OUTPUT_QUANTIZE) return false;
     if (lhs.outputQuantizeScale != rhs.outputQuantizeScale) return false;
     if (lhs.OUTPUT_QUANTIZE_MX != rhs.OUTPUT_QUANTIZE_MX) return false;

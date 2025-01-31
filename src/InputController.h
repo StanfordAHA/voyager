@@ -262,31 +262,28 @@ SC_MODULE(InputController) {
                         ac_int<16, false> y = (y0 - y_min_offset) + y1 * Y0;
                         ac_int<16, false> Y = Y0 * Y1;
 
-                        ac_int<32, false> baseAddress = y * X * C + x * C + c;
-                        int burstSize = NRows;
+                        ac_int<32, false> address = y * X * C + x * C + c;
 
                         if (params.REPLICATION) {
-                          baseAddress = y * (X / packingFactor) * IC_DIMENSION +
-                                        (x / packingFactor) * IC_DIMENSION + c;
+                          address = y * (X / packingFactor) * IC_DIMENSION +
+                                    (x / packingFactor) * IC_DIMENSION + c;
                         }
 
                         ac_int<8, false> headSize = params.headSizeInPowerOfTwo;
                         if (params.CONCAT_INPUT) {
                           ac_int<16, false> mask = (1 << headSize) - 1;
-                          baseAddress = (((c >> headSize) * X) << headSize) +
-                                        (x << headSize) + (c & mask);
+                          address = (((c >> headSize) * X) << headSize) +
+                                    (x << headSize) + (c & mask);
                         }
 
                         if (params.TRANPOSE_INPUTS) {
-                          baseAddress =
+                          address =
                               (c + (x % 16)) * X + (x / 16) * IC_DIMENSION;
                         }
 
-                        MemoryRequest memRequest;
-                        memRequest = {params.INPUT_OFFSET +
-                                          baseAddress * (Input::width / 8),
-                                      burstSize * (Input::width / 8)};
-
+                        MemoryRequest memRequest = {
+                            params.INPUT_OFFSET + address * Input::width / 8,
+                            NRows};
                         addressRequest.Push(memRequest);
 
                         if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {

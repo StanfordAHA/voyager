@@ -7,7 +7,7 @@
 #include "ArchitectureParams.h"
 #include "ParamsDeserializer.h"
 
-template <typename DTYPE, int NROWS, int NCOLS>
+template <typename Weight, typename Scale, int NRows, int NCols>
 SC_MODULE(WeightScaleController) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
@@ -15,9 +15,9 @@ SC_MODULE(WeightScaleController) {
   Connections::In<int> serialParamsIn;
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(addressRequest);
-  Connections::In<Pack1D<DTYPE, NCOLS>> CCS_INIT_S1(dataResponse);
+  Connections::In<Pack1D<Weight, NCols>> CCS_INIT_S1(dataResponse);
 
-  Connections::Out<BufferWriteRequest<DTYPE, NCOLS>> writeRequest[2];
+  Connections::Out<BufferWriteRequest<Scale, NCols>> writeRequest[2];
   Connections::Out<ac_int<32, false>> writeControl[2];
   Connections::Out<ac_int<16, false>> readAddress[2];
   Connections::Out<ac_int<32, false>> readControl[2];
@@ -28,7 +28,7 @@ SC_MODULE(WeightScaleController) {
   Connections::Combinational<MatrixParams> CCS_INIT_S1(readerParams);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(transposerParams);
 
-  Connections::Combinational<Pack1D<DTYPE, NCOLS>> transposeOut;
+  Connections::Combinational<Pack1D<Scale, NCols>> transposeOut;
 
   MatrixParamsDeserializer<4> CCS_INIT_S1(paramsDeserializer);
 
@@ -78,7 +78,7 @@ SC_MODULE(WeightScaleController) {
         }
       }
 
-      // int c0_bound = NROWS;
+      // int c0_bound = NRows;
       // if (params.REPLICATION) {
       //   c0_bound = 3;
       //   loop_bounds[1][params.fxIndex] = 7;
@@ -87,7 +87,7 @@ SC_MODULE(WeightScaleController) {
       // microscaling batch size of 32 along C dimension
       loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] =
           loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] /
-          (32 / NROWS);
+          (32 / NRows);
       loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] = 1;
 
 #pragma hls_pipeline_init_interval 1
@@ -114,30 +114,31 @@ SC_MODULE(WeightScaleController) {
                     for (loop_counters[1][4] = 0;
                          loop_counters[1][4] < loop_bounds[1][4];
                          loop_counters[1][4]++) {
-                      ac_int<8, false> k2 = loop_counters
-                          [0][params.weightAddressGenWeightLoopIndex[0]];
-                      ac_int<8, false> K2 = loop_bounds
-                          [0][params.weightAddressGenWeightLoopIndex[0]];
                       ac_int<8, false> k1 = loop_counters
                           [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<8, false> K1 = loop_bounds
-                          [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<8, false> C1 = loop_bounds
-                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                      ac_int<8, false> k2 = loop_counters
+                          [0][params.weightAddressGenWeightLoopIndex[0]];
+                      ac_int<8, false> c0 = loop_counters
+                          [1][params.weightAddressGenReductionLoopIndex[1]];
                       ac_int<8, false> c1 = loop_counters
                           [1][params.weightAddressGenReductionLoopIndex[0]];
                       ac_int<8, false> fx =
                           loop_counters[1][params.weightAddressGenFxIndex];
-                      ac_int<8, false> FX =
-                          loop_bounds[1][params.weightAddressGenFxIndex];
                       ac_int<8, false> fy =
                           loop_counters[1][params.weightAddressGenFyIndex];
-                      ac_int<8, false> FY =
-                          loop_bounds[1][params.weightAddressGenFyIndex];
-                      ac_int<8, false> c0 = loop_counters
-                          [1][params.weightAddressGenReductionLoopIndex[1]];
+
+                      ac_int<8, false> K1 = loop_bounds
+                          [1][params.weightAddressGenWeightLoopIndex[1]];
+                      ac_int<8, false> K2 = loop_bounds
+                          [0][params.weightAddressGenWeightLoopIndex[0]];
                       ac_int<8, false> C0 = loop_bounds
                           [1][params.weightAddressGenReductionLoopIndex[1]];
+                      ac_int<8, false> C1 = loop_bounds
+                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                      ac_int<8, false> FX =
+                          loop_bounds[1][params.weightAddressGenFxIndex];
+                      ac_int<8, false> FY =
+                          loop_bounds[1][params.weightAddressGenFyIndex];
 
                       ac_int<16, false> c = c1;
                       ac_int<16, false> C = C1;
@@ -145,23 +146,27 @@ SC_MODULE(WeightScaleController) {
                           k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
                       ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
 
-                      int baseAddress =
+                      int address =
                           (fy * FX * C * K) + (fx * C * K) + (c * K) + k;
                       if (params.WEIGHT_TRANSPOSE) {
-                        C = C1 * NCOLS;
-                        baseAddress = (k + c0) * C + c1 * OC_DIMENSION;
+                        C = C1 * NCols;
+                        address = (k + c0) * C + c1 * OC_DIMENSION;
                       } else if (params.CONCAT_HEAD_WEIGHTS) {
-                        baseAddress = static_cast<ac_int<32, false>>(
-                                          ((k / 32) * C * 32)) +
-                                      static_cast<ac_int<16, false>>((c * 32)) +
-                                      static_cast<ac_int<32, false>>((k % 32));
+                        address = static_cast<ac_int<32, false>>(
+                                      ((k / 32) * C * 32)) +
+                                  static_cast<ac_int<16, false>>((c * 32)) +
+                                  static_cast<ac_int<32, false>>((k % 32));
                       }
-                      int burstSize = NCOLS;
 
-                      // CCS_LOG("Fetching from address " << baseAddress);
+                      // CCS_LOG("Fetching from address " << address);
+
+                      address = address * Scale::width / 8;
+
+                      constexpr int num_words = Scale::width / Weight::width;
 
                       MemoryRequest memRequest = {
-                          params.WEIGHT_SCALE_OFFSET + baseAddress, burstSize};
+                          params.WEIGHT_SCALE_OFFSET + address,
+                          NCols * num_words};
                       addressRequest.Push(memRequest);
 
                       if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
@@ -228,10 +233,10 @@ SC_MODULE(WeightScaleController) {
       // microscaling batch size of 32 along C dimension
       loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] =
           loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] /
-          (32 / NROWS);
+          (32 / NRows);
       loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] = 1;
 
-      // int c0_bound = NROWS;
+      // int c0_bound = NRows;
       // if (params.REPLICATION) {
       //   c0_bound = 3;
       //   loop_bounds[1][params.fxIndex] = 7;
@@ -293,7 +298,7 @@ SC_MODULE(WeightScaleController) {
                           k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
                       ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
 
-                      Pack1D<DTYPE, NCOLS> data = transposeOut.Pop();
+                      Pack1D<Scale, NCols> data = transposeOut.Pop();
 
                       int address =
                           (fy * FX * C * K1) + (fx * C * K1) + (c0 * K1) + k1;
@@ -307,7 +312,7 @@ SC_MODULE(WeightScaleController) {
                       //     == loop_bounds[1][5] - 1);
 
                       // writeControl[bankSel].Push(!swapBank);
-                      BufferWriteRequest<DTYPE, NCOLS> req;
+                      BufferWriteRequest<Scale, NCols> req;
                       req.address = address;
                       req.data = data;
                       writeRequest[bankSel].Push(req);
@@ -380,8 +385,8 @@ SC_MODULE(WeightScaleController) {
       loop_bounds[1][params.weightReuseIndex[1]] = 1;
       // microscaling batch size of 32 along C dimension
       loop_bounds[1][params.reductionLoopIndex[1]] =
-          loop_bounds[1][params.reductionLoopIndex[1]] / (32 / NROWS);
-      ac_int<8, false> microscalingReuse = (32 / NROWS);
+          loop_bounds[1][params.reductionLoopIndex[1]] / (32 / NRows);
+      ac_int<8, false> microscalingReuse = (32 / NRows);
 
       // extra loop to control reuse which only occurs during transpose and when
       // OC_DIMENSION > IC_DIMENSION
@@ -436,47 +441,52 @@ SC_MODULE(WeightScaleController) {
                              */
                             ac_int<8, false> numPadding = 0;
                             ac_int<4, false> replicationBound = 1;
-                            ac_int<8, false> startingC = NROWS - 1;
-                            ac_int<8, false> endingC = NROWS;
+                            ac_int<8, false> startingC = NRows - 1;
+                            ac_int<8, false> endingC = NRows;
+
                             if (params.REPLICATION) {
                               startingC = 3 - 1;
                               endingC = 3;
                               if (IC_DIMENSION == 16) {
                                 if (loop_counters[1][params.fxIndex] == 0) {
-                                  numPadding = NROWS - 12;
+                                  numPadding = NRows - 12;
                                   replicationBound = 4;
                                 } else {
-                                  numPadding = NROWS - 9;
+                                  numPadding = NRows - 9;
                                   replicationBound = 3;
                                 }
                               } else if (IC_DIMENSION == 32) {
                                 replicationBound = 7;
-                                numPadding = NROWS - replicationBound * 3;
+                                numPadding = NRows - replicationBound * 3;
                               }
                             }
-                            ac_int<8, false> k2 =
-                                loop_counters[0][params.weightLoopIndex[0]];
-                            ac_int<8, false> K2 =
-                                params.loops[0][params.weightLoopIndex[0]];
+
                             ac_int<8, false> k1 =
                                 loop_counters[1][params.weightLoopIndex[1]];
-                            ac_int<8, false> K1 =
-                                params.loops[1][params.weightLoopIndex[1]];
-                            ac_int<8, false> C1 =
-                                params.loops[1][params.reductionLoopIndex[1]];
+                            ac_int<8, false> k2 =
+                                loop_counters[0][params.weightLoopIndex[0]];
                             ac_int<8, false> c1 =
                                 loop_counters[1][params.reductionLoopIndex[1]];
                             ac_int<8, false> fx =
                                 loop_counters[1][params.fxIndex];
-                            ac_int<8, false> FX =
-                                params.loops[1][params.fxIndex];
                             ac_int<8, false> fy =
                                 loop_counters[1][params.fyIndex];
+
+                            ac_int<8, false> K1 =
+                                params.loops[1][params.weightLoopIndex[1]];
+                            ac_int<8, false> K2 =
+                                params.loops[0][params.weightLoopIndex[0]];
+                            ac_int<8, false> C1 =
+                                params.loops[1][params.reductionLoopIndex[1]];
+                            ac_int<8, false> FX =
+                                params.loops[1][params.fxIndex];
                             ac_int<8, false> FY =
                                 params.loops[1][params.fyIndex];
+
                             ac_int<16, false> k =
                                 k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
                             ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
+
                             int address =
                                 static_cast<ac_int<16, false>>((fy * FX * K1)) +
                                 static_cast<ac_int<16, false>>((fx * K1)) + k1;
@@ -488,7 +498,7 @@ SC_MODULE(WeightScaleController) {
                                         static_cast<ac_int<16, false>>(
                                             (fx * 2 * K1)) +
                                         static_cast<ac_int<16, false>>(
-                                            (rep * NROWS) * K1) +
+                                            (rep * NRows) * K1) +
                                         k1;
                             }
 
@@ -562,22 +572,22 @@ SC_MODULE(WeightScaleController) {
       // microscaling batch size of 32 along C dimension
       loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] =
           loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] /
-          (32 / NROWS);
+          (32 / NRows);
       loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] = 1;
 
-      // int c0_bound = NROWS;
+      // int c0_bound = NRows;
       // if (params.REPLICATION) {
       //   c0_bound = 3;
       //   loop_bounds[1][params.fxIndex] = 7;
       // }
 
-      if (params.WEIGHT_TRANSPOSE && NROWS < 64 &&
-          NCOLS <
+      if (params.WEIGHT_TRANSPOSE && NRows < 64 &&
+          NCols <
               64) {  // don't support transpose when systolic array is larger
                      // than 32x32, as it will require a very large buffer
         // we need a square buffer to store the transpose
-        DTYPE transposeBuffer[NROWS > NCOLS ? NROWS : NCOLS]
-                             [NROWS > NCOLS ? NROWS : NCOLS];
+        Scale transposeBuffer[NRows > NCols ? NRows : NCols]
+                             [NRows > NCols ? NRows : NCols];
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
@@ -605,20 +615,40 @@ SC_MODULE(WeightScaleController) {
                       // Must be true for the transpose case
 
                       // Fill up transposeBuffer
-                      for (int c0 = 0; c0 < NCOLS; c0++) {
-                        Pack1D<DTYPE, NCOLS> originalValue = dataResponse.Pop();
+                      for (int c0 = 0; c0 < NCols; c0++) {
+                        constexpr int num_words = Scale::width / Weight::width;
+
+                        Pack1D<Scale, NCols> converted_data;
+
+                        if constexpr (num_words == 1) {
+                          Pack1D<Weight, NCols> response = dataResponse.Pop();
 #pragma hls_unroll yes
-                        for (int dim = 0; dim < NCOLS; dim++) {
-                          transposeBuffer[dim][c0] = originalValue[dim];
+                          for (int dim = 0; dim < NCols; dim++) {
+                            converted_data[dim].set_bits(
+                                response[dim].bits_rep());
+                          }
+                        } else {
+                          Pack1D<Weight, NCols> response[num_words];
+                          for (int word = 0; word < num_words; word++) {
+                            response[word] = dataResponse.Pop();
+                          }
+
+                          convertPack1D<Weight, Scale, NCols>(response,
+                                                              converted_data);
+                        }
+
+#pragma hls_unroll yes
+                        for (int dim = 0; dim < NCols; dim++) {
+                          transposeBuffer[dim][c0] = converted_data[dim];
                         }
                       }
 
                       // Write out from tranposeBuffer
-                      for (int c0 = 0; c0 < NCOLS; c0++) {
-                        Pack1D<DTYPE, NCOLS> transposedValue;
+                      for (int c0 = 0; c0 < NCols; c0++) {
+                        Pack1D<Scale, NCols> transposedValue;
 
 #pragma hls_unroll yes
-                        for (int dim = 0; dim < NCOLS; dim++) {
+                        for (int dim = 0; dim < NCols; dim++) {
                           transposedValue[dim] = transposeBuffer[c0][dim];
                         }
                         transposeOut.Push(transposedValue);
@@ -661,7 +691,25 @@ SC_MODULE(WeightScaleController) {
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
         for (int i = 0; i < total_values; i++) {
-          transposeOut.Push(dataResponse.Pop());
+          constexpr int num_words = Scale::width / Weight::width;
+
+          Pack1D<Scale, NCols> converted_data;
+
+          if constexpr (num_words == 1) {
+            Pack1D<Weight, NCols> response = dataResponse.Pop();
+#pragma hls_unroll yes
+            for (int dim = 0; dim < NCols; dim++) {
+              converted_data[dim].set_bits(response[dim].bits_rep());
+            }
+          } else {
+            Pack1D<Weight, NCols> response[num_words];
+            for (int word = 0; word < num_words; word++) {
+              response[word] = dataResponse.Pop();
+            }
+
+            convertPack1D<Weight, Scale, NCols>(response, converted_data);
+          }
+          transposeOut.Push(converted_data);
         }
       }
     }

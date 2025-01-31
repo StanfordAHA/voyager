@@ -45,7 +45,7 @@ void MapLayerNorm(const codegen::Operator &param,
   vector_params->addressGen0Loop[1][1] = 2;
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->DP_VEC0 =
+  vector_params->fetch_vector_type_0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != input.dtype();
 
   // Overwrite inputs
@@ -60,7 +60,7 @@ void MapLayerNorm(const codegen::Operator &param,
   vector_params->outputLoops[1][1] = non_reduction_loops[3];
   vector_params->outputLoops[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->DP_OUTPUT =
+  vector_params->output_vector_type =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 
   // Configure reduction engine
@@ -135,7 +135,7 @@ void MapLayerNorm(const codegen::Operator &param,
   vector_params->addressGen0Loop[1][1] = 2;
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->DP_VEC0 =
+  vector_params->fetch_vector_type_0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != input.dtype();
 
   // Overwrite inputs
@@ -150,7 +150,7 @@ void MapLayerNorm(const codegen::Operator &param,
   vector_params->outputLoops[1][1] = non_reduction_loops[3];
   vector_params->outputLoops[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->DP_OUTPUT =
+  vector_params->output_vector_type =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 
   // Configure reduction unit
@@ -226,7 +226,7 @@ void MapLayerNorm(const codegen::Operator &param,
   vector_params->addressGen0Loop[1][1] = non_reduction_loops[3];
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->DP_VEC0 =
+  vector_params->fetch_vector_type_0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != input.dtype();
 
   // Fetch weights
@@ -251,7 +251,7 @@ void MapLayerNorm(const codegen::Operator &param,
   vector_params->addressGen1Loops[1][1] = param_loops[1];
   vector_params->addressGen1Loops[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->DP_VEC1 =
+  vector_params->fetch_vector_type_1 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != matrix_op.weight().dtype();
 
   // Fetch bias
@@ -274,7 +274,7 @@ void MapLayerNorm(const codegen::Operator &param,
     vector_params->addressGen2Loops[1][1] = param_loops[1];
     vector_params->addressGen2Loops[1][2] = outer_dim / OC_DIMENSION;
 
-    vector_params->DP_VEC2 =
+    vector_params->fetch_vector_type_2 =
         DataTypes::TypeName<INPUT_DATATYPE>::name() != matrix_op.bias().dtype();
   }
 
@@ -290,7 +290,7 @@ void MapLayerNorm(const codegen::Operator &param,
   vector_params->outputLoops[1][1] = non_reduction_loops[3];
   vector_params->outputLoops[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->DP_OUTPUT =
+  vector_params->output_vector_type =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 
   // inputs x weights + bias

@@ -6,7 +6,7 @@
 #include "AccelTypes.h"
 #include "ParamsDeserializer.h"
 
-template <typename Scale, int NRows>
+template <typename Input, typename Scale, int NRows>
 SC_MODULE(InputScaleController) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
@@ -14,7 +14,7 @@ SC_MODULE(InputScaleController) {
   Connections::In<int> CCS_INIT_S1(serialParamsIn);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(addressRequest);
-  Connections::In<Pack1D<Scale, 1> > CCS_INIT_S1(dataResponse);
+  Connections::In<Pack1D<Input, 1> > CCS_INIT_S1(dataResponse);
 
   Connections::Out<BufferWriteRequest<Scale, 1> > writeRequest[2];
   Connections::Out<ac_int<32, false> > writeControl[2];
@@ -237,11 +237,10 @@ SC_MODULE(InputScaleController) {
                         ac_int<16, false> y = (y0 - y_min_offset) + y1 * Y0;
                         ac_int<16, false> Y = Y0 * Y1;
 
-                        int baseAddress = y * X * C + x * C + c;
-                        int burstSize = 1;
+                        int address = y * X * C + x * C + c;
 
                         if (params.REPLICATION) {
-                          baseAddress =
+                          address =
                               static_cast<ac_int<32, false> >(
                                   y * (X / packingFactor) * IC_DIMENSION) +
                               static_cast<ac_int<32, false> >(
@@ -250,26 +249,25 @@ SC_MODULE(InputScaleController) {
                         }
 
                         if (params.CONCAT_INPUT) {
-                          baseAddress =
-                              static_cast<ac_int<32, false> >(
-                                  ((c / 32) * X * 32)) +
-                              static_cast<ac_int<32, false> >((x * 32)) +
-                              static_cast<ac_int<32, false> >((c % 32));
+                          address = static_cast<ac_int<32, false> >(
+                                        ((c / 32) * X * 32)) +
+                                    static_cast<ac_int<32, false> >((x * 32)) +
+                                    static_cast<ac_int<32, false> >((c % 32));
                         }
 
                         if (params.TRANPOSE_INPUTS) {
-                          baseAddress = static_cast<ac_int<32, false> >(
-                                            (c + (x % 16)) * X) +
-                                        static_cast<ac_int<32, false> >(
-                                            (x / 16) * IC_DIMENSION);
+                          address = static_cast<ac_int<32, false> >(
+                                        (c + (x % 16)) * X) +
+                                    static_cast<ac_int<32, false> >(
+                                        (x / 16) * IC_DIMENSION);
                         }
 
-                        MemoryRequest memRequest;
-                        memRequest = {params.INPUT_SCALE_OFFSET + baseAddress,
-                                      burstSize};
+                        address = address * Scale::width / 8;
 
-                        // CCS_LOG("Fetching input scale: " << baseAddress);
+                        constexpr int num_words = Scale::width / Input::width;
 
+                        MemoryRequest memRequest = {
+                            params.INPUT_SCALE_OFFSET + address, num_words};
                         addressRequest.Push(memRequest);
 
                         if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
@@ -872,7 +870,24 @@ SC_MODULE(InputScaleController) {
                         for (loop_counters[1][5] = 0;
                              loop_counters[1][5] < loop_bounds[1][5];
                              loop_counters[1][5]++) {
-                          transposeOut.Push(dataResponse.Pop());
+                          constexpr int num_words = Scale::width / Input::width;
+                          Pack1D<Scale, 1> converted_response;
+                          if constexpr (num_words == 1) {
+                            Pack1D<Input, 1> response = dataResponse.Pop();
+
+                            converted_response[0].set_bits(
+                                response[0].bits_rep());
+
+                          } else {
+                            Pack1D<Input, 1> response[num_words];
+                            for (int word = 0; word < num_words; word++) {
+                              response[word] = dataResponse.Pop();
+                            }
+
+                            convertPack1D<Input, Scale, 1>(response,
+                                                           converted_response);
+                          }
+                          transposeOut.Push(converted_response);
 
                           if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
                             break;

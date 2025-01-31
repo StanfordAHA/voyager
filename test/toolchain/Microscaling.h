@@ -54,7 +54,7 @@ void MapMXQparam(const codegen::Operator &param,
     vector_params->addressGen0WeightLoopIndex[i] = 2;
   }
 
-  vector_params->DP_VEC0 =
+  vector_params->fetch_vector_type_0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != vector_input.dtype();
 
   int output_dim_factors[2];
@@ -77,7 +77,7 @@ void MapMXQparam(const codegen::Operator &param,
     vector_params->outputWeightLoopIndex[i] = 2;
   }
 
-  vector_params->DP_OUTPUT = false;
+  vector_params->output_vector_type = false;
   vector_params->OUTPUT_QUANTIZE = false;
 
   // inst 0 - start reduction engine to calculate mx scale

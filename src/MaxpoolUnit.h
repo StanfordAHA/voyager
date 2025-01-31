@@ -3,14 +3,14 @@
 /*
  * Performs bias, residual, maxpool and avgpool operations
  */
-template <typename VEC_DTYPE, typename IO_DTYPE, typename Scale, int WIDTH>
+template <typename Vector, typename Input, typename Scale, int Width>
 SC_MODULE(MaxpoolUnit) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
   Connections::In<VectorParams> CCS_INIT_S1(paramsIn);
-  Connections::In<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(tensorIn);
-  Connections::Out<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(tensorOut);
+  Connections::In<Pack1D<Vector, Width> > CCS_INIT_S1(tensorIn);
+  Connections::Out<Pack1D<Input, Width> > CCS_INIT_S1(tensorOut);
 
   Connections::In<Scale> CCS_INIT_S1(mxScaleIn);
 
@@ -93,8 +93,8 @@ SC_MODULE(MaxpoolUnit) {
                   ac_int<11, false> K2 =
                       params.outputLoops[0][params.outputWeightLoopIndex[0]];
 
-                  ac_int<16, false> k = k2 * K1 * WIDTH + k1 * WIDTH;
-                  ac_int<16, false> K = K2 * K1 * WIDTH;
+                  ac_int<16, false> k = k2 * K1 * Width + k1 * Width;
+                  ac_int<16, false> K = K2 * K1 * Width;
 
                   ac_int<16, false> x = x0 + x1 * X0;
                   ac_int<16, false> X = X0 * X1;
@@ -102,40 +102,40 @@ SC_MODULE(MaxpoolUnit) {
                   ac_int<16, false> y = y0 + y1 * Y0;
                   ac_int<16, false> Y = Y0 * Y1;
 
-                  Pack1D<VEC_DTYPE, WIDTH> uncastedOutputPixel = tensorIn.Pop();
+                  Pack1D<Vector, Width> outputs = tensorIn.Pop();
 
-                  if (params.DP_OUTPUT) {
-                    constexpr int num_words =
-                        VEC_DTYPE::width / IO_DTYPE::width;
-                    Pack1D<IO_DTYPE, WIDTH> outputPixel[num_words];
+                  if (params.output_vector_type) {
+                    constexpr int num_words = Vector::width / Input::width;
+                    Pack1D<Input, Width> converted_outputs[num_words];
 
-                    convertPack1D<IO_DTYPE, VEC_DTYPE, WIDTH>(
-                        uncastedOutputPixel, outputPixel);
+                    convertPack1D<Input, Vector, Width>(outputs,
+                                                        converted_outputs);
 
                     for (int word = 0; word < num_words; word++) {
-                      tensorOut.Push(outputPixel[word]);
+                      tensorOut.Push(converted_outputs[word]);
                     }
                   } else {
-                    Pack1D<IO_DTYPE, WIDTH> outputPixel;
+                    Pack1D<Input, Width> converted_outputs;
 
-                    if (params.OUTPUT_QUANTIZE_MX) {
-                      Scale scale = mxScaleIn.Pop();
-                      vquantize<VEC_DTYPE, IO_DTYPE, Scale, WIDTH>(
-                          uncastedOutputPixel, outputPixel, scale);
-                    } else if (params.OUTPUT_QUANTIZE) {
-                      VEC_DTYPE scale;
+                    if (params.OUTPUT_QUANTIZE) {
+                      Vector scale;
                       scale.set_bits(params.outputQuantizeScale);
-                      vquantize<VEC_DTYPE, IO_DTYPE, VEC_DTYPE, WIDTH>(
-                          uncastedOutputPixel, outputPixel, scale);
+                      vquantize<Vector, Input, Vector, Width>(
+                          outputs, converted_outputs, scale);
+#if SUPPORT_MX
+                    } else if (params.OUTPUT_QUANTIZE_MX) {
+                      Scale scale = mxScaleIn.Pop();
+                      vquantize<Vector, Input, Scale, Width>(
+                          outputs, converted_outputs, scale);
+#endif
                     } else {
 #pragma hls_unroll yes
-                      for (int i = 0; i < WIDTH; i++) {
-                        outputPixel[i].set_bits(
-                            uncastedOutputPixel[i].bits_rep());
+                      for (int i = 0; i < Width; i++) {
+                        converted_outputs[i].set_bits(outputs[i].bits_rep());
                       }
                     }
 
-                    tensorOut.Push(outputPixel);
+                    tensorOut.Push(converted_outputs);
                   }
 
                   if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {

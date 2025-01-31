@@ -140,30 +140,31 @@ SC_MODULE(WeightController) {
                     for (loop_counters[1][4] = 0;
                          loop_counters[1][4] < loop_bounds[1][4];
                          loop_counters[1][4]++) {
-                      ac_int<LOOP_WIDTH, false> k2 = loop_counters
-                          [0][params.weightAddressGenWeightLoopIndex[0]];
-                      ac_int<LOOP_WIDTH, false> K2 = loop_bounds
-                          [0][params.weightAddressGenWeightLoopIndex[0]];
                       ac_int<LOOP_WIDTH, false> k1 = loop_counters
                           [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<LOOP_WIDTH, false> K1 = loop_bounds
-                          [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<LOOP_WIDTH, false> C1 = loop_bounds
-                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> k2 = loop_counters
+                          [0][params.weightAddressGenWeightLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> c0 = loop_counters
+                          [1][params.weightAddressGenReductionLoopIndex[1]];
                       ac_int<LOOP_WIDTH, false> c1 = loop_counters
                           [1][params.weightAddressGenReductionLoopIndex[0]];
                       ac_int<LOOP_WIDTH, false> fx =
                           loop_counters[1][params.weightAddressGenFxIndex];
-                      ac_int<LOOP_WIDTH, false> FX =
-                          loop_bounds[1][params.weightAddressGenFxIndex];
                       ac_int<LOOP_WIDTH, false> fy =
                           loop_counters[1][params.weightAddressGenFyIndex];
-                      ac_int<LOOP_WIDTH, false> FY =
-                          loop_bounds[1][params.weightAddressGenFyIndex];
-                      ac_int<LOOP_WIDTH, false> c0 = loop_counters
-                          [1][params.weightAddressGenReductionLoopIndex[1]];
+
+                      ac_int<LOOP_WIDTH, false> K1 = loop_bounds
+                          [1][params.weightAddressGenWeightLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> K2 = loop_bounds
+                          [0][params.weightAddressGenWeightLoopIndex[0]];
                       ac_int<LOOP_WIDTH, false> C0 = loop_bounds
                           [1][params.weightAddressGenReductionLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> C1 = loop_bounds
+                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> FX =
+                          loop_bounds[1][params.weightAddressGenFxIndex];
+                      ac_int<LOOP_WIDTH, false> FY =
+                          loop_bounds[1][params.weightAddressGenFyIndex];
 
                       ac_int<16, false> c = c1 * C0 + c0;
                       ac_int<16, false> C = C1 * C0;
@@ -171,20 +172,18 @@ SC_MODULE(WeightController) {
                           k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
                       ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
 
-                      ac_int<32, false> baseAddress =
+                      ac_int<32, false> address =
                           (fy * FX * C * K) + (fx * C * K) + (c * K) + k;
                       if (params.WEIGHT_TRANSPOSE) {
                         C = C1 * NCols;
-                        baseAddress = (k + c0) * C + c1 * OC_DIMENSION;
+                        address = (k + c0) * C + c1 * OC_DIMENSION;
                       } else if (params.CONCAT_HEAD_WEIGHTS) {
-                        baseAddress = ((k / 32) * C * 32) + (c * 32) + (k % 32);
+                        address = ((k / 32) * C * 32) + (c * 32) + (k % 32);
                       }
-                      int burstSize = NCols;
 
                       MemoryRequest memRequest = {
-                          params.WEIGHT_OFFSET +
-                              baseAddress * (Weight::width / 8),
-                          burstSize * (Weight::width / 8)};
+                          params.WEIGHT_OFFSET + address * Weight::width / 8,
+                          NCols};
                       addressRequest.Push(memRequest);
 
                       if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
@@ -770,24 +769,26 @@ SC_MODULE(WeightController) {
                       for (loop_counters[1][5] = 0;
                            loop_counters[1][5] < loop_bounds[1][5];
                            loop_counters[1][5]++) {
-                        ac_int<LOOP_WIDTH, false> k2 =
-                            loop_counters[0][params.weightLoopIndex[0]];
-                        ac_int<LOOP_WIDTH, false> K2 =
-                            loop_bounds[0][params.weightLoopIndex[0]];
                         ac_int<LOOP_WIDTH, false> k1 =
                             loop_counters[1][params.weightLoopIndex[1]];
+                        ac_int<LOOP_WIDTH, false> k2 =
+                            loop_counters[0][params.weightLoopIndex[0]];
+
                         ac_int<LOOP_WIDTH, false> K1 =
                             loop_bounds[1][params.weightLoopIndex[1]];
+                        ac_int<LOOP_WIDTH, false> K2 =
+                            loop_bounds[0][params.weightLoopIndex[0]];
 
-                        ac_int<16, false> k =
+                        ac_int<16, false> address =
                             k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
-                        ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
+
+                        address = address * Bias::width / 8;
 
                         constexpr int num_words = Bias::width / Weight::width;
 
-                        unsigned long long baseAddress = params.BIAS_OFFSET;
-                        MemoryRequest memRequest = {baseAddress + k * num_words,
-                                                    OC_DIMENSION * num_words};
+                        MemoryRequest memRequest = {
+                            params.BIAS_OFFSET + address,
+                            OC_DIMENSION * num_words};
 
                         biasAddressRequest.Push(memRequest);
 

@@ -1,6 +1,6 @@
 #pragma once
 
-template <typename DTYPE, int WIDTH>
+template <typename Input, typename Output, int Width>
 SC_MODULE(OutputAddressGenerator) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
@@ -82,7 +82,7 @@ SC_MODULE(OutputAddressGenerator) {
                 for (loop_counters[1][2] = 0;
                      loop_counters[1][2] < loop_bounds[1][2];
                      loop_counters[1][2]++) {
-                  ac_int<32, false> baseAddress;
+                  ac_int<32, false> address;
                   if (params.outputAddressMode == 1) {
                     ac_int<11, false> x0 =
                         loop_counters[1][params.outputXLoopIndex[1]];
@@ -110,8 +110,8 @@ SC_MODULE(OutputAddressGenerator) {
                     ac_int<11, false> K1 =
                         loop_bounds[1][params.outputWeightLoopIndex[1]];
 
-                    ac_int<16, false> k = k2 * K1 * WIDTH + k1 * WIDTH;
-                    ac_int<16, false> K = K2 * K1 * WIDTH;
+                    ac_int<16, false> k = k2 * K1 * Width + k1 * Width;
+                    ac_int<16, false> K = K2 * K1 * Width;
 
                     ac_int<16, false> x = x0 + x1 * X0;
                     ac_int<16, false> X = X0 * X1;
@@ -123,14 +123,13 @@ SC_MODULE(OutputAddressGenerator) {
                     ac_int<16, false> mask = (1 << headSize) - 1;
 
                     if (params.SPLIT_OUTPUT) {
-                      baseAddress = (((k >> headSize) * X) << headSize) +
-                                    (x << headSize) + (k & mask);
+                      address = (((k >> headSize) * X) << headSize) +
+                                (x << headSize) + (k & mask);
                     } else if (params.CONCAT_OUTPUT) {
-                      baseAddress = ((k >> headSize) * K) +
-                                    ((y & mask) * K * 4) + (k & mask) +
-                                    (y >> headSize * K / 4);
+                      address = ((k >> headSize) * K) + ((y & mask) * K * 4) +
+                                (k & mask) + (y >> headSize * K / 4);
                     } else {
-                      baseAddress = y * X * K + x * K + k;
+                      address = y * X * K + x * K + k;
                     }
                   } else if (params.outputAddressMode == 2) {
                     ac_int<11, false> loop_0 = loop_counters[0][0];
@@ -147,7 +146,7 @@ SC_MODULE(OutputAddressGenerator) {
                     ac_int<11, false> loop_bound_4 = loop_bounds[1][1];
                     ac_int<11, false> loop_bound_5 = loop_bounds[1][2];
 
-                    baseAddress =
+                    address =
                         (loop_0 * loop_bound_1 * loop_bound_2 * loop_bound_3 *
                              loop_bound_4 * loop_bound_5 +
                          loop_1 * loop_bound_2 * loop_bound_3 * loop_bound_4 *
@@ -155,19 +154,19 @@ SC_MODULE(OutputAddressGenerator) {
                          loop_2 * loop_bound_3 * loop_bound_4 * loop_bound_5 +
                          loop_3 * loop_bound_4 * loop_bound_5 +
                          loop_4 * loop_bound_5 + loop_5) *
-                        WIDTH;
+                        Width;
                   }
 
-                  if (params.DP_OUTPUT) {
-                    for (int precision = 0; precision < 2; precision++) {
-                      vectorOutputAddress.Push(
-                          params.VECTOR_OUTPUT_OFFSET +
-                          baseAddress * (DTYPE::width / 8) * 2 +
-                          precision * (DTYPE::width / 8) * WIDTH);
+                  if (params.output_vector_type) {
+                    constexpr int num_words = Input::width / Output::width;
+                    for (int i = 0; i < num_words; i++) {
+                      vectorOutputAddress.Push(params.VECTOR_OUTPUT_OFFSET +
+                                               address * Input::width / 8 +
+                                               i * Width * Output::width / 8);
                     }
                   } else {
                     vectorOutputAddress.Push(params.VECTOR_OUTPUT_OFFSET +
-                                             baseAddress);
+                                             address * Output::width / 8);
                   }
 
                   if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {

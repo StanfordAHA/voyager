@@ -24,44 +24,45 @@ SC_MODULE(VectorOpUnit) {
       accumulationOpUnitInstructions);
   Connections::In<VectorInstructions> CCS_INIT_S1(reductionOpUnitInstructions);
 
-  Connections::In<Pack1D<MU_OUTPUT_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::In<Pack1D<MU_OUTPUT_DTYPE, WIDTH>> CCS_INIT_S1(
       systolicArrayOutput);
-  Connections::In<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch0Output);
-  Connections::In<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch1Output);
-  Connections::In<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch2Output);
+  Connections::In<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(vectorFetch0Output);
+  Connections::In<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(vectorFetch1Output);
+  Connections::In<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(vectorFetch2Output);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch3AddressRequest);
-  Connections::In<IO_DTYPE> CCS_INIT_S1(vectorFetch3DataResponse);
+  Connections::In<Pack1D<IO_DTYPE, 16 / IO_DTYPE::width>> CCS_INIT_S1(
+      vectorFetch3DataResponse);
 
-  Connections::Out<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(vectorOpUnitOutput);
+  Connections::Out<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(vectorOpUnitOutput);
 
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       accumulationOpInput);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       accumulationOpOutput);
 
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       reductionOpInput);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       reductionOpOutputOp0Src0);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       reductionOpOutputOp0Src1);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       reductionOpOutputOp3Src1);
 
-  Broadcaster<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(broadcastReduction0);
-  Connections::Combinational<ac_int<16, false> > broadcastReduction0Count;
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Broadcaster<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(broadcastReduction0);
+  Connections::Combinational<ac_int<16, false>> broadcastReduction0Count;
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       broadcastReductionOpOutputOp0Src0);
 
-  Broadcaster<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(broadcastReduction1);
-  Connections::Combinational<ac_int<16, false> > broadcastReduction1Count;
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Broadcaster<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(broadcastReduction1);
+  Connections::Combinational<ac_int<16, false>> broadcastReduction1Count;
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       broadcastReductionOpOutputOp0Src1);
 
-  Broadcaster<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(broadcastReduction2);
-  Connections::Combinational<ac_int<16, false> > broadcastReduction2Count;
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Broadcaster<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(broadcastReduction2);
+  Connections::Combinational<ac_int<16, false>> broadcastReduction2Count;
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       broadcastReductionOpOutputOp3Src1);
 
   SC_CTOR(VectorOpUnit) {
@@ -301,22 +302,24 @@ SC_MODULE(VectorOpUnit) {
       } else if (inst.vOp4 == VectorInstructions::vmap) {
         for (int i = 0; i < WIDTH; i++) {
           DataTypes::bfloat16 value = res3[i];
-          uint offset = value.bits_rep().to_uint();
 
-          MemoryRequest memRequest = {inst.vmapOffset + offset * 2, 2};
-          vectorFetch3AddressRequest.Push(memRequest);
+          constexpr int num_words = 16 / IO_DTYPE::width;
+
+          ac_int<32, false> address = value.bits_rep() * 2;
+          vectorFetch3AddressRequest.Push(
+              {inst.vmapOffset + address, num_words});
+
+          Pack1D<IO_DTYPE, num_words> response = vectorFetch3DataResponse.Pop();
 
           ac_int<16, false> bits = 0;
-          for (int j = 0; j < 2; j++) {
-            IO_DTYPE response = vectorFetch3DataResponse.Pop();
-            ac_int<16, false> bits_rep = response.bits_rep();
+#pragma hls_unroll yes
+          for (int j = 0; j < num_words; j++) {
+            ac_int<16, false> bits_rep = response[j].bits_rep();
             bits = bits | (bits_rep << (8 * j));
           }
 
-          DataTypes::bfloat16 mappedValue;
-          mappedValue.set_bits(bits);
-
-          res4[i] = mappedValue;
+          value.set_bits(bits);
+          res4[i] = value;
         }
       } else {
         res4 = res3;
@@ -527,34 +530,35 @@ SC_MODULE(VectorUnit) {
 
   Connections::In<int> CCS_INIT_S1(serialParamsIn);
 
-  Connections::In<Pack1D<MU_OUTPUT_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::In<Pack1D<MU_OUTPUT_DTYPE, WIDTH>> CCS_INIT_S1(
       systolicArrayOutput);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch0AddressRequest);
-  Connections::In<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::In<Pack1D<IO_DTYPE, WIDTH>> CCS_INIT_S1(
       vectorFetch0DataResponse);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       vectorFetch0DataResponseBroadcasted);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch1AddressRequest);
-  Connections::In<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::In<Pack1D<IO_DTYPE, WIDTH>> CCS_INIT_S1(
       vectorFetch1DataResponse);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       vectorFetch1DataResponseConverted);
   Connections::Combinational<MX_DTYPE> CCS_INIT_S1(vectorFetch1Scale);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch2AddressRequest);
-  Connections::In<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::In<Pack1D<IO_DTYPE, WIDTH>> CCS_INIT_S1(
       vectorFetch2DataResponse);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       vectorFetch2DataResponseConverted);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch3AddressRequest);
-  Connections::In<IO_DTYPE> CCS_INIT_S1(vectorFetch3DataResponse);
+  Connections::In<Pack1D<IO_DTYPE, 16 / IO_DTYPE::width>> CCS_INIT_S1(
+      vectorFetch3DataResponse);
 
-  Connections::Out<ac_int<64, false> > CCS_INIT_S1(vectorOutputAddress);
-  Connections::Out<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(finalVectorOutput);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::Out<ac_int<64, false>> CCS_INIT_S1(vectorOutputAddress);
+  Connections::Out<Pack1D<IO_DTYPE, WIDTH>> CCS_INIT_S1(finalVectorOutput);
+  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH>> CCS_INIT_S1(
       vectorOpUnitOutput);
 
   Connections::SyncOut CCS_INIT_S1(start);
@@ -570,7 +574,8 @@ SC_MODULE(VectorUnit) {
   MaxpoolUnit<VEC_DTYPE, IO_DTYPE, MX_DTYPE, WIDTH> CCS_INIT_S1(maxpoolUnit);
   Connections::Combinational<VectorParams> CCS_INIT_S1(maxpoolUnitParams);
 
-  OutputAddressGenerator<IO_DTYPE, WIDTH> CCS_INIT_S1(outputAddressGenerator);
+  OutputAddressGenerator<VEC_DTYPE, IO_DTYPE, WIDTH> CCS_INIT_S1(
+      outputAddressGenerator);
   Connections::Combinational<VectorParams> CCS_INIT_S1(outputAddressGenParams);
 
   Connections::Combinational<VectorInstructions> CCS_INIT_S1(

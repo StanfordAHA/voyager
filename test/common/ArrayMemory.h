@@ -51,11 +51,10 @@ void ArrayMemory::read_tensor_from_memory(const long long address,
     int offset = (i * T::width) % 8;
 
     for (int j = start; j <= end; j++) {
-      bits.set_slc((j - start) * 8, static_cast<ac_int<8>>(memory[j]));
+      bits.set_slc((j - start) * 8, static_cast<ac_int<8, false>>(memory[j]));
     }
 
-    bits = bits >> offset;
-    tensor[i].set_bits(bits.template slc<T::width>(0));
+    tensor[i].set_bits(bits >> offset);
   }
 }
 
@@ -74,8 +73,8 @@ void ArrayMemory::write_data_to_memory(const uint64_t address,
   num_bytes = num_bytes - bits_remaining / 8;
 
   constexpr int buf_width = (T::width / 8 + 2) * 8;
-  ac_int<buf_width> bytes = value.bits_rep();
-  ac_int<buf_width> masks = ((1 << T::width) - 1);
+  ac_int<buf_width, false> bytes = value.bits_rep();
+  ac_int<buf_width, false> masks = ((1 << T::width) - 1);
 
   bytes = bytes << offset;
   masks = masks << offset;

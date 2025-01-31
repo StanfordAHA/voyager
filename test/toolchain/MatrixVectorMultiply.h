@@ -32,7 +32,7 @@ void MapMatrixVectorMultiply(const codegen::Operator &param,
   vector_params->addressGen0Loop[1][1] = output_dim;
   vector_params->addressGen0Loop[1][2] = reduction_dim / OC_DIMENSION;
 
-  vector_params->DP_VEC0 =
+  vector_params->fetch_vector_type_0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != matrix_op.input().dtype();
 
   // weights is a matrix of output_dim x reduction_dim
@@ -53,7 +53,7 @@ void MapMatrixVectorMultiply(const codegen::Operator &param,
     vector_params->addressGen1WeightLoopIndex[i] = 2;
   }
 
-  vector_params->DP_VEC1 =
+  vector_params->fetch_vector_type_1 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != matrix_op.weight().dtype();
 
   // bias
@@ -74,7 +74,7 @@ void MapMatrixVectorMultiply(const codegen::Operator &param,
     vector_params->addressGen2WeightLoopIndex[i] = 2;
   }
 
-  vector_params->DP_VEC2 =
+  vector_params->fetch_vector_type_2 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != matrix_op.bias().dtype();
 
   // output
@@ -94,7 +94,7 @@ void MapMatrixVectorMultiply(const codegen::Operator &param,
     vector_params->outputWeightLoopIndex[i] = 2;
   }
 
-  vector_params->DP_OUTPUT =
+  vector_params->output_vector_type =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 
   // inst0 - start reduction engine

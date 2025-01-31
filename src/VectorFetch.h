@@ -1,6 +1,6 @@
 #pragma once
 
-template <typename IO_DTYPE, typename VEC_DTYPE, typename Scale, int WIDTH>
+template <typename Input, typename Vector, typename Scale, int Width>
 SC_MODULE(VectorFetchUnit) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
@@ -10,19 +10,16 @@ SC_MODULE(VectorFetchUnit) {
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch1AddressRequest);
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch2AddressRequest);
 
-  Connections::In<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(
-      vectorFetch0DataResponse);
-  Connections::Out<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::In<Pack1D<Input, Width> > CCS_INIT_S1(vectorFetch0DataResponse);
+  Connections::Out<Pack1D<Vector, Width> > CCS_INIT_S1(
       vectorFetch0DataResponseBroadcasted);
 
-  Connections::In<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(
-      vectorFetch1DataResponse);
-  Connections::Out<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::In<Pack1D<Input, Width> > CCS_INIT_S1(vectorFetch1DataResponse);
+  Connections::Out<Pack1D<Vector, Width> > CCS_INIT_S1(
       vectorFetch1DataResponseConverted);
 
-  Connections::In<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(
-      vectorFetch2DataResponse);
-  Connections::Out<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::In<Pack1D<Input, Width> > CCS_INIT_S1(vectorFetch2DataResponse);
+  Connections::Out<Pack1D<Vector, Width> > CCS_INIT_S1(
       vectorFetch2DataResponseConverted);
 
   Connections::Out<Scale> CCS_INIT_S1(vectorFetch1Scale);
@@ -156,8 +153,8 @@ SC_MODULE(VectorFetchUnit) {
                     ac_int<11, false> K1 =
                         loop_bounds[0][params.addressGen0WeightLoopIndex[0]];
 
-                    ac_int<16, false> k = k1 * K0 * WIDTH + k0 * WIDTH;
-                    ac_int<16, false> K = K1 * K0 * WIDTH;
+                    ac_int<16, false> k = k1 * K0 * Width + k0 * Width;
+                    ac_int<16, false> K = K1 * K0 * Width;
 
                     ac_int<16, false> x = x1 * X0 + x0;
                     ac_int<16, false> X = X1 * X0;
@@ -233,20 +230,21 @@ SC_MODULE(VectorFetchUnit) {
                          loop_2 * loop_bound_3 * loop_bound_4 * loop_bound_5 +
                          loop_3 * loop_bound_4 * loop_bound_5 +
                          loop_4 * loop_bound_5 + loop_5) *
-                        WIDTH;
+                        Width;
                   }
 
-                  if (params.DP_VEC0) {
-                    MemoryRequest memRequest = {
-                        params.VECTOR_OFFSET + address * (VEC_DTYPE::width / 8),
-                        WIDTH * (VEC_DTYPE::width / 8)};
-                    vectorFetch0AddressRequest.Push(memRequest);
+                  MemoryRequest request;
+                  if (params.fetch_vector_type_0) {
+                    constexpr int num_words = Vector::width / Input::width;
+                    address = address * Vector::width / 8;
+                    request = {params.VECTOR_OFFSET + address,
+                               Width * num_words};
                   } else {
-                    MemoryRequest memRequest = {
-                        params.VECTOR_OFFSET + address * (IO_DTYPE::width / 8),
-                        WIDTH * (IO_DTYPE::width / 8)};
-                    vectorFetch0AddressRequest.Push(memRequest);
+                    address = address * Input::width / 8;
+                    request = {params.VECTOR_OFFSET + address, Width};
                   }
+
+                  vectorFetch0AddressRequest.Push(request);
 
                   if (loop_counters[1][2] >=
                       loop_ends[1][2] - loop_strides[1][2]) {
@@ -330,29 +328,26 @@ SC_MODULE(VectorFetchUnit) {
                 for (loop_counters[1][2] = loop_starts[1][2];
                      loop_counters[1][2] < loop_ends[1][2];
                      loop_counters[1][2] += loop_strides[1][2]) {
-                  Pack1D<VEC_DTYPE, WIDTH> fullPrecisionDataResponse;
-                  if (params.DP_VEC0) {
-                    // combine multiple IO_DTYPE into one VEC_DTYPE
-                    constexpr int num_words =
-                        VEC_DTYPE::width / IO_DTYPE::width;
+                  Pack1D<Vector, Width> converted_response;
+                  if (params.fetch_vector_type_0) {
+                    constexpr int num_words = Vector::width / Input::width;
 
-                    Pack1D<IO_DTYPE, WIDTH> response[num_words];
+                    Pack1D<Input, Width> response[num_words];
 
                     for (int i = 0; i < num_words; i++) {
                       response[i] = vectorFetch0DataResponse.Pop();
                     }
-                    convertPack1D<IO_DTYPE, VEC_DTYPE, WIDTH>(
-                        response, fullPrecisionDataResponse);
+                    convertPack1D<Input, Vector, Width>(response,
+                                                        converted_response);
                   } else {
-                    Pack1D<IO_DTYPE, WIDTH> response =
+                    Pack1D<Input, Width> response =
                         vectorFetch0DataResponse.Pop();
-                    vdequantize<IO_DTYPE, VEC_DTYPE, WIDTH>(
-                        response, fullPrecisionDataResponse,
+                    vdequantize<Input, Vector, Width>(
+                        response, converted_response,
                         params.vec0DequantizeScale);
                   }
 
-                  vectorFetch0DataResponseBroadcasted.Push(
-                      fullPrecisionDataResponse);
+                  vectorFetch0DataResponseBroadcasted.Push(converted_response);
 
                   if (loop_counters[1][2] >=
                       loop_ends[1][2] - loop_strides[1][2]) {
@@ -454,8 +449,8 @@ SC_MODULE(VectorFetchUnit) {
                   ac_int<11, false> K1 =
                       loop_bounds[0][params.addressGen1WeightLoopIndex[0]];
 
-                  ac_int<16, false> k = k1 * K0 * WIDTH + k0 * WIDTH;
-                  ac_int<16, false> K = K1 * K0 * WIDTH;
+                  ac_int<16, false> k = k1 * K0 * Width + k0 * Width;
+                  ac_int<16, false> K = K1 * K0 * Width;
 
                   ac_int<16, false> x = x1 * X0 + x0;
                   ac_int<16, false> X = X1 * X0;
@@ -472,19 +467,25 @@ SC_MODULE(VectorFetchUnit) {
                     address = k;
                   }
 
-                  if (params.DP_VEC1) {
-                    MemoryRequest memRequest = {
-                        params.ADDRESS_GEN1_OFFSET +
-                            address * (VEC_DTYPE::width / 8),
-                        WIDTH * (VEC_DTYPE::width / 8)};
-                    vectorFetch1AddressRequest.Push(memRequest);
+                  MemoryRequest request;
+                  if (params.fetch_vector_type_1) {
+                    constexpr int num_words = Vector::width / Input::width;
+                    address = address * Vector::width / 8;
+                    request = {params.ADDRESS_GEN1_OFFSET + address,
+                               Width * num_words};
+#if SUPPORT_MX
+                  } else if (params.fetch_scale_type_1) {
+                    constexpr int num_words = Scale::width / Input::width;
+                    address = address * Scale::width / 8;
+                    request = {params.ADDRESS_GEN1_OFFSET + address,
+                               Width * num_words};
+#endif
                   } else {
-                    MemoryRequest memRequest = {
-                        params.ADDRESS_GEN1_OFFSET +
-                            address * (IO_DTYPE::width / 8),
-                        WIDTH * (IO_DTYPE::width / 8)};
-                    vectorFetch1AddressRequest.Push(memRequest);
+                    address = address * Input::width / 8;
+                    request = {params.ADDRESS_GEN1_OFFSET + address, Width};
                   }
+
+                  vectorFetch1AddressRequest.Push(request);
 
                   if (loop_counters[1][2] >=
                       loop_ends[1][2] - loop_strides[1][2]) {
@@ -562,57 +563,62 @@ SC_MODULE(VectorFetchUnit) {
                 for (loop_counters[1][2] = loop_starts[1][2];
                      loop_counters[1][2] < loop_ends[1][2];
                      loop_counters[1][2] += loop_strides[1][2]) {
-                  Pack1D<VEC_DTYPE, WIDTH> fullPrecisionDataResponse;
-                  if (params.DP_VEC1) {
-                    // combine multiple IO_DTYPE into one VEC_DTYPE
-                    constexpr int num_words =
-                        VEC_DTYPE::width / IO_DTYPE::width;
+                  Pack1D<Vector, Width> converted_response;
 
-                    Pack1D<IO_DTYPE, WIDTH> response[num_words];
+                  if (params.fetch_vector_type_1) {
+                    constexpr int num_words = Vector::width / Input::width;
 
+                    Pack1D<Input, Width> response[num_words];
                     for (int i = 0; i < num_words; i++) {
                       response[i] = vectorFetch1DataResponse.Pop();
                     }
-                    convertPack1D<IO_DTYPE, VEC_DTYPE, WIDTH>(
-                        response, fullPrecisionDataResponse);
-                  } else {
-                    Pack1D<IO_DTYPE, WIDTH> response =
-                        vectorFetch1DataResponse.Pop();
 
-#ifdef SUPPORT_MX
-                    if (params.BROADCAST_VEC1_SCALE) {
+                    convertPack1D<Input, Vector, Width>(response,
+                                                        converted_response);
+
+                    vectorFetch1DataResponseConverted.Push(converted_response);
+
+#if SUPPORT_MX
+                  } else if (params.fetch_scale_type_1) {
+                    constexpr int num_words = Scale::width / Input::width;
+
+                    Pack1D<Scale, Width> converted_scale;
+
+                    if constexpr (num_words == 1) {
+                      Pack1D<Input, Width> response =
+                          vectorFetch1DataResponse.Pop();
+
 #pragma hls_unroll yes
-                      for (int i = 0; i < WIDTH; i++) {
-                        fullPrecisionDataResponse[i].set_bits(
-                            response[i].bits_rep());
+                      for (int i = 0; i < Width; i++) {
+                        converted_scale[i].set_bits(response[i].bits_rep());
                       }
                     } else {
-#endif
-                      vdequantize<IO_DTYPE, VEC_DTYPE, WIDTH>(
-                          response, fullPrecisionDataResponse,
-                          params.vec1DequantizeScale);
-#ifdef SUPPORT_MX
-                    }
-#endif
-                  }
+                      Pack1D<Input, Width> response[num_words];
+                      for (int i = 0; i < num_words; i++) {
+                        response[i] = vectorFetch1DataResponse.Pop();
+                      }
 
-#ifdef SUPPORT_MX
-                  if (params.BROADCAST_VEC1_SCALE) {
-                    for (int i = 0; i < WIDTH; i++) {
-                      for (int count = 0; count < params.vec1BroadcastCount;
+                      convertPack1D<Input, Scale, Width>(response,
+                                                         converted_scale);
+                    }
+
+                    for (int i = 0; i < Width; i++) {
+                      for (int count = 0; count < params.mx_block_size;
                            count++) {
-                        Scale scale;
-                        scale.set_bits(fullPrecisionDataResponse[i].bits_rep());
-                        vectorFetch1Scale.Push(scale);
+                        vectorFetch1Scale.Push(converted_scale[i]);
                       }
                     }
+#endif
                   } else {
-#endif
-                    vectorFetch1DataResponseConverted.Push(
-                        fullPrecisionDataResponse);
-#ifdef SUPPORT_MX
+                    Pack1D<Input, Width> response =
+                        vectorFetch1DataResponse.Pop();
+
+                    vdequantize<Input, Vector, Width>(
+                        response, converted_response,
+                        params.vec1DequantizeScale);
+
+                    vectorFetch1DataResponseConverted.Push(converted_response);
                   }
-#endif
 
                   if (loop_counters[1][2] >=
                       loop_ends[1][2] - loop_strides[1][2]) {
@@ -714,8 +720,8 @@ SC_MODULE(VectorFetchUnit) {
                   ac_int<11, false> K1 =
                       loop_bounds[0][params.addressGen2WeightLoopIndex[0]];
 
-                  ac_int<16, false> k = k1 * K0 * WIDTH + k0 * WIDTH;
-                  ac_int<16, false> K = K1 * K0 * WIDTH;
+                  ac_int<16, false> k = k1 * K0 * Width + k0 * Width;
+                  ac_int<16, false> K = K1 * K0 * Width;
 
                   ac_int<16, false> x = x1 * X0 + x0;
                   ac_int<16, false> X = X1 * X0;
@@ -732,19 +738,18 @@ SC_MODULE(VectorFetchUnit) {
                     address = k;
                   }
 
-                  if (params.DP_VEC2) {
-                    MemoryRequest memRequest = {
-                        params.ADDRESS_GEN2_OFFSET +
-                            address * (VEC_DTYPE::width / 8),
-                        WIDTH * (VEC_DTYPE::width / 8)};
-                    vectorFetch2AddressRequest.Push(memRequest);
+                  MemoryRequest request;
+                  if (params.fetch_vector_type_2) {
+                    constexpr int num_words = Vector::width / Input::width;
+                    address = address * Vector::width / 8;
+                    request = {params.ADDRESS_GEN2_OFFSET + address,
+                               Width * num_words};
                   } else {
-                    MemoryRequest memRequest = {
-                        params.ADDRESS_GEN2_OFFSET +
-                            address * (IO_DTYPE::width / 8),
-                        WIDTH * (IO_DTYPE::width / 8)};
-                    vectorFetch2AddressRequest.Push(memRequest);
+                    address = address * Input::width / 8;
+                    request = {params.ADDRESS_GEN2_OFFSET + address, Width};
                   }
+
+                  vectorFetch2AddressRequest.Push(request);
 
                   if (loop_counters[1][2] >=
                       loop_ends[1][2] - loop_strides[1][2]) {
@@ -821,27 +826,26 @@ SC_MODULE(VectorFetchUnit) {
                 for (loop_counters[1][2] = loop_starts[1][2];
                      loop_counters[1][2] < loop_ends[1][2];
                      loop_counters[1][2] += loop_strides[1][2]) {
-                  Pack1D<VEC_DTYPE, WIDTH> fullPrecisionDataResponse;
-                  if (params.DP_VEC2) {
-                    constexpr int num_words =
-                        VEC_DTYPE::width / IO_DTYPE::width;
-                    Pack1D<IO_DTYPE, WIDTH> response[num_words];
+                  Pack1D<Vector, Width> converted_response;
+
+                  if (params.fetch_vector_type_2) {
+                    constexpr int num_words = Vector::width / Input::width;
+                    Pack1D<Input, Width> response[num_words];
 
                     for (int i = 0; i < num_words; i++) {
                       response[i] = vectorFetch2DataResponse.Pop();
                     }
-                    convertPack1D<IO_DTYPE, VEC_DTYPE, WIDTH>(
-                        response, fullPrecisionDataResponse);
+                    convertPack1D<Input, Vector, Width>(response,
+                                                        converted_response);
                   } else {
-                    Pack1D<IO_DTYPE, WIDTH> response =
+                    Pack1D<Input, Width> response =
                         vectorFetch2DataResponse.Pop();
 
-                    vdequantize<IO_DTYPE, VEC_DTYPE, WIDTH>(
-                        response, fullPrecisionDataResponse,
+                    vdequantize<Input, Vector, Width>(
+                        response, converted_response,
                         params.vec2DequantizeScale);
                   }
-                  vectorFetch2DataResponseConverted.Push(
-                      fullPrecisionDataResponse);
+                  vectorFetch2DataResponseConverted.Push(converted_response);
 
                   if (loop_counters[1][2] >=
                       loop_ends[1][2] - loop_strides[1][2]) {

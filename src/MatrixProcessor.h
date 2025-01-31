@@ -158,7 +158,6 @@ SC_MODULE(MatrixProcessor) {
 #pragma hls_pipeline_init_interval 1
       for (int weight_count = 0; weight_count < NROWS; weight_count++) {
         Pack1D<IDTYPE, NCOLS> arrayWeights = weightsChannel.Pop();
-        // std::cout << "Weights: " << arrayWeights << std::endl;
         Pack1D<PEWeight<IDTYPE>, NCOLS> weights;
 #pragma hls_unroll yes
         for (int i = 0; i < NCOLS; i++) {
@@ -416,8 +415,6 @@ SC_MODULE(MatrixProcessor) {
           } else {
             if (accumulationFinished && !params.STORE_IN_ACC) {
               outputsChannel.Push(outputs);
-              // DLOG("matrix processor output: " << outputs);
-              // std::cout << "Output: " << outputs << std::endl;
             } else {
               ac_int<int_log2(BUFFER_SIZE), false> writeAddress =
                   loop_counters_out[1][params.weightLoopIndex[1]] *
@@ -507,7 +504,6 @@ SC_MODULE(MatrixProcessor) {
             if (accumulationFinished && !params.STORE_IN_ACC) {
               outputsChannel.Push(outputs);
               DLOG("matrix processor output: " << outputs);
-              // std::cout << "Output: " << outputs << std::endl;
             } else {
               ac_int<int_log2(BUFFER_SIZE), false> writeAddress =
                   loop_counters_out[1][params.weightLoopIndex[1]] *
@@ -629,7 +625,6 @@ SC_MODULE(MatrixProcessor) {
 
               if (readBias) {
                 bias = biasChannel.Pop();
-                // CCS_LOG("bias: " << bias);
               }
 
               previous_accumulation = bias;
@@ -653,7 +648,6 @@ SC_MODULE(MatrixProcessor) {
 
           // CCS_LOG("outputs: " << outputs);
 
-          // TODO: add scale factors and scale the psum
           Pack1D<Scale, 1> inputScale;
           if (params.MX) {
             inputScale = inputScaleChannel.Pop();
@@ -671,7 +665,6 @@ SC_MODULE(MatrixProcessor) {
           readNewWeights = readNewWeights || step == 0;
           if (readNewWeights && params.MX) {
             weightScales = weightScaleChannel.Pop();
-            // CCS_LOG("weightScales: " << weightScales);
           }
 
           Pack1D<AccumBuffer, NCOLS> scaled_outputs;

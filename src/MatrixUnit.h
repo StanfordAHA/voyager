@@ -43,15 +43,16 @@ SC_MODULE(MatrixUnit) {
       inputsToWindowBuffer);
 
   // Only instantiate if MX is supported
-  ConditionalModule<InputScaleController<SCALE_DATATYPE, IC_DIMENSION>,
-                    SUPPORT_MX>
+  ConditionalModule<
+      InputScaleController<INPUT_DATATYPE, SCALE_DATATYPE, IC_DIMENSION>,
+      SUPPORT_MX>
       CCS_INIT_S1(inputScaleController);
   ConditionalModule<DoubleBuffer<SCALE_DATATYPE, 1, INPUT_BUFFER_SIZE>,
                     SUPPORT_MX>
       CCS_INIT_S1(inputScaleBuffer);
   Connections::ConditionalOut<MemoryRequest, SUPPORT_MX> CCS_INIT_S1(
       inputScaleAddressRequest);
-  Connections::ConditionalIn<Pack1D<SCALE_DATATYPE, 1>, SUPPORT_MX> CCS_INIT_S1(
+  Connections::ConditionalIn<Pack1D<INPUT_DATATYPE, 1>, SUPPORT_MX> CCS_INIT_S1(
       inputScaleDataResponse);
   Connections::ConditionalCombinational<BufferWriteRequest<SCALE_DATATYPE, 1>,
                                         SUPPORT_MX>
@@ -92,9 +93,9 @@ SC_MODULE(MatrixUnit) {
       weightsFromBuffer);
 
   // TODO: conditional initialization
-  ConditionalModule<
-      WeightScaleController<SCALE_DATATYPE, IC_DIMENSION, OC_DIMENSION>,
-      SUPPORT_MX>
+  ConditionalModule<WeightScaleController<INPUT_DATATYPE, SCALE_DATATYPE,
+                                          IC_DIMENSION, OC_DIMENSION>,
+                    SUPPORT_MX>
       CCS_INIT_S1(weightScaleController);
   ConditionalModule<
       DoubleBuffer<SCALE_DATATYPE, OC_DIMENSION, WEIGHT_BUFFER_SIZE>,
@@ -102,7 +103,7 @@ SC_MODULE(MatrixUnit) {
       CCS_INIT_S1(weightScaleBuffer);
   Connections::ConditionalOut<MemoryRequest, SUPPORT_MX> CCS_INIT_S1(
       weightScaleAddressRequest);
-  Connections::ConditionalIn<Pack1D<SCALE_DATATYPE, OC_DIMENSION>, SUPPORT_MX>
+  Connections::ConditionalIn<Pack1D<INPUT_DATATYPE, OC_DIMENSION>, SUPPORT_MX>
       CCS_INIT_S1(weightScaleDataResponse);
   Connections::ConditionalCombinational<
       BufferWriteRequest<SCALE_DATATYPE, OC_DIMENSION>, SUPPORT_MX>

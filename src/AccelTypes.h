@@ -12,7 +12,7 @@
 #include "DataTypes.h"
 #include "Params.h"
 
-#ifdef DEBUG_LOG
+#ifdef DEBUG
 #define DLOG(x) CCS_LOG(x)
 #else
 #define DLOG(x)
@@ -20,34 +20,32 @@
 
 struct MemoryRequest {
   ac_int<64, false> address;
-  ac_int<32, false> burstSize;
+  ac_int<32, false> burst_size;
 
   static const unsigned int width = 64 + 32;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
     m & address;
-    m & burstSize;
+    m & burst_size;
   }
 
-  inline friend void sc_trace(sc_trace_file *tf,
-                              const MemoryRequest &memRequest,
+  inline friend void sc_trace(sc_trace_file *tf, const MemoryRequest &request,
                               const std::string &name) {
-    sc_trace(tf, memRequest.address, name + ".address");
-    sc_trace(tf, memRequest.burstSize, name + ".burstSize");
+    sc_trace(tf, request.address, name + ".address");
+    sc_trace(tf, request.burst_size, name + ".burst_size");
   }
 
   inline friend std::ostream &operator<<(ostream &os,
-                                         const MemoryRequest &memRequest) {
-    os << memRequest.address << " ";
-    os << memRequest.burstSize << " ";
-
+                                         const MemoryRequest &request) {
+    os << request.address << " ";
+    os << request.burst_size << " ";
     return os;
   }
 
   inline friend bool operator==(const MemoryRequest &lhs,
                                 const MemoryRequest &rhs) {
-    return lhs.address == rhs.address && lhs.burstSize == rhs.burstSize;
+    return lhs.address == rhs.address && lhs.burst_size == rhs.burst_size;
   }
 };
 

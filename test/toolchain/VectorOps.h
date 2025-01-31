@@ -59,7 +59,7 @@ void set_vector_addr_gen1(const codegen::Tensor &tensor,
     vector_params->addressGen1Mode = 1;
   }
 
-  vector_params->DP_VEC1 =
+  vector_params->fetch_vector_type_1 =
       (DataTypes::TypeName<INPUT_DATATYPE>::name() != tensor.dtype()) &&
       ((DataTypes::TypeName<SCALE_DATATYPE>::name() != tensor.dtype()));
 
@@ -114,7 +114,7 @@ void set_vector_addr_gen2(const codegen::Tensor &tensor,
     vector_params->addressGen2Mode = 1;
   }
 
-  vector_params->DP_VEC2 =
+  vector_params->fetch_vector_type_2 =
       (DataTypes::TypeName<INPUT_DATATYPE>::name() != tensor.dtype()) &&
       ((DataTypes::TypeName<SCALE_DATATYPE>::name() != tensor.dtype()));
 
@@ -218,7 +218,7 @@ void MapVectorOperations(const codegen::Operator &param,
   }
 
   // set double precision if the datatype is not the same as the input datatype
-  vector_params->DP_VEC0 =
+  vector_params->fetch_vector_type_0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != vector_input.dtype();
 
   const auto output_memory = vector_output.memory();
@@ -246,7 +246,7 @@ void MapVectorOperations(const codegen::Operator &param,
   vector_params->outputLoops[1][1] = output_shape[4];
   vector_params->outputLoops[1][2] = output_shape[5] / OC_DIMENSION;
 
-  vector_params->DP_OUTPUT =
+  vector_params->output_vector_type =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 
   if (param.output().has_reshape()) {
@@ -311,8 +311,8 @@ void MapVectorOperations(const codegen::Operator &param,
         set_vector_addr_gen1(tensor_to_load, other_shape,
                              accelerator_memory_map, vector_params);
 
-        vector_params->BROADCAST_VEC1_SCALE = true;
-        vector_params->vec1BroadcastCount = numel / size / OC_DIMENSION;
+        vector_params->fetch_scale_type_1 = true;
+        vector_params->mx_block_size = numel / size / OC_DIMENSION;
         vector_params->OUTPUT_QUANTIZE_MX = true;
       }
 

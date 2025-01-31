@@ -40,7 +40,7 @@ void MapSoftmax(const codegen::Operator &param,
   vector_params->addressGen0Loop[1][1] = 3;
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->DP_VEC0 =
+  vector_params->fetch_vector_type_0 =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != input.dtype();
 
   // output
@@ -56,7 +56,7 @@ void MapSoftmax(const codegen::Operator &param,
   vector_params->outputLoops[1][1] = non_reduction_loops[3];
   vector_params->outputLoops[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->DP_OUTPUT =
+  vector_params->output_vector_type =
       DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
 
   // inst 0 - start reduction engine to calculate max
