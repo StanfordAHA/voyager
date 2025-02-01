@@ -62,6 +62,12 @@ class UFloat {
     }
   }
 
+  bool operator<(const UFloat &other) const {
+    return to_ac_float() < other.to_ac_float();
+  }
+
+  bool operator==(const UFloat &other) const { return d == other.d; }
+
 #ifndef __SYNTHESIS__
   operator float() const { return to_ac_float().to_float(); }
 #endif

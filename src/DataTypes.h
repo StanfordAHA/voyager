@@ -35,7 +35,7 @@ typedef StdFloat<23, 8, false, true, AC_RND_CONV> fp32;
 
 typedef Posit<8, 1> posit8;
 
-typedef NormalFloat<4, 5> nf4_5;
+typedef NormalFloat4 nf4;
 
 typedef UFloat<8, 8> e8m0;
 typedef UFloat<8, 5> fp8_e5m3;
@@ -101,8 +101,8 @@ struct TypeName<posit8> {
 };
 
 template <>
-struct TypeName<nf4_5> {
-  static std::string name() { return "nf4_5"; }
+struct TypeName<nf4> {
+  static std::string name() { return "nf4"; }
 };
 
 };  // namespace DataTypes

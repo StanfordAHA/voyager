@@ -141,6 +141,7 @@ class StdFloat {
   StdFloat &operator*=(const StdFloat &rhs);
   StdFloat &operator/=(const StdFloat &rhs);
 
+  bool operator==(const StdFloat &rhs) const;
   bool operator<(const StdFloat &rhs) const;
   operator float() const { return float_val.to_float(); }
 
@@ -252,6 +253,14 @@ StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator/=(
     const StdFloat &rhs) {
   *this = float_val.template div<Q, !ieee_compliance>(rhs.float_val);
   return *this;
+}
+
+#pragma hls_design ccore
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+inline bool StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator==(
+    const StdFloat &rhs) const {
+  return float_val == rhs.float_val;
 }
 
 #pragma hls_design ccore

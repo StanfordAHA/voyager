@@ -457,7 +457,9 @@ SC_MODULE(VectorOpUnit) {
 
             prevResult.set_bits(scaled_exp);
           } else {
-            VectorType amax = 0;
+            VectorType amax;
+            amax.set_zero();
+
             for (int i = 0; i < inst.rCount; i++) {
               Pack1D<VectorType, Width> op = reductionOpInput.Pop();
               Pack1D<VectorType, Width> abs_op;
@@ -470,7 +472,7 @@ SC_MODULE(VectorOpUnit) {
             }
 
             ScaleType scale = amax / IOType::max();
-            if (scale == 0) {
+            if (scale.to_ac_float() == ScaleType::ac_float_rep::zero()) {
               scale.set_one();
             }
             prevResult.set_bits(scale.bits_rep());

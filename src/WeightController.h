@@ -46,7 +46,6 @@ SC_MODULE(WeightController) {
   Connections::Combinational<MatrixParams> CCS_INIT_S1(biasCombinerParams);
 
   Connections::Combinational<Pack1D<Weight, NCols> > transposeOut;
-  Connections::Combinational<Pack1D<Weight, NCols> > gradTransposeOut;
 
   MatrixParamsDeserializer<2> CCS_INIT_S1(paramsDeserializer);
 

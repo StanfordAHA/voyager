@@ -495,6 +495,152 @@ class Pack1D<PEWeight<Int<i_width, i_signed> >, SIZE> {
   }
 };
 
+template <size_t Size>
+class Pack1D<NormalFloat4, Size> {
+ public:
+  NormalFloat4 value[Size];
+  static const unsigned int width = NormalFloat4::width * Size;
+
+  Pack1D() {}
+  Pack1D(const int a) {}
+
+  operator int() const { return Pack1D<NormalFloat4, Size>(); }
+
+  NormalFloat4 &operator[](size_t i) { return value[i]; }
+  const NormalFloat4 &operator[](size_t i) const { return value[i]; }
+
+  template <unsigned int Size2>
+  void Marshall(Marshaller<Size2> &m) {
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Size; i++) {
+      m &value[i].index;
+    }
+  }
+
+  inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
+    for (unsigned int i = 0; i < Size; i++) {
+      if (!(lhs.value[i] == rhs.value[i])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
+template <size_t Size>
+class Pack1D<PEInput<NormalFloat4>, Size> {
+ public:
+  PEInput<NormalFloat4> value[Size];
+
+  static const unsigned int width = PEInput<NormalFloat4>::width * Size;
+
+  Pack1D() {}
+  Pack1D(const int a) {}
+
+  operator int() const { return Pack1D<PEInput<NormalFloat4>, Size>(); }
+
+  PEInput<NormalFloat4> &operator[](unsigned int i) { return this->value[i]; }
+  const PEInput<NormalFloat4> &operator[](unsigned int i) const {
+    return this->value[i];
+  }
+
+  template <unsigned int Size2>
+  void Marshall(Marshaller<Size2> &m) {
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Size; i++) {
+      m &value[i].data.index;
+    }
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Size; i++) {
+      m &value[i].swapWeights;
+    }
+  }
+
+  inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
+    for (unsigned int i = 0; i < Size; i++) {
+      if (!(lhs.value[i] == rhs.value[i])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
+template <size_t Size>
+class Pack1D<PEWeight<NormalFloat4>, Size> {
+ public:
+  PEWeight<NormalFloat4> value[Size];
+
+  static const unsigned int width = PEWeight<NormalFloat4>::width * Size;
+
+  Pack1D() {}
+  Pack1D(const int a) {}
+
+  operator int() const { return Pack1D<PEWeight<NormalFloat4>, Size>(); }
+
+  PEWeight<NormalFloat4> &operator[](unsigned int i) { return this->value[i]; }
+  const PEWeight<NormalFloat4> &operator[](unsigned int i) const {
+    return this->value[i];
+  }
+
+  template <unsigned int Size2>
+  void Marshall(Marshaller<Size2> &m) {
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Size; i++) {
+      m &value[i].data.index;
+    }
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Size; i++) {
+      m &value[i].tag;
+    }
+  }
+
+  inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
+    for (unsigned int i = 0; i < Size; i++) {
+      if (!(lhs.value[i] == rhs.value[i])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
+template <size_t Size, int W, int E>
+class Pack1D<UFloat<W, E>, Size> {
+ public:
+  UFloat<W, E> value[Size];
+  static const unsigned int width = UFloat<W, E>::width * Size;
+
+  Pack1D() {}
+  Pack1D(const int a) {}
+
+  operator int() const { return Pack1D<UFloat<W, E>, Size>(); }
+
+  UFloat<W, E> &operator[](size_t i) { return value[i]; }
+  const UFloat<W, E> &operator[](size_t i) const { return value[i]; }
+
+  template <unsigned int Size2>
+  void Marshall(Marshaller<Size2> &m) {
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Size; i++) {
+      m &value[i].d;
+    }
+  }
+
+  inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
+    for (unsigned int i = 0; i < Size; i++) {
+      if (!(lhs.value[i] == rhs.value[i])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
 template <typename TYPE, size_t SIZE>
 struct BufferWriteRequest {
   ac_int<16, false> address;

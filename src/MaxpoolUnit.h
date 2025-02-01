@@ -147,6 +147,11 @@ SC_MODULE(MaxpoolUnit) {
                       vquantize<Vector, IOType, Scale, Width>(
                           outputs, converted_outputs, scale);
 #endif
+                    } else {
+#pragma hls_unroll yes
+                      for (int i = 0; i < Width; i++) {
+                        converted_outputs[i] = outputs[i];
+                      }
                     }
 
                     tensorOut.Push(converted_outputs);

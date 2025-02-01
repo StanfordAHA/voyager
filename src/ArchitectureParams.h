@@ -13,24 +13,6 @@ using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 #define OUTPUT_DATATYPE P8
 #define VECTOR_DATATYPE ACCUM_DATATYPE
 
-#elif defined(MXNF4)
-
-using NF4 = NormalFloat<4, 5>;
-using I32 = Int<32, true>;
-using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
-using F32 = StdFloat<23, 8, false, true, AC_RND_CONV>;
-using E5M3 = UFloat<8, 5>;
-
-#define INPUT_DATATYPE NF4
-#define WEIGHT_DATATYPE NF4
-#define ACCUM_DATATYPE I32
-#define ACCUM_BUFFER_DATATYPE F16
-#define OUTPUT_DATATYPE NF4
-#define VECTOR_DATATYPE F16
-#define SCALE_DATATYPE E5M3
-
-#define SUPPORT_MX true
-
 #elif defined(E4M3)
 
 using F8 = StdFloat<3, 4, false, true, AC_RND_CONV>;
@@ -156,6 +138,23 @@ using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 #define OUTPUT_DATATYPE I8
 #define VECTOR_DATATYPE F16
 #define SCALE_DATATYPE E8M0
+
+#define SUPPORT_MX true
+
+#elif defined(MXNF4)
+
+using NF4 = NormalFloat4;
+using I32 = Int<32, true>;
+using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
+using E5M3 = UFloat<8, 5>;
+
+#define INPUT_DATATYPE NF4
+#define WEIGHT_DATATYPE NF4
+#define ACCUM_DATATYPE I32
+#define ACCUM_BUFFER_DATATYPE F16
+#define OUTPUT_DATATYPE NF4
+#define VECTOR_DATATYPE F16
+#define SCALE_DATATYPE E5M3
 
 #define SUPPORT_MX true
 
