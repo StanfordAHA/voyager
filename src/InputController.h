@@ -40,13 +40,7 @@ SC_MODULE(InputController) {
 
   MatrixParamsDeserializer<0> CCS_INIT_S1(paramsDeserializer);
 
-  static constexpr int int_log2(unsigned int n) {
-    return (n <= 1) ? 0 : 1 + int_log2(n / 2);
-  }
-
-  static constexpr int LOOP_WIDTH =
-      (10 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION
-                                                       : OC_DIMENSION)));
+  static constexpr int LOOP_WIDTH = 10;
 
   SC_CTOR(InputController) {
     paramsDeserializer.clk(clk);
@@ -217,26 +211,28 @@ SC_MODULE(InputController) {
                       for (loop_counters[1][5] = 0;
                            loop_counters[1][5] < loop_bounds[1][5];
                            loop_counters[1][5]++) {
-                        ac_int<LOOP_WIDTH, false> x0 =
-                            loop_counters[1][params.inputXLoopIndex[1]];
-                        ac_int<LOOP_WIDTH, false> x1 =
-                            loop_counters[0][params.inputXLoopIndex[0]];
                         ac_int<16, false> X0 =
                             STRIDE * params.loops[1][params.inputXLoopIndex[1]];
                         ac_int<LOOP_WIDTH, false> X1 =
                             params.loops[0][params.inputXLoopIndex[0]];
-                        ac_int<LOOP_WIDTH, false> y0 =
-                            loop_counters[1][params.inputYLoopIndex[1]];
-                        ac_int<LOOP_WIDTH, false> y1 =
-                            loop_counters[0][params.inputYLoopIndex[0]];
                         ac_int<16, false> Y0 =
                             STRIDE * params.loops[1][params.inputYLoopIndex[1]];
                         ac_int<LOOP_WIDTH, false> Y1 =
                             params.loops[0][params.inputYLoopIndex[0]];
-                        ac_int<LOOP_WIDTH, false> c1 =
-                            loop_counters[1][params.reductionLoopIndex[1]];
+
                         ac_int<LOOP_WIDTH, false> C1 =
                             params.loops[1][params.reductionLoopIndex[1]];
+
+                        ac_int<LOOP_WIDTH, false> x0 =
+                            loop_counters[1][params.inputXLoopIndex[1]];
+                        ac_int<LOOP_WIDTH, false> x1 =
+                            loop_counters[0][params.inputXLoopIndex[0]];
+                        ac_int<LOOP_WIDTH, false> y0 =
+                            loop_counters[1][params.inputYLoopIndex[1]];
+                        ac_int<LOOP_WIDTH, false> y1 =
+                            loop_counters[0][params.inputYLoopIndex[0]];
+                        ac_int<LOOP_WIDTH, false> c1 =
+                            loop_counters[1][params.reductionLoopIndex[1]];
 
                         ac_int<16, false> c = c1 * NRows;
                         ac_int<16, false> C = C1 * NRows;
@@ -499,7 +495,7 @@ SC_MODULE(InputController) {
                         }
 
                         ac_int<32, false> address =
-                            (y0) * (STRIDE * X0 + FX - 1) + (x0);
+                            y0 * (STRIDE * X0 + FX - 1) + x0;
 
                         if (params.REPLICATION) {
                           address = y0 * (STRIDE * X0 / packingFactor +
@@ -653,14 +649,15 @@ SC_MODULE(InputController) {
                       for (loop_counters[1][5] = 0;
                            loop_counters[1][5] < loop_bounds[1][5];
                            loop_counters[1][5]++) {
-                        ac_int<LOOP_WIDTH, false> x0 =
-                            loop_counters[1][params.inputXLoopIndex[1]];
                         ac_int<LOOP_WIDTH, false> X0 =
                             params.loops[1][params.inputXLoopIndex[1]];
-                        ac_int<LOOP_WIDTH, false> y0 =
-                            loop_counters[1][params.inputYLoopIndex[1]];
                         ac_int<LOOP_WIDTH, false> Y0 =
                             params.loops[1][params.inputYLoopIndex[1]];
+
+                        ac_int<LOOP_WIDTH, false> x0 =
+                            loop_counters[1][params.inputXLoopIndex[1]];
+                        ac_int<LOOP_WIDTH, false> y0 =
+                            loop_counters[1][params.inputYLoopIndex[1]];
                         ac_int<LOOP_WIDTH, false> fx =
                             loop_counters[1][params.fxIndex];
                         ac_int<LOOP_WIDTH, false> fy =

@@ -32,6 +32,8 @@ SC_MODULE(WeightScaleController) {
 
   MatrixParamsDeserializer<4> CCS_INIT_S1(paramsDeserializer);
 
+  static constexpr int LOOP_WIDTH = 10;
+
   SC_CTOR(WeightScaleController) {
     paramsDeserializer.clk(clk);
     paramsDeserializer.rstn(rstn);
@@ -68,8 +70,8 @@ SC_MODULE(WeightScaleController) {
     while (true) {
       const MatrixParams params = fetcherParams.Pop();
 
-      ac_int<8, false> loop_counters[2][5];
-      ac_int<8, false> loop_bounds[2][5];
+      ac_int<LOOP_WIDTH, false> loop_counters[2][5];
+      ac_int<LOOP_WIDTH, false> loop_bounds[2][5];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
@@ -114,31 +116,31 @@ SC_MODULE(WeightScaleController) {
                     for (loop_counters[1][4] = 0;
                          loop_counters[1][4] < loop_bounds[1][4];
                          loop_counters[1][4]++) {
-                      ac_int<8, false> k1 = loop_counters
-                          [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<8, false> k2 = loop_counters
-                          [0][params.weightAddressGenWeightLoopIndex[0]];
-                      ac_int<8, false> c0 = loop_counters
+                      ac_int<LOOP_WIDTH, false> C0 = loop_bounds
                           [1][params.weightAddressGenReductionLoopIndex[1]];
-                      ac_int<8, false> c1 = loop_counters
+                      ac_int<LOOP_WIDTH, false> C1 = loop_bounds
                           [1][params.weightAddressGenReductionLoopIndex[0]];
-                      ac_int<8, false> fx =
-                          loop_counters[1][params.weightAddressGenFxIndex];
-                      ac_int<8, false> fy =
-                          loop_counters[1][params.weightAddressGenFyIndex];
-
-                      ac_int<8, false> K1 = loop_bounds
+                      ac_int<LOOP_WIDTH, false> K1 = loop_bounds
                           [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<8, false> K2 = loop_bounds
+                      ac_int<LOOP_WIDTH, false> K2 = loop_bounds
                           [0][params.weightAddressGenWeightLoopIndex[0]];
-                      ac_int<8, false> C0 = loop_bounds
-                          [1][params.weightAddressGenReductionLoopIndex[1]];
-                      ac_int<8, false> C1 = loop_bounds
-                          [1][params.weightAddressGenReductionLoopIndex[0]];
-                      ac_int<8, false> FX =
+                      ac_int<LOOP_WIDTH, false> FX =
                           loop_bounds[1][params.weightAddressGenFxIndex];
-                      ac_int<8, false> FY =
+                      ac_int<LOOP_WIDTH, false> FY =
                           loop_bounds[1][params.weightAddressGenFyIndex];
+
+                      ac_int<LOOP_WIDTH, false> c0 = loop_counters
+                          [1][params.weightAddressGenReductionLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> c1 = loop_counters
+                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> k1 = loop_counters
+                          [1][params.weightAddressGenWeightLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> k2 = loop_counters
+                          [0][params.weightAddressGenWeightLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> fx =
+                          loop_counters[1][params.weightAddressGenFxIndex];
+                      ac_int<LOOP_WIDTH, false> fy =
+                          loop_counters[1][params.weightAddressGenFyIndex];
 
                       ac_int<16, false> c = c1;
                       ac_int<16, false> C = C1;
@@ -220,8 +222,8 @@ SC_MODULE(WeightScaleController) {
     while (true) {
       const MatrixParams params = writerParams.Pop();
 
-      ac_int<8, false> loop_counters[2][5];
-      ac_int<8, false> loop_bounds[2][5];
+      ac_int<LOOP_WIDTH, false> loop_counters[2][5];
+      ac_int<LOOP_WIDTH, false> loop_bounds[2][5];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
@@ -268,30 +270,31 @@ SC_MODULE(WeightScaleController) {
                     for (loop_counters[1][4] = 0;
                          loop_counters[1][4] < loop_bounds[1][4];
                          loop_counters[1][4]++) {
-                      ac_int<8, false> k2 = loop_counters
-                          [0][params.weightAddressGenWeightLoopIndex[0]];
-                      ac_int<8, false> K2 = loop_bounds
-                          [0][params.weightAddressGenWeightLoopIndex[0]];
-                      ac_int<8, false> k1 = loop_counters
-                          [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<8, false> K1 = loop_bounds
-                          [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<8, false> C1 = loop_bounds
+                      ac_int<LOOP_WIDTH, false> C0 = loop_bounds
+                          [1][params.weightAddressGenReductionLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> C1 = loop_bounds
                           [1][params.weightAddressGenReductionLoopIndex[0]];
-                      ac_int<8, false> c1 = loop_counters
-                          [1][params.weightAddressGenReductionLoopIndex[0]];
-                      ac_int<8, false> fx =
-                          loop_counters[1][params.weightAddressGenFxIndex];
-                      ac_int<8, false> FX =
+                      ac_int<LOOP_WIDTH, false> K1 = loop_bounds
+                          [1][params.weightAddressGenWeightLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> K2 = loop_bounds
+                          [0][params.weightAddressGenWeightLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> FX =
                           loop_bounds[1][params.weightAddressGenFxIndex];
-                      ac_int<8, false> fy =
-                          loop_counters[1][params.weightAddressGenFyIndex];
-                      ac_int<8, false> FY =
+                      ac_int<LOOP_WIDTH, false> FY =
                           loop_bounds[1][params.weightAddressGenFyIndex];
-                      ac_int<8, false> c0 = loop_counters
+
+                      ac_int<LOOP_WIDTH, false> c0 = loop_counters
                           [1][params.weightAddressGenReductionLoopIndex[1]];
-                      ac_int<8, false> C0 = loop_bounds
-                          [1][params.weightAddressGenReductionLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> c1 = loop_counters
+                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> k1 = loop_counters
+                          [1][params.weightAddressGenWeightLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> k2 = loop_counters
+                          [0][params.weightAddressGenWeightLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> fx =
+                          loop_counters[1][params.weightAddressGenFxIndex];
+                      ac_int<LOOP_WIDTH, false> fy =
+                          loop_counters[1][params.weightAddressGenFyIndex];
 
                       ac_int<16, false> C = C0;
                       ac_int<16, false> k =
@@ -370,8 +373,8 @@ SC_MODULE(WeightScaleController) {
     while (true) {
       const MatrixParams params = readerParams.Pop();
 
-      ac_int<8, false> loop_counters[2][6];
-      ac_int<8, false> loop_bounds[2][6];
+      ac_int<LOOP_WIDTH, false> loop_counters[2][6];
+      ac_int<LOOP_WIDTH, false> loop_bounds[2][6];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
@@ -386,7 +389,7 @@ SC_MODULE(WeightScaleController) {
       // microscaling batch size of 32 along C dimension
       loop_bounds[1][params.reductionLoopIndex[1]] =
           loop_bounds[1][params.reductionLoopIndex[1]] / (32 / NRows);
-      ac_int<8, false> microscalingReuse = (32 / NRows);
+      ac_int<8, false> mxscale_reuse = (32 / NRows);
 
       // extra loop to control reuse which only occurs during transpose and when
       // OC_DIMENSION > IC_DIMENSION
@@ -416,8 +419,8 @@ SC_MODULE(WeightScaleController) {
                   static_cast<ac_int<16, false>>(loop_bounds[1][3] *
                                                  loop_bounds[1][4]) *
                   static_cast<ac_int<16, false>>(loop_bounds[1][5] * rep_bound *
-                                                 microscalingReuse));
-              for (int reuse = 0; reuse < microscalingReuse; reuse++) {
+                                                 mxscale_reuse));
+              for (int reuse = 0; reuse < mxscale_reuse; reuse++) {
                 for (int rep = 0; rep < rep_bound; rep++) {
                   for (loop_counters[1][1] = 0;
                        loop_counters[1][1] < loop_bounds[1][1];
@@ -461,26 +464,26 @@ SC_MODULE(WeightScaleController) {
                               }
                             }
 
-                            ac_int<8, false> k1 =
-                                loop_counters[1][params.weightLoopIndex[1]];
-                            ac_int<8, false> k2 =
-                                loop_counters[0][params.weightLoopIndex[0]];
-                            ac_int<8, false> c1 =
+                            ac_int<LOOP_WIDTH, false> c1 =
                                 loop_counters[1][params.reductionLoopIndex[1]];
-                            ac_int<8, false> fx =
+                            ac_int<LOOP_WIDTH, false> k1 =
+                                loop_counters[1][params.weightLoopIndex[1]];
+                            ac_int<LOOP_WIDTH, false> k2 =
+                                loop_counters[0][params.weightLoopIndex[0]];
+                            ac_int<LOOP_WIDTH, false> fx =
                                 loop_counters[1][params.fxIndex];
-                            ac_int<8, false> fy =
+                            ac_int<LOOP_WIDTH, false> fy =
                                 loop_counters[1][params.fyIndex];
 
-                            ac_int<8, false> K1 =
-                                params.loops[1][params.weightLoopIndex[1]];
-                            ac_int<8, false> K2 =
-                                params.loops[0][params.weightLoopIndex[0]];
-                            ac_int<8, false> C1 =
+                            ac_int<LOOP_WIDTH, false> C1 =
                                 params.loops[1][params.reductionLoopIndex[1]];
-                            ac_int<8, false> FX =
+                            ac_int<LOOP_WIDTH, false> K1 =
+                                params.loops[1][params.weightLoopIndex[1]];
+                            ac_int<LOOP_WIDTH, false> K2 =
+                                params.loops[0][params.weightLoopIndex[0]];
+                            ac_int<LOOP_WIDTH, false> FX =
                                 params.loops[1][params.fxIndex];
-                            ac_int<8, false> FY =
+                            ac_int<LOOP_WIDTH, false> FY =
                                 params.loops[1][params.fyIndex];
 
                             ac_int<16, false> k =
@@ -559,8 +562,8 @@ SC_MODULE(WeightScaleController) {
     while (true) {
       const MatrixParams params = transposerParams.Pop();
 
-      ac_int<8, false> loop_counters[2][5];
-      ac_int<8, false> loop_bounds[2][5];
+      ac_int<LOOP_WIDTH, false> loop_counters[2][5];
+      ac_int<LOOP_WIDTH, false> loop_bounds[2][5];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
@@ -683,10 +686,10 @@ SC_MODULE(WeightScaleController) {
           }
         }
       } else {  // passthrough
-        int total_values = loop_bounds[0][0] * loop_bounds[0][1] *
-                           loop_bounds[0][2] * loop_bounds[1][0] *
-                           loop_bounds[1][1] * loop_bounds[1][2] *
-                           loop_bounds[1][3] * loop_bounds[1][4];
+        ac_int<32, false> total_values = loop_bounds[0][0] * loop_bounds[0][1] *
+                                         loop_bounds[0][2] * loop_bounds[1][0] *
+                                         loop_bounds[1][1] * loop_bounds[1][2] *
+                                         loop_bounds[1][3] * loop_bounds[1][4];
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush

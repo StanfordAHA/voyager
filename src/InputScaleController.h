@@ -32,6 +32,8 @@ SC_MODULE(InputScaleController) {
 
   MatrixParamsDeserializer<3> CCS_INIT_S1(paramsDeserializer);
 
+  static constexpr int LOOP_WIDTH = 10;
+
   SC_CTOR(InputScaleController) {
     paramsDeserializer.clk(clk);
     paramsDeserializer.rstn(rstn);
@@ -85,8 +87,8 @@ SC_MODULE(InputScaleController) {
 
       bool isDownsample = FX == 1 && FY == 1;
 
-      ac_int<8, false> loop_counters[2][6];
-      ac_int<8, false> loop_bounds[2][6];
+      ac_int<LOOP_WIDTH, false> loop_counters[2][6];
+      ac_int<LOOP_WIDTH, false> loop_bounds[2][6];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
@@ -194,24 +196,24 @@ SC_MODULE(InputScaleController) {
                            loop_counters[1][5]++) {
                         ac_int<16, false> X0 =
                             STRIDE * params.loops[1][params.inputXLoopIndex[1]];
-                        ac_int<8, false> X1 =
+                        ac_int<LOOP_WIDTH, false> X1 =
                             params.loops[0][params.inputXLoopIndex[0]];
                         ac_int<16, false> Y0 =
                             STRIDE * params.loops[1][params.inputYLoopIndex[1]];
-                        ac_int<8, false> Y1 =
+                        ac_int<LOOP_WIDTH, false> Y1 =
                             params.loops[0][params.inputYLoopIndex[0]];
-                        ac_int<8, false> C1 =
+                        ac_int<LOOP_WIDTH, false> C1 =
                             loop_bounds[1][params.reductionLoopIndex[1]];
 
-                        ac_int<8, false> x0 =
+                        ac_int<LOOP_WIDTH, false> x0 =
                             loop_counters[1][params.inputXLoopIndex[1]];
-                        ac_int<8, false> x1 =
+                        ac_int<LOOP_WIDTH, false> x1 =
                             loop_counters[0][params.inputXLoopIndex[0]];
-                        ac_int<8, false> y0 =
+                        ac_int<LOOP_WIDTH, false> y0 =
                             loop_counters[1][params.inputYLoopIndex[1]];
-                        ac_int<8, false> y1 =
+                        ac_int<LOOP_WIDTH, false> y1 =
                             loop_counters[0][params.inputYLoopIndex[0]];
-                        ac_int<8, false> c1 =
+                        ac_int<LOOP_WIDTH, false> c1 =
                             loop_counters[1][params.reductionLoopIndex[1]];
 
                         ac_int<16, false> c = c1;
@@ -237,35 +239,27 @@ SC_MODULE(InputScaleController) {
                         ac_int<16, false> y = (y0 - y_min_offset) + y1 * Y0;
                         ac_int<16, false> Y = Y0 * Y1;
 
-                        int address = y * X * C + x * C + c;
+                        ac_int<32, false> address = y * X * C + x * C + c;
 
                         if (params.REPLICATION) {
-                          address =
-                              static_cast<ac_int<32, false> >(
-                                  y * (X / packingFactor) * IC_DIMENSION) +
-                              static_cast<ac_int<32, false> >(
-                                  (x / packingFactor) * IC_DIMENSION) +
-                              c;
+                          address = y * (X / packingFactor) * IC_DIMENSION +
+                                    (x / packingFactor) * IC_DIMENSION + c;
                         }
 
+                        ac_int<8, false> headSize = params.headSizeInPowerOfTwo;
                         if (params.CONCAT_INPUT) {
-                          address = static_cast<ac_int<32, false> >(
-                                        ((c / 32) * X * 32)) +
-                                    static_cast<ac_int<32, false> >((x * 32)) +
-                                    static_cast<ac_int<32, false> >((c % 32));
+                          ac_int<16, false> mask = (1 << headSize) - 1;
+                          address = (((c >> headSize) * X) << headSize) +
+                                    (x << headSize) + (c & mask);
                         }
 
                         if (params.TRANPOSE_INPUTS) {
-                          address = static_cast<ac_int<32, false> >(
-                                        (c + (x % 16)) * X) +
-                                    static_cast<ac_int<32, false> >(
-                                        (x / 16) * IC_DIMENSION);
+                          address =
+                              (c + (x % 16)) * X + (x / 16) * IC_DIMENSION;
                         }
 
-                        address = address * Scale::width / 8;
-
                         constexpr int num_words = Scale::width / Input::width;
-
+                        address = address * Scale::width / 8;
                         MemoryRequest memRequest = {
                             params.INPUT_SCALE_OFFSET + address, num_words};
                         addressRequest.Push(memRequest);
@@ -332,10 +326,19 @@ SC_MODULE(InputScaleController) {
 
       // replication packing factor
       int packingFactor;
-      if (IC_DIMENSION == 16) {
+      int boundaryWords;
+      if (IC_DIMENSION == 4) {
+        packingFactor = 1;
+        boundaryWords = 3;
+      } else if (IC_DIMENSION == 8) {
+        packingFactor = 2;
+        boundaryWords = 2;
+      } else if (IC_DIMENSION == 16) {
         packingFactor = 4;
+        boundaryWords = 1;
       } else if (IC_DIMENSION == 32) {
         packingFactor = 8;
+        boundaryWords = 1;
       }
 
       ac_int<4, false> FY = params.loops[1][params.fyIndex];
@@ -346,8 +349,8 @@ SC_MODULE(InputScaleController) {
       ac_int<4, false> fx_bound = (FX - 1) / 2;
       ac_int<4, false> fy_bound = (FY - 1) / 2;
 
-      ac_int<8, false> loop_counters[2][6];
-      ac_int<8, false> loop_bounds[2][6];
+      ac_int<LOOP_WIDTH, false> loop_counters[2][6];
+      ac_int<LOOP_WIDTH, false> loop_bounds[2][6];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
@@ -360,15 +363,16 @@ SC_MODULE(InputScaleController) {
       loop_bounds[1][params.weightLoopIndex[1]] = 1;
       loop_bounds[1][params.fxIndex] = 1;
       loop_bounds[1][params.fyIndex] = 1;
+
       // microscaling batch size of 32 along C dimension
       loop_bounds[1][params.reductionLoopIndex[1]] =
           loop_bounds[1][params.reductionLoopIndex[1]] / (32 / NRows);
 
-      ac_int<8, false> X1 = params.loops[0][params.inputXLoopIndex[0]];
-      ac_int<8, false> X0 = params.loops[1][params.inputXLoopIndex[1]];
+      ac_int<LOOP_WIDTH, false> X1 = params.loops[0][params.inputXLoopIndex[0]];
+      ac_int<LOOP_WIDTH, false> X0 = params.loops[1][params.inputXLoopIndex[1]];
 
-      ac_int<8, false> Y0 = params.loops[1][params.inputYLoopIndex[1]];
-      ac_int<8, false> Y1 = params.loops[0][params.inputYLoopIndex[0]];
+      ac_int<LOOP_WIDTH, false> Y0 = params.loops[1][params.inputYLoopIndex[1]];
+      ac_int<LOOP_WIDTH, false> Y1 = params.loops[0][params.inputYLoopIndex[0]];
 
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
            loop_counters[0][0]++) {
@@ -406,20 +410,19 @@ SC_MODULE(InputScaleController) {
                  loop_counters[1][0] < loop_bounds[1][0];
                  loop_counters[1][0]++) {
               // TODO: make this dynamic
-              int total_writes;
+              ac_int<32, false> total_writes;
               if (!params.REPLICATION) {
                 total_writes = (loop_bounds[1][1] * loop_bounds[1][2] *
                                 loop_bounds[1][3] * loop_bounds[1][4]) *
                                loop_bounds[1][5];
               } else {
-                total_writes = static_cast<ac_int<32, false> >(
-                                   loop_bounds[1][1] * loop_bounds[1][2] *
-                                   loop_bounds[1][3] * loop_bounds[1][4]) *
-                               static_cast<ac_int<32, false> >(
-                                   (STRIDE)*X0 / packingFactor +
-                                   2);  // 2 extra writes for padding
+                total_writes =
+                    loop_bounds[1][1] * loop_bounds[1][2] * loop_bounds[1][3] *
+                    loop_bounds[1][4] *
+                    ((STRIDE)*X0 / packingFactor +
+                     2 * boundaryWords);  // 2 extra writes for padding
               }
-              // CCS_LOG("total_writes: " << total_writes);
+
               writeControl[bankSel].Push(total_writes);
               for (loop_counters[1][1] = 0;
                    loop_counters[1][1] < loop_bounds[1][1];
@@ -436,19 +439,20 @@ SC_MODULE(InputScaleController) {
                       for (loop_counters[1][5] = 0;
                            loop_counters[1][5] < loop_bounds[1][5];
                            loop_counters[1][5]++) {
-                        ac_int<8, true> x0 =
+                        ac_int<LOOP_WIDTH, true> x0 =
                             loop_counters[1][params.inputXLoopIndex[1]];
-                        ac_int<8, true> x1 =
+                        ac_int<LOOP_WIDTH, true> x1 =
                             loop_counters[0][params.inputXLoopIndex[0]];
 
-                        ac_int<8, true> y0 =
+                        ac_int<LOOP_WIDTH, true> y0 =
                             loop_counters[1][params.inputYLoopIndex[1]];
-                        ac_int<8, true> y1 =
+                        ac_int<LOOP_WIDTH, true> y1 =
                             loop_counters[0][params.inputYLoopIndex[0]];
 
                         if (params.REPLICATION) {
                           if (x0 != 0) {
-                            x0 = x_min_offset + (x0 - 1) * packingFactor;
+                            x0 = x_min_offset +
+                                 (x0 - boundaryWords) * packingFactor;
                           }
                         }
 
@@ -476,12 +480,12 @@ SC_MODULE(InputScaleController) {
                           data = transposeOut.Pop();
                         }
 
-                        int address = static_cast<ac_int<16, false> >(
-                                          (y0) * (STRIDE * X0 + FX - 1)) +
-                                      (x0);
+                        ac_int<32, false> address =
+                            y0 * (STRIDE * X0 + FX - 1) + x0;
 
                         if (params.REPLICATION) {
-                          address = y0 * (STRIDE * X0 / packingFactor + 2) +
+                          address = y0 * (STRIDE * X0 / packingFactor +
+                                          2 * boundaryWords) +
                                     loop_counters[1][params.inputXLoopIndex[1]];
                         }
 
@@ -550,20 +554,29 @@ SC_MODULE(InputScaleController) {
 
       // replication packing factor
       int packingFactor;
-      if (IC_DIMENSION == 16) {
+      int boundaryWords;
+      if (IC_DIMENSION == 4) {
+        packingFactor = 1;
+        boundaryWords = 3;
+      } else if (IC_DIMENSION == 8) {
+        packingFactor = 2;
+        boundaryWords = 2;
+      } else if (IC_DIMENSION == 16) {
         packingFactor = 4;
+        boundaryWords = 1;
       } else if (IC_DIMENSION == 32) {
         packingFactor = 8;
+        boundaryWords = 1;
       }
 
-      ac_int<8, false> X0 = params.loops[1][params.inputXLoopIndex[1]];
+      ac_int<LOOP_WIDTH, false> X0 = params.loops[1][params.inputXLoopIndex[1]];
 
       ac_int<4, false> FX = params.loops[1][params.fxIndex];
       ac_int<4, false> FY = params.loops[1][params.fyIndex];
       bool isDownsample = FX == 1 && FY == 1;
 
-      ac_int<8, false> loop_counters[2][6];
-      ac_int<8, false> loop_bounds[2][6];
+      ac_int<LOOP_WIDTH, false> loop_counters[2][6];
+      ac_int<LOOP_WIDTH, false> loop_bounds[2][6];
       ac_int<2, false> STRIDE = params.STRIDE;
 
 #pragma hls_unroll yes
@@ -573,17 +586,22 @@ SC_MODULE(InputScaleController) {
         }
       }
 
-      if (params.REPLICATION) {
+      if (params.REPLICATION && IC_DIMENSION >= 16) {
         loop_bounds[1][params.inputXLoopIndex[1]] =
             (loop_bounds[1][params.inputXLoopIndex[1]] * STRIDE /
              packingFactor) +
             2;
+      } else if (params.REPLICATION && IC_DIMENSION == 8) {
+        loop_bounds[1][params.inputXLoopIndex[1]] =
+            (loop_bounds[1][params.inputXLoopIndex[1]] * STRIDE /
+             packingFactor) +
+            1;
       }
 
       // microscaling batch size of 32 along C dimension
       loop_bounds[1][params.reductionLoopIndex[1]] =
           loop_bounds[1][params.reductionLoopIndex[1]] / (32 / NRows);
-      ac_int<8, false> microscalingReuse = (32 / NRows);
+      ac_int<8, false> mxscale_reuse = (32 / NRows);
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
@@ -599,11 +617,11 @@ SC_MODULE(InputScaleController) {
                  loop_counters[1][0]++) {
               int total_reads = loop_bounds[1][1] * loop_bounds[1][2] *
                                 loop_bounds[1][3] * loop_bounds[1][4] *
-                                loop_bounds[1][5] * microscalingReuse;
+                                loop_bounds[1][5] * mxscale_reuse;
               // CCS_LOG("total_reads: " << total_reads);
 
               readControl[bankSel].Push(total_reads);
-              for (int reuse = 0; reuse < microscalingReuse; reuse++) {
+              for (int reuse = 0; reuse < mxscale_reuse; reuse++) {
                 for (loop_counters[1][1] = 0;
                      loop_counters[1][1] < loop_bounds[1][1];
                      loop_counters[1][1]++) {
@@ -619,26 +637,27 @@ SC_MODULE(InputScaleController) {
                         for (loop_counters[1][5] = 0;
                              loop_counters[1][5] < loop_bounds[1][5];
                              loop_counters[1][5]++) {
-                          ac_int<8, false> x0 =
-                              loop_counters[1][params.inputXLoopIndex[1]];
-                          ac_int<8, false> X0 =
+                          ac_int<LOOP_WIDTH, false> X0 =
                               params.loops[1][params.inputXLoopIndex[1]];
-                          ac_int<8, false> y0 =
-                              loop_counters[1][params.inputYLoopIndex[1]];
-                          ac_int<8, false> Y0 =
+                          ac_int<LOOP_WIDTH, false> Y0 =
                               params.loops[1][params.inputYLoopIndex[1]];
-                          ac_int<8, false> fx =
+
+                          ac_int<LOOP_WIDTH, false> x0 =
+                              loop_counters[1][params.inputXLoopIndex[1]];
+                          ac_int<LOOP_WIDTH, false> y0 =
+                              loop_counters[1][params.inputYLoopIndex[1]];
+                          ac_int<LOOP_WIDTH, false> fx =
                               loop_counters[1][params.fxIndex];
-                          ac_int<8, false> fy =
+                          ac_int<LOOP_WIDTH, false> fy =
                               loop_counters[1][params.fyIndex];
 
                           ac_int<16, false> x = STRIDE * x0 + fx;
                           ac_int<16, false> y = STRIDE * y0 + fy;
-                          int address;
-                          if (params.REPLICATION) {
-                            address =
-                                y * (((STRIDE * X0) / packingFactor) + 2) + x0 +
-                                fx;
+                          ac_int<16, false> address;
+                          if (params.REPLICATION && IC_DIMENSION >= 8) {
+                            address = y * (((STRIDE * X0) / packingFactor) +
+                                           2 * boundaryWords) +
+                                      x0 + fx;
                           } else {
                             if (isDownsample) {
                               address = y0 * X0 + x0;
@@ -702,24 +721,33 @@ SC_MODULE(InputScaleController) {
       const MatrixParams params = transposerParams.Pop();
 
       ac_int<4, false> FX = params.loops[1][params.fxIndex];
-      ac_int<4, false> FY = params.loops[1][params.fyIndex];
-
       if (params.REPLICATION) {
         FX = 7;
       }
 
-      // replication packing factor
-      int packingFactor;
-      if (IC_DIMENSION == 16) {
+      int packingFactor;  // num x values packed in a word
+      int boundaryWords;  // num words needed to store the boundary pixels.
+                          // essentially ceil(3/packingFactor)
+      if (IC_DIMENSION == 4) {
+        packingFactor = 1;
+        boundaryWords = 3;
+      } else if (IC_DIMENSION == 8) {
+        packingFactor = 2;
+        boundaryWords = 2;
+      } else if (IC_DIMENSION == 16) {
         packingFactor = 4;
+        boundaryWords = 1;
       } else if (IC_DIMENSION == 32) {
         packingFactor = 8;
+        boundaryWords = 1;
       }
+
+      ac_int<4, false> FY = params.loops[1][params.fyIndex];
 
       bool isDownsample = FX == 1 && FY == 1;
 
-      ac_int<8, false> loop_counters[2][6];
-      ac_int<8, false> loop_bounds[2][6];
+      ac_int<LOOP_WIDTH, false> loop_counters[2][6];
+      ac_int<LOOP_WIDTH, false> loop_bounds[2][6];
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {

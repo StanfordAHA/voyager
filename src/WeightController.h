@@ -25,13 +25,7 @@ SC_MODULE(WeightController) {
   Connections::Out<MemoryRequest> CCS_INIT_S1(biasAddressRequest);
   Connections::In<Pack1D<Weight, NCols> > CCS_INIT_S1(biasDataResponse);
 
-  static constexpr int int_log2(unsigned int n) {
-    return (n <= 1) ? 0 : 1 + int_log2(n / 2);
-  }
-
-  static constexpr int LOOP_WIDTH =
-      (10 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION
-                                                       : OC_DIMENSION)));
+  static constexpr int LOOP_WIDTH = 10;
 
 #ifdef HYBRID_FP8
   Connections::Out<Pack1D<HYBRID_TYPE, NCols> > CCS_INIT_S1(
@@ -140,31 +134,31 @@ SC_MODULE(WeightController) {
                     for (loop_counters[1][4] = 0;
                          loop_counters[1][4] < loop_bounds[1][4];
                          loop_counters[1][4]++) {
-                      ac_int<LOOP_WIDTH, false> k1 = loop_counters
-                          [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<LOOP_WIDTH, false> k2 = loop_counters
-                          [0][params.weightAddressGenWeightLoopIndex[0]];
-                      ac_int<LOOP_WIDTH, false> c0 = loop_counters
-                          [1][params.weightAddressGenReductionLoopIndex[1]];
-                      ac_int<LOOP_WIDTH, false> c1 = loop_counters
-                          [1][params.weightAddressGenReductionLoopIndex[0]];
-                      ac_int<LOOP_WIDTH, false> fx =
-                          loop_counters[1][params.weightAddressGenFxIndex];
-                      ac_int<LOOP_WIDTH, false> fy =
-                          loop_counters[1][params.weightAddressGenFyIndex];
-
-                      ac_int<LOOP_WIDTH, false> K1 = loop_bounds
-                          [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<LOOP_WIDTH, false> K2 = loop_bounds
-                          [0][params.weightAddressGenWeightLoopIndex[0]];
                       ac_int<LOOP_WIDTH, false> C0 = loop_bounds
                           [1][params.weightAddressGenReductionLoopIndex[1]];
                       ac_int<LOOP_WIDTH, false> C1 = loop_bounds
                           [1][params.weightAddressGenReductionLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> K1 = loop_bounds
+                          [1][params.weightAddressGenWeightLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> K2 = loop_bounds
+                          [0][params.weightAddressGenWeightLoopIndex[0]];
                       ac_int<LOOP_WIDTH, false> FX =
                           loop_bounds[1][params.weightAddressGenFxIndex];
                       ac_int<LOOP_WIDTH, false> FY =
                           loop_bounds[1][params.weightAddressGenFyIndex];
+
+                      ac_int<LOOP_WIDTH, false> c0 = loop_counters
+                          [1][params.weightAddressGenReductionLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> c1 = loop_counters
+                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> k1 = loop_counters
+                          [1][params.weightAddressGenWeightLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> k2 = loop_counters
+                          [0][params.weightAddressGenWeightLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> fx =
+                          loop_counters[1][params.weightAddressGenFxIndex];
+                      ac_int<LOOP_WIDTH, false> fy =
+                          loop_counters[1][params.weightAddressGenFyIndex];
 
                       ac_int<16, false> c = c1 * C0 + c0;
                       ac_int<16, false> C = C1 * C0;
@@ -279,30 +273,31 @@ SC_MODULE(WeightController) {
                     for (loop_counters[1][4] = 0;
                          loop_counters[1][4] < loop_bounds[1][4];
                          loop_counters[1][4]++) {
-                      ac_int<LOOP_WIDTH, false> k2 = loop_counters
-                          [0][params.weightAddressGenWeightLoopIndex[0]];
-                      ac_int<LOOP_WIDTH, false> K2 = loop_bounds
-                          [0][params.weightAddressGenWeightLoopIndex[0]];
-                      ac_int<LOOP_WIDTH, false> k1 = loop_counters
-                          [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<LOOP_WIDTH, false> K1 = loop_bounds
-                          [1][params.weightAddressGenWeightLoopIndex[1]];
-                      ac_int<LOOP_WIDTH, false> C1 = loop_bounds
-                          [1][params.weightAddressGenReductionLoopIndex[0]];
-                      ac_int<LOOP_WIDTH, false> c1 = loop_counters
-                          [1][params.weightAddressGenReductionLoopIndex[0]];
-                      ac_int<LOOP_WIDTH, false> fx =
-                          loop_counters[1][params.weightAddressGenFxIndex];
-                      ac_int<LOOP_WIDTH, false> FX =
-                          loop_bounds[1][params.weightAddressGenFxIndex];
-                      ac_int<LOOP_WIDTH, false> fy =
-                          loop_counters[1][params.weightAddressGenFyIndex];
-                      ac_int<LOOP_WIDTH, false> FY =
-                          loop_bounds[1][params.weightAddressGenFyIndex];
-                      ac_int<LOOP_WIDTH, false> c0 = loop_counters
-                          [1][params.weightAddressGenReductionLoopIndex[1]];
                       ac_int<LOOP_WIDTH, false> C0 = loop_bounds
                           [1][params.weightAddressGenReductionLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> C1 = loop_bounds
+                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> K1 = loop_bounds
+                          [1][params.weightAddressGenWeightLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> K2 = loop_bounds
+                          [0][params.weightAddressGenWeightLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> FX =
+                          loop_bounds[1][params.weightAddressGenFxIndex];
+                      ac_int<LOOP_WIDTH, false> FY =
+                          loop_bounds[1][params.weightAddressGenFyIndex];
+
+                      ac_int<LOOP_WIDTH, false> c0 = loop_counters
+                          [1][params.weightAddressGenReductionLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> c1 = loop_counters
+                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> k1 = loop_counters
+                          [1][params.weightAddressGenWeightLoopIndex[1]];
+                      ac_int<LOOP_WIDTH, false> k2 = loop_counters
+                          [0][params.weightAddressGenWeightLoopIndex[0]];
+                      ac_int<LOOP_WIDTH, false> fx =
+                          loop_counters[1][params.weightAddressGenFxIndex];
+                      ac_int<LOOP_WIDTH, false> fy =
+                          loop_counters[1][params.weightAddressGenFyIndex];
 
                       ac_int<16, false> C = C0;
                       ac_int<16, false> k =
@@ -478,24 +473,25 @@ SC_MODULE(WeightController) {
                           ac_int<LOOP_WIDTH, false> fx_repl = 0;
                           ac_int<LOOP_WIDTH, false> c = 0;
                           for (int row = 0; row < NRows; row++) {
-                            ac_int<LOOP_WIDTH, false> k2 =
-                                loop_counters[0][params.weightLoopIndex[0]];
-                            ac_int<LOOP_WIDTH, false> K2 =
-                                params.loops[0][params.weightLoopIndex[0]];
-                            ac_int<LOOP_WIDTH, false> k1 =
-                                loop_counters[1][params.weightLoopIndex[1]];
-                            ac_int<LOOP_WIDTH, false> K1 =
-                                params.loops[1][params.weightLoopIndex[1]];
-                            ac_int<LOOP_WIDTH, false> C1 =
-                                params.loops[1][params.reductionLoopIndex[1]];
                             ac_int<LOOP_WIDTH, false> c1 =
                                 loop_counters[1][params.reductionLoopIndex[1]];
+                            ac_int<LOOP_WIDTH, false> k1 =
+                                loop_counters[1][params.weightLoopIndex[1]];
+                            ac_int<LOOP_WIDTH, false> k2 =
+                                loop_counters[0][params.weightLoopIndex[0]];
                             ac_int<LOOP_WIDTH, false> fx =
                                 loop_counters[1][params.fxIndex];
-                            ac_int<LOOP_WIDTH, false> FX =
-                                params.loops[1][params.fxIndex];
                             ac_int<LOOP_WIDTH, false> fy =
                                 loop_counters[1][params.fyIndex];
+
+                            ac_int<LOOP_WIDTH, false> C1 =
+                                params.loops[1][params.reductionLoopIndex[1]];
+                            ac_int<LOOP_WIDTH, false> K1 =
+                                params.loops[1][params.weightLoopIndex[1]];
+                            ac_int<LOOP_WIDTH, false> K2 =
+                                params.loops[0][params.weightLoopIndex[0]];
+                            ac_int<LOOP_WIDTH, false> FX =
+                                params.loops[1][params.fxIndex];
                             ac_int<LOOP_WIDTH, false> FY =
                                 params.loops[1][params.fyIndex];
 

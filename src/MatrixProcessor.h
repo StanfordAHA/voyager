@@ -43,9 +43,7 @@ SC_MODULE(MatrixProcessor) {
     return (n <= 1) ? 0 : 1 + int_log2(n / 2);
   }
 
-  static constexpr int LOOP_WIDTH =
-      (10 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION
-                                                       : OC_DIMENSION)));
+  static constexpr int LOOP_WIDTH = 10;
 
  public:
   sc_in<bool> CCS_INIT_S1(clk);
