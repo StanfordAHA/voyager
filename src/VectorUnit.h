@@ -472,9 +472,11 @@ SC_MODULE(VectorOpUnit) {
             }
 
             ScaleType scale = amax / IOType::max();
+
             if (scale.to_ac_float() == ScaleType::ac_float_rep::zero()) {
               scale.set_one();
             }
+
             prevResult.set_bits(scale.bits_rep());
           }
         }

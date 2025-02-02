@@ -102,7 +102,7 @@ struct TypeName<posit8> {
 
 template <>
 struct TypeName<nf4> {
-  static std::string name() { return "nf4"; }
+  static std::string name() { return "nf4_5"; }
 };
 
 };  // namespace DataTypes

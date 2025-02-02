@@ -125,8 +125,12 @@ void Simulation::print_ideal_runtime(const codegen::Operator& param) {
     for (const auto& dim : param.output().shape()) num_ops *= dim;  // X * Y * K
 
     // skip the first dimension (K) since it is already accounted for
-    for (int i = 1; i < param.matrix_op().weight().shape_size(); i++) {
-      num_ops *= param.matrix_op().weight().shape(i);  // FX * FY * C
+    const auto& matrix_op = param.matrix_op();
+    const auto weight_shape = matrix_op.has_mx_weight()
+                                  ? matrix_op.mx_weight().input().shape()
+                                  : matrix_op.weight().shape();
+    for (int i = 1; i < weight_shape.size(); i++) {
+      num_ops *= weight_shape[i];  // FX * FY * C
     }
 
     cycles = num_ops / (IC_DIMENSION * OC_DIMENSION);

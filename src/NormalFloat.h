@@ -67,35 +67,37 @@ template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
           ac_q_mode Q>
 NormalFloat4::NormalFloat4(
     const StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &other) {
-  using FloatType = StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>;
-  using ACFloatType = typename FloatType::ac_float_rep;
+  using FloatType = typename StdFloat<mantissa, exp, useDWImpl, ieee_compliance,
+                                      Q>::ac_float_rep;
 
-  if (other < FloatType(ACFloatType(1.0))) {
-    if (other < FloatType(ACFloatType(-10.5))) {
-      if (other < FloatType(ACFloatType(-19.0))) {
-        index = other < FloatType(ACFloatType(-26.5)) ? 0 : 1;
+  const FloatType float_val = other.float_val;
+
+  if (float_val <= FloatType(1.0)) {
+    if (float_val <= FloatType(-10.5)) {
+      if (float_val <= FloatType(-19.0)) {
+        index = float_val <= FloatType(-26.5) ? 0 : 1;
       } else {
-        index = other < FloatType(ACFloatType(-14.0)) ? 2 : 3;
+        index = float_val <= FloatType(-14.0) ? 2 : 3;
       }
     } else {
-      if (other < FloatType(ACFloatType(-4.5))) {
-        index = other < FloatType(ACFloatType(-7.5)) ? 4 : 5;
+      if (float_val <= FloatType(-4.5)) {
+        index = float_val <= FloatType(-7.5) ? 4 : 5;
       } else {
-        index = other < FloatType(ACFloatType(-1.5)) ? 6 : 7;
+        index = float_val <= FloatType(-1.5) ? 6 : 7;
       }
     }
   } else {
-    if (other < FloatType(ACFloatType(12.0))) {
-      if (other < FloatType(ACFloatType(6.5))) {
-        index = other < FloatType(ACFloatType(3.5)) ? 8 : 9;
+    if (float_val <= FloatType(12.0)) {
+      if (float_val <= FloatType(6.5)) {
+        index = float_val <= FloatType(3.5) ? 8 : 9;
       } else {
-        index = other < FloatType(ACFloatType(9.0)) ? 10 : 11;
+        index = float_val <= FloatType(9.0) ? 10 : 11;
       }
     } else {
-      if (other < FloatType(ACFloatType(19.5))) {
-        index = other < FloatType(ACFloatType(15.5)) ? 12 : 13;
+      if (float_val <= FloatType(19.5)) {
+        index = float_val <= FloatType(15.5) ? 12 : 13;
       } else {
-        index = other < FloatType(ACFloatType(26.5)) ? 14 : 15;
+        index = float_val <= FloatType(26.5) ? 14 : 15;
       }
     }
   }
