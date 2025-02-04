@@ -52,7 +52,7 @@ class NormalFloat4 {
     using std_float_t =
         StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>;
     std_float_t f;
-    f.float_val = typename std_float_t::ac_float_t(code[index]);
+    f.float_val = typename std_float_t::ac_float_rep(code[index]);
     return f;
   }
 
