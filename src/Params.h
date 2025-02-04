@@ -55,7 +55,7 @@ struct MatrixParams : BaseParams {
     has_weight_tranpose = false;
     is_replication = false;
     has_attn_output_permute = false;
-    has_input_tranpose = false;
+    is_mx_op = false;
   }
 #endif
 
