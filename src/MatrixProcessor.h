@@ -6,35 +6,35 @@
 #include "ParamsDeserializer.h"
 #include "SystolicArray.h"
 
-template <typename IDTYPE, typename ODTYPE, typename AccumBuffer,
-          typename Scale, bool IS_MX, int NROWS, int NCOLS, int BUFFER_SIZE>
+template <typename InputT, typename OutputT, typename BufferT, typename ScaleT,
+          bool is_mx, int NRows, int NCols, int BufferSize>
 SC_MODULE(MatrixProcessor) {
  private:
   Connections::SyncChannel CCS_INIT_S1(weightLoadDone);
   Connections::SyncChannel CCS_INIT_S1(weightSwapDone);
 
-  MultiInputSerializedSkewer<IDTYPE, typename IDTYPE::Decoded, NROWS>
+  MultiInputSerializedSkewer<InputT, typename InputT::Decoded, NRows>
       CCS_INIT_S1(inputSkewer);
-  Connections::Combinational<Pack1D<PEInput<IDTYPE>, NROWS> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<PEInput<InputT>, NRows> > CCS_INIT_S1(
       inputSkewerDin);
 
-  WeightSerializedSkewer<IDTYPE, typename IDTYPE::Decoded, NCOLS> CCS_INIT_S1(
+  WeightSerializedSkewer<InputT, typename InputT::Decoded, NCols> CCS_INIT_S1(
       weightSkewer);
-  Connections::Combinational<Pack1D<PEWeight<IDTYPE>, NCOLS> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<PEWeight<InputT>, NCols> > CCS_INIT_S1(
       weightSkewerDin);
 
-  SerializedSkewer<ODTYPE, typename ODTYPE::Decoded, NCOLS> CCS_INIT_S1(
+  SerializedSkewer<OutputT, typename OutputT::Decoded, NCols> CCS_INIT_S1(
       psumInSkewer);
-  Connections::Combinational<Pack1D<ODTYPE, NCOLS> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<OutputT, NCols> > CCS_INIT_S1(
       psumInSkewerDin);
 
-  DeserializedSkewer<typename ODTYPE::Decoded, ODTYPE, NCOLS> CCS_INIT_S1(
+  DeserializedSkewer<typename OutputT::Decoded, OutputT, NCols> CCS_INIT_S1(
       psumOutSkewer);
-  Connections::Combinational<Pack1D<ODTYPE, NCOLS> > CCS_INIT_S1(
+  Connections::Combinational<Pack1D<OutputT, NCols> > CCS_INIT_S1(
       psumOutSkewerDout);
 
-  SystolicArray<typename IDTYPE::Decoded, typename IDTYPE::Decoded,
-                typename ODTYPE::Decoded, NROWS, NCOLS>
+  SystolicArray<typename InputT::Decoded, typename InputT::Decoded,
+                typename OutputT::Decoded, NRows, NCols>
       CCS_INIT_S1(systolicArray);
 
   MatrixParamsDeserializer<1> CCS_INIT_S1(paramsDeserializer);
@@ -49,34 +49,34 @@ SC_MODULE(MatrixProcessor) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
-  Connections::In<Pack1D<IDTYPE, NROWS> > CCS_INIT_S1(inputsChannel);
-  Connections::In<Pack1D<IDTYPE, NCOLS> > CCS_INIT_S1(weightsChannel);
-  Connections::In<Pack1D<AccumBuffer, NCOLS> > CCS_INIT_S1(biasChannel);
-  Connections::Out<Pack1D<AccumBuffer, NCOLS> > CCS_INIT_S1(outputsChannel);
+  Connections::In<Pack1D<InputT, NRows> > CCS_INIT_S1(inputsChannel);
+  Connections::In<Pack1D<InputT, NCols> > CCS_INIT_S1(weightsChannel);
+  Connections::In<Pack1D<BufferT, NCols> > CCS_INIT_S1(biasChannel);
+  Connections::Out<Pack1D<BufferT, NCols> > CCS_INIT_S1(outputsChannel);
 
   Connections::In<int> CCS_INIT_S1(serialParamsIn);
 
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
-  Connections::Combinational<PEInput<typename IDTYPE::Decoded> >
-      inputsToSystolicArray[NROWS];
+  Connections::Combinational<PEInput<typename InputT::Decoded> >
+      inputsToSystolicArray[NRows];
   // Connections::Combinational<ac_int<1, false> >
-  //     weightSwapToSystolicArray[NROWS];
-  Connections::Combinational<typename ODTYPE::Decoded>
-      psumsToSystolicArray[NCOLS];
-  Connections::Combinational<typename ODTYPE::Decoded>
-      outputsFromSystolicArray[NCOLS];
-  Connections::Combinational<PEWeight<typename IDTYPE::Decoded> >
-      weightsToSystolicArray[NCOLS];
+  //     weightSwapToSystolicArray[NRows];
+  Connections::Combinational<typename OutputT::Decoded>
+      psumsToSystolicArray[NCols];
+  Connections::Combinational<typename OutputT::Decoded>
+      outputsFromSystolicArray[NCols];
+  Connections::Combinational<PEWeight<typename InputT::Decoded> >
+      weightsToSystolicArray[NCols];
 
   // only used for MX
-  Connections::ConditionalCombinational<MatrixParams, IS_MX> CCS_INIT_S1(
+  Connections::ConditionalCombinational<MatrixParams, is_mx> CCS_INIT_S1(
       accumulationBufferParams);
-  Connections::ConditionalCombinational<Pack1D<ODTYPE, NCOLS>, IS_MX>
+  Connections::ConditionalCombinational<Pack1D<OutputT, NCols>, is_mx>
       CCS_INIT_S1(unscaledAccumulationChannel);
 
-  Connections::ConditionalIn<Pack1D<Scale, 1>, IS_MX> CCS_INIT_S1(
+  Connections::ConditionalIn<Pack1D<ScaleT, 1>, is_mx> CCS_INIT_S1(
       inputScaleChannel);
-  Connections::ConditionalIn<Pack1D<Scale, NCOLS>, IS_MX> CCS_INIT_S1(
+  Connections::ConditionalIn<Pack1D<ScaleT, NCols>, is_mx> CCS_INIT_S1(
       weightScaleChannel);
 
   Connections::SyncOut CCS_INIT_S1(startSignal);
@@ -91,43 +91,43 @@ SC_MODULE(MatrixProcessor) {
     inputSkewer.clk(clk);
     inputSkewer.rstn(rstn);
     inputSkewer.din(inputSkewerDin);
-    for (int i = 0; i < NROWS; i++) {
+    for (int i = 0; i < NRows; i++) {
       inputSkewer.dout[i](inputsToSystolicArray[i]);
     }
 
     weightSkewer.clk(clk);
     weightSkewer.rstn(rstn);
     weightSkewer.din(weightSkewerDin);
-    for (int i = 0; i < NCOLS; i++) {
+    for (int i = 0; i < NCols; i++) {
       weightSkewer.dout[i](weightsToSystolicArray[i]);
     }
 
     psumInSkewer.clk(clk);
     psumInSkewer.rstn(rstn);
     psumInSkewer.din(psumInSkewerDin);
-    for (int i = 0; i < NCOLS; i++) {
+    for (int i = 0; i < NCols; i++) {
       psumInSkewer.dout[i](psumsToSystolicArray[i]);
     }
 
     psumOutSkewer.clk(clk);
     psumOutSkewer.rstn(rstn);
-    for (int i = 0; i < NCOLS; i++) {
+    for (int i = 0; i < NCols; i++) {
       psumOutSkewer.din[i](outputsFromSystolicArray[i]);
     }
     psumOutSkewer.dout(psumOutSkewerDout);
 
     systolicArray.clk(clk);
     systolicArray.rstn(rstn);
-    for (int i = 0; i < NROWS; i++) {
+    for (int i = 0; i < NRows; i++) {
       systolicArray.inputs[i](inputsToSystolicArray[i]);
     }
-    for (int i = 0; i < NCOLS; i++) {
+    for (int i = 0; i < NCols; i++) {
       systolicArray.psums[i](psumsToSystolicArray[i]);
     }
-    for (int i = 0; i < NCOLS; i++) {
+    for (int i = 0; i < NCols; i++) {
       systolicArray.outputs[i](outputsFromSystolicArray[i]);
     }
-    for (int i = 0; i < NCOLS; i++) {
+    for (int i = 0; i < NCols; i++) {
       systolicArray.weights[i](weightsToSystolicArray[i]);
     }
 
@@ -139,7 +139,7 @@ SC_MODULE(MatrixProcessor) {
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
-    if constexpr (IS_MX) {
+    if constexpr (is_mx) {
       SC_THREAD(process_accumulation);
       sensitive << clk.pos();
       async_reset_signal_is(rstn, false);
@@ -154,11 +154,11 @@ SC_MODULE(MatrixProcessor) {
 
     while (true) {
 #pragma hls_pipeline_init_interval 1
-      for (int weight_count = 0; weight_count < NROWS; weight_count++) {
-        Pack1D<IDTYPE, NCOLS> arrayWeights = weightsChannel.Pop();
-        Pack1D<PEWeight<IDTYPE>, NCOLS> weights;
+      for (int weight_count = 0; weight_count < NRows; weight_count++) {
+        Pack1D<InputT, NCols> arrayWeights = weightsChannel.Pop();
+        Pack1D<PEWeight<InputT>, NCols> weights;
 #pragma hls_unroll yes
-        for (int i = 0; i < NCOLS; i++) {
+        for (int i = 0; i < NCols; i++) {
           weights[i].data = arrayWeights[i];
           weights[i].tag = weight_count;
         }
@@ -193,7 +193,7 @@ SC_MODULE(MatrixProcessor) {
     psumInSkewerDin.ResetWrite();
     psumOutSkewerDout.ResetRead();
 
-    if constexpr (IS_MX) {
+    if constexpr (is_mx) {
       accumulationBufferParams.ResetWrite();
       unscaledAccumulationChannel.ResetWrite();
     } else {
@@ -208,7 +208,7 @@ SC_MODULE(MatrixProcessor) {
     while (true) {
       const MatrixParams params = paramsIn.Pop();
 
-      if constexpr (IS_MX) {
+      if constexpr (is_mx) {
         accumulationBufferParams.Push(params);
       }
 
@@ -234,10 +234,10 @@ SC_MODULE(MatrixProcessor) {
           params.loops[1][3] * params.loops[1][4] * params.loops[1][5];
 
 #ifdef __SYNTHESIS__
-      Pack1D<AccumBuffer, NCOLS> accumulation_buffer[BUFFER_SIZE];
+      Pack1D<BufferT, NCols> accumulation_buffer[BufferSize];
 #else
-      Pack1D<AccumBuffer, NCOLS> *accumulation_buffer =
-          new Pack1D<AccumBuffer, NCOLS>[BUFFER_SIZE];
+      Pack1D<BufferT, NCols> *accumulation_buffer =
+          new Pack1D<BufferT, NCols>[BufferSize];
 #endif
 
       ac_int<32, false> step = 0;
@@ -252,7 +252,7 @@ SC_MODULE(MatrixProcessor) {
         nonAccumulatingTileSize *= params.loops[1][i];
       }
 
-      Pack1D<ODTYPE, NCOLS> bias;
+      Pack1D<OutputT, NCols> bias;
 
       // loop indices that are used to determine when to read in a new bias
       int biasReuseIndices[4] = {5, 5, 5, 5};
@@ -267,13 +267,13 @@ SC_MODULE(MatrixProcessor) {
       // #pragma hls_pipeline_init_interval 1
       // #pragma hls_pipeline_stall_mode flush
       //       for (int count = 0; count < NUM_GARBAGE; count++) {
-      //         Pack1D<PEInput<IDTYPE>, NROWS> inputs;
+      //         Pack1D<PEInput<InputT>, NRows> inputs;
       // #pragma hls_unroll yes
-      //         for (int i = 0; i < NROWS; i++) {
+      //         for (int i = 0; i < NRows; i++) {
       //           inputs[i].swapWeights = count == 0;
       //         }
 
-      //         Pack1D<ODTYPE, NCOLS> psum;
+      //         Pack1D<OutputT, NCols> psum;
 
       //         inputSkewerDin.Push(inputs);
       //         psumInSkewerDin.Push(psum);
@@ -293,8 +293,8 @@ SC_MODULE(MatrixProcessor) {
         oldOutputStep2 = oldOutputStep;
         oldOutputStep = outputStep;
 
-        // Pack1D<ac_int<1, false>, NROWS> weightSwap;
-        Pack1D<PEInput<IDTYPE>, NROWS> inputs;
+        // Pack1D<ac_int<1, false>, NRows> weightSwap;
+        Pack1D<PEInput<InputT>, NRows> inputs;
         bool stallInputs = false;
 
         bool isAccumulation =
@@ -319,23 +319,23 @@ SC_MODULE(MatrixProcessor) {
         if (sendWeights && step < totalOps - 1) {
           // CCS_LOG("sendWeights: " << sendWeights);
 #pragma hls_unroll yes
-          for (int i = 0; i < NROWS; i++) {
+          for (int i = 0; i < NRows; i++) {
             inputs[i].swapWeights = true;
             // weightSwap.value[i] = true;
           }
         } else {
 #pragma hls_unroll yes
-          for (int i = 0; i < NROWS; i++) {
+          for (int i = 0; i < NRows; i++) {
             // weightSwap.value[i] = false;
             inputs[i].swapWeights = false;
           }
         }
 
-        // Pack1D<IDTYPE, NROWS> inputs;
+        // Pack1D<InputT, NRows> inputs;
         if (step < totalOps && !stallInputs) {
-          Pack1D<IDTYPE, NROWS> inputsData = inputsChannel.Pop();
+          Pack1D<InputT, NRows> inputsData = inputsChannel.Pop();
 #pragma hls_unroll yes
-          for (int i = 0; i < NROWS; i++) {
+          for (int i = 0; i < NRows; i++) {
             inputs[i].data = inputsData[i];
             // #ifdef HYBRID_FP8
             // inputs[i].castToE5M2 = params.COMBINE_GRADS;
@@ -343,13 +343,13 @@ SC_MODULE(MatrixProcessor) {
           }
         }
 
-        Pack1D<ODTYPE, NCOLS> psum;
+        Pack1D<OutputT, NCols> psum;
 #pragma hls_unroll yes
-        for (int i = 0; i < NCOLS; i++) {
+        for (int i = 0; i < NCols; i++) {
           psum.value[i].set_zero();
         }
 
-        if constexpr (!IS_MX) {
+        if constexpr (!is_mx) {
           bool firstAccumulation =
               loop_counters[1][params.reductionLoopIndex[1]] == 0 &&
               loop_counters[1][params.fxIndex] == 0 &&
@@ -357,7 +357,7 @@ SC_MODULE(MatrixProcessor) {
 
           if ((!firstAccumulation || params.ACC_FROM_ACC) && step < totalOps &&
               !stallInputs) {
-            ac_int<int_log2(BUFFER_SIZE), false> readAddress =
+            ac_int<int_log2(BufferSize), false> readAddress =
                 loop_counters[1][params.weightLoopIndex[1]] *
                     params.loops[1][params.inputXLoopIndex[1]] *
                     params.loops[1][params.inputYLoopIndex[1]] +
@@ -392,7 +392,7 @@ SC_MODULE(MatrixProcessor) {
           psumInSkewerDin.Push(psum);
         }
 
-        Pack1D<ODTYPE, NCOLS> outputs;
+        Pack1D<OutputT, NCols> outputs;
         if (psumOutSkewerDout.PopNB(outputs)) {
           // if (garbageCount < NUM_GARBAGE) {
           //   garbageCount++;
@@ -408,13 +408,13 @@ SC_MODULE(MatrixProcessor) {
               (loop_counters_out[1][params.fyIndex] ==
                params.loops[1][params.fyIndex] - 1);
 
-          if constexpr (IS_MX) {
+          if constexpr (is_mx) {
             unscaledAccumulationChannel.Push(outputs);
           } else {
             if (accumulationFinished && !params.STORE_IN_ACC) {
               outputsChannel.Push(outputs);
             } else {
-              ac_int<int_log2(BUFFER_SIZE), false> writeAddress =
+              ac_int<int_log2(BufferSize), false> writeAddress =
                   loop_counters_out[1][params.weightLoopIndex[1]] *
                       params.loops[1][params.inputXLoopIndex[1]] *
                       params.loops[1][params.inputYLoopIndex[1]] +
@@ -482,7 +482,7 @@ SC_MODULE(MatrixProcessor) {
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
       while (outputStep < totalOps) {
-        Pack1D<ODTYPE, NCOLS> outputs;
+        Pack1D<OutputT, NCols> outputs;
         if (psumOutSkewerDout.PopNB(outputs)) {
           outputStep++;
 
@@ -495,7 +495,7 @@ SC_MODULE(MatrixProcessor) {
               (loop_counters_out[1][params.fyIndex] ==
                params.loops[1][params.fyIndex] - 1);
 
-          if constexpr (IS_MX) {
+          if constexpr (is_mx) {
             unscaledAccumulationChannel.Push(outputs);
 
           } else {
@@ -503,7 +503,7 @@ SC_MODULE(MatrixProcessor) {
               outputsChannel.Push(outputs);
               DLOG("matrix processor output: " << outputs);
             } else {
-              ac_int<int_log2(BUFFER_SIZE), false> writeAddress =
+              ac_int<int_log2(BufferSize), false> writeAddress =
                   loop_counters_out[1][params.weightLoopIndex[1]] *
                       params.loops[1][params.inputXLoopIndex[1]] *
                       params.loops[1][params.inputYLoopIndex[1]] +
@@ -548,7 +548,7 @@ SC_MODULE(MatrixProcessor) {
 
   // This thread is only used for MX
   void process_accumulation() {
-    if constexpr (IS_MX) {
+    if constexpr (is_mx) {
       unscaledAccumulationChannel.ResetRead();
       accumulationBufferParams.ResetRead();
       inputScaleChannel.Reset();
@@ -579,16 +579,16 @@ SC_MODULE(MatrixProcessor) {
             params.loops[1][3] * params.loops[1][4] * params.loops[1][5];
 
 #ifdef __SYNTHESIS__
-        Pack1D<AccumBuffer, NCOLS> accumulation_buffer[BUFFER_SIZE];
+        Pack1D<BufferT, NCols> accumulation_buffer[BufferSize];
 #else
-        Pack1D<AccumBuffer, NCOLS> *accumulation_buffer =
-            new Pack1D<AccumBuffer, NCOLS>[BUFFER_SIZE];
+        Pack1D<BufferT, NCols> *accumulation_buffer =
+            new Pack1D<BufferT, NCols>[BufferSize];
 #endif
 
         ac_int<32, false> step = 0;
 
-        Pack1D<AccumBuffer, NCOLS> bias;
-        Pack1D<Scale, NCOLS> weightScales;
+        Pack1D<BufferT, NCols> bias;
+        Pack1D<ScaleT, NCols> weightScales;
 
         // loop indices that are used to determine when to read in a new bias
         int biasReuseIndices[4] = {5, 5, 5, 5};
@@ -605,10 +605,10 @@ SC_MODULE(MatrixProcessor) {
               loop_counters[1][params.fxIndex] == 0 &&
               loop_counters[1][params.fyIndex] == 0;
 
-          Pack1D<AccumBuffer, NCOLS> previous_accumulation;
+          Pack1D<BufferT, NCols> previous_accumulation;
 
 #pragma hls_unroll yes
-          for (int i = 0; i < NCOLS; i++) {
+          for (int i = 0; i < NCols; i++) {
             previous_accumulation.value[i].set_zero();
           }
 
@@ -641,12 +641,12 @@ SC_MODULE(MatrixProcessor) {
             previous_accumulation = accumulation_buffer[readAddress];
           }
 
-          Pack1D<ODTYPE, NCOLS> outputs;
+          Pack1D<OutputT, NCols> outputs;
           outputs = unscaledAccumulationChannel.Pop();
 
           // CCS_LOG("outputs: " << outputs);
 
-          Pack1D<Scale, 1> inputScale;
+          Pack1D<ScaleT, 1> inputScale;
           if (params.MX) {
             inputScale = inputScaleChannel.Pop();
           }
@@ -665,13 +665,13 @@ SC_MODULE(MatrixProcessor) {
             weightScales = weightScaleChannel.Pop();
           }
 
-          Pack1D<AccumBuffer, NCOLS> scaled_outputs;
+          Pack1D<BufferT, NCols> scaled_outputs;
 
 #pragma hls_unroll yes
-          for (int i = 0; i < NCOLS; i++) {
-            AccumBuffer scale = static_cast<AccumBuffer>(inputScale[0]) *
-                                static_cast<AccumBuffer>(weightScales[i]);
-            scaled_outputs[i] = static_cast<AccumBuffer>(outputs[i]);
+          for (int i = 0; i < NCols; i++) {
+            BufferT scale = static_cast<BufferT>(inputScale[0]) *
+                            static_cast<BufferT>(weightScales[i]);
+            scaled_outputs[i] = static_cast<BufferT>(outputs[i]);
             if (params.MX) {
               scaled_outputs[i] = scaled_outputs[i] * scale;
             }

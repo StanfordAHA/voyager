@@ -136,7 +136,7 @@ void vexp(Pack1D<Input, Width>& op0, Pack1D<Input, Width>& res) {
 
 #pragma hls_design ccore
 template <typename Input, int Width>
-void vscaleexp(Pack1D<Input, Width>& op0, ac_int<8, false> expScale,
+void vscaleexp(Pack1D<Input, Width>& op0, ac_int<8, false> scale,
                Pack1D<Input, Width>& res) {
 #pragma hls_unroll yes
   for (int i = 0; i < Width; i++) {
@@ -145,8 +145,7 @@ void vscaleexp(Pack1D<Input, Width>& op0, ac_int<8, false> expScale,
 
 #pragma hls_unroll yes
   for (int i = 0; i < Width; i++) {
-    res[i].expScale(expScale);
-    // res[i].scale += expScale;
+    res[i].scale_exp(scale);
   }
 }
 
@@ -184,7 +183,7 @@ void vmultdiv(Pack1D<Input, Width>& op0, Pack1D<Input, Width>& op1,
 #pragma hls_unroll yes
     for (int i = 0; i < Width; i++) {
       // TODO Is it fine to update op1 with its reciprocal value ?
-      op1[i].custom_converted_reciprocal();
+      op1[i].reciprocal();
       op1_factor[i] = op1[i];
     }
 

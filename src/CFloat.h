@@ -35,6 +35,12 @@ class CFloat {
     return bits;
   }
 
+  void set_bits(uint32_t bits) {
+    float_val = *reinterpret_cast<float *>(&bits);
+  }
+
+  void set_zero() { float_val = 0; }
+
   void negate() { float_val = -float_val; }
 
   void relu() {
@@ -44,15 +50,6 @@ class CFloat {
   void masked_relu(const CFloat &mask) {
     if (mask.float_val == 0) float_val = 0;
   }
-
-  void set_bits(int i) {
-    uint32_t float_bits = i;
-    float_val = *reinterpret_cast<float *>(&float_bits);
-  }
-
-  void set_zero() { float_val = 0; }
-
-  void custom_converted_reciprocal() { this->reciprocal(); }
 
   void reciprocal() { float_val = 1.0 / float_val; }
 
@@ -69,7 +66,7 @@ class CFloat {
     return *this;
   }
 
-  void expScale(ac_int<8, false> offset) {
+  void scale_exp(ac_int<8, false> offset) {
     // TODO: fix this to be scale the exponent
   }
 

@@ -9,11 +9,12 @@
 template <int W, int E>
 class UFloat {
  public:
-  typedef ac_int<W, false> ac_int_rep;
-  typedef ac_std_float<W + 1, E> ac_float_rep;
-
   static constexpr unsigned int width = W;
   static constexpr unsigned int exponent_width = E;
+
+  typedef ac_int<W, false> ac_int_rep;
+  typedef ac_std_float<W + 1, E> ac_float_rep;
+  typedef UFloat<W, E> Decoded;
 
   ac_int_rep d;
 
@@ -47,7 +48,7 @@ class UFloat {
   ac_int<W, true> bits_rep() { return d; }
 
   void set_bits(const ac_int<W, true> &rhs) { d = rhs; }
-  void set_zero() { d = 0; }
+  void set_zero() { d = ac_float_rep::zero().data(); }
   void set_one() { d = ac_float_rep::one().data(); }
 
   UFloat operator*(const UFloat &rhs) const {

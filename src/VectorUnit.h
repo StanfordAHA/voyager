@@ -471,7 +471,9 @@ SC_MODULE(VectorOpUnit) {
               amax = amax < result ? result : amax;
             }
 
-            ScaleType scale = amax / IOType::max();
+            VectorType max_val = static_cast<VectorType>(IOType::max());
+            max_val.reciprocal();
+            ScaleType scale = amax * max_val;
 
             if (scale.to_ac_float() == ScaleType::ac_float_rep::zero()) {
               scale.set_one();

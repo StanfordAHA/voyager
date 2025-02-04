@@ -13,14 +13,14 @@ template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
           ac_q_mode Q>
 class StdFloat {
  public:
-  typedef ac_std_float<mantissa + exp + 1, exp> ac_float_rep;
-  static constexpr unsigned int width = ac_float_rep::width;
-  static constexpr unsigned int exponent_width = ac_float_rep::e_width;
-  static constexpr unsigned int mantissa_width = ac_float_rep::mant_bits;
+  static constexpr unsigned int width = mantissa + exp + 1;
+  static constexpr unsigned int exponent_width = exp;
+  static constexpr unsigned int mantissa_width = mantissa;
 
-  typedef StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> Decoded;
+  typedef ac_std_float<width, exp> ac_float_rep;
   typedef ac_fixed<2 * mantissa, mantissa, true> ac_float_to_fixed_rep;
   typedef ac_fixed<2 * mantissa, mantissa, false> ac_float_to_fixed_rep_out;
+  typedef StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> Decoded;
 
   ac_float_rep float_val;
 
@@ -48,6 +48,10 @@ class StdFloat {
 
   ac_int<mantissa + exp + 1, false> bits_rep() { return float_val.d; }
 
+  void set_bits(int i) { float_val.d = i; }
+
+  void set_zero() { float_val = float_val.zero(); }
+
   static Decoded max() { return ac_float_rep::max(); }
 
   StdFloat abs() {
@@ -64,12 +68,6 @@ class StdFloat {
   void masked_relu(const StdFloat &mask) {
     if (mask.float_val.d == 0) float_val = float_val.zero();
   }
-
-  void set_bits(int i) { float_val.d = i; }
-
-  void set_zero() { float_val = float_val.zero(); }
-
-  void custom_converted_reciprocal() { this->reciprocal(); }
 
   void reciprocal() {
     float_val = ac_math::ac_reciprocal_pwl<ac_float_rep, AC_TRN, ac_float_rep>(
@@ -107,7 +105,7 @@ class StdFloat {
   }
 
   template <int width, bool sign>
-  void expScale(ac_int<width, sign> offset) {
+  void scale_exp(ac_int<width, sign> offset) {
     if (float_val == float_val.zero()) return;
     // TODO: handle subnormal numbers
     ac_int<exponent_width, true> exp_bits =
@@ -120,13 +118,6 @@ class StdFloat {
     return float_val.d.template slc<exponent_width>(mantissa_width);
   }
 
-  ac_int<exponent_width, true> exponent() {
-    ac_int<exponent_width, true> exp_bits =
-        float_val.d.template slc<exponent_width>(mantissa_width);
-
-    return exp_bits - ac_int<exponent_width, true>(ac_float_rep::exp_bias);
-  }
-
   template <int mantissa2, int exp2, bool useDWImpl2, bool ieee_compliance2,
             ac_q_mode Q2>
   StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> fma(
@@ -134,6 +125,7 @@ class StdFloat {
       StdFloat<mantissa2, exp2, useDWImpl2, ieee_compliance2, Q2> &c);
 
   StdFloat operator+(const StdFloat &rhs);
+  StdFloat operator-(const StdFloat &rhs);
   StdFloat operator*(const StdFloat &rhs);
   StdFloat operator/(const StdFloat &rhs);
   StdFloat &operator+=(const StdFloat &rhs);
@@ -201,6 +193,14 @@ inline StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>
 StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator+(
     const StdFloat &rhs) {
   return float_val.template add<Q, !ieee_compliance>(rhs.float_val);
+}
+
+template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+          ac_q_mode Q>
+inline StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>
+StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>::operator-(
+    const StdFloat &rhs) {
+  return float_val.template sub<Q, !ieee_compliance>(rhs.float_val);
 }
 
 template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,

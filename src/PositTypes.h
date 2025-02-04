@@ -141,6 +141,8 @@ class Posit {
   Posit(const StdFloat<mantissa, exp> &other);
 
   ac_int<nbits, false> bits_rep() { return bits; }
+  void set_bits(int i) { bits = i; }
+  void set_zero() { bits = 0; }
 
   static Decoded max() {
     Posit<nbits, es> max;
@@ -148,16 +150,11 @@ class Posit {
     return max;
   }
 
-  void set_bits(int i) { bits = i; }
-  void set_zero() { bits = 0; }
-
-  void sqrt() { throw "Posit sqrt function not implemented."; }
+  void negate() { twos_complement(bits); }
 
   void relu() {
     if (bits[nbits - 1] == 1) bits = 0;
   }
-
-  void negate() { twos_complement(bits); }
 
   void reciprocal() {
     // ac_int<nbits, false> sub = (1 << (nbits - 1));
