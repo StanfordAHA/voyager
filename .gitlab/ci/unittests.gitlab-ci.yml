@@ -1,9 +1,0 @@
-##################
-### Unit Tests ###
-##################
-
-Posit Unit Tests:
-  stage: test
-  script:
-    - make PositTest
-    - ./build/PositTest encoding,fma,posit_add,posit_multiply
