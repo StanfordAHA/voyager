@@ -1,0 +1,23 @@
+.regression_template:
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - ./regression_results
+    expire_in: 1 month
+
+.on_merge_request:
+  extends: .regression_template
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"'
+      when: always
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: always
+    - when: never
+
+.weekly:
+  extends: .regression_template
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: always
+    - when: never
