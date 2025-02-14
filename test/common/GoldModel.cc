@@ -167,38 +167,53 @@ std::any run_operation(const codegen::Operation param,
       Vector *input_ptr = std::any_cast<Vector *>(output_ptr);
       output_ptr = perform_unary_operation(input_ptr, input_shape, op.target());
     } else if (arithmetics.find(op.target()) != arithmetics.end()) {
-      auto operand1 = op.kwargs().at("input").tensor();
-      auto operand2 = op.kwargs().at("other").tensor();
-
-      // input comes from outputs of previous operations
-      auto input = operand2.has_memory() ? operand1 : operand2;
-      auto other = operand2.has_memory() ? operand2 : operand1;
-
       Vector *input_ptr = std::any_cast<Vector *>(output_ptr);
-      const auto input_shape = get_shape(input);
 
       Vector *other_ptr;
+      std::vector<int> input_shape;
+      std::vector<int> other_shape;
 
-      if (input.dtype() == other.dtype()) {
-        other_ptr = std::any_cast<Vector *>(kwargs[other.node()]);
+      const auto other = op.kwargs().at("other");
+
+      if (other.has_float_value() || other.has_int_value()) {
+        input_shape = get_shape(op.kwargs().at("input").tensor());
+        other_shape = {1};
+
+        other_ptr = new Vector[1];
+        other_ptr[0] =
+            other.has_float_value() ? other.float_value() : other.int_value();
       } else {
-        if constexpr (std::is_same<Vector, CFloat>::value) {
-          std::cerr << "No quantization operations should be emitted for CFloat"
-                    << std::endl;
-          std::abort();
-        } else {
-          Vector *scale = new Vector[1];
-          scale[0] = other.scale() != 0 ? other.scale() : 1.0;
-          other_ptr =
-              dequantize_tensor<Vector>(kwargs[other.node()], scale, other);
+        auto operand1 = op.kwargs().at("input").tensor();
+        auto operand2 = op.kwargs().at("other").tensor();
+
+        // input comes from outputs of previous operations
+        if (!operand2.has_memory()) {
+          std::swap(operand1, operand2);
         }
-      }
 
-      const auto other_shape = get_shape(other);
+        input_shape = get_shape(operand1);
+        other_shape = get_shape(operand2);
 
-      if (other.has_reshape()) {
-        other_ptr = permute<Vector>(other_ptr, other.reshape());
-        other_ptr = slice<Vector>(other_ptr, other.reshape());
+        if (operand1.dtype() == operand2.dtype()) {
+          other_ptr = std::any_cast<Vector *>(kwargs[operand2.node()]);
+        } else {
+          if constexpr (std::is_same<Vector, CFloat>::value) {
+            std::cerr
+                << "No quantization operations should be emitted for CFloat"
+                << std::endl;
+            std::abort();
+          } else {
+            Vector *scale = new Vector[1];
+            scale[0] = operand2.scale() != 0 ? operand2.scale() : 1.0;
+            other_ptr = dequantize_tensor<Vector>(kwargs[operand2.node()],
+                                                  scale, operand2);
+          }
+        }
+
+        if (operand2.has_reshape()) {
+          other_ptr = permute<Vector>(other_ptr, operand2.reshape());
+          other_ptr = slice<Vector>(other_ptr, operand2.reshape());
+        }
       }
 
       output_ptr = perform_vector_operation(input_ptr, input_shape, other_ptr,

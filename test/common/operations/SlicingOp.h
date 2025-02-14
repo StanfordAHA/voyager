@@ -3,8 +3,8 @@
 #include "test/common/operations/Common.h"
 
 template <typename T>
-inline T* slice(std::any input_ptr, const std::vector<int> shape, int dim,
-                int start, int end, int step) {
+inline T* slice(std::any input_ptr, const std::vector<int> shape, uint64_t dim,
+                uint64_t start, uint64_t end, uint64_t step) {
   dim = dim < 0 ? dim + shape.size() : dim;
   int num_elements = (end - start) / step;
 
@@ -39,13 +39,16 @@ inline T* slice(std::any input_ptr, const codegen::OpOverload op) {
     return std::any_cast<T*>(input_ptr);
   }
 
-  const auto& input = op.kwargs().at("input").tensor();
+  const auto input = op.kwargs().at("input").tensor();
   const auto shape = get_shape(input);
 
-  const int start = op.kwargs().at("start").int_value();
-  const int end = op.kwargs().at("end").int_value();
-  const int step = op.kwargs().at("step").int_value();
-  const int dim = op.kwargs().at("dim").int_value();
+  uint64_t start = op.kwargs().at("start").int_value();
+  uint64_t end = op.kwargs().at("end").int_value();
+  uint64_t step = op.kwargs().at("step").int_value();
+  uint64_t dim = op.kwargs().at("dim").int_value();
+
+  dim = dim < 0 ? dim + shape.size() : dim;
+  end = end > shape[dim] ? shape[dim] : end;
 
   return slice<T>(input_ptr, shape, dim, start, end, step);
 }

@@ -214,11 +214,23 @@ void MapVectorOperations(const codegen::Operation &param,
 
   if (reshape_op.target() == "slice") {
     vector_params->has_slicing = true;
-    vector_params->vec0_dim =
-        reshape_op.kwargs().at("dim").int_value() + num_extra_dims;
-    vector_params->vec0_start = kwargs.at("start").int_value();
-    vector_params->vec0_end = kwargs.at("end").int_value();
-    vector_params->vec0_stride = kwargs.at("step").int_value();
+
+    const auto kwargs = reshape_op.kwargs();
+
+    const auto shape = get_tensor_shape(kwargs.at("input").tensor());
+
+    uint64_t start = kwargs.at("start").int_value();
+    uint64_t end = kwargs.at("end").int_value();
+    uint64_t step = kwargs.at("step").int_value();
+    uint64_t dim = kwargs.at("dim").int_value();
+
+    dim = dim < 0 ? dim + shape.size() : dim;
+    end = end > shape[dim] ? shape[dim] : end;
+
+    vector_params->vec0_dim = dim + num_extra_dims;
+    vector_params->vec0_start = start;
+    vector_params->vec0_end = end;
+    vector_params->vec0_stride = step;
 
     // Last dimension needs to be scaled by OC_DIMENSION
     if (vector_params->vec0_dim == 5) {
