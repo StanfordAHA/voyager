@@ -16,7 +16,7 @@ void MapLayerNorm(const codegen::Operation &param,
   VectorInstructionConfig *vinstr_config;
   AcceleratorMemoryMap memory_map;
 
-  const auto input_shape = squeeze_shape(get_tensor_shape(input));
+  const auto input_shape = squeeze_shape(get_shape(input));
 
   const int outer_dim = input_shape.back();
   int inner_dim = 1;

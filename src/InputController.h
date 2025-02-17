@@ -22,12 +22,7 @@ SC_MODULE(InputController) {
   Connections::Out<ac_int<32, false> > readControl[2];
 
   Connections::In<Pack1D<Input, NRows> > CCS_INIT_S1(windowBufferIn);
-
-#ifdef HYBRID_FP8
-  Connections::Out<Pack1D<HYBRID_TYPE, NRows> > CCS_INIT_S1(windowBufferOut);
-#else
   Connections::Out<Pack1D<Input, NRows> > CCS_INIT_S1(windowBufferOut);
-#endif
 
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(fetcherParams);
@@ -278,10 +273,10 @@ SC_MODULE(InputController) {
                               (c + (x % 16)) * X + (x / 16) * IC_DIMENSION;
                         }
 
-                        MemoryRequest memRequest = {
+                        MemoryRequest request = {
                             params.INPUT_OFFSET + address * Input::width / 8,
-                            NRows};
-                        addressRequest.Push(memRequest);
+                            NRows * Input::width / 8};
+                        addressRequest.Push(request);
 
                         if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
                           break;
@@ -504,12 +499,12 @@ SC_MODULE(InputController) {
                                     loop_counters[1][params.inputXLoopIndex[1]];
                         }
 
-                        int swapBank =
-                            (loop_counters[1][1] == loop_bounds[1][1] - 1) &&
-                            (loop_counters[1][2] == loop_bounds[1][2] - 1) &&
-                            (loop_counters[1][3] == loop_bounds[1][3] - 1) &&
-                            (loop_counters[1][4] == loop_bounds[1][4] - 1) &&
-                            (loop_counters[1][5] == loop_bounds[1][5] - 1);
+                        // int swapBank =
+                        //     (loop_counters[1][1] == loop_bounds[1][1] - 1) &&
+                        //     (loop_counters[1][2] == loop_bounds[1][2] - 1) &&
+                        //     (loop_counters[1][3] == loop_bounds[1][3] - 1) &&
+                        //     (loop_counters[1][4] == loop_bounds[1][4] - 1) &&
+                        //     (loop_counters[1][5] == loop_bounds[1][5] - 1);
                         // writeControl[bankSel].Push(!swapBank);
                         BufferWriteRequest<Input, NRows> req;
                         req.address = address;

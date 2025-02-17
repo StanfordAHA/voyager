@@ -171,10 +171,16 @@ void Simulation::run() {
     print_ideal_runtime(op);
 
     if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
-      auto memory = (ArrayMemory*)(memories["gold"]);
-      auto kwargs = memory->get_args(op);
-      std::any outputs = run_gold_model(op, kwargs);
-      memory->write_tensor(op.output(), outputs);
+      const auto memory = (ArrayMemory*)(memories["gold"]);
+      const auto kwargs = memory->get_args(op);
+      const auto outputs = run_gold_model(op, kwargs);
+      const auto tensors = get_op_outputs(op);
+
+      assert(outputs.size() == tensors.size());
+
+      for (int i = 0; i < outputs.size(); i++) {
+        memory->write_tensor(tensors[i], outputs[i]);
+      }
     }
   }
 
@@ -194,31 +200,28 @@ int Simulation::check_outputs() {
              get_op_name(params.back()) + '.';
   }
 
-  bool has_valid_comp = false;
-  double rel_err = 0.0;
-
   const auto param = params.back();
-  const int size = get_size(param.output());
 
   bool pytorch = std::find(sims.begin(), sims.end(), "pytorch") != sims.end();
-
   auto gold_memory = (ArrayMemory*)memories["gold"];
   auto accel_memory = (ArrayMemory*)memories["accelerator"];
 
   std::string filename;
-  std::any output1, output2;
+  std::vector<std::any> outputs1, outputs2;
   std::string output_names[2];
+
+  bool has_valid_comp = false;
 
   if (gold_memory && pytorch) {
     std::cout << "Gold Model vs. PyTorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
-    filename = prefix + "gold_vs_pytorch.txt";
+    filename = prefix + "gold_vs_pytorch";
 
     output_names[0] = "gold_model";
-    output1 = gold_memory->get_output(param);
+    outputs1 = gold_memory->get_outputs(param);
 
     output_names[1] = "pytorch";
-    output2 = gold_memory->get_reference_output(param);
+    outputs2 = gold_memory->get_reference_outputs(param);
 
     has_valid_comp = true;
   }
@@ -227,13 +230,13 @@ int Simulation::check_outputs() {
     std::cout << "Accelerator vs. PyTorch" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
-    filename = prefix + "accelerator_vs_pytorch.txt";
+    filename = prefix + "accelerator_vs_pytorch";
 
     output_names[0] = "accelerator";
-    output1 = accel_memory->get_output(param);
+    outputs1 = accel_memory->get_outputs(param);
 
     output_names[1] = "pytorch";
-    output2 = accel_memory->get_reference_output(param);
+    outputs2 = accel_memory->get_reference_outputs(param);
 
     has_valid_comp = true;
   }
@@ -242,45 +245,55 @@ int Simulation::check_outputs() {
     std::cout << "Accelerator vs. Gold Model" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
-    filename = prefix + "accelerator_vs_gold.txt";
+    filename = prefix + "accelerator_vs_gold";
 
     output_names[0] = "accelerator";
-    output1 = accel_memory->get_output(param);
+    outputs1 = accel_memory->get_outputs(param);
 
     output_names[1] = "gold_model";
-    output2 = gold_memory->get_output(param);
+    outputs2 = gold_memory->get_outputs(param);
 
     has_valid_comp = true;
-  }
-
-  if (has_valid_comp) {
-    if (param.output().dtype() == "int8") {
-      rel_err += compare_arrays<DataTypes::int8, DataTypes::int8>(
-          output1, output_names[0], output2, output_names[1], size, filename,
-          false);
-    } else if (param.output().dtype() == "fp8_e8m0") {
-      rel_err += compare_arrays<DataTypes::fp8_e8m0, DataTypes::fp8_e8m0>(
-          output1, output_names[0], output2, output_names[1], size, filename,
-          false);
-    } else if (param.output().dtype() == "bfloat16") {
-      rel_err += compare_arrays<DataTypes::bfloat16, DataTypes::bfloat16>(
-          output1, output_names[0], output2, output_names[1], size, filename,
-          false);
-    } else if (param.output().dtype() == "fp8_e5m3") {
-      rel_err += compare_arrays<DataTypes::fp8_e5m3, DataTypes::fp8_e5m3>(
-          output1, output_names[0], output2, output_names[1], size, filename,
-          false);
-    } else {
-      // if unspecified, we will assume it's INPUT_DATATYPE
-      rel_err += compare_arrays<INPUT_DATATYPE, INPUT_DATATYPE>(
-          output1, output_names[0], output2, output_names[1], size, filename,
-          false);
-    }
   }
 
   if (!has_valid_comp) {
     std::cout << "No valid comparisons specified" << std::endl;
     std::abort();
+  }
+
+  double rel_err = 0.0;
+  const auto output_tensors = get_op_outputs(param);
+
+  for (int i = 0; i < outputs1.size(); i++) {
+    const auto output1 = outputs1[i];
+    const auto output2 = outputs2[i];
+
+    const auto tensor = output_tensors[i];
+    const int size = get_size(tensor);
+
+    std::string suffix = ".txt";
+    if (outputs1.size() > 1) {
+      suffix = "_" + std::to_string(i) + ".txt";
+    }
+
+    if (tensor.dtype() == "bfloat16") {
+      rel_err += compare_arrays<DataTypes::bfloat16, DataTypes::bfloat16>(
+          output1, output_names[0], output2, output_names[1], size,
+          filename + suffix, false);
+    } else if (tensor.dtype() == "fp8_e8m0") {
+      rel_err += compare_arrays<DataTypes::fp8_e8m0, DataTypes::fp8_e8m0>(
+          output1, output_names[0], output2, output_names[1], size,
+          filename + suffix, false);
+    } else if (tensor.dtype() == "fp8_e5m3") {
+      rel_err += compare_arrays<DataTypes::fp8_e5m3, DataTypes::fp8_e5m3>(
+          output1, output_names[0], output2, output_names[1], size,
+          filename + suffix, false);
+    } else {
+      // if unspecified, we will assume it's INPUT_DATATYPE
+      rel_err += compare_arrays<INPUT_DATATYPE, INPUT_DATATYPE>(
+          output1, output_names[0], output2, output_names[1], size,
+          filename + suffix, false);
+    }
   }
 
   int error_count = 0;

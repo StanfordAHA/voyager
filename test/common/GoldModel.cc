@@ -21,9 +21,10 @@
 
 template <typename Input, typename Psum, typename AccumBuffer, typename Scale,
           typename Vector>
-std::any run_operation(const codegen::Operation param,
-                       std::map<std::string, std::any> kwargs) {
+std::vector<std::any> run_operation(const codegen::Operation param,
+                                    std::map<std::string, std::any> kwargs) {
   std::any output_ptr;
+  std::vector<std::any> outputs;
 
   auto op_list = get_op_list(param);
 
@@ -218,7 +219,7 @@ std::any run_operation(const codegen::Operation param,
 
       output_ptr = perform_vector_operation(input_ptr, input_shape, other_ptr,
                                             other_shape, op.target());
-    } else if (op.target().rfind("quantize", 0) == 0) {
+    } else if (op.target() == "quantize") {
       if constexpr (std::is_same<Vector, CFloat>::value) {
         std::cerr << "No quantization operations should be emitted for CFloat"
                   << std::endl;
@@ -235,11 +236,24 @@ std::any run_operation(const codegen::Operation param,
           output_ptr = quantize<Vector, Input, Vector>(output_ptr, scale_ptr,
                                                        input_shape);
         } else {
+          const int block_size = op.kwargs().at("block_size").int_value();
           output_ptr = quantize_mx<Vector, Input, Scale>(
-              output_ptr, scale_ptr, input_shape, scale_shape);
+              output_ptr, scale_ptr, input_shape, block_size);
         }
       }
-    } else if (op.target().rfind("dequantize", 0) == 0) {
+    } else if (op.target() == "quantize_mx") {
+      const auto input = op.kwargs().at("input").tensor();
+      const auto input_shape = get_shape(input);
+
+      const int block_size = op.kwargs().at("block_size").int_value();
+
+      Scale *mx_scale =
+          calculate_mx_qparam<Vector, Scale, Input>(output_ptr, input_shape);
+      output_ptr = quantize_mx<Vector, Input, Scale>(output_ptr, mx_scale,
+                                                     input_shape, block_size);
+
+      outputs.push_back(mx_scale);
+    } else if (op.target() == "dequantize") {
       if constexpr (std::is_same<Vector, CFloat>::value) {
         std::cerr << "No quantization operations should be emitted for CFloat"
                   << std::endl;
@@ -285,11 +299,13 @@ std::any run_operation(const codegen::Operation param,
     }
   }
 
-  return output_ptr;
+  outputs.push_back(output_ptr);
+
+  return outputs;
 }
 
-std::any run_gold_model(const codegen::Operation &op,
-                        std::map<std::string, std::any> kwargs) {
+std::vector<std::any> run_gold_model(const codegen::Operation &op,
+                                     std::map<std::string, std::any> kwargs) {
   return run_operation<INPUT_DATATYPE, ACCUM_DATATYPE, ACCUM_BUFFER_DATATYPE,
                        SCALE_DATATYPE, VECTOR_DATATYPE>(op, kwargs);
 }

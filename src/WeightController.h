@@ -27,14 +27,8 @@ SC_MODULE(WeightController) {
 
   static constexpr int LOOP_WIDTH = 10;
 
-#ifdef HYBRID_FP8
-  Connections::Out<Pack1D<HYBRID_TYPE, NCols> > CCS_INIT_S1(
-      weightsToSystolicArray);
-#else
   Connections::Out<Pack1D<typename Weight::Decoded, NCols> > CCS_INIT_S1(
       weightsToSystolicArray);
-#endif
-
   Connections::Out<Pack1D<Bias, NCols> > CCS_INIT_S1(biasToSystolicArray);
 
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
@@ -172,10 +166,10 @@ SC_MODULE(WeightController) {
                         address = (k + c0) * C + c1 * OC_DIMENSION;
                       }
 
-                      MemoryRequest memRequest = {
+                      MemoryRequest request = {
                           params.WEIGHT_OFFSET + address * Weight::width / 8,
-                          NCols};
-                      addressRequest.Push(memRequest);
+                          NCols * Weight::width / 8};
+                      addressRequest.Push(request);
 
                       if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
                         break;
@@ -775,15 +769,11 @@ SC_MODULE(WeightController) {
                         ac_int<16, false> address =
                             k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
 
-                        address = address * Bias::width / 8;
+                        MemoryRequest request = {
+                            params.BIAS_OFFSET + address * Bias::width / 8,
+                            OC_DIMENSION * Bias::width / 8};
 
-                        constexpr int num_words = Bias::width / Weight::width;
-
-                        MemoryRequest memRequest = {
-                            params.BIAS_OFFSET + address,
-                            OC_DIMENSION * num_words};
-
-                        biasAddressRequest.Push(memRequest);
+                        biasAddressRequest.Push(request);
 
                         if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
                           break;

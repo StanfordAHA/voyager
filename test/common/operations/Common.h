@@ -11,17 +11,6 @@
 #include "test/common/VerificationTypes.h"
 #include "test/compiler/proto/param.pb.h"
 
-inline int get_size(const std::vector<int> &shape) {
-  int size = 1;
-  for (const auto &dim : shape) size *= dim;
-  return size;
-}
-
-inline int get_size(const codegen::Tensor &tensor) {
-  const auto shape = get_shape(tensor);
-  return get_size(shape);
-}
-
 // Function to compute multi-dimensional indices from a flat index
 inline std::vector<int> get_indices(int flat_idx,
                                     const std::vector<int> &shape) {

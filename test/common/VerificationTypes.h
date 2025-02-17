@@ -78,13 +78,25 @@ inline std::ostream& operator<<(std::ostream& os, const Tiling& tiling) {
 }
 
 inline std::vector<int> get_shape(const codegen::Tensor& tensor) {
-  std::vector<int> shape(tensor.shape().begin(), tensor.shape().end());
   if (tensor.has_reshape()) {
-    const auto new_shape =
+    const auto output_shape =
         tensor.reshape().kwargs().at("output_shape").int_list().values();
-    shape.assign(new_shape.begin(), new_shape.end());
+    return {output_shape.begin(), output_shape.end()};
   }
-  return shape;
+
+  const auto repeated_field = tensor.shape();
+  return {repeated_field.begin(), repeated_field.end()};
+}
+
+inline int get_size(const std::vector<int>& shape) {
+  int size = 1;
+  for (const auto& dim : shape) size *= dim;
+  return size;
+}
+
+inline int get_size(const codegen::Tensor& tensor) {
+  const auto shape = get_shape(tensor);
+  return get_size(shape);
 }
 
 inline std::vector<codegen::OpOverload> get_op_list(
@@ -105,6 +117,19 @@ inline std::string get_op_name(const codegen::Operation& param) {
   } else {
     return param.fused_op().name();
   }
+}
+
+inline std::vector<codegen::Tensor> get_op_outputs(
+    const codegen::Operation& param) {
+  std::vector<codegen::Tensor> outputs;
+  if (param.has_output()) {
+    outputs.push_back(param.output());
+  } else {
+    for (const auto& output : param.outputs().tensors()) {
+      outputs.push_back(output);
+    }
+  }
+  return outputs;
 }
 
 inline Tiling get_conv2d_tiling(const codegen::OpOverload op) {

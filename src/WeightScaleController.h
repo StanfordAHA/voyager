@@ -155,16 +155,10 @@ SC_MODULE(WeightScaleController) {
                         address = (k + c0) * C + c1 * OC_DIMENSION;
                       }
 
-                      // CCS_LOG("Fetching from address " << address);
-
-                      address = address * Scale::width / 8;
-
-                      constexpr int num_words = Scale::width / Weight::width;
-
-                      MemoryRequest memRequest = {
-                          params.WEIGHT_SCALE_OFFSET + address,
-                          NCols * num_words};
-                      addressRequest.Push(memRequest);
+                      MemoryRequest request = {params.WEIGHT_SCALE_OFFSET +
+                                                   address * Scale::width / 8,
+                                               NCols * Scale::width / 8};
+                      addressRequest.Push(request);
 
                       if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
                         break;

@@ -393,7 +393,6 @@ struct VectorInstructions {
   ac_int<3, false> rOp;
   static const unsigned int radd = 1;
   static const unsigned int rmax = 2;
-  static const unsigned int rmxscale = 3;
 
   ac_int<1, false> rSqrt;
   ac_int<1, false> rReciprocal;
@@ -593,6 +592,8 @@ struct VectorParams : BaseParams {
 
     quantize_output = false;
     quantize_output_mx = false;
+    SCALE_OFFSET = 0;
+
     is_maxpool = false;
     is_avgpool = false;
   }
@@ -663,6 +664,7 @@ struct VectorParams : BaseParams {
 
   bool quantize_output;
   bool quantize_output_mx;
+  uint64_t SCALE_OFFSET;
 
   bool is_maxpool;
   bool is_avgpool;
@@ -677,7 +679,7 @@ struct VectorParams : BaseParams {
   // slicing params + 18-bit reshape params + 8-bit mx block size + 4-bit head
   // size + 10 boolean flags
   static const unsigned int width =
-      4 * address_gen_width + 6 + 36 + 18 + 8 + 4 + 10;
+      4 * address_gen_width + 6 + 36 + 18 + 8 + 4 + 10 + 64;
 
 #ifndef NO_SYSC
   template <unsigned int Size>
@@ -788,6 +790,7 @@ struct VectorParams : BaseParams {
 
     m & quantize_output;
     m & quantize_output_mx;
+    m & SCALE_OFFSET;
 
     m & is_maxpool;
     m & is_avgpool;
@@ -919,6 +922,7 @@ struct VectorParams : BaseParams {
 
     os << "quantize_output: " << params.quantize_output << std::endl;
     os << "quantize_output_mx: " << params.quantize_output_mx << std::endl;
+    os << "SCALE_OFFSET: " << params.SCALE_OFFSET << std::endl;
 
     os << "is_maxpool: " << params.is_maxpool << std::endl;
     os << "is_avgpool: " << params.is_avgpool << std::endl;

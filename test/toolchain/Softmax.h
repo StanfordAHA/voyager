@@ -9,7 +9,15 @@ void MapSoftmax(const codegen::Operation &param,
   const auto softmax_op = op_list[0];
 
   const auto input = softmax_op.kwargs().at("input").tensor();
-  const auto input_shape = squeeze_shape(get_tensor_shape(input));
+  const auto input_shape = squeeze_shape(get_shape(input));
+
+  codegen::Tensor output;
+  if (param.has_output()) {
+    output = param.output();
+  } else {
+    assert(op_list.back().target() == "quantize_mx");
+    output = param.outputs().tensors(1);
+  }
 
   VectorParams *vector_params = new VectorParams;
   VectorInstructionConfig *vector_instruction_config =
@@ -46,9 +54,9 @@ void MapSoftmax(const codegen::Operation &param,
       DataTypes::TypeName<VECTOR_DATATYPE>::name() == input.dtype();
 
   // output
-  const auto output_mem = param.output().memory();
-  accelerator_memory_map["outputs"] = get_partition(output_mem.partition());
-  vector_params->VECTOR_OUTPUT_OFFSET = output_mem.address();
+  const auto output_memory = output.memory();
+  accelerator_memory_map["outputs"] = get_partition(output_memory.partition());
+  vector_params->VECTOR_OUTPUT_OFFSET = output_memory.address();
   vector_params->outputAddressMode = 2;
 
   vector_params->outputLoops[0][0] = 1;
@@ -59,7 +67,7 @@ void MapSoftmax(const codegen::Operation &param,
   vector_params->outputLoops[1][2] = outer_dim / OC_DIMENSION;
 
   vector_params->output_vector_type =
-      DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
+      output.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
   // Instruction 0 - start reduction engine to calculate max
   VectorInstructions vinst0;
@@ -141,32 +149,21 @@ void MapSoftmax(const codegen::Operation &param,
     const auto quantize_op = op_list[1];
     std::cerr << quantize_op.target() << std::endl;
 
-    const auto input = quantize_op.kwargs().at("input").tensor();
-    const auto scale = quantize_op.kwargs().at("scale").tensor();
-    const int size = get_size(scale);
+    if (quantize_op.target() == "quantize") {
+      const auto scale = quantize_op.kwargs().at("scale").tensor();
+      assert(get_size(scale) == 1);
 
-    if (size == 1) {
       // scalar scale factor
       VECTOR_DATATYPE immediate = read_constant_param(scale);
       vector_params->quantize_output = true;
       vector_params->output_scale = immediate.bits_rep();
+    } else if (quantize_op.target() == "quantize_mx") {
+      vector_params->quantize_output_mx = true;
+      vector_params->SCALE_OFFSET =
+          param.outputs().tensors(0).memory().address();
     } else {
-      // // microscaling
-      // auto scale_shape = get_tensor_shape(scale);
-
-      // // change scale_shape to 2D tensor
-      // int other_dim_factors[2];
-      // factorize_for_address_gen(size / OC_DIMENSION, other_dim_factors);
-
-      // other_dim_factors[1] *= OC_DIMENSION;
-      // scale_shape = {other_dim_factors[0], other_dim_factors[1]};
-
-      // vector_params->fetch_scale_type_1 = true;
-      // set_vector_addr_gen1(scale, scale_shape, accelerator_memory_map,
-      //                      vector_params);
-
-      // vector_params->mx_block_size = OC_DIMENSION;
-      // vector_params->quantize_output_mx = true;
+      throw std::invalid_argument("Unsupported operation: " +
+                                  quantize_op.target());
     }
   }
 

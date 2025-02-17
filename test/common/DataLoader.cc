@@ -85,12 +85,12 @@ void DataLoader::load_tensor(const codegen::Tensor& tensor,
   delete[] array_ptr;
 }
 
-void DataLoader::load_inputs(const codegen::Operation operation,
+void DataLoader::load_inputs(const codegen::Operation param,
                              std::string data_dir, bool random_data) {
   // convolution layer inputs/outputs need to be permuted. If the matrix
   // operation is a convolution, the following fused vector operations will
   // need to be permuted as well. This logic should be refined in the future.
-  const auto op_list = get_op_list(operation);
+  const auto op_list = get_op_list(param);
 
   for (const auto& op : op_list) {
     for (const auto [key, value] : op.kwargs()) {
@@ -105,18 +105,27 @@ void DataLoader::load_inputs(const codegen::Operation operation,
   }
 }
 
-void DataLoader::load_outputs(const codegen::Operation operation,
+void DataLoader::load_outputs(const codegen::Operation param,
                               std::string data_dir) {
-  codegen::Tensor output_tensor;
-  output_tensor.CopyFrom(operation.output());
-  // always store output in the last memory partition with 0 offset
-  output_tensor.mutable_memory()->set_partition(-1);
-  output_tensor.mutable_memory()->set_address(0);
+  const auto tensors = get_op_outputs(param);
 
-  const auto op_list = get_op_list(operation);
+  const auto op_list = get_op_list(param);
   std::string opcode = op_list[0].target();
   bool transpose = is_cnn && opcode != "linear" && opcode != "linear_mx";
-  load_tensor(output_tensor, data_dir, transpose);
+
+  uint64_t address = 0;
+
+  for (const auto& tensor : tensors) {
+    std::cerr << "Loading output tensor: " << tensor.node() << std::endl;
+    codegen::Tensor output_tensor;
+    output_tensor.CopyFrom(tensor);
+    // Store output in the last memory partition
+    output_tensor.mutable_memory()->set_partition(-1);
+    output_tensor.mutable_memory()->set_address(address);
+
+    load_tensor(output_tensor, data_dir, transpose);
+    address += get_size(tensor);
+  }
 }
 
 float* DataLoader::read_tensor_from_file(const std::string& filename,

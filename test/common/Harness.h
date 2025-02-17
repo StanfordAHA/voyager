@@ -118,8 +118,10 @@ SC_MODULE(Harness) {
       CCS_INIT_S1(vectorFetch3DataResponse);
 
   CombinationalInterface<Pack1D<INPUT_DATATYPE, OC_DIMENSION>> CCS_INIT_S1(
-      vectorOutput);
-  CombinationalInterface<ac_int<64, false>> CCS_INIT_S1(vectorOutputAddress);
+      vector_output);
+  CombinationalInterface<ac_int<64, false>> CCS_INIT_S1(vector_output_address);
+  CombinationalInterface<Pack1D<INPUT_DATATYPE, 1>> CCS_INIT_S1(scalar_output);
+  CombinationalInterface<ac_int<64, false>> CCS_INIT_S1(scalar_output_address);
 
   Connections::SyncChannel CCS_INIT_S1(matrixUnitStartSignal);
   Connections::SyncChannel CCS_INIT_S1(matrixUnitDoneSignal);
@@ -141,13 +143,16 @@ SC_MODULE(Harness) {
   Accelerator CCS_INIT_S1(accelerator);
 #endif
 
-  template <typename Input, long unsigned int Dim>
-  void readMemoryRequest(CombinationalInterface<MemoryRequest> * addressRequest,
-                         sc_fifo<Pack1D<Input, Dim>> * dataResponse_fifo);
-  template <typename Input, long unsigned int Dim>
-  void sendMemoryResponse(
-      sc_fifo<Pack1D<Input, Dim>> * dataResponse_fifo,
-      CombinationalInterface<Pack1D<Input, Dim>> * dataResponse);
+  template <typename T, long unsigned int Dim>
+  void readMemoryRequest(CombinationalInterface<MemoryRequest> * request_out,
+                         sc_fifo<Pack1D<T, Dim>> * data_fifo);
+  template <typename T, long unsigned int Dim>
+  void sendMemoryResponse(sc_fifo<Pack1D<T, Dim>> * data_fifo,
+                          CombinationalInterface<Pack1D<T, Dim>> * response);
+  template <typename T, long unsigned int Dim>
+  void storeMemoryResponse(
+      CombinationalInterface<Pack1D<T, Dim>> * data_out,
+      CombinationalInterface<ac_int<64, false>> * address_out);
 
   void readRequestInputs();
   void sendResponseInputs();
@@ -176,9 +181,10 @@ SC_MODULE(Harness) {
   void readRequestBias();
   void sendResponseBias();
 
-  void reset();
   void storeVectorOutputs();
   void storeScalarOutputs();
+
+  void reset();
   void sendParams();
 };
 #endif

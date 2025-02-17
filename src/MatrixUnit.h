@@ -124,33 +124,19 @@ SC_MODULE(MatrixUnit) {
                   SCALE_DATATYPE, SUPPORT_MX, IC_DIMENSION, OC_DIMENSION, ACCUM_BUFFER_SIZE>) ) CCS_INIT_S1(matrixProcessor);
 // clang-format on
 #else
-#ifdef HYBRID_FP8
-  MatrixProcessor<HYBRID_TYPE, ACCUM_DATATYPE, ACCUM_BUFFER_DATATYPE,
-                  SCALE_DATATYPE, SUPPORT_MX, IC_DIMENSION, OC_DIMENSION,
-                  ACCUM_BUFFER_SIZE>
-      CCS_INIT_S1(matrixProcessor);
-#else
   MatrixProcessor<INPUT_DATATYPE, ACCUM_DATATYPE, ACCUM_BUFFER_DATATYPE,
                   SCALE_DATATYPE, SUPPORT_MX, IC_DIMENSION, OC_DIMENSION,
                   ACCUM_BUFFER_SIZE>
       CCS_INIT_S1(matrixProcessor);
-#endif
+
 #endif
 
-#ifdef HYBRID_FP8
-  Connections::Combinational<Pack1D<HYBRID_TYPE, IC_DIMENSION> > CCS_INIT_S1(
-      inputsToSystolicArray);
-  Connections::Combinational<Pack1D<HYBRID_TYPE, OC_DIMENSION> > CCS_INIT_S1(
-      weightsToSystolicArray);
-#else
   Connections::Combinational<Pack1D<INPUT_DATATYPE, IC_DIMENSION> > CCS_INIT_S1(
       inputsToSystolicArray);
-
   Connections::Combinational<Pack1D<INPUT_DATATYPE::Decoded, OC_DIMENSION> >
       CCS_INIT_S1(weightsToSystolicArray);
   Connections::Combinational<Pack1D<ACCUM_BUFFER_DATATYPE, OC_DIMENSION> >
       CCS_INIT_S1(biasToSystolicArray);
-#endif
   Connections::Out<Pack1D<ACCUM_BUFFER_DATATYPE, OC_DIMENSION> > CCS_INIT_S1(
       outputsFromSystolicArray);
 

@@ -31,7 +31,7 @@ Scale* calculate_mx_qparam(std::any input_tensor, const std::vector<int>& shape,
     }
   }
 
-  delete[] inputs;
+  // delete[] inputs;
   return outputs;
 }
 

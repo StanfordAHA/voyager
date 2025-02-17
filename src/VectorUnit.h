@@ -8,10 +8,11 @@
 #include "VectorOps.h"
 // clang-format on
 #include "Broadcaster.h"
-#include "MaxpoolUnit.h"
-#include "OutputAddressGenerator.h"
+// #include "MaxpoolUnit.h"
+// #include "OutputAddressGenerator.h"
 #include "ParamsDeserializer.h"
 #include "VectorFetch.h"
+#include "VectorUnitOutput.h"
 
 template <typename IOType, typename VectorType, typename BufferType,
           typename ScaleType, int Width>
@@ -428,59 +429,6 @@ SC_MODULE(VectorOpUnit) {
 
             prevResult = result;
           }
-        } else if (inst.rOp == VectorInstructions::rmxscale) {
-          if constexpr (ScaleType::width == ScaleType::exponent_width) {
-            using ExponentType = ac_int<VectorType::exponent_width, false>;
-
-            ExponentType max_exp = 0;
-            for (int i = 0; i < inst.rCount; i++) {
-              Pack1D<VectorType, Width> op = reductionOpInput.Pop();
-
-              Pack1D<ExponentType, Width> exponents;
-#pragma hls_unroll yes
-              for (int j = 0; j < Width; j++) {
-                exponents[j] = op[j].unbiased_exponent();
-              }
-
-              ExponentType result = treemax(exponents);
-              max_exp = result < max_exp ? max_exp : result;
-            }
-
-            // TODO: use the max value of IOType
-            // constexpr int offset = floor(log2(IOType::max()));
-            ac_int<VectorType::exponent_width, true> scaled_exp;
-            if (max_exp == 0) {
-              scaled_exp = 127;
-            } else {
-              scaled_exp = max_exp - 6;
-            }
-
-            prevResult.set_bits(scaled_exp);
-          } else {
-            VectorType amax;
-            amax.set_zero();
-
-            for (int i = 0; i < inst.rCount; i++) {
-              Pack1D<VectorType, Width> op = reductionOpInput.Pop();
-              Pack1D<VectorType, Width> abs_op;
-#pragma hls_unroll yes
-              for (int j = 0; j < Width; j++) {
-                abs_op[j] = op[j].abs();
-              }
-              VectorType result = treemax(abs_op);
-              amax = amax < result ? result : amax;
-            }
-
-            VectorType max_val = static_cast<VectorType>(IOType::max());
-            max_val.reciprocal();
-            ScaleType scale = amax * max_val;
-
-            if (scale.to_ac_float() == ScaleType::ac_float_rep::zero()) {
-              scale.set_one();
-            }
-
-            prevResult.set_bits(scale.bits_rep());
-          }
         }
 
         if (!inst.rDuplicate) {
@@ -572,8 +520,11 @@ SC_MODULE(VectorUnit) {
   Connections::In<Pack1D<IOType, 16 / IOType::width>> CCS_INIT_S1(
       vectorFetch3DataResponse);
 
-  Connections::Out<ac_int<64, false>> CCS_INIT_S1(vectorOutputAddress);
-  Connections::Out<Pack1D<IOType, Width>> CCS_INIT_S1(finalVectorOutput);
+  Connections::Out<Pack1D<IOType, Width>> CCS_INIT_S1(vector_output);
+  Connections::Out<ac_int<64, false>> CCS_INIT_S1(vector_output_address);
+  Connections::Out<Pack1D<IOType, 1>> CCS_INIT_S1(scalar_output);
+  Connections::Out<ac_int<64, false>> CCS_INIT_S1(scalar_output_address);
+
   Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
       vectorOpUnitOutput);
 
@@ -581,18 +532,16 @@ SC_MODULE(VectorUnit) {
   Connections::SyncOut CCS_INIT_S1(done);
 
   VectorFetchUnit<IOType, VectorType, ScaleType, Width> CCS_INIT_S1(
-      vectorFetch);
+      vector_fetch);
   Connections::Combinational<VectorParams> CCS_INIT_S1(vectorFetchParams);
 
   VectorOpUnit<IOType, VectorType, BufferType, ScaleType, Width> CCS_INIT_S1(
-      vectorOpUnit);
+      vector_op_unit);
 
-  MaxpoolUnit<VectorType, ScaleType, IOType, Width> CCS_INIT_S1(maxpoolUnit);
-  Connections::Combinational<VectorParams> CCS_INIT_S1(maxpoolUnitParams);
-
-  OutputAddressGenerator<VectorType, ScaleType, IOType, Width> CCS_INIT_S1(
-      outputAddressGenerator);
-  Connections::Combinational<VectorParams> CCS_INIT_S1(outputAddressGenParams);
+  VectorUnitOutput<VectorType, ScaleType, IOType, Width> CCS_INIT_S1(
+      vector_unit_output);
+  Connections::Combinational<VectorParams> CCS_INIT_S1(
+      vector_unit_output_params);
 
   Connections::Combinational<VectorInstructions> CCS_INIT_S1(
       vectorOpInstructions);
@@ -613,48 +562,45 @@ SC_MODULE(VectorUnit) {
     paramsDeserializer.vectorParamsOut(vectorParamsIn);
     paramsDeserializer.vectorInstructionsOut(vectorInstructionsIn);
 
-    vectorFetch.clk(clk);
-    vectorFetch.rstn(rstn);
-    vectorFetch.paramsIn(vectorFetchParams);
-    vectorFetch.vectorFetch0AddressRequest(vectorFetch0AddressRequest);
-    vectorFetch.vectorFetch0DataResponse(vectorFetch0DataResponse);
-    vectorFetch.vectorFetch0DataResponseBroadcasted(
+    vector_fetch.clk(clk);
+    vector_fetch.rstn(rstn);
+    vector_fetch.paramsIn(vectorFetchParams);
+    vector_fetch.vectorFetch0AddressRequest(vectorFetch0AddressRequest);
+    vector_fetch.vectorFetch0DataResponse(vectorFetch0DataResponse);
+    vector_fetch.vectorFetch0DataResponseBroadcasted(
         vectorFetch0DataResponseBroadcasted);
-    vectorFetch.vectorFetch1AddressRequest(vectorFetch1AddressRequest);
-    vectorFetch.vectorFetch1DataResponse(vectorFetch1DataResponse);
-    vectorFetch.vectorFetch1DataResponseConverted(
+    vector_fetch.vectorFetch1AddressRequest(vectorFetch1AddressRequest);
+    vector_fetch.vectorFetch1DataResponse(vectorFetch1DataResponse);
+    vector_fetch.vectorFetch1DataResponseConverted(
         vectorFetch1DataResponseConverted);
-    vectorFetch.vectorFetch2AddressRequest(vectorFetch2AddressRequest);
-    vectorFetch.vectorFetch2DataResponse(vectorFetch2DataResponse);
-    vectorFetch.vectorFetch2DataResponseConverted(
+    vector_fetch.vectorFetch2AddressRequest(vectorFetch2AddressRequest);
+    vector_fetch.vectorFetch2DataResponse(vectorFetch2DataResponse);
+    vector_fetch.vectorFetch2DataResponseConverted(
         vectorFetch2DataResponseConverted);
-    vectorFetch.vectorFetch1Scale(vectorFetch1Scale);
+    vector_fetch.vectorFetch1Scale(vectorFetch1Scale);
 
-    vectorOpUnit.clk(clk);
-    vectorOpUnit.rstn(rstn);
-    vectorOpUnit.vectorOpUnitInstructions(vectorOpInstructions);
-    vectorOpUnit.accumulationOpUnitInstructions(accumulationOpInstructions);
-    vectorOpUnit.reductionOpUnitInstructions(reduceOpInstructions);
-    vectorOpUnit.systolicArrayOutput(systolicArrayOutput);
-    vectorOpUnit.vectorFetch0Output(vectorFetch0DataResponseBroadcasted);
-    vectorOpUnit.vectorFetch1Output(vectorFetch1DataResponseConverted);
-    vectorOpUnit.vectorFetch2Output(vectorFetch2DataResponseConverted);
-    vectorOpUnit.vectorOpUnitOutput(vectorOpUnitOutput);
-    vectorOpUnit.vectorFetch3AddressRequest(vectorFetch3AddressRequest);
-    vectorOpUnit.vectorFetch3DataResponse(vectorFetch3DataResponse);
+    vector_op_unit.clk(clk);
+    vector_op_unit.rstn(rstn);
+    vector_op_unit.vectorOpUnitInstructions(vectorOpInstructions);
+    vector_op_unit.accumulationOpUnitInstructions(accumulationOpInstructions);
+    vector_op_unit.reductionOpUnitInstructions(reduceOpInstructions);
+    vector_op_unit.systolicArrayOutput(systolicArrayOutput);
+    vector_op_unit.vectorFetch0Output(vectorFetch0DataResponseBroadcasted);
+    vector_op_unit.vectorFetch1Output(vectorFetch1DataResponseConverted);
+    vector_op_unit.vectorFetch2Output(vectorFetch2DataResponseConverted);
+    vector_op_unit.vectorOpUnitOutput(vectorOpUnitOutput);
+    vector_op_unit.vectorFetch3AddressRequest(vectorFetch3AddressRequest);
+    vector_op_unit.vectorFetch3DataResponse(vectorFetch3DataResponse);
 
-    maxpoolUnit.clk(clk);
-    maxpoolUnit.rstn(rstn);
-    maxpoolUnit.paramsIn(maxpoolUnitParams);
-    maxpoolUnit.tensorIn(vectorOpUnitOutput);
-    maxpoolUnit.tensorOut(finalVectorOutput);
-    maxpoolUnit.doneSignal(done);
-    maxpoolUnit.mxScaleIn(vectorFetch1Scale);
-
-    outputAddressGenerator.clk(clk);
-    outputAddressGenerator.rstn(rstn);
-    outputAddressGenerator.paramsIn(outputAddressGenParams);
-    outputAddressGenerator.vectorOutputAddress(vectorOutputAddress);
+    vector_unit_output.clk(clk);
+    vector_unit_output.rstn(rstn);
+    vector_unit_output.params_in(vector_unit_output_params);
+    vector_unit_output.tensor_in(vectorOpUnitOutput);
+    vector_unit_output.vector_output(vector_output);
+    vector_unit_output.vector_output_address(vector_output_address);
+    vector_unit_output.scalar_output(scalar_output);
+    vector_unit_output.scalar_output_address(scalar_output_address);
+    vector_unit_output.done(done);
 
     SC_THREAD(read_params);
     sensitive << clk.pos();
@@ -668,8 +614,7 @@ SC_MODULE(VectorUnit) {
   void read_params() {
     vectorParamsIn.ResetRead();
     vectorFetchParams.ResetWrite();
-    maxpoolUnitParams.ResetWrite();
-    outputAddressGenParams.ResetWrite();
+    vector_unit_output_params.ResetWrite();
 
     wait();
 
@@ -677,8 +622,8 @@ SC_MODULE(VectorUnit) {
       VectorParams params = vectorParamsIn.Pop();
 
       vectorFetchParams.Push(params);
-      maxpoolUnitParams.Push(params);
-      outputAddressGenParams.Push(params);
+      vector_unit_output_params.Push(params);
+      // outputAddressGenParams.Push(params);
     }
   }
 

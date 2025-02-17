@@ -40,8 +40,10 @@ void register_interface(
     std::deque<sc_lv<Wrapped<INPUT_DATATYPE>::width>>
         *vectorFetch3AddressResponse,
     std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION>>::width>>
-        *vectorOutput,
-    std::deque<sc_lv<Wrapped<uint64_t>::width>> *vectorOutputAddress);
+        *vector_output,
+    std::deque<sc_lv<Wrapped<uint64_t>::width>> *vector_output_address,
+    std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, 1>>::width>> *scalar_output,
+    std::deque<sc_lv<Wrapped<uint64_t>::width>> *scalar_output_address);
 // void copy_output(void *sram, int size, int data_size);
 #endif
 
@@ -76,8 +78,10 @@ Harness::Harness(sc_module_name name, std::vector<codegen::Operation> params,
   accelerator.vectorFetch2DataResponse(vectorFetch2DataResponse);
   accelerator.vectorFetch3AddressRequest(vectorFetch3AddressRequest);
   accelerator.vectorFetch3DataResponse(vectorFetch3DataResponse);
-  accelerator.vectorOutput(vectorOutput);
-  accelerator.vectorOutputAddress(vectorOutputAddress);
+  accelerator.vector_output(vector_output);
+  accelerator.vector_output_address(vector_output_address);
+  accelerator.scalar_output(scalar_output);
+  accelerator.scalar_output_address(scalar_output_address);
 
   accelerator.matrixUnitStartSignal(matrixUnitStartSignal);
   accelerator.matrixUnitDoneSignal(matrixUnitDoneSignal);
@@ -104,8 +108,9 @@ Harness::Harness(sc_module_name name, std::vector<codegen::Operation> params,
       vectorFetch2AddressRequest.getDataQueue(),
       vectorFetch2DataResponse.getDataQueue(),
       vectorFetch3AddressRequest.getDataQueue(),
-      vectorFetch3DataResponse.getDataQueue(), vectorOutput.getDataQueue(),
-      vectorOutputAddress.getDataQueue());
+      vectorFetch3DataResponse.getDataQueue(), vector_output.getDataQueue(),
+      vector_output_address.getDataQueue(), scalar_output.getDataQueue(),
+      scalar_output_address.getDataQueue());
 #endif
 
   SC_CTHREAD(reset, clk);
@@ -190,40 +195,38 @@ Harness::Harness(sc_module_name name, std::vector<codegen::Operation> params,
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
 
+  SC_THREAD(storeScalarOutputs);
+  sensitive << clk.posedge_event();
+  async_reset_signal_is(rstn, false);
+
   SC_THREAD(sendParams);
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
 }
 
-void Harness::reset() {
-  rstn.write(0);
-  wait(5);
-  rstn.write(1);
-  wait();
-}
-
-template <typename Input, long unsigned int Size>
+template <typename T, long unsigned int Dim>
 void Harness::readMemoryRequest(
-    CombinationalInterface<MemoryRequest> *addressRequest,
-    sc_fifo<Pack1D<Input, Size>> *dataResponse_fifo) {
-  addressRequest->ResetRead();
+    CombinationalInterface<MemoryRequest> *request_out,
+    sc_fifo<Pack1D<T, Dim>> *data_fifo) {
+  request_out->ResetRead();
 
   wait();
 
   while (true) {
-    MemoryRequest request = addressRequest->Pop();
+    MemoryRequest request = request_out->Pop();
 
     uint64_t base_address = request.address;
-    int num_elements = request.burst_size;
+    int num_bytes = request.burst_size;
+    int num_groups = num_bytes / (T::width / 8.0) / Dim;
 
-    constexpr int buffer_size = (Input::width / 8 + 2) * 8;
+    constexpr int buffer_size = (T::width / 8 + 2) * 8;
     ac_int<buffer_size, false> bits;
 
-    for (int i = 0; i < num_elements / Size; i++) {
-      Pack1D<Input, Size> data;
-      for (int j = 0; j < Size; j++) {
-        int start = (i * Size + j) * Input::width;
-        int end = start + Input::width;
+    for (int i = 0; i < num_groups; i++) {
+      Pack1D<T, Dim> data;
+      for (int j = 0; j < Dim; j++) {
+        int start = (i * Dim + j) * T::width;
+        int end = start + T::width;
         int offset = start % 8;
 
         int start_byte = start / 8;
@@ -239,21 +242,63 @@ void Harness::readMemoryRequest(
       }
 
       DLOG("read addr: " << request.address << " data: " << data << std::endl);
-      dataResponse_fifo->write(data);
+      data_fifo->write(data);
     }
   }
 }
 
-template <typename Input, long unsigned int Size>
+template <typename T, long unsigned int Dim>
 void Harness::sendMemoryResponse(
-    sc_fifo<Pack1D<Input, Size>> *dataResponse_fifo,
-    CombinationalInterface<Pack1D<Input, Size>> *dataResponse) {
-  dataResponse->ResetWrite();
+    sc_fifo<Pack1D<T, Dim>> *data_fifo,
+    CombinationalInterface<Pack1D<T, Dim>> *response) {
+  response->ResetWrite();
 
   wait();
 
   while (true) {
-    dataResponse->Push(dataResponse_fifo->read());
+    response->Push(data_fifo->read());
+  }
+}
+
+template <typename T, long unsigned int Dim>
+void Harness::storeMemoryResponse(
+    CombinationalInterface<Pack1D<T, Dim>> *data_out,
+    CombinationalInterface<ac_int<64, false>> *address_out) {
+  data_out->ResetRead();
+  address_out->ResetRead();
+
+  wait();
+
+  while (true) {
+    Pack1D<T, Dim> data = data_out->Pop();
+    uint64_t address = address_out->Pop();
+    DLOG("write address: " << address << " data: " << data);
+
+    constexpr int width = T::width;
+    constexpr int buf_width = (width / 8 + 2) * 8;
+
+    for (int i = 0; i < Dim; i++) {
+      int start = i * width / 8;
+      int end = (i + 1) * width / 8;
+      int offset = (i * width) % 8;
+      int num_bytes = (end - start + 1) * 8;
+
+      int bits_remaining = num_bytes * 8 - width - offset;
+      num_bytes = num_bytes - bits_remaining / 8;
+
+      ac_int<buf_width, false> bytes = data[i].bits_rep();
+      ac_int<buf_width, false> masks = ((1 << width) - 1);
+
+      bytes = bytes << offset;
+      masks = masks << offset;
+
+      for (int i = 0; i < num_bytes; i++) {
+        char mask = masks.template slc<8>(i * 8);
+        char new_data = bytes.template slc<8>(i * 8) & mask;
+        char orig_data = memory[address + start + i] & ~mask;
+        memory[address + start + i] = new_data | orig_data;
+      }
+    }
   }
 }
 
@@ -330,6 +375,21 @@ void Harness::readRequestBias() {
 }
 void Harness::sendResponseBias() {
   sendMemoryResponse(&biasDataResponse_fifo, &biasDataResponse);
+}
+
+void Harness::storeVectorOutputs() {
+  storeMemoryResponse(&vector_output, &vector_output_address);
+}
+
+void Harness::storeScalarOutputs() {
+  storeMemoryResponse(&scalar_output, &scalar_output_address);
+}
+
+void Harness::reset() {
+  rstn.write(0);
+  wait(5);
+  rstn.write(1);
+  wait();
 }
 
 template <typename T, unsigned int interfaceWidth>
@@ -447,44 +507,6 @@ void Harness::sendParams() {
 #endif
 }
 
-void Harness::storeVectorOutputs() {
-  vectorOutput.ResetRead();
-  vectorOutputAddress.ResetRead();
-
-  wait();
-
-  while (true) {
-    Pack1D<OUTPUT_DATATYPE, OC_DIMENSION> data = vectorOutput.Pop();
-    uint64_t address = vectorOutputAddress.Pop();
-    DLOG("write address: " << address << " data: " << data);
-
-    constexpr int width = OUTPUT_DATATYPE::width;
-    constexpr int buf_width = (width / 8 + 2) * 8;
-
-    for (int i = 0; i < OC_DIMENSION; i++) {
-      int start = i * width / 8;
-      int end = (i + 1) * width / 8;
-      int offset = (i * width) % 8;
-      int num_bytes = (end - start + 1) * 8;
-
-      int bits_remaining = num_bytes * 8 - width - offset;
-      num_bytes = num_bytes - bits_remaining / 8;
-
-      ac_int<buf_width, false> bytes = data[i].bits_rep();
-      ac_int<buf_width, false> masks = ((1 << width) - 1);
-
-      bytes = bytes << offset;
-      masks = masks << offset;
-
-      for (int i = 0; i < num_bytes; i++) {
-        char mask = masks.template slc<8>(i * 8);
-        char new_data = bytes.template slc<8>(i * 8) & mask;
-        char orig_data = memory[address + start + i] & ~mask;
-        memory[address + start + i] = new_data | orig_data;
-      }
-    }
-  }
-}
 #endif
 
 void run_accelerator(std::vector<codegen::Operation> params, char *memory) {

@@ -54,6 +54,7 @@ std::map<std::string, std::any> ArrayMemory::get_args(
   for (const auto op : op_list) {
     for (const auto [key, value] : op.kwargs()) {
       if (value.has_tensor() && value.tensor().has_memory()) {
+        std::cerr << "Pushing tensor: " << value.tensor().node() << std::endl;
         kwargs[value.tensor().node()] = read_tensor(value.tensor());
       }
     }
@@ -62,9 +63,14 @@ std::map<std::string, std::any> ArrayMemory::get_args(
   return kwargs;
 }
 
-std::any ArrayMemory::get_output(const codegen::Operation& param) {
-  codegen::Tensor output_tensor = param.output();
-  return read_tensor(output_tensor);
+std::vector<std::any> ArrayMemory::get_outputs(
+    const codegen::Operation& param) {
+  const auto tensors = get_op_outputs(param);
+  std::vector<std::any> outputs;
+  for (const auto& tensor : tensors) {
+    outputs.push_back(read_tensor(tensor));
+  }
+  return outputs;
 }
 
 /**
@@ -72,13 +78,25 @@ std::any ArrayMemory::get_output(const codegen::Operation& param) {
  * The reference output tensor is stored at the last partition at address of
  * 0.
  */
-std::any ArrayMemory::get_reference_output(const codegen::Operation& param) {
-  codegen::Tensor output_tensor;
-  output_tensor.CopyFrom(param.output());
-  auto memory = output_tensor.mutable_memory();
-  memory->set_partition(-1);
-  memory->set_address(0);
-  return read_tensor(output_tensor);
+std::vector<std::any> ArrayMemory::get_reference_outputs(
+    const codegen::Operation& param) {
+  const auto tensors = get_op_outputs(param);
+  std::vector<std::any> outputs;
+
+  uint64_t address = 0;
+
+  for (const auto& tensor : tensors) {
+    codegen::Tensor tensor_copy;
+    tensor_copy.CopyFrom(tensor);
+    auto memory = tensor_copy.mutable_memory();
+    memory->set_partition(-1);
+    memory->set_address(address);
+
+    outputs.push_back(read_tensor(tensor_copy));
+    address += get_size(tensor);
+  }
+
+  return outputs;
 }
 
 std::any ArrayMemory::read_tensor(const codegen::Tensor& tensor) {
@@ -136,7 +154,7 @@ std::any ArrayMemory::read_tensor(const codegen::Tensor& tensor) {
   } else if (tensor.dtype() == "fp8_e8m0") {
     DataTypes::fp8_e8m0* data = new DataTypes::fp8_e8m0[size];
     read_tensor_from_memory<DataTypes::fp8_e8m0>(tensor.memory().address(),
-                                             partition, size, data);
+                                                 partition, size, data);
     return data;
   } else if (tensor.dtype() == "fp8_e5m3") {
     DataTypes::fp8_e5m3* data = new DataTypes::fp8_e5m3[size];

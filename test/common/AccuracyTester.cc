@@ -63,15 +63,21 @@ bool run_sample(std::string model_name, std::string data_dir,
   // Run inference
   for (const auto& param : model.ops()) {
     if (param.op().op() != "nop") {
-      auto kwargs = memory->get_args(param);
-      std::any outputs = run_gold_model(param, kwargs);
-      memory->write_tensor(param.output(), outputs);
+      const auto kwargs = memory->get_args(param);
+      const auto outputs = run_gold_model(param, kwargs);
+      const auto tensors = get_op_outputs(param);
+
+      assert(outputs.size() == tensors.size());
+
+      for (int i = 0; i < outputs.size(); i++) {
+        memory->write_tensor(tensors[i], outputs[i]);
+      }
     }
   }
 
   // Extract final output
   const auto last_op = model.ops(model.ops_size() - 1);
-  const auto output = memory->get_output(last_op);
+  const auto output = memory->get_outputs(last_op).back();
   if (last_op.output().dtype() == "bfloat16") {
     auto output_ptr = std::any_cast<DataTypes::bfloat16*>(output);
     for (int i = 0; i < num_classes; i++) {

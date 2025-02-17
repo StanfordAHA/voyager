@@ -61,8 +61,10 @@ SC_MODULE(Accelerator) {
   Connections::In<Pack1D<INPUT_DATATYPE, 16 / INPUT_DATATYPE::width>>
       CCS_INIT_S1(vectorFetch3DataResponse);
   Connections::Out<Pack1D<OUTPUT_DATATYPE, OC_DIMENSION>> CCS_INIT_S1(
-      vectorOutput);
-  Connections::Out<ac_int<64, false>> CCS_INIT_S1(vectorOutputAddress);
+      vector_output);
+  Connections::Out<ac_int<64, false>> CCS_INIT_S1(vector_output_address);
+  Connections::Out<Pack1D<OUTPUT_DATATYPE, 1>> CCS_INIT_S1(scalar_output);
+  Connections::Out<ac_int<64, false>> CCS_INIT_S1(scalar_output_address);
 
   Connections::SyncOut CCS_INIT_S1(vectorUnitStartSignal);
   Connections::SyncOut CCS_INIT_S1(vectorUnitDoneSignal);
@@ -100,8 +102,10 @@ SC_MODULE(Accelerator) {
     vectorUnit.vectorFetch2DataResponse(vectorFetch2DataResponse);
     vectorUnit.vectorFetch3AddressRequest(vectorFetch3AddressRequest);
     vectorUnit.vectorFetch3DataResponse(vectorFetch3DataResponse);
-    vectorUnit.vectorOutputAddress(vectorOutputAddress);
-    vectorUnit.finalVectorOutput(vectorOutput);
+    vectorUnit.vector_output(vector_output);
+    vectorUnit.vector_output_address(vector_output_address);
+    vectorUnit.scalar_output(scalar_output);
+    vectorUnit.scalar_output_address(scalar_output_address);
     vectorUnit.start(vectorUnitStartSignal);
     vectorUnit.done(vectorUnitDoneSignal);
 

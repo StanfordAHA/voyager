@@ -234,13 +234,13 @@ SC_MODULE(VectorFetchUnit) {
 
                   MemoryRequest request;
                   if (params.fetch_vector_type_0) {
-                    constexpr int num_words = Vector::width / Input::width;
                     address = address * Vector::width / 8;
                     request = {params.VECTOR_OFFSET + address,
-                               Width * num_words};
+                               Width * Vector::width / 8};
                   } else {
                     address = address * Input::width / 8;
-                    request = {params.VECTOR_OFFSET + address, Width};
+                    request = {params.VECTOR_OFFSET + address,
+                               Width * Input::width / 8};
                   }
 
                   vectorFetch0AddressRequest.Push(request);
@@ -467,20 +467,13 @@ SC_MODULE(VectorFetchUnit) {
 
                   MemoryRequest request;
                   if (params.fetch_vector_type_1) {
-                    constexpr int num_words = Vector::width / Input::width;
                     address = address * Vector::width / 8;
                     request = {params.ADDRESS_GEN1_OFFSET + address,
-                               Width * num_words};
-#if SUPPORT_MX
-                  } else if (params.fetch_scale_type_1) {
-                    constexpr int num_words = Scale::width / Input::width;
-                    address = address * Scale::width / 8;
-                    request = {params.ADDRESS_GEN1_OFFSET + address,
-                               Width * num_words};
-#endif
+                               Width * Vector::width / 8};
                   } else {
                     address = address * Input::width / 8;
-                    request = {params.ADDRESS_GEN1_OFFSET + address, Width};
+                    request = {params.ADDRESS_GEN1_OFFSET + address,
+                               Width * Input::width / 8};
                   }
 
                   vectorFetch1AddressRequest.Push(request);
@@ -575,38 +568,6 @@ SC_MODULE(VectorFetchUnit) {
                                                         converted_response);
 
                     vectorFetch1DataResponseConverted.Push(converted_response);
-
-#if SUPPORT_MX
-                  } else if (params.fetch_scale_type_1) {
-                    constexpr int num_words = Scale::width / Input::width;
-
-                    Pack1D<Scale, Width> converted_scale;
-
-                    if constexpr (num_words == 1) {
-                      Pack1D<Input, Width> response =
-                          vectorFetch1DataResponse.Pop();
-
-#pragma hls_unroll yes
-                      for (int i = 0; i < Width; i++) {
-                        converted_scale[i].set_bits(response[i].bits_rep());
-                      }
-                    } else {
-                      Pack1D<Input, Width> response[num_words];
-                      for (int i = 0; i < num_words; i++) {
-                        response[i] = vectorFetch1DataResponse.Pop();
-                      }
-
-                      convertPack1D<Input, Scale, Width>(response,
-                                                         converted_scale);
-                    }
-
-                    for (int i = 0; i < Width; i++) {
-                      for (int count = 0; count < params.mx_block_size;
-                           count++) {
-                        vectorFetch1Scale.Push(converted_scale[i]);
-                      }
-                    }
-#endif
                   } else {
                     Pack1D<Input, Width> response =
                         vectorFetch1DataResponse.Pop();
@@ -737,13 +698,13 @@ SC_MODULE(VectorFetchUnit) {
 
                   MemoryRequest request;
                   if (params.fetch_vector_type_2) {
-                    constexpr int num_words = Vector::width / Input::width;
                     address = address * Vector::width / 8;
                     request = {params.ADDRESS_GEN2_OFFSET + address,
-                               Width * num_words};
+                               Width * Vector::width / 8};
                   } else {
                     address = address * Input::width / 8;
-                    request = {params.ADDRESS_GEN2_OFFSET + address, Width};
+                    request = {params.ADDRESS_GEN2_OFFSET + address,
+                               Width * Input::width / 8};
                   }
 
                   vectorFetch2AddressRequest.Push(request);

@@ -259,11 +259,10 @@ SC_MODULE(InputScaleController) {
                               (c + (x % 16)) * X + (x / 16) * IC_DIMENSION;
                         }
 
-                        constexpr int num_words = Scale::width / Input::width;
-                        address = address * Scale::width / 8;
-                        MemoryRequest memRequest = {
-                            params.INPUT_SCALE_OFFSET + address, num_words};
-                        addressRequest.Push(memRequest);
+                        MemoryRequest request = {params.INPUT_SCALE_OFFSET +
+                                                     address * Scale::width / 8,
+                                                 Scale::width / 8};
+                        addressRequest.Push(request);
 
                         if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
                           break;

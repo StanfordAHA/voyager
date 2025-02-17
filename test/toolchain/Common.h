@@ -56,42 +56,25 @@ inline float read_constant_param(const codegen::Tensor tensor) {
   return array_ptr[0];
 }
 
-int getLargestFactor(const int dim) {
-  int largestFactor = 1;
-  for (int i = 2; i <= 1024; i++) {  // 1024 is the maximum dimension
+int find_largest_factor(const int dim) {
+  // Start from the largest possible factor
+  for (int i = std::min(dim, 1024); i > 1; --i) {
     if (dim % i == 0) {
-      largestFactor = i;
+      return i;
     }
   }
-
-  return largestFactor;
+  return 1;  // If no factor is found, return 1
 }
 
-void factorize_for_address_gen(const int dim, int *factors) {
+void factorize_for_address_gen(const int dim, int *shape) {
   if (dim > 1024) {
-    int largestFactor = getLargestFactor(dim);
-    factors[0] = dim / largestFactor;
-    factors[1] = largestFactor;
+    int factor = find_largest_factor(dim);
+    shape[0] = dim / factor;
+    shape[1] = factor;
   } else {
-    factors[0] = 1;
-    factors[1] = dim;
+    shape[0] = 1;
+    shape[1] = dim;
   }
-}
-
-inline std::vector<int> get_tensor_shape(const codegen::Tensor &tensor) {
-  return std::vector<int>(tensor.shape().begin(), tensor.shape().end());
-}
-
-inline std::vector<int> get_shape_after_reshape(const codegen::Tensor &tensor) {
-  if (tensor.has_reshape()) {
-    const auto &param = tensor.reshape();
-    const auto output_shape =
-        param.kwargs().at("output_shape").int_list().values();
-    return {output_shape.begin(), output_shape.end()};
-  }
-
-  const auto repeated_field = tensor.shape();
-  return {repeated_field.begin(), repeated_field.end()};
 }
 
 inline std::vector<int> squeeze_shape(const std::vector<int> &input) {
@@ -102,17 +85,6 @@ inline std::vector<int> squeeze_shape(const std::vector<int> &input) {
     }
   }
   return result;
-}
-
-inline int get_size(const std::vector<int> &shape) {
-  int size = 1;
-  for (const auto &dim : shape) size *= dim;
-  return size;
-}
-
-inline int get_size(const codegen::Tensor &tensor) {
-  const auto shape = get_shape_after_reshape(tensor);
-  return get_size(shape);
 }
 
 std::vector<int> split_loops(std::vector<int> loops, int max_value) {

@@ -175,54 +175,55 @@ void MapVectorOperations(const codegen::Operation &param,
 
   const auto op_list = get_op_list(param);
 
-  const auto vector_input = op_list[0].kwargs().at("input").tensor();
-  const auto vector_output = param.output();
+  const auto input = op_list[0].kwargs().at("input").tensor();
 
-  const int numel = get_size(vector_output);
+  codegen::Tensor output;
+  if (param.has_output()) {
+    output = param.output();
+  } else {
+    assert(op_list.back().target() == "quantize_mx");
+    output = param.outputs().tensors(1);
+  }
 
-  const auto input_memory = vector_input.memory();
+  const auto input_memory = input.memory();
   accelerator_memory_map["vector0"] = get_partition(input_memory.partition());
   vector_params->VECTOR_OFFSET = input_memory.address();
   vector_params->addressGen0Mode = 2;
 
-  auto loop_bounds = get_tensor_shape(vector_input);
+  // Use the original shape without permute/slice
+  std::vector<int> input_shape(input.shape().begin(), input.shape().end());
 
   // TODO: how to handle reshape operation loop bound adjustment?
-  if (!vector_input.has_reshape()) {
-    loop_bounds = split_loops(loop_bounds, 1024);
-    loop_bounds = adjust_loop_indices(loop_bounds, OC_DIMENSION);
+  if (!input.has_reshape()) {
+    input_shape = split_loops(input_shape, 1024);
+    input_shape = adjust_loop_indices(input_shape, OC_DIMENSION);
   }
 
   // Pad the shape to 6 dimensions with 1s
-  const int num_extra_dims = pad_shape_to_ndim(loop_bounds, 6);
+  const int num_extra_dims = pad_shape_to_ndim(input_shape, 6);
 
-  vector_params->addressGen0Loop[0][0] = loop_bounds[0];
-  vector_params->addressGen0Loop[0][1] = loop_bounds[1];
-  vector_params->addressGen0Loop[0][2] = loop_bounds[2];
-  vector_params->addressGen0Loop[1][0] = loop_bounds[3];
-  vector_params->addressGen0Loop[1][1] = loop_bounds[4];
-  vector_params->addressGen0Loop[1][2] = loop_bounds[5] / OC_DIMENSION;
+  vector_params->addressGen0Loop[0][0] = input_shape[0];
+  vector_params->addressGen0Loop[0][1] = input_shape[1];
+  vector_params->addressGen0Loop[0][2] = input_shape[2];
+  vector_params->addressGen0Loop[1][0] = input_shape[3];
+  vector_params->addressGen0Loop[1][1] = input_shape[4];
+  vector_params->addressGen0Loop[1][2] = input_shape[5] / OC_DIMENSION;
 
   auto reshape_op = op_list[0];
-
-  const auto input = op_list[0].kwargs().at("input").tensor();
   if (input.has_reshape()) {
     reshape_op = input.reshape();
   }
-
-  const auto kwargs = reshape_op.kwargs();
 
   if (reshape_op.target() == "slice") {
     vector_params->has_slicing = true;
 
     const auto kwargs = reshape_op.kwargs();
-
-    const auto shape = get_tensor_shape(kwargs.at("input").tensor());
-
     uint64_t start = kwargs.at("start").int_value();
     uint64_t end = kwargs.at("end").int_value();
     uint64_t step = kwargs.at("step").int_value();
     uint64_t dim = kwargs.at("dim").int_value();
+
+    std::vector<int> shape(input.shape().begin(), input.shape().end());
 
     dim = dim < 0 ? dim + shape.size() : dim;
     end = end > shape[dim] ? shape[dim] : end;
@@ -242,7 +243,7 @@ void MapVectorOperations(const codegen::Operation &param,
   if (reshape_op.target() == "permute") {
     vector_params->has_reshape = true;
 
-    const auto dims = kwargs.at("dims").int_list().values();
+    const auto dims = reshape_op.kwargs().at("dims").int_list().values();
 
     for (int i = 0; i < dims.size(); i++) {
       vector_params->vec0_dim_order[i + num_extra_dims] =
@@ -255,14 +256,14 @@ void MapVectorOperations(const codegen::Operation &param,
 
   // set double precision if the datatype is not the same as the input datatype
   vector_params->fetch_vector_type_0 =
-      DataTypes::TypeName<VECTOR_DATATYPE>::name() == vector_input.dtype();
+      input.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
-  const auto output_memory = vector_output.memory();
+  const auto output_memory = output.memory();
   accelerator_memory_map["outputs"] = get_partition(output_memory.partition());
   vector_params->VECTOR_OUTPUT_OFFSET = output_memory.address();
   vector_params->outputAddressMode = 2;
 
-  auto output_shape = get_tensor_shape(vector_output);
+  auto output_shape = get_shape(output);
   output_shape = split_loops(output_shape, 1024);
   if (output_shape.size() > 6) {
     throw std::invalid_argument("Too many dimensions for vector operations!");
@@ -283,19 +284,17 @@ void MapVectorOperations(const codegen::Operation &param,
   vector_params->outputLoops[1][2] = output_shape[5] / OC_DIMENSION;
 
   vector_params->output_vector_type =
-      DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
+      output.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
-  if (param.output().has_reshape()) {
-    vector_params->has_attn_head_permute =
-        param.output().shape(1) < param.output().shape(2);
-    vector_params->CONCAT_OUTPUT =
-        param.output().shape(1) > param.output().shape(2);
+  if (output.has_reshape()) {
+    vector_params->has_attn_head_permute = output.shape(1) < output.shape(2);
+    vector_params->CONCAT_OUTPUT = output.shape(1) > output.shape(2);
 
     // if we have permutation, we need to configure the address generators
     // accordingly we need to make sure the output is split into 32x32 blocks
-    vector_params->outputLoops[1][1] = param.output().shape(1);
+    vector_params->outputLoops[1][1] = output.shape(1);
     vector_params->outputLoops[1][2] =
-        param.output().shape(2) * param.output().shape(3) / OC_DIMENSION;
+        output.shape(2) * output.shape(3) / OC_DIMENSION;
   }
 
   VectorInstructions inst;
@@ -313,40 +312,25 @@ void MapVectorOperations(const codegen::Operation &param,
     const auto op = op_list[i];
     const std::string opcode = op.target();
 
-    if (opcode.rfind("dequantize", 0) == 0 ||
-        opcode.rfind("quantize", 0) == 0) {
-      const auto input = op.kwargs().at("input").tensor();
+    if (opcode == "quantize" || opcode == "dequantize") {
       const auto scale = op.kwargs().at("scale").tensor();
-      const int size = get_size(scale);
 
-      if (size == 1) {
-        // scalar scale factor
-        VECTOR_DATATYPE immediate = read_constant_param(scale);
+      assert(get_size(scale) == 1);
 
-        if (opcode.rfind("dequantize", 0) == 0) {
-          inst.immediate0 = immediate.bits_rep();
-        } else if (opcode.rfind("quantize", 0) == 0) {
-          vector_params->quantize_output = true;
-          vector_params->output_scale = immediate.bits_rep();
-        }
+      // scalar scale factor
+      VECTOR_DATATYPE immediate = read_constant_param(scale);
+
+      if (opcode == "quantize") {
+        vector_params->quantize_output = true;
+        vector_params->output_scale = immediate.bits_rep();
       } else {
-        // microscaling
-        auto scale_shape = get_tensor_shape(scale);
-
-        // change scale_shape to 2D tensor
-        int other_dim_factors[2];
-        factorize_for_address_gen(size / OC_DIMENSION, other_dim_factors);
-
-        other_dim_factors[1] *= OC_DIMENSION;
-        scale_shape = {other_dim_factors[0], other_dim_factors[1]};
-
-        set_vector_addr_gen1(scale, scale_shape, accelerator_memory_map,
-                             vector_params);
-        vector_params->fetch_scale_type_1 = true;
-
-        vector_params->mx_block_size = numel / size / OC_DIMENSION;
-        vector_params->quantize_output_mx = true;
+        inst.vDequantize = true;
+        inst.immediate0 = immediate.bits_rep();
       }
+    } else if (opcode == "quantize_mx") {
+      vector_params->quantize_output_mx = true;
+      vector_params->SCALE_OFFSET =
+          param.outputs().tensors(0).memory().address();
     } else {
       if (curr_stage == 5) {
         // we have already processed all the stages
@@ -363,7 +347,6 @@ void MapVectorOperations(const codegen::Operation &param,
 
         if (matched) {
           unsigned int vop = inst_map[opcode];
-
           if (stage == 0) {
             inst.vOp0 = vop;
           } else if (stage == 1) {
@@ -378,7 +361,7 @@ void MapVectorOperations(const codegen::Operation &param,
 
           curr_stage = stage + 1;
           if (opcode == "vmap") {
-            const auto other = op.kwargs().at("code").tensor();
+            const auto other = op.kwargs().at("other").tensor();
             inst.vmapOffset = other.memory().address();
           } else if (op.kwargs().contains("other")) {
             const auto other = op.kwargs().at("other");
@@ -397,8 +380,8 @@ void MapVectorOperations(const codegen::Operation &param,
                 const auto self = op.kwargs().at("input").tensor();
                 const auto tensor_to_load = tensor.has_memory() ? tensor : self;
 
-                const auto input_shape = get_shape_after_reshape(self);
-                const auto other_shape = get_shape_after_reshape(tensor);
+                const auto input_shape = get_shape(self);
+                const auto other_shape = get_shape(tensor);
                 const auto output_shape =
                     squeeze_shape(broadcast_shape(input_shape, other_shape));
 
@@ -425,7 +408,7 @@ void MapVectorOperations(const codegen::Operation &param,
   VectorInstructionConfig *vector_instruction_config =
       new VectorInstructionConfig;
   vector_instruction_config->inst[0] = inst;
-  vector_instruction_config->instCount[0] = numel / OC_DIMENSION;
+  vector_instruction_config->instCount[0] = get_size(output) / OC_DIMENSION;
   vector_instruction_config->instLen = 1;
   vector_instruction_config->instLoopCount = 1;
 

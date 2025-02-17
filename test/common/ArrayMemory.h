@@ -31,8 +31,9 @@ class ArrayMemory {
   void write_tensor(const codegen::Tensor& tensor, const std::any data);
 
   std::map<std::string, std::any> get_args(const codegen::Operation& operation);
-  std::any get_output(const codegen::Operation& operation);
-  std::any get_reference_output(const codegen::Operation& operation);
+  std::vector<std::any> get_outputs(const codegen::Operation& operation);
+  std::vector<std::any> get_reference_outputs(
+      const codegen::Operation& operation);
 };
 
 template <typename T>

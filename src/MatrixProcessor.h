@@ -337,9 +337,6 @@ SC_MODULE(MatrixProcessor) {
 #pragma hls_unroll yes
           for (int i = 0; i < NRows; i++) {
             inputs[i].data = inputsData[i];
-            // #ifdef HYBRID_FP8
-            // inputs[i].castToE5M2 = params.COMBINE_GRADS;
-            // #endif
           }
         }
 

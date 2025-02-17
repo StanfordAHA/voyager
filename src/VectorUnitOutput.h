@@ -1,72 +1,56 @@
 #pragma once
 
 template <typename VectorType, typename ScaleType, typename IOType, int Width>
-SC_MODULE(OutputAddressGenerator) {
+SC_MODULE(VectorUnitOutput) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
-  Connections::In<VectorParams> CCS_INIT_S1(paramsIn);
-  Connections::Out<ac_int<64, false> > CCS_INIT_S1(vector_output_address);
+  Connections::In<VectorParams> CCS_INIT_S1(params_in);
+  Connections::In<Pack1D<VectorType, Width>> CCS_INIT_S1(tensor_in);
+  Connections::Out<Pack1D<IOType, Width>> CCS_INIT_S1(vector_output);
+  Connections::Out<ac_int<64, false>> CCS_INIT_S1(vector_output_address);
+  Connections::Out<Pack1D<IOType, 1>> CCS_INIT_S1(scalar_output);
+  Connections::Out<ac_int<64, false>> CCS_INIT_S1(scalar_output_address);
 
-  Connections::Combinational<VectorParams> CCS_INIT_S1(
-      vectorOutputAddressParams);
+  Connections::SyncOut CCS_INIT_S1(done);
 
-  SC_CTOR(OutputAddressGenerator) {
-    SC_THREAD(read_params);
-    sensitive << clk.pos();
-    async_reset_signal_is(rstn, false);
-
-    SC_THREAD(vectorAddressGen);
+  SC_CTOR(VectorUnitOutput) {
+    SC_THREAD(run);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
   }
 
-  void read_params() {
-    paramsIn.Reset();
-    vectorOutputAddressParams.ResetWrite();
-
-    wait();
-
-    while (true) {
-      VectorParams params = paramsIn.Pop();
-
-      vectorOutputAddressParams.Push(params);
-    }
-  }
-
-  void vectorAddressGen() {
+  void run() {
+    params_in.Reset();
+    tensor_in.Reset();
+    vector_output.Reset();
     vector_output_address.Reset();
-    vectorOutputAddressParams.ResetRead();
+    scalar_output.Reset();
+    scalar_output_address.Reset();
+    done.Reset();
 
     wait();
 
     while (true) {
-      VectorParams params = vectorOutputAddressParams.Pop();
+      VectorParams params = params_in.Pop();
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_bounds[2][3];
 
+#pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 3; j++) {
           loop_bounds[i][j] = params.outputLoops[i][j];
         }
       }
 
-      // if (params.is_maxpool) {
-      //   loop_bounds[1][params.outputXLoopIndex[1]] =
-      //       loop_bounds[1][params.outputXLoopIndex[1]] / 2;
-      //   loop_bounds[1][params.outputYLoopIndex[1]] =
-      //       loop_bounds[1][params.outputYLoopIndex[1]] / 2;
-      // }
-
       if (params.is_avgpool) {
         loop_bounds[1][params.outputXLoopIndex[1]] = 1;
         loop_bounds[1][params.outputYLoopIndex[1]] = 1;
       }
 
-      if (params.has_attn_head_permute) DLOG("splitting heads");
-
 #pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
            loop_counters[0][0]++) {
         for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
@@ -157,25 +141,61 @@ SC_MODULE(OutputAddressGenerator) {
                         Width;
                   }
 
+                  Pack1D<VectorType, Width> outputs = tensor_in.Pop();
+
                   if (params.output_vector_type) {
                     constexpr int num_words = VectorType::width / IOType::width;
+                    Pack1D<IOType, Width> converted_outputs[num_words];
+
+                    convertPack1D<IOType, VectorType, Width>(outputs,
+                                                             converted_outputs);
+
                     for (int i = 0; i < num_words; i++) {
+                      vector_output.Push(converted_outputs[i]);
                       vector_output_address.Push(params.VECTOR_OUTPUT_OFFSET +
-                                               address * VectorType::width / 8 +
-                                               i * Width * IOType::width / 8);
+                                       address * VectorType::width / 8 +
+                                       i * Width * IOType::width / 8);
                     }
-#if SUPPORT_MX
-                  } else if (params.output_scale_type) {
-                    constexpr int num_words = ScaleType::width / IOType::width;
-                    for (int i = 0; i < num_words; i++) {
-                      vector_output_address.Push(params.VECTOR_OUTPUT_OFFSET +
-                                               address * ScaleType::width / 8 +
-                                               i * Width * IOType::width / 8);
-                    }
-#endif
                   } else {
+                    Pack1D<IOType, Width> converted_outputs;
+                    if (params.quantize_output) {
+                      VectorType scale;
+                      scale.set_bits(params.output_scale);
+                      vquantize<VectorType, IOType, VectorType, Width>(
+                          outputs, converted_outputs, scale);
+#if SUPPORT_MX
+                    } else if (params.quantize_output_mx) {
+                      Pack1D<ScaleType, 1> scale;
+                      vquantize_mx<VectorType, IOType, ScaleType, Width>(
+                          outputs, converted_outputs, scale[0]);
+
+                      constexpr int num_words =
+                          ScaleType::width / IOType::width;
+                      Pack1D<IOType, 1> converted_scale[num_words];
+
+                      convertPack1D<IOType, ScaleType, 1>(
+                          scale, converted_scale);
+
+                      ac_int<64, false> scale_address = address / Width;
+
+                      for (int i = 0; i < num_words; i++) {
+                        scalar_output.Push(converted_scale[i]);
+                        scalar_output_address.Push(params.SCALE_OFFSET +
+                                                   scale_address *
+                                                       ScaleType::width / 8 +
+                                                   i * IOType::width / 8);
+                      }
+#endif
+                    } else {
+#pragma hls_unroll yes
+                      for (int i = 0; i < Width; i++) {
+                        converted_outputs[i] = outputs[i];
+                      }
+                    }
+
+                    vector_output.Push(converted_outputs);
                     vector_output_address.Push(params.VECTOR_OUTPUT_OFFSET +
-                                             address * IOType::width / 8);
+                                     address * IOType::width / 8);
                   }
 
                   if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {
@@ -202,6 +222,8 @@ SC_MODULE(OutputAddressGenerator) {
           break;
         }
       }
+
+      done.SyncPush();
     }
   }
 };

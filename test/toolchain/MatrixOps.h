@@ -288,7 +288,14 @@ void MapMatrixOperation(const codegen::Operation &param,
   VectorParams *vector_params = new VectorParams;
   vector_params->addressGen0Mode = 0;  // use matrix unit outputs
 
-  const auto output = param.output();
+  codegen::Tensor output;
+  if (param.has_output()) {
+    output = param.output();
+  } else {
+    assert(op_list.back().target() == "quantize_mx");
+    output = param.outputs().tensors(1);
+  }
+
   const auto output_memory = output.memory();
   accelerator_memory_map["outputs"] = get_partition(output_memory.partition());
   vector_params->VECTOR_OUTPUT_OFFSET = output_memory.address();
@@ -349,21 +356,24 @@ void MapMatrixOperation(const codegen::Operation &param,
     const auto op = op_list[i];
     const std::string opcode = op.target();
 
-    if (opcode.rfind("dequantize", 0) == 0 ||
-        opcode.rfind("quantize", 0) == 0) {
+    if (opcode == "quantize" || opcode == "dequantize") {
       const auto other = op.kwargs().at("scale").tensor();
 
-      // support only scalar scale factor
       assert(get_size(other) == 1);
 
       VECTOR_DATATYPE immediate = read_constant_param(other);
-      if (opcode.rfind("dequantize", 0) == 0) {
-        inst.vDequantize = true;
-        inst.vDequantizeScale = immediate.bits_rep();
-      } else if (opcode.rfind("quantize", 0) == 0) {
+
+      if (opcode == "quantize") {
         vector_params->quantize_output = true;
         vector_params->output_scale = immediate.bits_rep();
+      } else {
+        inst.vDequantize = true;
+        inst.vDequantizeScale = immediate.bits_rep();
       }
+    } else if (opcode == "quantize_mx") {
+      vector_params->quantize_output_mx = true;
+      vector_params->SCALE_OFFSET =
+          param.outputs().tensors(0).memory().address();
     } else {
       if (curr_stage == 5) {
         // we have already processed all the stages
@@ -379,7 +389,6 @@ void MapMatrixOperation(const codegen::Operation &param,
                   << "  matched: " << matched << std::endl;
 
         if (matched) {
-          // set the opcode for the vector stage
           unsigned int vop = inst_map[opcode];
           if (stage == 0) {
             inst.vOp0 = vop;

@@ -32,19 +32,16 @@ Output* quantize(std::any input, std::any scale, std::vector<int> shape) {
 
 template <typename Input, typename Output, typename Scale>
 Output* quantize_mx(std::any input, std::any scale,
-                    const std::vector<int> input_shape,
-                    const std::vector<int> scale_shape) {
+                    const std::vector<int> input_shape, const int block_size) {
   LOG("Performing microscaling quantization operation");
 
   Input* inputs = std::any_cast<Input*>(input);
   Scale* scales = std::any_cast<Scale*>(scale);
 
   const int input_size = get_size(input_shape);
-  const int scale_size = get_size(scale_shape);
+  const int scale_size = input_size / block_size;
 
   Output* outputs = new Output[input_size];
-
-  int block_size = input_size / scale_size;
 
   for (int i = 0; i < scale_size; i++) {
     Scale scale = scales[i];
@@ -54,7 +51,7 @@ Output* quantize_mx(std::any input, std::any scale,
   }
 
   delete[] inputs;
-  delete[] scales;
+  // delete[] scales;
 
   return outputs;
 }

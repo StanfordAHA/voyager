@@ -54,23 +54,12 @@ struct PEInput {
   TYPE data;
   ac_int<1, false> swapWeights;
 
-  // #ifdef HYBRID_FP8
-  //   ac_int<1, false> castToE5M2;
-  // #endif
-
-  static const unsigned int width = TYPE::width + 1
-      // #ifdef HYBRID_FP8
-      //                                     + 1
-      // #endif
-      ;
+  static const unsigned int width = TYPE::width + 1;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
     m & data;
     m & swapWeights;
-    // #ifdef HYBRID_FP8
-    //     m & castToE5M2;
-    // #endif
   }
 
   inline friend void sc_trace(sc_trace_file *tf, const PEInput &peInput,
@@ -310,13 +299,6 @@ class Pack1D<PEInput<StdFloat<mantissa, exp> >, SIZE> {
     for (unsigned int i = 0; i < SIZE; i++) {
       m &value[i].swapWeights;
     }
-
-    // #ifdef HYBRID_FP8
-    // #pragma hls_unroll yes
-    //     for (unsigned int i = 0; i < SIZE; i++) {
-    //       m &value[i].castToE5M2;
-    //     }
-    // #endif
   }
 
   inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
