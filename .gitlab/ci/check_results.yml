@@ -1,0 +1,9 @@
+check_merge_request:
+  stage: check_results
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"'
+      when: always
+    - when: never
+  script:
+    - echo "Checking merge request"
+    - python .gitlab/ci/check_merge_request.py
