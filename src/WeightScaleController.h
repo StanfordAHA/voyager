@@ -84,11 +84,14 @@ SC_MODULE(WeightScaleController) {
       //   loop_bounds[1][params.fxIndex] = 7;
       // }
 
+      // collapse reduction loop at L2 level into L1 loop to simplify things
+      loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] *=
+          loop_bounds[0][params.weightAddressGenReductionLoopIndex[0]];
       // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] =
-          loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] /
+      loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] =
+          loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] /
           (32 / NROWS);
-      loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] = 1;
+      loop_bounds[1][params.weightAddressGenReductionLoopIndex[2]] = 1;
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
@@ -123,9 +126,9 @@ SC_MODULE(WeightScaleController) {
                       ac_int<8, false> K1 = loop_bounds
                           [1][params.weightAddressGenWeightLoopIndex[1]];
                       ac_int<8, false> C1 = loop_bounds
-                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                          [1][params.weightAddressGenReductionLoopIndex[1]];
                       ac_int<8, false> c1 = loop_counters
-                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                          [1][params.weightAddressGenReductionLoopIndex[1]];
                       ac_int<8, false> fx =
                           loop_counters[1][params.weightAddressGenFxIndex];
                       ac_int<8, false> FX =
@@ -135,12 +138,12 @@ SC_MODULE(WeightScaleController) {
                       ac_int<8, false> FY =
                           loop_bounds[1][params.weightAddressGenFyIndex];
                       ac_int<8, false> c0 = loop_counters
-                          [1][params.weightAddressGenReductionLoopIndex[1]];
+                          [1][params.weightAddressGenReductionLoopIndex[2]];
                       ac_int<8, false> C0 = loop_bounds
-                          [1][params.weightAddressGenReductionLoopIndex[1]];
+                          [1][params.weightAddressGenReductionLoopIndex[2]];
 
-                      ac_int<16, false> c = c1;
-                      ac_int<16, false> C = C1;
+                      ac_int<16, false> c = c1 * C0 + c0;
+                      ac_int<16, false> C = C1 * C0;
                       ac_int<16, false> k =
                           k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
                       ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
@@ -225,11 +228,14 @@ SC_MODULE(WeightScaleController) {
         }
       }
 
+      // collapse reduction loop at L2 level into L1 loop to simplify things
+      loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] *=
+          loop_bounds[0][params.weightAddressGenReductionLoopIndex[0]];
       // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] =
-          loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] /
+      loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] =
+          loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] /
           (32 / NROWS);
-      loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] = 1;
+      loop_bounds[1][params.weightAddressGenReductionLoopIndex[2]] = 1;
 
       // int c0_bound = NROWS;
       // if (params.REPLICATION) {
@@ -245,12 +251,13 @@ SC_MODULE(WeightScaleController) {
              loop_counters[0][1]++) {
           for (loop_counters[0][2] = 0; loop_counters[0][2] < loop_bounds[0][2];
                loop_counters[0][2]++) {
+            writeControl[bankSel].Push(loop_bounds[1][0] * loop_bounds[1][1] *
+                                       loop_bounds[1][2] * loop_bounds[1][3] *
+                                       loop_bounds[1][4]);
             // inner memory
             for (loop_counters[1][0] = 0;
                  loop_counters[1][0] < loop_bounds[1][0];
                  loop_counters[1][0]++) {
-              writeControl[bankSel].Push(loop_bounds[1][1] * loop_bounds[1][2] *
-                                         loop_bounds[1][3] * loop_bounds[1][4]);
               for (loop_counters[1][1] = 0;
                    loop_counters[1][1] < loop_bounds[1][1];
                    loop_counters[1][1]++) {
@@ -272,9 +279,9 @@ SC_MODULE(WeightScaleController) {
                       ac_int<8, false> K1 = loop_bounds
                           [1][params.weightAddressGenWeightLoopIndex[1]];
                       ac_int<8, false> C1 = loop_bounds
-                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                          [1][params.weightAddressGenReductionLoopIndex[1]];
                       ac_int<8, false> c1 = loop_counters
-                          [1][params.weightAddressGenReductionLoopIndex[0]];
+                          [1][params.weightAddressGenReductionLoopIndex[1]];
                       ac_int<8, false> fx =
                           loop_counters[1][params.weightAddressGenFxIndex];
                       ac_int<8, false> FX =
@@ -284,11 +291,12 @@ SC_MODULE(WeightScaleController) {
                       ac_int<8, false> FY =
                           loop_bounds[1][params.weightAddressGenFyIndex];
                       ac_int<8, false> c0 = loop_counters
-                          [1][params.weightAddressGenReductionLoopIndex[1]];
+                          [1][params.weightAddressGenReductionLoopIndex[2]];
                       ac_int<8, false> C0 = loop_bounds
-                          [1][params.weightAddressGenReductionLoopIndex[1]];
+                          [1][params.weightAddressGenReductionLoopIndex[2]];
 
-                      ac_int<16, false> C = C0;
+                      ac_int<16, false> C = C0 * C1;
+                      ac_int<16, false> c = c1 * C0 + c0;
                       ac_int<16, false> k =
                           k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
                       ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
@@ -296,7 +304,7 @@ SC_MODULE(WeightScaleController) {
                       Pack1D<DTYPE, NCOLS> data = transposeOut.Pop();
 
                       int address =
-                          (fy * FX * C * K1) + (fx * C * K1) + (c0 * K1) + k1;
+                          (fy * FX * C * K1) + (fx * C * K1) + (c * K1) + k1;
 
                       // int swapBank =
                       //     (loop_counters[1][1] == loop_bounds[1][1] - 1)
@@ -330,11 +338,11 @@ SC_MODULE(WeightScaleController) {
                 }
               }
               // writeControl[bankSel].Push(0);
-              bankSel = !bankSel;
               if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
                 break;
               }
             }
+            bankSel = !bankSel;
             if (loop_counters[0][2] >= loop_bounds[0][2] - 1) {
               break;
             }
@@ -378,19 +386,38 @@ SC_MODULE(WeightScaleController) {
       // set irrelevant loop bounds to 1
       loop_bounds[1][params.weightReuseIndex[0]] = 1;
       loop_bounds[1][params.weightReuseIndex[1]] = 1;
-      // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.reductionLoopIndex[1]] =
-          loop_bounds[1][params.reductionLoopIndex[1]] / (32 / NROWS);
-      ac_int<8, false> microscalingReuse = (32 / NROWS);
+
+      // collapse reduction loop at L2 level into L1 loop to simplify things
+      loop_bounds[1][params.reductionLoopIndex[1]] *=
+          loop_bounds[0][params.reductionLoopIndex[0]];
 
       // extra loop to control reuse which only occurs during transpose and when
       // OC_DIMENSION > IC_DIMENSION
       int rep_bound = 1;
       if (OC_DIMENSION > IC_DIMENSION) {
         if (params.WEIGHT_TRANSPOSE) {
-          // we are able to reuse the weights already in the buffer
-          loop_bounds[1][0] /= (OC_DIMENSION / IC_DIMENSION);
-          rep_bound = (OC_DIMENSION / IC_DIMENSION);
+          if (loop_bounds[1][0] > (OC_DIMENSION / IC_DIMENSION)) {
+            // we are able to reuse the weights already in the buffer
+            loop_bounds[1][0] /= (OC_DIMENSION / IC_DIMENSION);
+            rep_bound = (OC_DIMENSION / IC_DIMENSION);
+          }
+        }
+      }
+
+      // extra loop for exploiting L1 buffer reuse.
+      // this loop is used when OX and OY are the innermost L2 loops. when this
+      // occurs, we can move OX and/or OY into the buffer reuse L1 loop
+      int buffer_reuse = 1;
+      if (params.loops[0][params.reductionLoopIndex[0]] == 1) {
+        // OX loop can be absorbed
+        if (params.weightLoopIndex[0] < params.inputXLoopIndex[0]) {
+          buffer_reuse *= loop_bounds[0][params.inputXLoopIndex[0]];
+          loop_bounds[0][params.inputXLoopIndex[0]] = 1;
+        }
+        // OY loop can be absorbed
+        if (params.weightLoopIndex[0] < params.inputYLoopIndex[0]) {
+          buffer_reuse *= loop_bounds[0][params.inputYLoopIndex[0]];
+          loop_bounds[0][params.inputYLoopIndex[0]] = 1;
         }
       }
 
@@ -402,17 +429,17 @@ SC_MODULE(WeightScaleController) {
              loop_counters[0][1]++) {
           for (loop_counters[0][2] = 0; loop_counters[0][2] < loop_bounds[0][2];
                loop_counters[0][2]++) {
-            for (loop_counters[1][0] = 0;
-                 loop_counters[1][0] < loop_bounds[1][0];
-                 loop_counters[1][0]++) {
-              readControl[bankSel].Push(
-                  static_cast<ac_int<16, false>>(loop_bounds[1][1] *
-                                                 loop_bounds[1][2]) *
-                  static_cast<ac_int<16, false>>(loop_bounds[1][3] *
-                                                 loop_bounds[1][4]) *
-                  static_cast<ac_int<16, false>>(loop_bounds[1][5] * rep_bound *
-                                                 microscalingReuse));
-              for (int reuse = 0; reuse < microscalingReuse; reuse++) {
+            readControl[bankSel].Push(
+                static_cast<ac_int<16, false>>(
+                    loop_bounds[1][0] * loop_bounds[1][1] * loop_bounds[1][2]) *
+                static_cast<ac_int<16, false>>(loop_bounds[1][3] *
+                                               loop_bounds[1][4]) *
+                static_cast<ac_int<16, false>>(loop_bounds[1][5] * rep_bound *
+                                               buffer_reuse));
+            for (int reuse = 0; reuse < buffer_reuse; reuse++) {
+              for (loop_counters[1][0] = 0;
+                   loop_counters[1][0] < loop_bounds[1][0];
+                   loop_counters[1][0]++) {
                 for (int rep = 0; rep < rep_bound; rep++) {
                   for (loop_counters[1][1] = 0;
                        loop_counters[1][1] < loop_bounds[1][1];
@@ -429,31 +456,6 @@ SC_MODULE(WeightScaleController) {
                           for (loop_counters[1][5] = 0;
                                loop_counters[1][5] < loop_bounds[1][5];
                                loop_counters[1][5]++) {
-                            /*
-                             * If we have replication, then need to zero pad the
-                             * unused rows For 7x7 filter, we split it into 4
-                             * filters and 3 filters
-                             */
-                            ac_int<8, false> numPadding = 0;
-                            ac_int<4, false> replicationBound = 1;
-                            ac_int<8, false> startingC = NROWS - 1;
-                            ac_int<8, false> endingC = NROWS;
-                            if (params.REPLICATION) {
-                              startingC = 3 - 1;
-                              endingC = 3;
-                              if (IC_DIMENSION == 16) {
-                                if (loop_counters[1][params.fxIndex] == 0) {
-                                  numPadding = NROWS - 12;
-                                  replicationBound = 4;
-                                } else {
-                                  numPadding = NROWS - 9;
-                                  replicationBound = 3;
-                                }
-                              } else if (IC_DIMENSION == 32) {
-                                replicationBound = 7;
-                                numPadding = NROWS - replicationBound * 3;
-                              }
-                            }
                             ac_int<8, false> k2 =
                                 loop_counters[0][params.weightLoopIndex[0]];
                             ac_int<8, false> K2 =
@@ -463,9 +465,11 @@ SC_MODULE(WeightScaleController) {
                             ac_int<8, false> K1 =
                                 params.loops[1][params.weightLoopIndex[1]];
                             ac_int<8, false> C1 =
-                                params.loops[1][params.reductionLoopIndex[1]];
+                                params.loops[1][params.reductionLoopIndex[1]] /
+                                (32 / NROWS);
                             ac_int<8, false> c1 =
-                                loop_counters[1][params.reductionLoopIndex[1]];
+                                loop_counters[1][params.reductionLoopIndex[1]] /
+                                (32 / NROWS);
                             ac_int<8, false> fx =
                                 loop_counters[1][params.fxIndex];
                             ac_int<8, false> FX =
@@ -478,8 +482,10 @@ SC_MODULE(WeightScaleController) {
                                 k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
                             ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
                             int address =
-                                static_cast<ac_int<16, false>>((fy * FX * K1)) +
-                                static_cast<ac_int<16, false>>((fx * K1)) + k1;
+                                static_cast<ac_int<16, false>>(
+                                    (fy * FX * C1 * K1)) +
+                                static_cast<ac_int<16, false>>((fx * C1 * K1)) +
+                                c1 * K1 + k1;
 
                             if (params.WEIGHT_TRANSPOSE &&
                                 OC_DIMENSION > IC_DIMENSION) {
@@ -494,7 +500,6 @@ SC_MODULE(WeightScaleController) {
 
                             // readControl[bankSel].Push(!swapBank);
                             readAddress[bankSel].Push(address);
-                            // CCS_LOG("pushing read address: " << address);
 
                             if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
                               break;
@@ -517,13 +522,14 @@ SC_MODULE(WeightScaleController) {
                     }
                   }
                 }
-              }
-              // writeControl[bankSel].Push(0);
-              bankSel = !bankSel;
-              if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
-                break;
+
+                // writeControl[bankSel].Push(0);
+                if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
+                  break;
+                }
               }
             }
+            bankSel = !bankSel;
             if (loop_counters[0][2] >= loop_bounds[0][2] - 1) {
               break;
             }
@@ -559,11 +565,13 @@ SC_MODULE(WeightScaleController) {
         }
       }
 
+      loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] *=
+          loop_bounds[0][params.weightAddressGenReductionLoopIndex[0]];
       // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] =
-          loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] /
+      loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] =
+          loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] /
           (32 / NROWS);
-      loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] = 1;
+      loop_bounds[1][params.weightAddressGenReductionLoopIndex[2]] = 1;
 
       // int c0_bound = NROWS;
       // if (params.REPLICATION) {
