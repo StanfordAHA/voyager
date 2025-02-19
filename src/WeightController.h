@@ -424,9 +424,11 @@ SC_MODULE(WeightController) {
       int rep_bound = 1;
       if (OC_DIMENSION > IC_DIMENSION) {
         if (params.WEIGHT_TRANSPOSE) {
-          // we are able to reuse the weights already in the buffer
-          loop_bounds[1][0] /= (OC_DIMENSION / IC_DIMENSION);
-          rep_bound = (OC_DIMENSION / IC_DIMENSION);
+          if (loop_bounds[1][0] > (OC_DIMENSION / IC_DIMENSION)) {
+            // we are able to reuse the weights already in the buffer
+            loop_bounds[1][0] /= (OC_DIMENSION / IC_DIMENSION);
+            rep_bound = (OC_DIMENSION / IC_DIMENSION);
+          }
         }
       }
 
