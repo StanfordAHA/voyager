@@ -17,7 +17,7 @@ class Int {
   typedef ac_int<W, S> ac_int_rep;
   typedef ac_fixed<2 * W, W, true> ac_int_to_fixed_rep;
   typedef ac_fixed<2 * W, W, false> ac_int_to_fixed_rep_out;
-  typedef Int<W, S> Decoded;
+  typedef Int<W, S> decoded;
 
   ac_int_rep int_val;
 
@@ -43,80 +43,16 @@ class Int {
 
   void set_zero() { int_val = 0; }
 
-  static Decoded max() { return S ? (1 << (W - 1)) - 1 : (1 << W) - 1; }
-
-  void negate() { int_val = -int_val; }
-
-  void relu() {
-    if (int_val < 0) int_val = 0;
+  static decoded max() {
+    return ac_int_rep(S ? (1 << (W - 1)) - 1 : (1 << W) - 1);
   }
-
-  void masked_relu(const Int &mask) {
-    if (mask.int_val == 0) int_val = 0;
-  }
-
-  void reciprocal(ac_int<8, false> scale) {
-    ac_int_to_fixed_rep converted_to_fixed = int_val;
-    ac_int_to_fixed_rep_out reciprocal_in_fixed;
-
-    // Compute with larger width then scale / shift as required
-    ac_int<8, false> shift = W - scale;
-    ac_math::ac_reciprocal_pwl_vha(converted_to_fixed, reciprocal_in_fixed);
-    reciprocal_in_fixed = reciprocal_in_fixed << shift;
-    int_val = reciprocal_in_fixed.to_ac_int();
-  }
-
-  // TODO add unique scale factor for exponent similar to reciprocal ?
-  void exponential() {
-    ac_int_to_fixed_rep converted_to_fixed = int_val;
-    ac_int_to_fixed_rep_out exponent_in_fixed;
-    ac_math::ac_exp_pwl(converted_to_fixed, exponent_in_fixed);
-    int_val = exponent_in_fixed.to_ac_int();
-  }
-
-  Int inv_sqrt(ac_int<8, false> scale) {
-    ac_int_to_fixed_rep_out converted_to_fixed = int_val;
-    ac_int_to_fixed_rep_out inv_sqrt_in_fixed;
-    ac_int<8, false> shift = W - scale;
-    ac_math::ac_inverse_sqrt_pwl(converted_to_fixed, inv_sqrt_in_fixed);
-    inv_sqrt_in_fixed = inv_sqrt_in_fixed >> shift;
-    return inv_sqrt_in_fixed.to_ac_int();
-  }
-
-  Int sqrt(ac_int<8, false> scale) {
-    ac_int_to_fixed_rep_out converted_to_fixed = int_val;
-    ac_int_to_fixed_rep_out sqrt_in_fixed;
-    ac_int<8, false> shift = W - scale;
-    ac_math::ac_sqrt_pwl(converted_to_fixed, sqrt_in_fixed);
-    sqrt_in_fixed = sqrt_in_fixed >> shift;
-    return sqrt_in_fixed.to_ac_int();
-  }
-
-  Int max1() {
-    ac_int_rep one;
-    one = 1;
-    if (int_val > one) {
-      int_val = one;
-    }
-    return int_val;
-  }
-
-  // TODO add unique scale factor for exponent similar to reciprocal ?
-  void sigmoid() {
-    ac_int_to_fixed_rep converted_to_fixed = int_val.convert_to_ac_fixed();
-    ac_int_to_fixed_rep_out sigmoid_in_fixed;
-    ac_math::ac_sigmoid_pwl(converted_to_fixed, sigmoid_in_fixed);
-    int_val = static_cast<ac_int_rep>(sigmoid_in_fixed);
-  }
-
-  void scale_exp(ac_int<8, false> offset) { int_val = int_val << offset; }
 
   template <int W2, bool S2>
   Int<W2, S2> fma(Int &b, Int<W2, S2> &c);
 
-  Int operator+(const Int &rhs);
-  Int operator*(const Int &rhs);
-  Int operator/(const Int &rhs);
+  Int operator+(const Int &rhs) const;
+  Int operator*(const Int &rhs) const;
+  Int operator/(const Int &rhs) const;
   Int &operator+=(const Int &rhs);
   Int &operator-=(const Int &rhs);
   Int &operator*=(const Int &rhs);
@@ -171,17 +107,17 @@ Int<W, S>::Int(
 }
 
 template <int W, bool S>
-inline Int<W, S> Int<W, S>::operator+(const Int &rhs) {
+inline Int<W, S> Int<W, S>::operator+(const Int &rhs) const {
   return int_val + rhs.int_val;
 }
 
 template <int W, bool S>
-inline Int<W, S> Int<W, S>::operator*(const Int &rhs) {
+inline Int<W, S> Int<W, S>::operator*(const Int &rhs) const {
   return int_val * rhs.int_val;
 }
 
 template <int W, bool S>
-inline Int<W, S> Int<W, S>::operator/(const Int &rhs) {
+inline Int<W, S> Int<W, S>::operator/(const Int &rhs) const {
   return int_val / rhs.int_val;
 }
 

@@ -502,11 +502,6 @@ struct VectorInstructions {
 };
 
 struct VectorParams : BaseParams {
-  // 3 address generators:
-  // - Vector Input
-  // - Residual/Op0Src1
-  // - Bias/Op3Src1
-
 #ifndef __SYNTHESIS__
   VectorParams() {
     addressGen0Mode = 0;

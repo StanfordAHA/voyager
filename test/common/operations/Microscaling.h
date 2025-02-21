@@ -4,13 +4,13 @@
 
 template <typename Vector, typename Scale, typename Input>
 Scale* calculate_mx_qparam(std::any input_tensor, const std::vector<int>& shape,
-                           const int block_size = 32) {
+                           const int block_size) {
   Vector* inputs = std::any_cast<Vector*>(input_tensor);
 
   int input_size = get_size(shape);
   int result_size = (input_size + block_size - 1) / block_size;
 
-  Scale* outputs = new Scale[result_size];
+  Scale* scales = new Scale[result_size];
 
   for (int i = 0; i < result_size; i++) {
     Vector max_value = 0;
@@ -21,18 +21,17 @@ Scale* calculate_mx_qparam(std::any input_tensor, const std::vector<int>& shape,
     }
 
     if constexpr (Scale::width == Scale::exponent_width) {
-      outputs[i] = pow(2, floor(log2(max_value)) - floor(log2(Input::max())));
+      scales[i] = pow(2, floor(log2(max_value)) - floor(log2(Input::max())));
     } else {
-      outputs[i] = max_value / Input::max();
+      scales[i] = max_value / Input::max();
     }
 
-    if (outputs[i].to_ac_float() == Scale::ac_float_rep::zero()) {
-      outputs[i].set_one();
+    if (scales[i].to_ac_float() == Scale::ac_float_rep::zero()) {
+      scales[i].set_one();
     }
   }
 
-  // delete[] inputs;
-  return outputs;
+  return scales;
 }
 
 template <typename Vector, typename Scale, typename Input>
@@ -41,7 +40,9 @@ Scale* calculate_mx_qparam(std::map<std::string, std::any>& kwargs,
   const auto input = op.kwargs().at("input").tensor();
   std::any input_ptr = kwargs[input.node()];
   const auto input_shape = get_shape(input);
-  return calculate_mx_qparam<Vector, Scale, Input>(input_ptr, input_shape);
+  const int block_size = op.kwargs().at("block_size").int_value();
+  return calculate_mx_qparam<Vector, Scale, Input>(input_ptr, input_shape,
+                                                   block_size);
 }
 
 // template <typename Vector, typename Scale, typename Input>
@@ -74,17 +75,17 @@ Scale* calculate_mx_qparam(std::map<std::string, std::any>& kwargs,
 //     amax_arr[index] = std::max(amax_arr[index], abs(inputs[i]));
 //   }
 
-//   Scale* outputs = new Scale[*result_size];
+//   Scale* scales = new Scale[*result_size];
 
 //   for (int i = 0; i < result_size; i++) {
 //     if constexpr (Scale::width == Scale::exponent_width) {
 //       int power_of_two = floor(log2(amax_arr[i])) -
-//       floor(log2(Input::max())); outputs[i] = pow(2, power_of_two);
+//       floor(log2(Input::max())); scales[i] = pow(2, power_of_two);
 //     } else {
-//       outputs[i] = amax_arr[i] / static_cast<float>(Input::max());
+//       scales[i] = amax_arr[i] / static_cast<float>(Input::max());
 //     }
 //   }
 
 //   delete[] inputs;
-//   return outputs;
+//   return scales;
 // }

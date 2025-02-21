@@ -51,7 +51,6 @@ Output* quantize_mx(std::any input, std::any scale,
   }
 
   delete[] inputs;
-  // delete[] scales;
 
   return outputs;
 }

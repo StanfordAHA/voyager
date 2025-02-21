@@ -9,7 +9,6 @@ void MapSoftmax(const codegen::Operation &param,
   const auto softmax_op = op_list[0];
 
   const auto input = softmax_op.kwargs().at("input").tensor();
-  const auto input_shape = squeeze_shape(get_shape(input));
 
   codegen::Tensor output;
   if (param.has_output()) {
@@ -24,6 +23,7 @@ void MapSoftmax(const codegen::Operation &param,
       new VectorInstructionConfig;
   AcceleratorMemoryMap accelerator_memory_map;
 
+  const auto input_shape = squeeze_shape(get_shape(input));
   const int outer_dim = input_shape.back();
   int inner_dim = 1;
   std::vector<int> non_reduction_loops;
@@ -51,7 +51,7 @@ void MapSoftmax(const codegen::Operation &param,
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
 
   vector_params->fetch_vector_type_0 =
-      DataTypes::TypeName<VECTOR_DATATYPE>::name() == input.dtype();
+      input.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
   // output
   const auto output_memory = output.memory();
@@ -158,6 +158,9 @@ void MapSoftmax(const codegen::Operation &param,
       vector_params->quantize_output = true;
       vector_params->output_scale = immediate.bits_rep();
     } else if (quantize_op.target() == "quantize_mx") {
+      const int block_size = quantize_op.kwargs().at("block_size").int_value();
+      assert(block_size == OC_DIMENSION);
+
       vector_params->quantize_output_mx = true;
       vector_params->SCALE_OFFSET =
           param.outputs().tensors(0).memory().address();

@@ -2,15 +2,6 @@
 
 #include "test/common/operations/Common.h"
 
-// inline float exponent(const float &x) { return exp(x); }
-
-template <typename T>
-inline T exponent(const T &x) {
-  typename T::Decoded tmp = static_cast<typename T::Decoded>(x);
-  tmp.exponential();
-  return static_cast<T>(tmp);
-}
-
 template <typename T>
 inline T *softmax(std::any input_ptr, const std::vector<int> shape) {
   T *inputs = std::any_cast<T *>(input_ptr);
@@ -32,8 +23,7 @@ inline T *softmax(std::any input_ptr, const std::vector<int> shape) {
 
     for (int j = 0; j < num_cols; j++) {
       T normalized = static_cast<T>(inputs[offset + j] - max);
-      normalized.exponential();
-      outputs[offset + j] = normalized;
+      outputs[offset + j] = normalized.exponential();
     }
 
     // perform a tree addition
@@ -54,8 +44,7 @@ inline T *softmax(std::any input_ptr, const std::vector<int> shape) {
       sum = static_cast<T>(sum + buffer[0]);
     }
 
-    T divisor = sum;
-    divisor.reciprocal();
+    T divisor = sum.reciprocal();
     for (int j = 0; j < num_cols; j++) {
       outputs[offset + j] *= divisor;
     }

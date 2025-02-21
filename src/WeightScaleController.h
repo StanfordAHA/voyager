@@ -86,10 +86,6 @@ SC_MODULE(WeightScaleController) {
       //   loop_bounds[1][params.fxIndex] = 7;
       // }
 
-      // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] =
-          loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] /
-          (32 / NRows);
       loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] = 1;
 
 #pragma hls_pipeline_init_interval 1
@@ -150,6 +146,7 @@ SC_MODULE(WeightScaleController) {
 
                       int address =
                           (fy * FX * C * K) + (fx * C * K) + (c * K) + k;
+
                       if (params.has_weight_transpose) {
                         C = C1 * NCols;
                         address = (k + c0) * C + c1 * OC_DIMENSION;
@@ -221,10 +218,6 @@ SC_MODULE(WeightScaleController) {
         }
       }
 
-      // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] =
-          loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] /
-          (32 / NRows);
       loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] = 1;
 
       // int c0_bound = NRows;
@@ -295,21 +288,11 @@ SC_MODULE(WeightScaleController) {
                       int address =
                           (fy * FX * C * K1) + (fx * C * K1) + (c0 * K1) + k1;
 
-                      // int swapBank =
-                      //     (loop_counters[1][1] == loop_bounds[1][1] - 1)
-                      //     && (loop_counters[1][2] == loop_bounds[1][2] -
-                      //     1) && (loop_counters[1][3] == loop_bounds[1][3]
-                      //     - 1) && (loop_counters[1][4] ==
-                      //     loop_bounds[1][4] - 1) && (loop_counters[1][5]
-                      //     == loop_bounds[1][5] - 1);
-
-                      // writeControl[bankSel].Push(!swapBank);
                       BufferWriteRequest<Scale, NCols> req;
                       req.address = address;
                       req.data = data;
                       writeRequest[bankSel].Push(req);
 
-                      // CCS_LOG("c: " << c);
                       if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
                         break;
                       }
@@ -326,7 +309,6 @@ SC_MODULE(WeightScaleController) {
                   break;
                 }
               }
-              // writeControl[bankSel].Push(0);
               bankSel = !bankSel;
               if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
                 break;
@@ -375,10 +357,6 @@ SC_MODULE(WeightScaleController) {
       // set irrelevant loop bounds to 1
       loop_bounds[1][params.weightReuseIndex[0]] = 1;
       loop_bounds[1][params.weightReuseIndex[1]] = 1;
-      // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.reductionLoopIndex[1]] =
-          loop_bounds[1][params.reductionLoopIndex[1]] / (32 / NRows);
-      ac_int<8, false> mxscale_reuse = (32 / NRows);
 
       // extra loop to control reuse which only occurs during transpose and when
       // OC_DIMENSION > IC_DIMENSION
@@ -402,125 +380,113 @@ SC_MODULE(WeightScaleController) {
             for (loop_counters[1][0] = 0;
                  loop_counters[1][0] < loop_bounds[1][0];
                  loop_counters[1][0]++) {
-              readControl[bankSel].Push(
-                  static_cast<ac_int<16, false>>(loop_bounds[1][1] *
-                                                 loop_bounds[1][2]) *
-                  static_cast<ac_int<16, false>>(loop_bounds[1][3] *
-                                                 loop_bounds[1][4]) *
-                  static_cast<ac_int<16, false>>(loop_bounds[1][5] * rep_bound *
-                                                 mxscale_reuse));
-              for (int reuse = 0; reuse < mxscale_reuse; reuse++) {
-                for (int rep = 0; rep < rep_bound; rep++) {
-                  for (loop_counters[1][1] = 0;
-                       loop_counters[1][1] < loop_bounds[1][1];
-                       loop_counters[1][1]++) {
-                    for (loop_counters[1][2] = 0;
-                         loop_counters[1][2] < loop_bounds[1][2];
-                         loop_counters[1][2]++) {
-                      for (loop_counters[1][3] = 0;
-                           loop_counters[1][3] < loop_bounds[1][3];
-                           loop_counters[1][3]++) {
-                        for (loop_counters[1][4] = 0;
-                             loop_counters[1][4] < loop_bounds[1][4];
-                             loop_counters[1][4]++) {
-                          for (loop_counters[1][5] = 0;
-                               loop_counters[1][5] < loop_bounds[1][5];
-                               loop_counters[1][5]++) {
-                            /*
-                             * If we have replication, then need to zero pad the
-                             * unused rows For 7x7 filter, we split it into 4
-                             * filters and 3 filters
-                             */
-                            ac_int<8, false> numPadding = 0;
-                            ac_int<4, false> replicationBound = 1;
-                            ac_int<8, false> startingC = NRows - 1;
-                            ac_int<8, false> endingC = NRows;
+              readControl[bankSel].Push(loop_bounds[1][1] * loop_bounds[1][2] *
+                                        loop_bounds[1][3] * loop_bounds[1][4] *
+                                        loop_bounds[1][5] * rep_bound);
 
-                            if (params.is_replication) {
-                              startingC = 3 - 1;
-                              endingC = 3;
-                              if (IC_DIMENSION == 16) {
-                                if (loop_counters[1][params.fxIndex] == 0) {
-                                  numPadding = NRows - 12;
-                                  replicationBound = 4;
-                                } else {
-                                  numPadding = NRows - 9;
-                                  replicationBound = 3;
-                                }
-                              } else if (IC_DIMENSION == 32) {
-                                replicationBound = 7;
-                                numPadding = NRows - replicationBound * 3;
+              for (int rep = 0; rep < rep_bound; rep++) {
+                for (loop_counters[1][1] = 0;
+                     loop_counters[1][1] < loop_bounds[1][1];
+                     loop_counters[1][1]++) {
+                  for (loop_counters[1][2] = 0;
+                       loop_counters[1][2] < loop_bounds[1][2];
+                       loop_counters[1][2]++) {
+                    for (loop_counters[1][3] = 0;
+                         loop_counters[1][3] < loop_bounds[1][3];
+                         loop_counters[1][3]++) {
+                      for (loop_counters[1][4] = 0;
+                           loop_counters[1][4] < loop_bounds[1][4];
+                           loop_counters[1][4]++) {
+                        for (loop_counters[1][5] = 0;
+                             loop_counters[1][5] < loop_bounds[1][5];
+                             loop_counters[1][5]++) {
+                          /*
+                           * If we have replication, then need to zero pad the
+                           * unused rows For 7x7 filter, we split it into 4
+                           * filters and 3 filters
+                           */
+                          ac_int<8, false> numPadding = 0;
+                          ac_int<4, false> replicationBound = 1;
+                          ac_int<8, false> startingC = NRows - 1;
+                          ac_int<8, false> endingC = NRows;
+
+                          if (params.is_replication) {
+                            startingC = 3 - 1;
+                            endingC = 3;
+                            if (IC_DIMENSION == 16) {
+                              if (loop_counters[1][params.fxIndex] == 0) {
+                                numPadding = NRows - 12;
+                                replicationBound = 4;
+                              } else {
+                                numPadding = NRows - 9;
+                                replicationBound = 3;
                               }
-                            }
-
-                            ac_int<LOOP_WIDTH, false> c1 =
-                                loop_counters[1][params.reductionLoopIndex[1]];
-                            ac_int<LOOP_WIDTH, false> k1 =
-                                loop_counters[1][params.weightLoopIndex[1]];
-                            ac_int<LOOP_WIDTH, false> k2 =
-                                loop_counters[0][params.weightLoopIndex[0]];
-                            ac_int<LOOP_WIDTH, false> fx =
-                                loop_counters[1][params.fxIndex];
-                            ac_int<LOOP_WIDTH, false> fy =
-                                loop_counters[1][params.fyIndex];
-
-                            ac_int<LOOP_WIDTH, false> C1 =
-                                params.loops[1][params.reductionLoopIndex[1]];
-                            ac_int<LOOP_WIDTH, false> K1 =
-                                params.loops[1][params.weightLoopIndex[1]];
-                            ac_int<LOOP_WIDTH, false> K2 =
-                                params.loops[0][params.weightLoopIndex[0]];
-                            ac_int<LOOP_WIDTH, false> FX =
-                                params.loops[1][params.fxIndex];
-                            ac_int<LOOP_WIDTH, false> FY =
-                                params.loops[1][params.fyIndex];
-
-                            ac_int<16, false> k =
-                                k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
-                            ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
-
-                            int address =
-                                static_cast<ac_int<16, false>>((fy * FX * K1)) +
-                                static_cast<ac_int<16, false>>((fx * K1)) + k1;
-
-                            if (params.has_weight_transpose &&
-                                OC_DIMENSION > IC_DIMENSION) {
-                              address = static_cast<ac_int<16, false>>(
-                                            (fy * FX * 2 * K1)) +
-                                        static_cast<ac_int<16, false>>(
-                                            (fx * 2 * K1)) +
-                                        static_cast<ac_int<16, false>>(
-                                            (rep * NRows) * K1) +
-                                        k1;
-                            }
-
-                            // readControl[bankSel].Push(!swapBank);
-                            readAddress[bankSel].Push(address);
-                            // CCS_LOG("pushing read address: " << address);
-
-                            if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
-                              break;
+                            } else if (IC_DIMENSION == 32) {
+                              replicationBound = 7;
+                              numPadding = NRows - replicationBound * 3;
                             }
                           }
-                          if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
+
+                          ac_int<LOOP_WIDTH, false> c1 =
+                              loop_counters[1][params.reductionLoopIndex[1]];
+                          ac_int<LOOP_WIDTH, false> k1 =
+                              loop_counters[1][params.weightLoopIndex[1]];
+                          ac_int<LOOP_WIDTH, false> k2 =
+                              loop_counters[0][params.weightLoopIndex[0]];
+                          ac_int<LOOP_WIDTH, false> fx =
+                              loop_counters[1][params.fxIndex];
+                          ac_int<LOOP_WIDTH, false> fy =
+                              loop_counters[1][params.fyIndex];
+
+                          ac_int<LOOP_WIDTH, false> C1 =
+                              params.loops[1][params.reductionLoopIndex[1]];
+                          ac_int<LOOP_WIDTH, false> K1 =
+                              params.loops[1][params.weightLoopIndex[1]];
+                          ac_int<LOOP_WIDTH, false> K2 =
+                              params.loops[0][params.weightLoopIndex[0]];
+                          ac_int<LOOP_WIDTH, false> FX =
+                              params.loops[1][params.fxIndex];
+                          ac_int<LOOP_WIDTH, false> FY =
+                              params.loops[1][params.fyIndex];
+
+                          ac_int<16, false> k =
+                              k2 * K1 * OC_DIMENSION + k1 * OC_DIMENSION;
+                          ac_int<16, false> K = K2 * K1 * OC_DIMENSION;
+
+                          ac_int<16, false> address =
+                              (fy * FX * K1) + (fx * K1) + k1;
+
+                          if (params.has_weight_transpose &&
+                              OC_DIMENSION > IC_DIMENSION) {
+                            address = (fy * FX * 2 * K1) + (fx * 2 * K1) +
+                                      (rep * NRows) * K1 + k1;
+                          }
+
+                          readAddress[bankSel].Push(address);
+                          // CCS_LOG("pushing read address: " << address);
+
+                          if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
                             break;
                           }
                         }
-                        if (loop_counters[1][3] >= loop_bounds[1][3] - 1) {
+                        if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
                           break;
                         }
                       }
-                      if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {
+                      if (loop_counters[1][3] >= loop_bounds[1][3] - 1) {
                         break;
                       }
                     }
-                    if (loop_counters[1][1] >= loop_bounds[1][1] - 1) {
+                    if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {
                       break;
                     }
                   }
+                  if (loop_counters[1][1] >= loop_bounds[1][1] - 1) {
+                    break;
+                  }
                 }
               }
-              // writeControl[bankSel].Push(0);
+
               bankSel = !bankSel;
               if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
                 break;
@@ -561,10 +527,6 @@ SC_MODULE(WeightScaleController) {
         }
       }
 
-      // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] =
-          loop_bounds[1][params.weightAddressGenReductionLoopIndex[0]] /
-          (32 / NRows);
       loop_bounds[1][params.weightAddressGenReductionLoopIndex[1]] = 1;
 
       // int c0_bound = NRows;

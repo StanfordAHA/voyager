@@ -161,6 +161,9 @@ void MapMatrixOperation(const codegen::Operation &param,
   matrix_params->is_mx_op = matrix_op.target().find("mx") != std::string::npos;
 
   if (matrix_params->is_mx_op) {
+    const int block_size = matrix_op.kwargs().at("block_size").int_value();
+    assert(block_size == OC_DIMENSION);
+
     const auto input_scale = matrix_op.kwargs().at("input_scale").tensor();
     matrix_params->INPUT_SCALE_OFFSET = input_scale.memory().address();
 

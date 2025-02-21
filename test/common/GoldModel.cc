@@ -242,17 +242,23 @@ std::vector<std::any> run_operation(const codegen::Operation param,
         }
       }
     } else if (op.target() == "quantize_mx") {
-      const auto input = op.kwargs().at("input").tensor();
-      const auto input_shape = get_shape(input);
+      if constexpr (std::is_same<Vector, CFloat>::value) {
+        std::cerr << "No quantization operations should be emitted for CFloat"
+                  << std::endl;
+        std::abort();
+      } else {
+        const auto input = op.kwargs().at("input").tensor();
+        const auto input_shape = get_shape(input);
 
-      const int block_size = op.kwargs().at("block_size").int_value();
+        const int block_size = op.kwargs().at("block_size").int_value();
 
-      Scale *mx_scale =
-          calculate_mx_qparam<Vector, Scale, Input>(output_ptr, input_shape);
-      output_ptr = quantize_mx<Vector, Input, Scale>(output_ptr, mx_scale,
-                                                     input_shape, block_size);
+        Scale *mx_scale = calculate_mx_qparam<Vector, Scale, Input>(
+            output_ptr, input_shape, block_size);
+        output_ptr = quantize_mx<Vector, Input, Scale>(output_ptr, mx_scale,
+                                                       input_shape, block_size);
 
-      outputs.push_back(mx_scale);
+        outputs.push_back(mx_scale);
+      }
     } else if (op.target() == "dequantize") {
       if constexpr (std::is_same<Vector, CFloat>::value) {
         std::cerr << "No quantization operations should be emitted for CFloat"

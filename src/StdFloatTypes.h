@@ -20,7 +20,7 @@ class StdFloat {
   typedef ac_std_float<width, exp> ac_float_rep;
   typedef ac_fixed<2 * mantissa, mantissa, true> ac_float_to_fixed_rep;
   typedef ac_fixed<2 * mantissa, mantissa, false> ac_float_to_fixed_rep_out;
-  typedef StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q> Decoded;
+  typedef StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q> decoded;
 
   ac_float_rep float_val;
 
@@ -42,7 +42,7 @@ class StdFloat {
                &other);
 
   template <int WFX, int IFX, bool SFX, ac_q_mode QFX, ac_o_mode OFX>
-  ac_fixed<WFX, IFX, SFX, QFX, OFX> to_ac_fixed() {
+  ac_fixed<WFX, IFX, SFX, QFX, OFX> to_ac_fixed() const {
     return float_val.template convert_to_ac_fixed<WFX, IFX, SFX, QFX, OFX>();
   }
 
@@ -52,56 +52,40 @@ class StdFloat {
 
   void set_zero() { float_val = float_val.zero(); }
 
-  static Decoded max() { return ac_float_rep::max(); }
+  static decoded max() { return ac_float_rep::max(); }
 
-  StdFloat abs() {
+  StdFloat abs() const {
     StdFloat r(float_val.abs());
     return r;
   }
 
-  void negate() { float_val = -float_val; }
+  StdFloat negate() const { return -float_val; }
 
-  void relu() {
-    if (float_val.neg()) float_val = float_val.zero();
+  StdFloat exponential() const {
+    return ac_math::ac_exp_pwl<ac_float_rep>(float_val);
   }
 
-  void masked_relu(const StdFloat &mask) {
-    if (mask.float_val.d == 0) float_val = float_val.zero();
+  StdFloat reciprocal() const {
+    return ac_math::ac_reciprocal_pwl<ac_float_rep, AC_RND>(float_val);
   }
 
-  void reciprocal() {
-    float_val = ac_math::ac_reciprocal_pwl<ac_float_rep, AC_TRN, ac_float_rep>(
-        float_val);
+  StdFloat sqrt() const {
+    return float_val.template sqrt<AC_RND_CONV, false>();
   }
 
-  void exponential() {
-    ac_float_rep result;
-    ac_math::ac_exp_pwl(float_val, result);
-    float_val = result;
+  StdFloat inv_sqrt() const { return sqrt().reciprocal(); }
+
+  StdFloat max1() const {
+    ac_float_rep one = ac_float_rep::one();
+    return float_val > one ? one : float_val;
   }
 
-  StdFloat inv_sqrt() {
-    StdFloat result = float_val.template sqrt<AC_RND_CONV, false>();
-    result.reciprocal();
-    return result;
+  StdFloat relu() const {
+    return float_val.neg() ? ac_float_rep::zero() : float_val;
   }
 
-  StdFloat sqrt() { return float_val.template sqrt<AC_RND_CONV, false>(); }
-
-  StdFloat max1() {
-    ac_float_rep one;
-    one = one.one();
-    if (float_val > one) {
-      float_val = one;
-    }
-    return float_val;
-  }
-
-  void sigmoid() {
-    ac_float_to_fixed_rep converted_to_fixed = float_val.convert_to_ac_fixed();
-    ac_float_to_fixed_rep_out sigmoid_in_fixed;
-    ac_math::ac_sigmoid_pwl(converted_to_fixed, sigmoid_in_fixed);
-    float_val = static_cast<ac_float_rep>(sigmoid_in_fixed);
+  StdFloat masked_relu(const StdFloat &mask) const {
+    return mask.float_val.neg() ? ac_float_rep::zero() : float_val;
   }
 
   template <int width, bool sign>
@@ -114,7 +98,7 @@ class StdFloat {
     float_val.d.set_slc(mantissa_width, exp_bits);
   }
 
-  ac_int<exponent_width, false> unbiased_exponent() {
+  ac_int<exponent_width, false> unbiased_exponent() const {
     return float_val.d.template slc<exponent_width>(mantissa_width);
   }
 
@@ -124,10 +108,10 @@ class StdFloat {
       StdFloat &b,
       StdFloat<mantissa2, exp2, use_dw_impl2, ieee_compliance2, Q2> &c);
 
-  StdFloat operator+(const StdFloat &rhs);
-  StdFloat operator-(const StdFloat &rhs);
-  StdFloat operator*(const StdFloat &rhs);
-  StdFloat operator/(const StdFloat &rhs);
+  StdFloat operator+(const StdFloat &rhs) const;
+  StdFloat operator-(const StdFloat &rhs) const;
+  StdFloat operator*(const StdFloat &rhs) const;
+  StdFloat operator/(const StdFloat &rhs) const;
   StdFloat &operator+=(const StdFloat &rhs);
   StdFloat &operator-=(const StdFloat &rhs);
   StdFloat &operator*=(const StdFloat &rhs);
@@ -192,7 +176,7 @@ template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
           ac_q_mode Q>
 inline StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>
 StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>::operator+(
-    const StdFloat &rhs) {
+    const StdFloat &rhs) const {
   return float_val.template add<Q, !ieee_compliance>(rhs.float_val);
 }
 
@@ -200,7 +184,7 @@ template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
           ac_q_mode Q>
 inline StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>
 StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>::operator-(
-    const StdFloat &rhs) {
+    const StdFloat &rhs) const {
   return float_val.template sub<Q, !ieee_compliance>(rhs.float_val);
 }
 
@@ -208,7 +192,7 @@ template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
           ac_q_mode Q>
 inline StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>
 StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>::operator*(
-    const StdFloat &rhs) {
+    const StdFloat &rhs) const {
   return float_val.template mult<Q, !ieee_compliance>(rhs.float_val);
 }
 
@@ -216,7 +200,7 @@ template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
           ac_q_mode Q>
 inline StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>
 StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>::operator/(
-    const StdFloat &rhs) {
+    const StdFloat &rhs) const {
   return float_val.template div<Q, !ieee_compliance>(rhs.float_val);
 }
 
@@ -256,7 +240,6 @@ StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>::operator/=(
   return *this;
 }
 
-#pragma hls_design ccore
 template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
           ac_q_mode Q>
 inline bool StdFloat<mantissa, exp, use_dw_impl, ieee_compliance,
@@ -264,7 +247,6 @@ inline bool StdFloat<mantissa, exp, use_dw_impl, ieee_compliance,
   return float_val == rhs.float_val;
 }
 
-#pragma hls_design ccore
 template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
           ac_q_mode Q>
 inline bool StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>::operator<(

@@ -188,22 +188,12 @@ SC_MODULE(VectorOpUnit) {
         if (inst.vOp0 == VectorInstructions::vsub) {
 #pragma hls_unroll yes
           for (int i = 0; i < Width; i++) {
-            op0Src1[i].negate();
+            op0Src1[i] = op0Src1[i].negate();
           }
         }
         vadd<VectorType, Width>(op0Src0, op0Src1, res0);
-        DLOG(op0Src0 << std::endl
-                     << " + " << std::endl
-                     << op0Src1 << std::endl
-                     << " = " << std::endl
-                     << res0);
       } else if (inst.vOp0 == VectorInstructions::vmult) {
         vmult<VectorType, Width>(op0Src0, op0Src1, res0);
-        DLOG(op0Src0 << std::endl
-                     << " * " << std::endl
-                     << op0Src1 << std::endl
-                     << " = " << std::endl
-                     << res0);
       } else {
         res0 = op0Src0;
       }
@@ -215,11 +205,7 @@ SC_MODULE(VectorOpUnit) {
       if (inst.vOp1 == VectorInstructions::vexp) {
         vexp<VectorType, Width>(res0, res1);
       } else if (inst.vOp1 == VectorInstructions::vscaleexp) {
-        ac_int<8, true> scaleVal;
-        if (inst.vOp1Src1 == VectorInstructions::op1immediate) {
-          scaleVal = inst.immediate0;
-        }
-        vscaleexp<VectorType, Width>(res0, scaleVal, res1);
+        vscaleexp<VectorType, Width>(res0, inst.immediate0, res1);
       } else {
         res1 = res0;
       }
@@ -229,13 +215,13 @@ SC_MODULE(VectorOpUnit) {
       /*
        * Stage 2: reduction
        */
-      // FIXME: delete this stage (moved reduction moved to end of pipeline)
+      // TODO: delete this stage (moved reduction moved to end of pipeline)
       res2 = res1;
 
       // DLOG("res2: " << res2);
 
       /*
-       * Stage 3: add, div
+       * Stage 3: add, mult, square
        */
       Pack1D<VectorType, Width> op3Src0;
       op3Src0 = res2;
@@ -245,7 +231,6 @@ SC_MODULE(VectorOpUnit) {
         op3Src1 = broadcastReductionOpOutputOp3Src1.Pop();
       } else if (inst.vOp3Src1 == VectorInstructions::readNormalInterface) {
         Pack1D<VectorType, Width> tmp = vectorFetch2Output.Pop();
-
 #pragma hls_unroll yes
         for (int i = 0; i < Width; i++) {
           op3Src1[i] = tmp[i];
@@ -262,26 +247,14 @@ SC_MODULE(VectorOpUnit) {
 
       if (inst.vOp3 == VectorInstructions::vadd) {
         vadd<VectorType, Width>(op3Src0, op3Src1, res3);
-        DLOG(op3Src0 << std::endl
-                     << " + " << std::endl
-                     << op3Src1 << std::endl
-                     << " = " << std::endl
-                     << res3);
       } else if (inst.vOp3 == VectorInstructions::vmult ||
                  inst.vOp3 == VectorInstructions::vsquare) {
         if (inst.vOp3 == VectorInstructions::vsquare) {
           op3Src1 = op3Src0;
         }
         vmult<VectorType, Width>(op3Src0, op3Src1, res3);
-        DLOG(op3Src0 << std::endl
-                     << " * " << std::endl
-                     << op3Src1 << std::endl
-                     << " = " << std::endl
-                     << res3);
       } else if (inst.vOp3 == VectorInstructions::vscaleexp) {
-        ac_int<8, true> scaleVal;
-        scaleVal = inst.immediate1;
-        vscaleexp<VectorType, Width>(op3Src0, scaleVal, res3);
+        vscaleexp<VectorType, Width>(op3Src0, inst.immediate1, res3);
       } else {
         res3 = op3Src0;
       }
@@ -289,7 +262,7 @@ SC_MODULE(VectorOpUnit) {
       // DLOG("res3: " << res3);
 
       /*
-       * Stage 4: relu and value mapping
+       * Stage 4: activation and value mapping
        */
       if (inst.vOp4 == VectorInstructions::vrelu ||
           inst.vOp4 == VectorInstructions::vrelumask) {
@@ -303,12 +276,11 @@ SC_MODULE(VectorOpUnit) {
         for (int i = 0; i < Width; i++) {
           DataTypes::bfloat16 value = res3[i];
 
-          constexpr int num_words = 16 / IOType::width;
-
           ac_int<32, false> address = value.bits_rep() * 2;
-          vectorFetch3AddressRequest.Push(
-              {inst.vmapOffset + address, num_words});
+          MemoryRequest request = {inst.vmapOffset + address, 2};
+          vectorFetch3AddressRequest.Push(request);
 
+          constexpr int num_words = 16 / IOType::width;
           Pack1D<IOType, num_words> response = vectorFetch3DataResponse.Pop();
 
           ac_int<16, false> bits = 0;
@@ -325,14 +297,15 @@ SC_MODULE(VectorOpUnit) {
         res4 = res3;
       }
 
+      // DLOG("res4: " << res4);
+
       if (inst.vAccumulatePush) {
         accumulationOpInput.Push(res4);
       }
+
       if (inst.vOp2 == VectorInstructions::toReduce) {
         reductionOpInput.Push(res4);
       }
-
-      // DLOG("res4: " << res4);
 
       if (inst.vDest == VectorInstructions::vWriteOut) {
         vectorOpUnitOutput.Push(res4);
@@ -360,19 +333,17 @@ SC_MODULE(VectorOpUnit) {
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
       for (int count = 0; count < inst.rCount; count++) {
-        DLOG("accumulation " << count << " / " << inst.rCount);
         Pack1D<VectorType, Width> op = accumulationOpInput.Pop();
 
         if (inst.rOp == VectorInstructions::radd) {
 #pragma hls_unroll yes
           for (int i = 0; i < Width; i++) {
-            // accum[i] = accum[i] + op[i];
             accum[i] += op[i];
           }
         } else if (inst.rOp == VectorInstructions::rmax) {
 #pragma hls_unroll yes
           for (int i = 0; i < Width; i++) {
-            accum[i] = accum[i] < op[i] ? op[i] : accum[i];
+            accum[i] = (accum[i] < op[i] || count == 0) ? op[i] : accum[i];
           }
         }
       }
@@ -398,67 +369,49 @@ SC_MODULE(VectorOpUnit) {
       VectorInstructions inst = reductionOpUnitInstructions.Pop();
 
       Pack1D<VectorType, Width> res;
+      VectorType output;
 
-      int iterationCount = inst.rDuplicate ? 1 : Width;
-
-      VectorType scalarResult;
+      int num_outputs = inst.rDuplicate ? 1 : Width;
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
-      for (int index = 0; index < iterationCount; index++) {
-        VectorType prevResult;
+      for (int index = 0; index < num_outputs; index++) {
+        for (int i = 0; i < inst.rCount; i++) {
+          Pack1D<VectorType, Width> op = reductionOpInput.Pop();
 
-        if (inst.rOp == VectorInstructions::radd) {
-          for (int i = 0; i < inst.rCount; i++) {
-            Pack1D<VectorType, Width> op = reductionOpInput.Pop();
-            VectorType result = treeadd(op);
-            DLOG("reduction: " << op << " = " << result);
-            if (i != 0) {
-              result += prevResult;
-            }
-
-            prevResult = result;
-          }
-        } else if (inst.rOp == VectorInstructions::rmax) {
-          for (int i = 0; i < inst.rCount; i++) {
-            Pack1D<VectorType, Width> op = reductionOpInput.Pop();
-            VectorType result = treemax(op);
-            if (i != 0) {
-              result = result < prevResult ? prevResult : result;
-            }
-
-            prevResult = result;
+          if (inst.rOp == VectorInstructions::radd) {
+            VectorType sum = treeadd(op);
+            output = (i == 0) ? sum : output + sum;
+          } else if (inst.rOp == VectorInstructions::rmax) {
+            VectorType max = treemax(op);
+            output = (output < max || i == 0) ? max : output;
           }
         }
 
         if (!inst.rDuplicate) {
-          res[index] = prevResult;
-        } else {
-          scalarResult = prevResult;
+          res[index] = output;
         }
 
-        DLOG("Reduction " << index << "/" << iterationCount << " : "
-                          << prevResult << std::endl
-                          << res);
+        DLOG("Reduction " << index << "/" << num_outputs << " : " << output);
       }
 
       if (inst.rSqrt) {
-        scalarResult = scalarResult.sqrt();
+        output = output.sqrt();
       }
 
       if (inst.rReciprocal) {
-        scalarResult.reciprocal();
+        output = output.reciprocal();
       }
 
       if (inst.rMax1) {
-        scalarResult = scalarResult.max1();
+        output = output.max1();
       }
 
+      // Duplicate the scalar result into a vector
       if (inst.rDuplicate) {
-        // Duplicate the scalar result into a vector
 #pragma hls_unroll yes
         for (int i = 0; i < Width; i++) {
-          res[i] = scalarResult;
+          res[i] = output;
         }
       }
 
@@ -522,7 +475,7 @@ SC_MODULE(VectorUnit) {
 
   Connections::Out<Pack1D<IOType, Width>> CCS_INIT_S1(vector_output);
   Connections::Out<ac_int<64, false>> CCS_INIT_S1(vector_output_address);
-  Connections::Out<Pack1D<IOType, 1>> CCS_INIT_S1(scalar_output);
+  Connections::Out<Pack1D<INT8_, 1>> CCS_INIT_S1(scalar_output);
   Connections::Out<ac_int<64, false>> CCS_INIT_S1(scalar_output_address);
 
   Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(

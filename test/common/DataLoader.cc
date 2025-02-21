@@ -9,13 +9,8 @@ DataLoader::DataLoader(ArrayMemory* memory, bool is_dut, bool is_cnn)
 void DataLoader::load_tensor(const codegen::Tensor& tensor,
                              std::string data_dir, bool transpose,
                              bool replication) {
-  auto repeated_field = tensor.shape();
-  std::vector<size_t> shape(repeated_field.begin(), repeated_field.end());
-
-  int size = 1;
-  for (int dim : shape) {
-    size *= dim;
-  }
+  const auto shape = get_shape(tensor);
+  const int size = get_size(tensor);
 
   // if size is 1, then it is a scalar, so it should not be
   // written to memory

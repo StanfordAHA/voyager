@@ -133,7 +133,7 @@ SC_MODULE(MatrixUnit) {
 
   Connections::Combinational<Pack1D<INPUT_DATATYPE, IC_DIMENSION> > CCS_INIT_S1(
       inputsToSystolicArray);
-  Connections::Combinational<Pack1D<INPUT_DATATYPE::Decoded, OC_DIMENSION> >
+  Connections::Combinational<Pack1D<INPUT_DATATYPE::decoded, OC_DIMENSION> >
       CCS_INIT_S1(weightsToSystolicArray);
   Connections::Combinational<Pack1D<ACCUM_BUFFER_DATATYPE, OC_DIMENSION> >
       CCS_INIT_S1(biasToSystolicArray);

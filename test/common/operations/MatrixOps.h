@@ -8,15 +8,16 @@
 
 template <typename T1, typename T2>
 inline void fused_multiply_add(T1 a, T1 b, T2 &c) {
-  typename T1::Decoded v1 = a;
-  typename T1::Decoded v2 = b;
+  typename T1::decoded v1 = a;
+  typename T1::decoded v2 = b;
   c = v1.fma(v2, c);
 }
 
 template <typename Input, typename Psum, typename Buffer, typename Scale>
 inline Buffer *gemm(std::any input_ptr, std::any input_scale_ptr,
                     std::any weight_ptr, std::any weight_scale_ptr,
-                    std::any bias_ptr, const Tiling &tiling) {
+                    std::any bias_ptr, const Tiling &tiling,
+                    const int block_size) {
   LOG("Performing GEMM");
 
   Input *inputs = std::any_cast<Input *>(input_ptr);
@@ -187,20 +188,15 @@ inline Buffer *gemm(std::any input_ptr, std::any input_scale_ptr,
                             STRIDE * x + fx < STRIDE * X &&
                             STRIDE * y + fy >= 0 &&
                             STRIDE * y + fy < STRIDE * Y) {
-                          int channel_batch = c0 / (32 / IC_DIMENSION);
-                          int num_channel_batches = C / 32;
+                          int num_blocks = C / block_size;
 
                           int input_scale_addr =
-                              (STRIDE * y + fy) * STRIDE * X *
-                                  num_channel_batches +
-                              (STRIDE * x + fx) * num_channel_batches +
-                              channel_batch;
+                              (y * STRIDE + fy) * STRIDE * X * num_blocks +
+                              (x * STRIDE + fx) * num_blocks + c0;
                           assert(input_scale_addr >= 0);
                           int weight_scale_addr =
-                              (fy + (FY - 1) / 2) * FX * num_channel_batches *
-                                  K +
-                              (fx + (FX - 1) / 2) * num_channel_batches * K +
-                              channel_batch * K + k;
+                              (fy + (FY - 1) / 2) * FX * num_blocks * K +
+                              (fx + (FX - 1) / 2) * num_blocks * K + c0 * K + k;
                           assert(weight_scale_addr >= 0);
 
                           Scale input_scale = input_scales[input_scale_addr];
@@ -319,9 +315,12 @@ inline Buffer *gemm(std::any input_ptr, std::any input_scale_ptr,
     tiling.loops[1][tiling.reduction_loop_index[1]] = 1;
   }
 
+  bool is_mx = op.target().find("mx") != std::string::npos;
+  int block_size = is_mx ? op.kwargs().at("block_size").int_value() : 0;
+
   return gemm<Input, Psum, Buffer, Scale>(input_ptr, input_scale_ptr,
                                           weight_ptr, weight_scale_ptr,
-                                          bias_ptr, tiling);
+                                          bias_ptr, tiling, block_size);
 }
 
 template <typename Input, typename Psum, typename Vector>

@@ -13,28 +13,28 @@ SC_MODULE(MatrixProcessor) {
   Connections::SyncChannel CCS_INIT_S1(weightLoadDone);
   Connections::SyncChannel CCS_INIT_S1(weightSwapDone);
 
-  MultiInputSerializedSkewer<InputT, typename InputT::Decoded, NRows>
+  MultiInputSerializedSkewer<InputT, typename InputT::decoded, NRows>
       CCS_INIT_S1(inputSkewer);
   Connections::Combinational<Pack1D<PEInput<InputT>, NRows> > CCS_INIT_S1(
       inputSkewerDin);
 
-  WeightSerializedSkewer<InputT, typename InputT::Decoded, NCols> CCS_INIT_S1(
+  WeightSerializedSkewer<InputT, typename InputT::decoded, NCols> CCS_INIT_S1(
       weightSkewer);
   Connections::Combinational<Pack1D<PEWeight<InputT>, NCols> > CCS_INIT_S1(
       weightSkewerDin);
 
-  SerializedSkewer<OutputT, typename OutputT::Decoded, NCols> CCS_INIT_S1(
+  SerializedSkewer<OutputT, typename OutputT::decoded, NCols> CCS_INIT_S1(
       psumInSkewer);
   Connections::Combinational<Pack1D<OutputT, NCols> > CCS_INIT_S1(
       psumInSkewerDin);
 
-  DeserializedSkewer<typename OutputT::Decoded, OutputT, NCols> CCS_INIT_S1(
+  DeserializedSkewer<typename OutputT::decoded, OutputT, NCols> CCS_INIT_S1(
       psumOutSkewer);
   Connections::Combinational<Pack1D<OutputT, NCols> > CCS_INIT_S1(
       psumOutSkewerDout);
 
-  SystolicArray<typename InputT::Decoded, typename InputT::Decoded,
-                typename OutputT::Decoded, NRows, NCols>
+  SystolicArray<typename InputT::decoded, typename InputT::decoded,
+                typename OutputT::decoded, NRows, NCols>
       CCS_INIT_S1(systolicArray);
 
   MatrixParamsDeserializer<1> CCS_INIT_S1(paramsDeserializer);
@@ -57,15 +57,15 @@ SC_MODULE(MatrixProcessor) {
   Connections::In<int> CCS_INIT_S1(serialParamsIn);
 
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
-  Connections::Combinational<PEInput<typename InputT::Decoded> >
+  Connections::Combinational<PEInput<typename InputT::decoded> >
       inputsToSystolicArray[NRows];
   // Connections::Combinational<ac_int<1, false> >
   //     weightSwapToSystolicArray[NRows];
-  Connections::Combinational<typename OutputT::Decoded>
+  Connections::Combinational<typename OutputT::decoded>
       psumsToSystolicArray[NCols];
-  Connections::Combinational<typename OutputT::Decoded>
+  Connections::Combinational<typename OutputT::decoded>
       outputsFromSystolicArray[NCols];
-  Connections::Combinational<PEWeight<typename InputT::Decoded> >
+  Connections::Combinational<PEWeight<typename InputT::decoded> >
       weightsToSystolicArray[NCols];
 
   // only used for MX

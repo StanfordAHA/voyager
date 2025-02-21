@@ -9,7 +9,7 @@ class NormalFloat4 {
   static constexpr unsigned int width = 4;
 
   typedef ac_int<4, false> ac_int_rep;
-  typedef Int<6, true> Decoded;
+  typedef Int<6, true> decoded;
 
   static inline const ac_int<6, true> code[16] = {
       -31, -22, -16, -12, -9, -6, -3, 0, 2, 5, 8, 10, 14, 17, 22, 31};
@@ -34,9 +34,9 @@ class NormalFloat4 {
 
   void set_zero() { index = 7; }
 
-  static Decoded max() {
+  static decoded max() {
     ac_int<6, true> r(31);
-    return Decoded(r);
+    return decoded(r);
   }
 
   template <int W, bool S>

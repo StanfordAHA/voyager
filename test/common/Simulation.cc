@@ -136,25 +136,26 @@ void Simulation::print_ideal_runtime(const codegen::Operation& param) {
   long cycles;
 
   if (GEMM_OPS.find(first_op.target()) != GEMM_OPS.end()) {
-    // the total number of operations is X*Y*C*FX*FY*K.
-    long num_ops = 1;
-
-    for (const auto& dim : param.output().shape()) num_ops *= dim;  // X * Y * K
+    const auto input = first_op.kwargs().at("input").tensor();
 
     bool is_matmul = first_op.target().find("matmul") != std::string::npos;
     std::string weight_key = is_matmul ? "other" : "weight";
     const auto weight = first_op.kwargs().at(weight_key).tensor();
 
-    // skip the first dimension (K) since it is already accounted for
-    for (int i = 1; i < weight.shape_size(); i++) {
-      num_ops *= weight.shape(i);  // FX * FY * C
-    }
-
+    // the total number of operations is X * Y * C * FX * FY * K.
+    long num_ops = get_size(input) * get_size(weight) / weight.shape(0);
     cycles = num_ops / (IC_DIMENSION * OC_DIMENSION);
     std::cout << get_op_name(param) << ", matrix unit ideal runtime: ";
   } else {
-    long num_ops = 1;
-    for (const auto& dim : param.output().shape()) num_ops *= dim;
+    long num_ops;
+    if (param.has_output()) {
+      num_ops = get_size(param.output());
+    } else if (op_list.back().target() == "quantize_mx") {
+      num_ops = get_size(param.outputs().tensors(1));
+    } else {
+      std::cerr << "Unrecognized operation: " << get_op_name(param)
+                << std::endl;
+    }
 
     cycles = num_ops / OC_DIMENSION;
     std::cout << get_op_name(param) << ", vector unit ideal runtime: ";

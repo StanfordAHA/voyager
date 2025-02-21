@@ -6,57 +6,66 @@
 using namespace ac_math;
 
 #pragma hls_design ccore
-template <typename Input, int Width>
-void vadd(Pack1D<Input, Width>& op0, Pack1D<Input, Width>& op1,
-          Pack1D<Input, Width>& res) {
+template <typename T, int Width>
+void vadd(const Pack1D<T, Width>& op0, const Pack1D<T, Width>& op1,
+          Pack1D<T, Width>& res) {
 #pragma hls_unroll yes
   for (int i = 0; i < Width; i++) {
-    res[i] = static_cast<Input>(op0[i] + op1[i]);
+    res[i] = static_cast<T>(op0[i] + op1[i]);
   }
 }
 
 #pragma hls_design ccore
-template <typename Input, int Width>
-void vmult(Pack1D<Input, Width>& op0, Pack1D<Input, Width>& op1,
-           Pack1D<Input, Width>& res) {
+template <typename T, int Width>
+void vmult(const Pack1D<T, Width>& op0, const Pack1D<T, Width>& op1,
+           Pack1D<T, Width>& res) {
 #pragma hls_unroll yes
   for (int i = 0; i < Width; i++) {
-    res[i] = static_cast<Input>(op0[i] * op1[i]);
+    res[i] = static_cast<T>(op0[i] * op1[i]);
   }
 }
 
 #pragma hls_design ccore
-template <typename Input, int Width>
-void vrelu(Pack1D<Input, Width>& op0, Pack1D<Input, Width> mask, bool useMask,
-           Pack1D<Input, Width>& res) {
-  Pack1D<Input, Width> tmp;
+template <typename T, int Width>
+void vexp(const Pack1D<T, Width>& op0, Pack1D<T, Width>& res) {
+#pragma hls_unroll yes
+  for (int i = 0; i < Width; i++) {
+    res[i] = op0[i].exponential();
+  }
+}
+
+#pragma hls_design ccore
+template <typename T, int Width>
+void vscaleexp(const Pack1D<T, Width>& op0, ac_int<8, false> scale,
+               Pack1D<T, Width>& res) {
+#pragma hls_unroll yes
+  for (int i = 0; i < Width; i++) {
+    res[i] = op0[i];
+  }
 
 #pragma hls_unroll yes
   for (int i = 0; i < Width; i++) {
-    tmp[i] = op0[i];
+    res[i].scale_exp(scale);
   }
+}
 
-  if (useMask) {
+#pragma hls_design ccore
+template <typename T, int Width>
+void vrelu(const Pack1D<T, Width>& op0, const Pack1D<T, Width>& mask,
+           bool is_masked, Pack1D<T, Width>& res) {
 #pragma hls_unroll yes
-    for (int i = 0; i < Width; i++) {
-      tmp[i].masked_relu(mask[i]);
+  for (int i = 0; i < Width; i++) {
+    if (is_masked) {
+      res[i] = op0[i].masked_relu(mask[i]);
+    } else {
+      res[i] = op0[i].relu();
     }
-  } else {
-#pragma hls_unroll yes
-    for (int i = 0; i < Width; i++) {
-      tmp[i].relu();
-    }
-  }
-
-#pragma hls_unroll yes
-  for (int i = 0; i < Width; i++) {
-    res[i] = tmp[i];
   }
 }
 
 #pragma hls_design ccore
-template <typename Input, int Width>
-void vgelu(Pack1D<Input, Width>& op0, Pack1D<Input, Width>& res) {
+template <typename T, int Width>
+void vgelu(const Pack1D<T, Width>& op0, Pack1D<T, Width>& res) {
   typedef ac_fixed<15, 7, true, AC_RND, AC_SAT> input_type;
   typedef ac_fixed<15, 7, true, AC_RND, AC_SAT> output_type;
   Pack1D<input_type, Width> tmp;
@@ -73,8 +82,8 @@ void vgelu(Pack1D<Input, Width>& op0, Pack1D<Input, Width>& res) {
 }
 
 #pragma hls_design ccore
-template <typename Input, int Width>
-void vsilu(Pack1D<Input, Width>& op0, Pack1D<Input, Width>& res) {
+template <typename T, int Width>
+void vsilu(const Pack1D<T, Width>& op0, Pack1D<T, Width>& res) {
   typedef ac_fixed<15, 7, true, AC_RND, AC_SAT> input_type;
   typedef ac_fixed<30, 3, false, AC_RND, AC_SAT> output_type;
   Pack1D<input_type, Width> tmp;
@@ -92,29 +101,91 @@ void vsilu(Pack1D<Input, Width>& op0, Pack1D<Input, Width>& res) {
 
 #pragma hls_design ccore
 template <typename Input, typename Output, typename Scale, int Width>
-void vquantize(Pack1D<Input, Width>& op0, Pack1D<Output, Width>& res,
-               Scale scale) {
+void vquantize(const Pack1D<Input, Width>& op0, Pack1D<Output, Width>& res,
+               const Scale scale) {
 #pragma hls_unroll yes
   for (int i = 0; i < Width; i++) {
-    res[i] = op0[i] / scale;
+    res[i] = op0[i] / static_cast<Input>(scale);
   }
+}
+
+#pragma hls_design ccore
+template <typename Input, typename Output, int Width>
+void vdequantize(const Pack1D<Input, Width>& op0, Pack1D<Output, Width>& res,
+                 ac_int<Output::width, false> scale_bits) {
+  Output scale;
+  scale.set_bits(scale_bits);
+
+#pragma hls_unroll yes
+  for (int i = 0; i < Width; i++) {
+    res[i] = static_cast<Output>(op0[i]) * scale;
+  }
+}
+
+constexpr int constexpr_log2(unsigned int n, int result = 0) {
+  return (n < 2) ? result : constexpr_log2(n / 2, result + 1);
+}
+
+#pragma hls_design ccore
+template <typename T, size_t Width>
+T treeadd(const Pack1D<T, Width>& op) {
+  constexpr int num_stage = constexpr_log2(Width);
+  Pack1D<T, Width> temp[num_stage + 1];
+
+#pragma hls_unroll yes
+  for (int i = 0; i < Width; i++) {
+    temp[0][i] = op[i];
+  }
+
+#pragma hls_unroll yes
+  for (int stage = 1; stage <= num_stage; stage++) {
+#pragma hls_unroll yes
+    for (int i = 0; i < Width / (1 << stage); i++) {
+      temp[stage][i] = temp[stage - 1][i * 2] + temp[stage - 1][i * 2 + 1];
+    }
+  }
+
+  return temp[num_stage][0];
+}
+
+#pragma hls_design ccore
+template <typename T, size_t Width>
+T treemax(const Pack1D<T, Width>& op) {
+  constexpr int num_stage = constexpr_log2(Width);
+  Pack1D<T, Width> temp[num_stage + 1];
+
+#pragma hls_unroll yes
+  for (int i = 0; i < Width; i++) {
+    temp[0][i] = op[i];
+  }
+
+#pragma hls_unroll yes
+  for (int stage = 1; stage <= num_stage; stage++) {
+#pragma hls_unroll yes
+    for (int i = 0; i < Width / (1 << stage); i++) {
+      temp[stage][i] =
+          std::max(temp[stage - 1][i * 2], temp[stage - 1][i * 2 + 1]);
+    }
+  }
+
+  return temp[num_stage][0];
 }
 
 #pragma hls_design ccore
 template <typename InputType, typename OutputType, typename ScaleType,
           int Width>
-void vquantize_mx(Pack1D<InputType, Width>& op0, Pack1D<OutputType, Width>& res,
-                  ScaleType& scale) {
+void vquantize_mx(const Pack1D<InputType, Width>& op0,
+                  Pack1D<OutputType, Width>& res, ScaleType& scale) {
   if constexpr (ScaleType::width == ScaleType::exponent_width) {
-    using ExpType = ac_int<InputType::exponent_width, false>;
+    using exp_t = ac_int<InputType::exponent_width, false>;
 
-    Pack1D<ExpType, Width> exponents;
+    Pack1D<exp_t, Width> exponents;
 #pragma hls_unroll yes
     for (int i = 0; i < Width; i++) {
       exponents[i] = op0[i].unbiased_exponent();
     }
 
-    ExpType max_exp = treemax(exponents);
+    exp_t max_exp = treemax(exponents);
 
     const int offset = floor(log2(OutputType::max()));
     ac_int<InputType::exponent_width, true> scaled_exp;
@@ -126,417 +197,44 @@ void vquantize_mx(Pack1D<InputType, Width>& op0, Pack1D<OutputType, Width>& res,
 
     scale.set_bits(scaled_exp);
   } else {
-    Pack1D<InputType, Width> abs_val;
+    //     Pack1D<InputType, Width> temp;
+    // #pragma hls_unroll yes
+    //     for (int i = 0; i < Width; i++) {
+    //       temp[i] = op0[i].abs();
+    //     }
+
+    //     InputType amax = treemax(temp);
+
+    // TODO: Catapult HLS exhibits an issue where using the treemax function in
+    // both the vector unit reduction and this location causes incorrect outputs
+    // from the vector unit max reduction. The root cause is unclear, but as a
+    // workaround, explicitly implement the logic here instead of using treemax.
+    constexpr int num_stage = constexpr_log2(Width);
+    Pack1D<InputType, Width> temp[num_stage + 1];
+
 #pragma hls_unroll yes
     for (int i = 0; i < Width; i++) {
-      abs_val[i] = op0[i].abs();
+      temp[0][i] = op0[i].abs();
     }
 
-    InputType amax = treemax(abs_val);
+#pragma hls_unroll yes
+    for (int stage = 1; stage <= num_stage; stage++) {
+#pragma hls_unroll yes
+      for (int i = 0; i < Width / (1 << stage); i++) {
+        temp[stage][i] =
+            std::max(temp[stage - 1][i * 2], temp[stage - 1][i * 2 + 1]);
+      }
+    }
 
-    InputType divisor = static_cast<InputType>(OutputType::max());
-    divisor.reciprocal();
-    scale = amax * divisor;
+    InputType amax = temp[num_stage][0];
+
+    InputType max_value = static_cast<InputType>(OutputType::max());
+    scale = amax * max_value.reciprocal();
 
     if (scale.to_ac_float() == ScaleType::ac_float_rep::zero()) {
       scale.set_one();
     }
   }
 
-#pragma hls_unroll yes
-  for (int i = 0; i < Width; i++) {
-    res[i] = op0[i] / scale;
-  }
+  vquantize<InputType, OutputType, ScaleType, Width>(op0, res, scale);
 }
-
-#pragma hls_design ccore
-template <typename Input, typename Output, int Width>
-void vdequantize(Pack1D<Input, Width>& op0, Pack1D<Output, Width>& res,
-                 ac_int<Output::width, false> scale_bits) {
-  Output scale;
-  scale.set_bits(scale_bits);
-
-#pragma hls_unroll yes
-  for (int i = 0; i < Width; i++) {
-    res[i] = static_cast<Output>(op0[i]) * scale;
-  }
-}
-
-#pragma hls_design ccore
-template <typename Input, int Width>
-void vexp(Pack1D<Input, Width>& op0, Pack1D<Input, Width>& res) {
-  Pack1D<Input, Width> tmp;
-#pragma hls_unroll yes
-  for (int i = 0; i < Width; i++) {
-    tmp[i] = op0[i];
-  }
-
-#pragma hls_unroll yes
-  for (int i = 0; i < Width; i++) {
-    tmp[i].exponential();
-  }
-
-// convert back to decoded format
-#pragma hls_unroll yes
-  for (int i = 0; i < Width; i++) {
-    res[i] = tmp[i];
-  }
-}
-
-#pragma hls_design ccore
-template <typename Input, int Width>
-void vscaleexp(Pack1D<Input, Width>& op0, ac_int<8, false> scale,
-               Pack1D<Input, Width>& res) {
-#pragma hls_unroll yes
-  for (int i = 0; i < Width; i++) {
-    res[i] = op0[i];
-  }
-
-#pragma hls_unroll yes
-  for (int i = 0; i < Width; i++) {
-    res[i].scale_exp(scale);
-  }
-}
-
-// #pragma hls_design ccore
-// template <typename Input, int Width>
-// void vdiv(Pack1D<Input, Width>& op0, Pack1D<Input, Width>& op1,
-//           Pack1D<Input, Width>& res) {
-//   // convert to Posit16
-//   Pack1D<Posit<16, 1>, Width> tmp;
-// #pragma hls_unroll yes
-//   for (int i = 0; i < Width; i++) {
-//     tmp[i] = op1[i];
-//   }
-
-// #pragma hls_unroll yes
-//   for (int i = 0; i < Width; i++) {
-//     tmp[i].reciprocal();
-//   }
-
-// // convert back to decoded format
-// #pragma hls_unroll yes
-//   for (int i = 0; i < Width; i++) {
-//     res[i] = tmp[i];
-//   }
-
-//   vmult<Input, Width>(op0, res, res);
-// }
-
-#pragma hls_design ccore
-template <typename Input, int Width>
-void vmultdiv(Pack1D<Input, Width>& op0, Pack1D<Input, Width>& op1,
-              Pack1D<Input, Width>& res, bool div, bool square) {
-  Pack1D<Input, Width> op1_factor;
-  if (div) {
-#pragma hls_unroll yes
-    for (int i = 0; i < Width; i++) {
-      // TODO Is it fine to update op1 with its reciprocal value ?
-      op1[i].reciprocal();
-      op1_factor[i] = op1[i];
-    }
-
-    // #pragma hls_unroll yes
-    //     for (int i = 0; i < Width; i++) {
-    //       tmp[i].reciprocal();
-    //     }
-
-    // // convert back to decoded format
-    // #pragma hls_unroll yes
-    //     for (int i = 0; i < Width; i++) {
-    //       op_factor[i] = tmp[i];
-    //     }
-
-  } else if (square) {
-    op1_factor = op0;
-  } else {
-    op1_factor = op1;
-  }
-
-#pragma hls_unroll yes
-  for (int i = 0; i < Width; i++) {
-    res[i] = static_cast<Input>(op0[i] * op1_factor[i]);
-  }
-}
-
-// Need to overload treeadd and treemax for the number of dimensions that need
-// to be supported
-
-/*
- * Dimension = 64
- */
-#pragma hls_design ccore
-template <typename Input>
-Input treeadd(Pack1D<Input, 64>& op) {
-  Pack1D<Input, 32> lvl0;
-#pragma hls_unroll yes
-  for (int i = 0; i < 32; i++) {
-    lvl0[i] = static_cast<Input>(op[i * 2] + op[i * 2 + 1]);
-  }
-
-  Pack1D<Input, 16> lvl1;
-#pragma hls_unroll yes
-  for (int i = 0; i < 16; i++) {
-    lvl1[i] = static_cast<Input>(lvl0[i * 2] + lvl0[i * 2 + 1]);
-  }
-
-  Pack1D<Input, 8> lvl2;
-#pragma hls_unroll yes
-  for (int i = 0; i < 8; i++) {
-    lvl2[i] = static_cast<Input>(lvl1[i * 2] + lvl1[i * 2 + 1]);
-  }
-
-  Pack1D<Input, 4> lvl3;
-#pragma hls_unroll yes
-  for (int i = 0; i < 4; i++) {
-    lvl3[i] = static_cast<Input>(lvl2[i * 2] + lvl2[i * 2 + 1]);
-  }
-
-  Pack1D<Input, 2> lvl4;
-#pragma hls_unroll yes
-  for (int i = 0; i < 2; i++) {
-    lvl4[i] = static_cast<Input>(lvl3[i * 2] + lvl3[i * 2 + 1]);
-  }
-
-  return static_cast<Input>(lvl4[0] + lvl4[1]);
-}
-
-#pragma hls_design ccore
-template <typename Input>
-Input treemax(Pack1D<Input, 64>& op) {
-  Pack1D<Input, 32> lvl0;
-#pragma hls_unroll yes
-  for (int i = 0; i < 32; i++) {
-    lvl0[i] = op[i * 2] < op[i * 2 + 1] ? op[i * 2 + 1] : op[i * 2];
-  }
-
-  Pack1D<Input, 16> lvl1;
-#pragma hls_unroll yes
-  for (int i = 0; i < 16; i++) {
-    lvl1[i] = lvl0[i * 2] < lvl0[i * 2 + 1] ? lvl0[i * 2 + 1] : lvl0[i * 2];
-  }
-
-  Pack1D<Input, 8> lvl2;
-#pragma hls_unroll yes
-  for (int i = 0; i < 8; i++) {
-    lvl2[i] = lvl1[i * 2] < lvl1[i * 2 + 1] ? lvl1[i * 2 + 1] : lvl1[i * 2];
-  }
-
-  Pack1D<Input, 4> lvl3;
-#pragma hls_unroll yes
-  for (int i = 0; i < 4; i++) {
-    lvl3[i] = lvl2[i * 2] < lvl2[i * 2 + 1] ? lvl2[i * 2 + 1] : lvl2[i * 2];
-  }
-
-  Pack1D<Input, 2> lvl4;
-#pragma hls_unroll yes
-  for (int i = 0; i < 2; i++) {
-    lvl4[i] = lvl3[i * 2] < lvl3[i * 2 + 1] ? lvl3[i * 2 + 1] : lvl3[i * 2];
-  }
-
-  return lvl4[0] < lvl4[1] ? lvl4[1] : lvl4[0];
-}
-
-/*
- * Dimension = 32
- */
-#pragma hls_design ccore
-template <typename Input>
-Input treeadd(Pack1D<Input, 32>& op) {
-  Pack1D<Input, 16> lvl0;
-#pragma hls_unroll yes
-  for (int i = 0; i < 16; i++) {
-    lvl0[i] = static_cast<Input>(op[i * 2] + op[i * 2 + 1]);
-  }
-
-  Pack1D<Input, 8> lvl1;
-#pragma hls_unroll yes
-  for (int i = 0; i < 8; i++) {
-    lvl1[i] = static_cast<Input>(lvl0[i * 2] + lvl0[i * 2 + 1]);
-  }
-
-  Pack1D<Input, 4> lvl2;
-#pragma hls_unroll yes
-  for (int i = 0; i < 4; i++) {
-    lvl2[i] = static_cast<Input>(lvl1[i * 2] + lvl1[i * 2 + 1]);
-  }
-
-  Pack1D<Input, 2> lvl3;
-#pragma hls_unroll yes
-  for (int i = 0; i < 2; i++) {
-    lvl3[i] = static_cast<Input>(lvl2[i * 2] + lvl2[i * 2 + 1]);
-  }
-
-  return static_cast<Input>(lvl3[0] + lvl3[1]);
-}
-
-#pragma hls_design ccore
-template <typename Input>
-Input treemax(Pack1D<Input, 32>& op) {
-  Pack1D<Input, 16> lvl0;
-#pragma hls_unroll yes
-  for (int i = 0; i < 16; i++) {
-    lvl0[i] = op[i * 2] < op[i * 2 + 1] ? op[i * 2 + 1] : op[i * 2];
-  }
-
-  Pack1D<Input, 8> lvl1;
-#pragma hls_unroll yes
-  for (int i = 0; i < 8; i++) {
-    lvl1[i] = lvl0[i * 2] < lvl0[i * 2 + 1] ? lvl0[i * 2 + 1] : lvl0[i * 2];
-  }
-
-  Pack1D<Input, 4> lvl2;
-#pragma hls_unroll yes
-  for (int i = 0; i < 4; i++) {
-    lvl2[i] = lvl1[i * 2] < lvl1[i * 2 + 1] ? lvl1[i * 2 + 1] : lvl1[i * 2];
-  }
-
-  Pack1D<Input, 2> lvl3;
-#pragma hls_unroll yes
-  for (int i = 0; i < 2; i++) {
-    lvl3[i] = lvl2[i * 2] < lvl2[i * 2 + 1] ? lvl2[i * 2 + 1] : lvl2[i * 2];
-  }
-
-  return lvl3[0] < lvl3[1] ? lvl3[1] : lvl3[0];
-}
-
-/*
- * Dimension = 16
- */
-#pragma hls_design ccore
-template <typename Input>
-Input treeadd(Pack1D<Input, 16>& op) {
-  Pack1D<Input, 8> lvl0;
-#pragma hls_unroll yes
-  for (int i = 0; i < 8; i++) {
-    lvl0[i] = static_cast<Input>(op[i * 2] + op[i * 2 + 1]);
-  }
-
-  Pack1D<Input, 4> lvl1;
-#pragma hls_unroll yes
-  for (int i = 0; i < 4; i++) {
-    lvl1[i] = static_cast<Input>(lvl0[i * 2] + lvl0[i * 2 + 1]);
-  }
-
-  Pack1D<Input, 2> lvl2;
-#pragma hls_unroll yes
-  for (int i = 0; i < 2; i++) {
-    lvl2[i] = static_cast<Input>(lvl1[i * 2] + lvl1[i * 2 + 1]);
-  }
-
-  return static_cast<Input>(lvl2[0] + lvl2[1]);
-}
-
-#pragma hls_design ccore
-template <typename Input>
-Input treemax(Pack1D<Input, 16>& op) {
-  Pack1D<Input, 8> lvl0;
-#pragma hls_unroll yes
-  for (int i = 0; i < 8; i++) {
-    lvl0[i] = op[i * 2] < op[i * 2 + 1] ? op[i * 2 + 1] : op[i * 2];
-  }
-
-  Pack1D<Input, 4> lvl1;
-#pragma hls_unroll yes
-  for (int i = 0; i < 4; i++) {
-    lvl1[i] = lvl0[i * 2] < lvl0[i * 2 + 1] ? lvl0[i * 2 + 1] : lvl0[i * 2];
-  }
-
-  Pack1D<Input, 2> lvl2;
-#pragma hls_unroll yes
-  for (int i = 0; i < 2; i++) {
-    lvl2[i] = lvl1[i * 2] < lvl1[i * 2 + 1] ? lvl1[i * 2 + 1] : lvl1[i * 2];
-  }
-
-  return lvl2[0] < lvl2[1] ? lvl2[1] : lvl2[0];
-}
-
-/*
- * Dimension = 8
- */
-#pragma hls_design ccore
-template <typename Input>
-Input treeadd(Pack1D<Input, 8>& op) {
-  Pack1D<Input, 4> lvl0;
-#pragma hls_unroll yes
-  for (int i = 0; i < 4; i++) {
-    lvl0[i] = static_cast<Input>(op[i * 2] + op[i * 2 + 1]);
-  }
-
-  Pack1D<Input, 2> lvl1;
-#pragma hls_unroll yes
-  for (int i = 0; i < 2; i++) {
-    lvl1[i] = static_cast<Input>(lvl0[i * 2] + lvl0[i * 2 + 1]);
-  }
-
-  return static_cast<Input>(lvl1[0] + lvl1[1]);
-}
-
-#pragma hls_design ccore
-template <typename Input>
-Input treemax(Pack1D<Input, 8>& op) {
-  Pack1D<Input, 4> lvl0;
-#pragma hls_unroll yes
-  for (int i = 0; i < 4; i++) {
-    lvl0[i] = op[i * 2] < op[i * 2 + 1] ? op[i * 2 + 1] : op[i * 2];
-  }
-
-  Pack1D<Input, 2> lvl1;
-#pragma hls_unroll yes
-  for (int i = 0; i < 2; i++) {
-    lvl1[i] = lvl0[i * 2] < lvl0[i * 2 + 1] ? lvl0[i * 2 + 1] : lvl0[i * 2];
-  }
-
-  return lvl1[0] < lvl1[1] ? lvl1[1] : lvl1[0];
-}
-
-// // Compile-time template recursion
-// // used to generate tree structures
-// template <typename Input, int Width>
-// struct TreeOps {
-// #pragma hls_design ccore
-//   Input treeadd(Pack1D<Input, Width>& op) {
-//     // split into two
-//     Pack1D<Input, Width / 2> op_half_0;
-//     Pack1D<Input, Width / 2> op_half_1;
-// #pragma hls_unroll yes
-//     for (int i = 0; i < Width / 2; i++) {
-//       op_half_0[i] = op[i];
-//       op_half_1[i] = op[Width / 2 + i];
-//     }
-
-//     Pack1D<Input, 2> res;
-//     res[0] = TreeOps<Input, Width / 2>().treeadd(op_half_0);
-//     res[1] = TreeOps<Input, Width / 2>().treeadd(op_half_1);
-//     return TreeOps<Input, 2>().treeadd(res);
-//   }
-
-// #pragma hls_design ccore
-//   Input treemax(Pack1D<Input, Width>& op) {
-//     // split into two
-//     Pack1D<Input, Width / 2> op_half_0;
-//     Pack1D<Input, Width / 2> op_half_1;
-// #pragma hls_unroll yes
-//     for (int i = 0; i < Width / 2; i++) {
-//       op_half_0[i] = op[i];
-//       op_half_1[i] = op[Width / 2 + i];
-//     }
-
-//     Pack1D<Input, 2> res;
-//     res[0] = TreeOps<Input, Width / 2>().treemax(op_half_0);
-//     res[1] = TreeOps<Input, Width / 2>().treemax(op_half_1);
-//     return TreeOps<Input, 2>().treemax(res);
-//   }
-// };
-
-// template <typename Input>
-// struct TreeOps<Input, 2> {
-// #pragma hls_design ccore
-// #pragma ccore_type combinational
-//   Input treeadd(Pack1D<Input, 2>& op) {
-//     return static_cast<Input>(op[0] + op[1]);
-//   }
-//   Input treemax(Pack1D<Input, 2>& op) {
-//     return op[0] < op[1] ? op[1] : op[0];
-//   }
-// };

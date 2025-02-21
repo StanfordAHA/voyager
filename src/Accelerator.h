@@ -63,7 +63,7 @@ SC_MODULE(Accelerator) {
   Connections::Out<Pack1D<OUTPUT_DATATYPE, OC_DIMENSION>> CCS_INIT_S1(
       vector_output);
   Connections::Out<ac_int<64, false>> CCS_INIT_S1(vector_output_address);
-  Connections::Out<Pack1D<OUTPUT_DATATYPE, 1>> CCS_INIT_S1(scalar_output);
+  Connections::Out<Pack1D<INT8_, 1>> CCS_INIT_S1(scalar_output);
   Connections::Out<ac_int<64, false>> CCS_INIT_S1(scalar_output_address);
 
   Connections::SyncOut CCS_INIT_S1(vectorUnitStartSignal);

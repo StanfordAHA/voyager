@@ -214,7 +214,6 @@ SC_MODULE(InputController) {
                             STRIDE * params.loops[1][params.inputYLoopIndex[1]];
                         ac_int<LOOP_WIDTH, false> Y1 =
                             params.loops[0][params.inputYLoopIndex[0]];
-
                         ac_int<LOOP_WIDTH, false> C1 =
                             params.loops[1][params.reductionLoopIndex[1]];
 
@@ -499,13 +498,6 @@ SC_MODULE(InputController) {
                                     loop_counters[1][params.inputXLoopIndex[1]];
                         }
 
-                        // int swapBank =
-                        //     (loop_counters[1][1] == loop_bounds[1][1] - 1) &&
-                        //     (loop_counters[1][2] == loop_bounds[1][2] - 1) &&
-                        //     (loop_counters[1][3] == loop_bounds[1][3] - 1) &&
-                        //     (loop_counters[1][4] == loop_bounds[1][4] - 1) &&
-                        //     (loop_counters[1][5] == loop_bounds[1][5] - 1);
-                        // writeControl[bankSel].Push(!swapBank);
                         BufferWriteRequest<Input, NRows> req;
                         req.address = address;
                         req.data = data;
@@ -531,7 +523,6 @@ SC_MODULE(InputController) {
                   break;
                 }
               }
-              // writeControl[bankSel].Push(0);
               bankSel = !bankSel;
               if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
                 break;
@@ -673,17 +664,7 @@ SC_MODULE(InputController) {
                             address = y * (STRIDE * X0 + FX - 1) + x;
                           }
                         }
-                        // int swapBank =
-                        //     (loop_counters[1][1] == loop_bounds[1][1] -
-                        //     1)
-                        //     && (loop_counters[1][2] == loop_bounds[1][2]
-                        //     - 1) && (loop_counters[1][3] ==
-                        //     loop_bounds[1][3]
-                        //     - 1) && (loop_counters[1][4] ==
-                        //     loop_bounds[1][4] - 1) &&
-                        //     (loop_counters[1][5]
-                        //     == loop_bounds[1][5] - 1);
-                        // readControl[bankSel].Push(!swapBank);
+
                         readAddress[bankSel].Push(address);
                         // CCS_LOG("Reading from address " << address);
 
@@ -938,7 +919,6 @@ SC_MODULE(InputController) {
           }
         }
       } else {  // bypass
-
         ac_int<32, false> total_count =
             loop_bounds[0][0] * loop_bounds[0][1] * loop_bounds[0][2] *
             loop_bounds[1][0] * loop_bounds[1][1] * loop_bounds[1][2] *

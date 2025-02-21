@@ -25,9 +25,7 @@ SC_MODULE(WeightController) {
   Connections::Out<MemoryRequest> CCS_INIT_S1(biasAddressRequest);
   Connections::In<Pack1D<Weight, NCols> > CCS_INIT_S1(biasDataResponse);
 
-  static constexpr int LOOP_WIDTH = 10;
-
-  Connections::Out<Pack1D<typename Weight::Decoded, NCols> > CCS_INIT_S1(
+  Connections::Out<Pack1D<typename Weight::decoded, NCols> > CCS_INIT_S1(
       weightsToSystolicArray);
   Connections::Out<Pack1D<Bias, NCols> > CCS_INIT_S1(biasToSystolicArray);
 
@@ -42,6 +40,8 @@ SC_MODULE(WeightController) {
   Connections::Combinational<Pack1D<Weight, NCols> > transposeOut;
 
   MatrixParamsDeserializer<2> CCS_INIT_S1(paramsDeserializer);
+
+  static constexpr int LOOP_WIDTH = 10;
 
   SC_CTOR(WeightController) {
     paramsDeserializer.clk(clk);
@@ -161,6 +161,7 @@ SC_MODULE(WeightController) {
 
                       ac_int<32, false> address =
                           (fy * FX * C * K) + (fx * C * K) + (c * K) + k;
+
                       if (params.has_weight_transpose) {
                         C = C1 * NCols;
                         address = (k + c0) * C + c1 * OC_DIMENSION;
@@ -300,21 +301,11 @@ SC_MODULE(WeightController) {
                       int address =
                           (fy * FX * C * K1) + (fx * C * K1) + (c0 * K1) + k1;
 
-                      // int swapBank =
-                      //     (loop_counters[1][1] == loop_bounds[1][1] - 1)
-                      //     && (loop_counters[1][2] == loop_bounds[1][2] -
-                      //     1) && (loop_counters[1][3] == loop_bounds[1][3]
-                      //     - 1) && (loop_counters[1][4] ==
-                      //     loop_bounds[1][4] - 1) && (loop_counters[1][5]
-                      //     == loop_bounds[1][5] - 1);
-
-                      // writeControl[bankSel].Push(!swapBank);
                       BufferWriteRequest<Weight, NCols> req;
                       req.address = address;
                       req.data = data;
                       writeRequest[bankSel].Push(req);
 
-                      // CCS_LOG("c: " << c);
                       if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
                         break;
                       }
@@ -331,7 +322,6 @@ SC_MODULE(WeightController) {
                   break;
                 }
               }
-              // writeControl[bankSel].Push(0);
               bankSel = !bankSel;
               if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
                 break;
@@ -560,7 +550,7 @@ SC_MODULE(WeightController) {
                   }
                 }
               }
-              // writeControl[bankSel].Push(0);
+
               bankSel = !bankSel;
               if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
                 break;

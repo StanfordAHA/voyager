@@ -14,7 +14,7 @@ class UFloat {
 
   typedef ac_int<W, false> ac_int_rep;
   typedef ac_std_float<W + 1, E> ac_float_rep;
-  typedef UFloat<W, E> Decoded;
+  typedef UFloat<W, E> decoded;
 
   ac_int_rep d;
 

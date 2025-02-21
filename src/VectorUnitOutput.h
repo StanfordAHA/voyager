@@ -9,7 +9,7 @@ SC_MODULE(VectorUnitOutput) {
   Connections::In<Pack1D<VectorType, Width>> CCS_INIT_S1(tensor_in);
   Connections::Out<Pack1D<IOType, Width>> CCS_INIT_S1(vector_output);
   Connections::Out<ac_int<64, false>> CCS_INIT_S1(vector_output_address);
-  Connections::Out<Pack1D<IOType, 1>> CCS_INIT_S1(scalar_output);
+  Connections::Out<Pack1D<INT8_, 1>> CCS_INIT_S1(scalar_output);
   Connections::Out<ac_int<64, false>> CCS_INIT_S1(scalar_output_address);
 
   Connections::SyncOut CCS_INIT_S1(done);
@@ -153,8 +153,9 @@ SC_MODULE(VectorUnitOutput) {
                     for (int i = 0; i < num_words; i++) {
                       vector_output.Push(converted_outputs[i]);
                       vector_output_address.Push(params.VECTOR_OUTPUT_OFFSET +
-                                       address * VectorType::width / 8 +
-                                       i * Width * IOType::width / 8);
+                                                 address * VectorType::width /
+                                                     8 +
+                                                 i * Width * IOType::width / 8);
                     }
                   } else {
                     Pack1D<IOType, Width> converted_outputs;
@@ -169,12 +170,11 @@ SC_MODULE(VectorUnitOutput) {
                       vquantize_mx<VectorType, IOType, ScaleType, Width>(
                           outputs, converted_outputs, scale[0]);
 
-                      constexpr int num_words =
-                          ScaleType::width / IOType::width;
-                      Pack1D<IOType, 1> converted_scale[num_words];
+                      constexpr int num_words = ScaleType::width / INT8_::width;
+                      Pack1D<INT8_, 1> converted_scale[num_words];
 
-                      convertPack1D<IOType, ScaleType, 1>(
-                          scale, converted_scale);
+                      convertPack1D<INT8_, ScaleType, 1>(scale,
+                                                         converted_scale);
 
                       ac_int<64, false> scale_address = address / Width;
 
@@ -183,7 +183,7 @@ SC_MODULE(VectorUnitOutput) {
                         scalar_output_address.Push(params.SCALE_OFFSET +
                                                    scale_address *
                                                        ScaleType::width / 8 +
-                                                   i * IOType::width / 8);
+                                                   i * INT8_::width / 8);
                       }
 #endif
                     } else {
@@ -195,7 +195,7 @@ SC_MODULE(VectorUnitOutput) {
 
                     vector_output.Push(converted_outputs);
                     vector_output_address.Push(params.VECTOR_OUTPUT_OFFSET +
-                                     address * IOType::width / 8);
+                                               address * IOType::width / 8);
                   }
 
                   if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {

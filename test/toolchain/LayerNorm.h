@@ -10,7 +10,15 @@ void MapLayerNorm(const codegen::Operation &param,
 
   const auto input = layer_norm_op.kwargs().at("input").tensor();
   const auto weight = layer_norm_op.kwargs().at("weight").tensor();
-  const auto output = param.output();
+
+  codegen::Tensor output;
+
+  if (param.has_output()) {
+    output = param.output();
+  } else {
+    assert(op_list.back().target() == "quantize_mx");
+    output = param.outputs().tensors(1);
+  }
 
   VectorParams *vector_params;
   VectorInstructionConfig *vinstr_config;
@@ -51,7 +59,7 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
 
   vector_params->fetch_vector_type_0 =
-      DataTypes::TypeName<VECTOR_DATATYPE>::name() == input.dtype();
+      input.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
   // Overwrite inputs
   memory_map["outputs"] = get_partition(input_memory.partition());
@@ -66,7 +74,7 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->outputLoops[1][2] = outer_dim / OC_DIMENSION;
 
   vector_params->output_vector_type =
-      DataTypes::TypeName<INPUT_DATATYPE>::name() != output.dtype();
+      input.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
   // Configure reduction engine
   VectorInstructions instr0_0;
@@ -141,7 +149,7 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
 
   vector_params->fetch_vector_type_0 =
-      DataTypes::TypeName<VECTOR_DATATYPE>::name() == input.dtype();
+      input.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
   // Overwrite inputs
   memory_map["outputs"] = get_partition(input_memory.partition());
@@ -156,7 +164,7 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->outputLoops[1][2] = outer_dim / OC_DIMENSION;
 
   vector_params->output_vector_type =
-      DataTypes::TypeName<INPUT_DATATYPE>::name() != output.dtype();
+      input.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
   // Configure reduction unit
   VectorInstructions instr1_0;
@@ -232,7 +240,7 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
 
   vector_params->fetch_vector_type_0 =
-      DataTypes::TypeName<VECTOR_DATATYPE>::name() == input.dtype();
+      input.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
   // Fetch weights
   const auto weight_memory = weight.memory();
@@ -257,7 +265,7 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->addressGen1Loops[1][2] = outer_dim / OC_DIMENSION;
 
   vector_params->fetch_vector_type_1 =
-      DataTypes::TypeName<VECTOR_DATATYPE>::name() == weight.dtype();
+      weight.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
   // Fetch bias
   const bool has_bias = layer_norm_op.kwargs().contains("bias");
@@ -282,7 +290,7 @@ void MapLayerNorm(const codegen::Operation &param,
     vector_params->addressGen2Loops[1][2] = outer_dim / OC_DIMENSION;
 
     vector_params->fetch_vector_type_2 =
-        DataTypes::TypeName<VECTOR_DATATYPE>::name() == bias.dtype();
+        bias.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
   }
 
   const auto output_memory = output.memory();
@@ -298,7 +306,7 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->outputLoops[1][2] = outer_dim / OC_DIMENSION;
 
   vector_params->output_vector_type =
-      DataTypes::TypeName<INPUT_DATATYPE>::name() != output.dtype();
+      output.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
   // inputs x weights + bias
   VectorInstructions instr2;
@@ -320,6 +328,31 @@ void MapLayerNorm(const codegen::Operation &param,
   instr2.vDest = VectorInstructions::vWriteOut;
   vinstr_config->inst[0] = instr2;
   vinstr_config->instCount[0] = inner_dim * outer_dim / OC_DIMENSION;
+
+  if (op_list.size() > 1) {
+    const auto quantize_op = op_list[1];
+    std::cerr << quantize_op.target() << std::endl;
+
+    if (quantize_op.target() == "quantize") {
+      const auto scale = quantize_op.kwargs().at("scale").tensor();
+      assert(get_size(scale) == 1);
+
+      // scalar scale factor
+      VECTOR_DATATYPE immediate = read_constant_param(scale);
+      vector_params->quantize_output = true;
+      vector_params->output_scale = immediate.bits_rep();
+    } else if (quantize_op.target() == "quantize_mx") {
+      const int block_size = quantize_op.kwargs().at("block_size").int_value();
+      assert(block_size == OC_DIMENSION);
+
+      vector_params->quantize_output_mx = true;
+      vector_params->SCALE_OFFSET =
+          param.outputs().tensors(0).memory().address();
+    } else {
+      throw std::invalid_argument("Unsupported operation: " +
+                                  quantize_op.target());
+    }
+  }
 
   vinstr_config->instLen = 1;
   vinstr_config->instLoopCount = 1;

@@ -124,7 +124,7 @@ class Posit {
   static constexpr int max_exp = (nbits - 2) * (1 << es);
   static constexpr int sbits = ac::nbits<max_exp>::val + 1;
   static constexpr int fbits = nbits - 3 - es;
-  typedef StdFloat<fbits, sbits> Decoded;
+  typedef StdFloat<fbits, sbits> decoded;
 
   ac_int<nbits, false> bits;
 
@@ -144,7 +144,7 @@ class Posit {
   void set_bits(int i) { bits = i; }
   void set_zero() { bits = 0; }
 
-  static Decoded max() {
+  static decoded max() {
     Posit<nbits, es> max;
     max.set_bits((1 << nbits) - 1);
     return max;
@@ -168,10 +168,10 @@ class Posit {
     bits >>= 2;
   }
 
-  Posit operator+(const Posit &rhs);
-  Posit operator*(const Posit &rhs);
-  Posit operator/(const Posit &rhs);
-  Posit log_mult(const Posit &rhs);
+  Posit operator+(const Posit &rhs) const;
+  Posit operator-(const Posit &rhs) const;
+  Posit operator*(const Posit &rhs) const;
+  Posit operator/(const Posit &rhs) const;
 
   Posit &operator+=(const Posit &rhs);
   Posit &operator-=(const Posit &rhs);
@@ -206,7 +206,7 @@ class Posit {
 
 #ifndef __SYNTHESIS__
   operator float() const {
-    Decoded tmp(*this);
+    decoded tmp(*this);
     return static_cast<float>(tmp);
   }
 #endif
@@ -243,7 +243,7 @@ Posit<nbits, es>::Posit(const float f) {
 template <int nbits, int es>
 template <int nbits2, int es2>
 Posit<nbits, es>::Posit(const Posit<nbits2, es2> &other) {
-  typename Posit<nbits2, es2>::Decoded tmp(other);
+  typename Posit<nbits2, es2>::decoded tmp(other);
   *this = tmp;
 }
 
@@ -293,35 +293,34 @@ Posit<nbits, es> exponential(Posit<nbits, es> val) {
 
 template <int nbits, int es>
 inline Posit<nbits, es> Posit<nbits, es>::operator+(
-    const Posit<nbits, es> &rhs) {
-  Decoded op1 = *this;
-  Decoded op2 = rhs;
+    const Posit<nbits, es> &rhs) const {
+  decoded op1 = *this;
+  decoded op2 = rhs;
   return op1 + op2;
 }
 
 template <int nbits, int es>
+inline Posit<nbits, es> Posit<nbits, es>::operator-(
+    const Posit<nbits, es> &rhs) const {
+  decoded op1 = *this;
+  decoded op2 = rhs;
+  return op1 - op2;
+}
+
+template <int nbits, int es>
 inline Posit<nbits, es> Posit<nbits, es>::operator*(
-    const Posit<nbits, es> &rhs) {
-  Decoded op1 = *this;
-  Decoded op2 = rhs;
+    const Posit<nbits, es> &rhs) const {
+  decoded op1 = *this;
+  decoded op2 = rhs;
   return op1 * op2;
 }
 
 template <int nbits, int es>
 inline Posit<nbits, es> Posit<nbits, es>::operator/(
-    const Posit<nbits, es> &rhs) {
+    const Posit<nbits, es> &rhs) const {
   Posit<nbits, es> op2 = rhs;
   op2.reciprocal();
   return *this * op2;
-}
-
-// TODO(fpedd): Deprecated, no need for log mult anymore?!
-template <int nbits, int es>
-inline Posit<nbits, es> Posit<nbits, es>::log_mult(
-    const Posit<nbits, es> &rhs) {
-  Decoded op1 = *this;
-  Decoded op2 = rhs;
-  return op1.log_mult(op2);
 }
 
 template <int nbits, int es>
@@ -334,9 +333,7 @@ inline Posit<nbits, es> &Posit<nbits, es>::operator+=(
 template <int nbits, int es>
 inline Posit<nbits, es> &Posit<nbits, es>::operator-=(
     const Posit<nbits, es> &rhs) {
-  Posit<nbits, es> op2 = rhs;
-  op2.negate();
-  *this = *this + op2;
+  *this = *this - rhs;
   return *this;
 }
 

@@ -25,7 +25,6 @@ SC_MODULE(InputScaleController) {
   Connections::Combinational<MatrixParams> CCS_INIT_S1(fetcherParams);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(writerParams);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(readerParams);
-
   Connections::Combinational<MatrixParams> CCS_INIT_S1(transposerParams);
 
   Connections::Combinational<Pack1D<Scale, 1> > transposeOut;
@@ -101,10 +100,6 @@ SC_MODULE(InputScaleController) {
       loop_bounds[1][params.weightLoopIndex[1]] = 1;
       loop_bounds[1][params.fxIndex] = 1;
       loop_bounds[1][params.fyIndex] = 1;
-
-      // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.reductionLoopIndex[1]] =
-          loop_bounds[1][params.reductionLoopIndex[1]] / (32 / NRows);
 
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
            loop_counters[0][0]++) {
@@ -364,10 +359,6 @@ SC_MODULE(InputScaleController) {
       loop_bounds[1][params.fxIndex] = 1;
       loop_bounds[1][params.fyIndex] = 1;
 
-      // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.reductionLoopIndex[1]] =
-          loop_bounds[1][params.reductionLoopIndex[1]] / (32 / NRows);
-
       ac_int<LOOP_WIDTH, false> X1 = params.loops[0][params.inputXLoopIndex[0]];
       ac_int<LOOP_WIDTH, false> X0 = params.loops[1][params.inputXLoopIndex[1]];
 
@@ -493,7 +484,6 @@ SC_MODULE(InputScaleController) {
                         req.address = address;
                         req.data = data;
                         writeRequest[bankSel].Push(req);
-                        // CCS_LOG("pushing write request: " << address);
 
                         if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
                           break;
@@ -515,8 +505,6 @@ SC_MODULE(InputScaleController) {
                   break;
                 }
               }
-              // writeControl[bankSel].Push(0);
-              // CCS_LOG("writer bank switching");
               bankSel = !bankSel;
               if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
                 break;
@@ -598,11 +586,6 @@ SC_MODULE(InputScaleController) {
             1;
       }
 
-      // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.reductionLoopIndex[1]] =
-          loop_bounds[1][params.reductionLoopIndex[1]] / (32 / NRows);
-      ac_int<8, false> mxscale_reuse = (32 / NRows);
-
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
@@ -617,79 +600,78 @@ SC_MODULE(InputScaleController) {
                  loop_counters[1][0]++) {
               int total_reads = loop_bounds[1][1] * loop_bounds[1][2] *
                                 loop_bounds[1][3] * loop_bounds[1][4] *
-                                loop_bounds[1][5] * mxscale_reuse;
+                                loop_bounds[1][5];
               // CCS_LOG("total_reads: " << total_reads);
 
               readControl[bankSel].Push(total_reads);
-              for (int reuse = 0; reuse < mxscale_reuse; reuse++) {
-                for (loop_counters[1][1] = 0;
-                     loop_counters[1][1] < loop_bounds[1][1];
-                     loop_counters[1][1]++) {
-                  for (loop_counters[1][2] = 0;
-                       loop_counters[1][2] < loop_bounds[1][2];
-                       loop_counters[1][2]++) {
-                    for (loop_counters[1][3] = 0;
-                         loop_counters[1][3] < loop_bounds[1][3];
-                         loop_counters[1][3]++) {
-                      for (loop_counters[1][4] = 0;
-                           loop_counters[1][4] < loop_bounds[1][4];
-                           loop_counters[1][4]++) {
-                        for (loop_counters[1][5] = 0;
-                             loop_counters[1][5] < loop_bounds[1][5];
-                             loop_counters[1][5]++) {
-                          ac_int<LOOP_WIDTH, false> X0 =
-                              params.loops[1][params.inputXLoopIndex[1]];
-                          ac_int<LOOP_WIDTH, false> Y0 =
-                              params.loops[1][params.inputYLoopIndex[1]];
+              for (loop_counters[1][1] = 0;
+                   loop_counters[1][1] < loop_bounds[1][1];
+                   loop_counters[1][1]++) {
+                for (loop_counters[1][2] = 0;
+                     loop_counters[1][2] < loop_bounds[1][2];
+                     loop_counters[1][2]++) {
+                  for (loop_counters[1][3] = 0;
+                       loop_counters[1][3] < loop_bounds[1][3];
+                       loop_counters[1][3]++) {
+                    for (loop_counters[1][4] = 0;
+                         loop_counters[1][4] < loop_bounds[1][4];
+                         loop_counters[1][4]++) {
+                      for (loop_counters[1][5] = 0;
+                           loop_counters[1][5] < loop_bounds[1][5];
+                           loop_counters[1][5]++) {
+                        ac_int<LOOP_WIDTH, false> X0 =
+                            params.loops[1][params.inputXLoopIndex[1]];
+                        ac_int<LOOP_WIDTH, false> Y0 =
+                            params.loops[1][params.inputYLoopIndex[1]];
 
-                          ac_int<LOOP_WIDTH, false> x0 =
-                              loop_counters[1][params.inputXLoopIndex[1]];
-                          ac_int<LOOP_WIDTH, false> y0 =
-                              loop_counters[1][params.inputYLoopIndex[1]];
-                          ac_int<LOOP_WIDTH, false> fx =
-                              loop_counters[1][params.fxIndex];
-                          ac_int<LOOP_WIDTH, false> fy =
-                              loop_counters[1][params.fyIndex];
+                        ac_int<LOOP_WIDTH, false> x0 =
+                            loop_counters[1][params.inputXLoopIndex[1]];
+                        ac_int<LOOP_WIDTH, false> y0 =
+                            loop_counters[1][params.inputYLoopIndex[1]];
+                        ac_int<LOOP_WIDTH, false> fx =
+                            loop_counters[1][params.fxIndex];
+                        ac_int<LOOP_WIDTH, false> fy =
+                            loop_counters[1][params.fyIndex];
 
-                          ac_int<16, false> x = STRIDE * x0 + fx;
-                          ac_int<16, false> y = STRIDE * y0 + fy;
-                          ac_int<16, false> address;
-                          if (params.is_replication && IC_DIMENSION >= 8) {
-                            address = y * (((STRIDE * X0) / packingFactor) +
-                                           2 * boundaryWords) +
-                                      x0 + fx;
+                        ac_int<16, false> x = STRIDE * x0 + fx;
+                        ac_int<16, false> y = STRIDE * y0 + fy;
+                        ac_int<16, false> address;
+                        if (params.is_replication && IC_DIMENSION >= 8) {
+                          address = y * (((STRIDE * X0) / packingFactor) +
+                                         2 * boundaryWords) +
+                                    x0 + fx;
+                        } else {
+                          if (isDownsample) {
+                            address = y0 * X0 + x0;
                           } else {
-                            if (isDownsample) {
-                              address = y0 * X0 + x0;
-                            } else {
-                              address = y * (STRIDE * X0 + FX - 1) + x;
-                            }
-                          }
-
-                          readAddress[bankSel].Push(address);
-                          // CCS_LOG("pushing read address: " << address);
-
-                          if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
-                            break;
+                            address = y * (STRIDE * X0 + FX - 1) + x;
                           }
                         }
-                        if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
+
+                        readAddress[bankSel].Push(address);
+                        // CCS_LOG("pushing read address: " << address);
+
+                        if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
                           break;
                         }
                       }
-                      if (loop_counters[1][3] >= loop_bounds[1][3] - 1) {
+                      if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
                         break;
                       }
                     }
-                    if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {
+                    if (loop_counters[1][3] >= loop_bounds[1][3] - 1) {
                       break;
                     }
                   }
-                  if (loop_counters[1][1] >= loop_bounds[1][1] - 1) {
+                  if (loop_counters[1][2] >= loop_bounds[1][2] - 1) {
                     break;
                   }
                 }
+                if (loop_counters[1][1] >= loop_bounds[1][1] - 1) {
+                  break;
+                }
               }
+
               bankSel = !bankSel;
               if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
                 break;
@@ -760,10 +742,6 @@ SC_MODULE(InputScaleController) {
       loop_bounds[1][params.weightLoopIndex[1]] = 1;
       loop_bounds[1][params.fxIndex] = 1;
       loop_bounds[1][params.fyIndex] = 1;
-
-      // microscaling batch size of 32 along C dimension
-      loop_bounds[1][params.reductionLoopIndex[1]] =
-          loop_bounds[1][params.reductionLoopIndex[1]] / (32 / NRows);
 
       if (params.has_input_transpose) {
         Scale transposeBuffer[NRows][NRows];

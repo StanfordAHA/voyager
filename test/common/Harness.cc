@@ -37,12 +37,13 @@ void register_interface(
         *vectorFetch2AddressResponse,
     std::deque<sc_lv<Wrapped<MemoryRequest>::width>>
         *vectorFetch3AddressRequest,
-    std::deque<sc_lv<Wrapped<INPUT_DATATYPE>::width>>
+    std::deque<sc_lv<
+        Wrapped<Pack1D<INPUT_DATATYPE, 16 / INPUT_DATATYPE::width>>::width>>
         *vectorFetch3AddressResponse,
     std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, DIMENSION>>::width>>
         *vector_output,
     std::deque<sc_lv<Wrapped<uint64_t>::width>> *vector_output_address,
-    std::deque<sc_lv<Wrapped<Pack1D<INPUT_DATATYPE, 1>>::width>> *scalar_output,
+    std::deque<sc_lv<Wrapped<Pack1D<INT8_, 1>>::width>> *scalar_output,
     std::deque<sc_lv<Wrapped<uint64_t>::width>> *scalar_output_address);
 // void copy_output(void *sram, int size, int data_size);
 #endif
