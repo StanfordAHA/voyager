@@ -1,0 +1,4 @@
+name: plugin-dc
+
+outputs:
+  - designer-interface.tcl

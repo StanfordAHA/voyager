@@ -1,9 +1,10 @@
 # MINOTAUR CI
 stages:
   - test
+  - check_results
 
 before_script:
-  - eval `modulecmd bash load base catapult/2024.2_1 vcs/T-2022.06-SP2 verdi/S-2021.09-SP1`
+  - eval `modulecmd bash load base catapult/2024.2_1 vcs/T-2022.06-SP2 verdi/S-2021.09-SP1 dc_shell/U-2022.12-SP1`
   - export VG_GNU_PACKAGE=/cad/synopsys/vcs_gnu_package/S-2021.09/gnu_9/linux
   - source /cad/synopsys/vcs_gnu_package/S-2021.09/gnu_9/linux/source_me.sh
   - export LD_LIBRARY_PATH=/cad/mentor/2024.2_1/Mgc_home/lib:/cad/mentor/2024.2_1/Mgc_home/shared/lib:$LD_LIBRARY_PATH
@@ -22,5 +23,8 @@ variables:
   GIT_CLEAN_FLAGS: -ffdx
 
 include:
+  - local: .gitlab/ci/area.yml
   - local: .gitlab/ci/rtl.yml
   - local: .gitlab/ci/accuracy.yml
+  - local: .gitlab/ci/systemc.yml
+  - local: .gitlab/ci/check_results.yml

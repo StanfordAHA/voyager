@@ -1,0 +1,21 @@
+name: hls
+
+outputs:
+  - design.v
+  - build
+
+commands:
+  - ln -sf $PROJECT_ROOT/src
+  - ln -sf $PROJECT_ROOT/test
+  - ln -sf $PROJECT_ROOT/lib
+  - ln -sf $PROJECT_ROOT/Makefile
+  - ln -sf $PROJECT_ROOT/codegen.mk
+  - ln -sf $PROJECT_ROOT/quantized-training
+  - ln -sf $PROJECT_ROOT/scripts
+  - bash run.sh
+
+parameters:
+  clock_period: 2.0
+  datatype: None
+  technology: generic
+  design_name: None

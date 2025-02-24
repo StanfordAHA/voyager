@@ -1,0 +1,25 @@
+#=========================================================================
+# custom-hack-sdc-unit
+#=========================================================================
+
+name: custom-hack-synth-sdc
+
+#-------------------------------------------------------------------------
+# Inputs and Outputs
+#-------------------------------------------------------------------------
+inputs:
+  - design.sdc
+outputs:
+  - design.sdc
+
+commands:
+  - cp inputs/design.sdc design.sdc
+  # For genus-generated sdc, need to change unit
+  # - python hack_sdc_unit.py design.sdc  # NEED TO TEST AGAIN
+  # Add clock latency
+  - echo -e "\nset_clock_latency 0.8 [all_clocks]" >> design.sdc
+  - echo -e "\nset_clock_transition 0.05 [all_clocks]\n" >> design.sdc
+  - mv design.sdc outputs/design.sdc
+
+
+  

@@ -10,5 +10,11 @@ catch {
 
 puts $res
 
-set memories(1r1w) "intel16_sram_wrapper_1r1w.intel16_sram_wrapper_1r1w"
-set memories(1rw)  "intel16_sram_wrapper_1rw.intel16_sram_wrapper_1rw"
+
+proc get_memory_name {is_sp width depth} {
+    if {$is_sp == 1} {
+        return "intel16_sram_wrapper_1rw.intel16_sram_wrapper_1rw"
+    } else {
+        return "intel16_sram_wrapper_1r1w.intel16_sram_wrapper_1r1w"
+    }
+}

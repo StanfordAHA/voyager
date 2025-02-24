@@ -1,0 +1,78 @@
+.pd_setup: &pd_setup
+ - (cd physical-design/technology/adks && ln -s /home/shared/MINOTAUR/adks/tsmc40ulp_V130a_8lm5X1Z1U)
+
+.PE:
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - physical-design/ProcessingElement/build/ProcessingElement.mapped.area.rpt
+    expire_in: 1 month
+
+.Accelerator:
+  stage: test
+  artifacts:
+    when: always
+    paths:
+      - physical-design/Accelerator/build/Accelerator.mapped.area.rpt
+    expire_in: 1 month
+
+
+.on_merge_request:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"'
+      when: always
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: always
+    - when: never
+
+Area (ProcessingElement, FP32, TSMC40, 5):
+  extends:
+    - .PE
+    - .on_merge_request
+  script:
+    - *pd_setup
+    - cd physical-design/ProcessingElement
+    - ./build.xsh --technology tsmc40 --clock 5 --datatype FP32 --dir build
+    - cd build && make
+
+Area (ProcessingElement, E4M3, TSMC40, 5):
+  extends:
+    - .PE
+    - .on_merge_request
+
+  script:
+    - *pd_setup
+    - cd physical-design/ProcessingElement
+    - ./build.xsh --technology tsmc40 --clock 5 --datatype E4M3 --dir build
+    - cd build && make
+
+Area (ProcessingElement, P8_1, TSMC40, 5):
+  extends:
+    - .PE
+    - .on_merge_request
+  script:
+    - *pd_setup
+    - cd physical-design/ProcessingElement
+    - ./build.xsh --technology tsmc40 --clock 5 --datatype P8_1 --dir build
+    - cd build && make
+
+Area (ProcessingElement, INT8, TSMC40, 5):
+  extends:
+    - .PE
+    - .on_merge_request
+  script:
+    - *pd_setup
+    - cd physical-design/ProcessingElement
+    - ./build.xsh --technology tsmc40 --clock 5 --datatype INT8 --dir build
+    - cd build && make
+
+Area (Accelerator, E4M3, TSMC40, 5):
+  extends:
+    - .Accelerator
+    - .on_merge_request
+  script:
+    - *pd_setup
+    - cd physical-design/Accelerator
+    - ./build.xsh --technology tsmc40 --clock 5 --datatype E4M3 --ic 16 --oc 16 --dir build
+    - cd build && make

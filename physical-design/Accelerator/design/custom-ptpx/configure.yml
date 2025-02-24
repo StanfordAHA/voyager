@@ -1,0 +1,5 @@
+name: custom-ptpx
+
+outputs:
+  - report-timing.tcl
+  - report-power.tcl
