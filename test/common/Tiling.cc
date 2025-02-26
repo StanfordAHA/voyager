@@ -324,6 +324,12 @@ Tiling get_conv2d_tiling(codegen::Operator param) {
               .weight_reuse_index = {4, 5},
               .stride = matrix_op.stride(0),
               .replication = true};
+
+    if (IC_DIMENSION < 16) {
+      tiling.loops[1][5] /= 2;
+      tiling.loops[0][0] *= 2;
+    }
+
   } else if (IH == 56 && IW == 56 && IC == 64 && KH == 3 && KW == 3 &&
              OC == 64) {  // layer1
     tiling = {.loops = {{2, 2, 4, 4, 1, 1}, {1, 1, 3, 3, 28, 28}},
