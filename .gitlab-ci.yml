@@ -13,6 +13,7 @@ before_script:
   - conda create -p $(pwd)/.conda-env --clone /sim/gitlab-runner/envs/accelerator-env
   - conda activate $(pwd)/.conda-env
   - pip install -e quantized-training
+  - pip install -e interstellar
   - export PROJECT_ROOT=`pwd`
   - export CODEGEN_DIR=test/compiler
 
@@ -22,8 +23,8 @@ variables:
   GIT_CLEAN_FLAGS: -ffdx
 
 include:
-  - local: .gitlab/ci/area.yml
   - local: .gitlab/ci/rtl.yml
   - local: .gitlab/ci/accuracy.yml
+  - local: .gitlab/ci/area.yml
   - local: .gitlab/ci/systemc.yml
   - local: .gitlab/ci/check_results.yml
