@@ -23,8 +23,8 @@ variables:
   GIT_CLEAN_FLAGS: -ffdx
 
 include:
-  - local: .gitlab/ci/area.yml
   - local: .gitlab/ci/rtl.yml
   - local: .gitlab/ci/accuracy.yml
+  - local: .gitlab/ci/area.yml
   - local: .gitlab/ci/systemc.yml
   - local: .gitlab/ci/check_results.yml

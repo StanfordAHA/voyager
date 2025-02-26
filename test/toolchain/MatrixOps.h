@@ -210,10 +210,11 @@ void MapMatrixOperation(const Operation &operation,
     if (OC_DIMENSION > IC_DIMENSION) {
       // we can reduce the number of iterations, since we have already fetched
       // the values
-      if (tiling.loops[1][tiling.reduction_loop_index[1]] >=
+      if (tiling.loops[0][tiling.reduction_loop_index[0]] >=
           (OC_DIMENSION / IC_DIMENSION)) {
-        matrix_params->weightAddressGenLoops[1][0] =
-            tiling.loops[1][tiling.reduction_loop_index[1]] /
+        matrix_params
+            ->weightAddressGenLoops[0][tiling.reduction_loop_index[0]] =
+            tiling.loops[0][tiling.reduction_loop_index[0]] /
             (OC_DIMENSION / IC_DIMENSION);
       }
     }
