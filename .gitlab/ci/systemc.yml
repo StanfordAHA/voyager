@@ -20,22 +20,22 @@ SystemC Simulation (E4M3, 16x16):
   script:
     - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims fast-systemc --num_processes 32
 
-SystemC Simulation (Posit8_1, 16x16):
+SystemC Simulation (Posit8, 16x16):
   extends: .regression_template
   script:
     - DATATYPE=P8_1 IC_DIMENSION=16 OC_DIMENSION=16 CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims fast-systemc --num_processes 32
 
-SystemC Simulation (Int8, 16x16):
+SystemC Simulation (INT8, 16x16):
   extends: .regression_template
   script:
     - DATATYPE=INT8 IC_DIMENSION=16 OC_DIMENSION=16 CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims fast-systemc --num_processes 32
 
-SystemC Simulation (Int8, 16x16, 2048x2048x2048):
+SystemC Simulation (INT8, 16x16, 2048x2048x2048):
   extends: .regression_template
   script:
     - DATATYPE=INT8_32 IC_DIMENSION=16 OC_DIMENSION=16 INPUT_BUFFER_SIZE=2048 WEIGHT_BUFFER_SIZE=2048 ACCUM_BUFFER_SIZE=2048 CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims fast-systemc --num_processes 32
 
-SystemC Simulation (MXInt8, 16x16):
+SystemC Simulation (MXINT8, 16x16):
   extends: .regression_template
   script:
     - DATATYPE=MXINT8 IC_DIMENSION=16 OC_DIMENSION=16 CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims fast-systemc --num_processes 32
