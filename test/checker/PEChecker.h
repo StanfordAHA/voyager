@@ -14,12 +14,13 @@ class Checker {
 
   ~Checker() { delete reference; }
 
-  void addReference(T value) { reference->push_back(value); }
+  void add_reference(T value) { reference->push_back(value); }
 
-  void checkReference(T value) {
+  void check_reference(T value) {
     if (reference->size() == 0) {
-      if (std::get<1>(value) == 0) {  // if weight is 0, then we don't need to
-                                      // check (happens during replication)
+      // if weight is 0, then we don't need to check (happens during
+      // replication)
+      if (static_cast<float>(std::get<1>(value)) == 0) {
         return;
       }
       throw std::runtime_error("No reference values left to check!");
@@ -28,7 +29,7 @@ class Checker {
     T ref = reference->front();
 
     if (ref != value) {
-      if (std::get<1>(value) == 0) {
+      if (static_cast<float>(std::get<1>(value)) == 0) {
         return;
       }
       std::cout << "Reference: " << std::get<0>(ref) << " " << std::get<1>(ref)
@@ -59,14 +60,14 @@ class PEChecker {
     }
   }
 
-  void addReference(int pe_num, INPUT_DATATYPE input, INPUT_DATATYPE weight,
-                    ACCUM_DATATYPE accum) {
-    checkers[pe_num]->addReference(std::make_tuple(input, weight, accum));
+  void add_reference(int pe_num, INPUT_DATATYPE input, INPUT_DATATYPE weight,
+                     ACCUM_DATATYPE accum) {
+    checkers[pe_num]->add_reference(std::make_tuple(input, weight, accum));
   }
 
-  void checkReference(int pe_num, INPUT_DATATYPE input, INPUT_DATATYPE weight,
-                      ACCUM_DATATYPE accum) {
-    checkers[pe_num]->checkReference(std::make_tuple(input, weight, accum));
+  void check_reference(int pe_num, INPUT_DATATYPE input, INPUT_DATATYPE weight,
+                       ACCUM_DATATYPE accum) {
+    checkers[pe_num]->check_reference(std::make_tuple(input, weight, accum));
   }
 
  private:

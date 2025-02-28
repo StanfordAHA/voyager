@@ -1,5 +1,12 @@
 #pragma once
 
+#include "src/AccelTypes.h"
+#include "src/Params.h"
+#include "test/common/GoldModel.h"
+#include "test/common/Network.h"
+#include "test/common/Tiling.h"
+#include "test/common/VerificationTypes.h"
+#include "test/compiler/proto/param.pb.h"
 #include "test/toolchain/Common.h"
 
 void set_addr_gen1(const codegen::Tensor &tensor, const Tiling &tiling,
@@ -115,34 +122,31 @@ void set_immediate(const float scalar, const int stage,
   }
 }
 
-void MapMatrixOperation(const codegen::Operation &param,
+void MapMatrixOperation(const Operation &operation,
                         std::deque<BaseParams *> &mappedParams,
                         std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
   MatrixParams *matrix_params = new MatrixParams;
   AcceleratorMemoryMap accelerator_memory_map;
 
+  const auto param = operation.param;
   const auto op_list = get_op_list(param);
   const auto matrix_op = op_list[0];
 
-  Tiling tiling;
-  if (matrix_op.target().find("conv2d") != std::string::npos) {
-    tiling = get_conv2d_tiling(matrix_op);
-  } else {
-    tiling = get_linear_tiling(matrix_op);
-  }
+  Tiling tiling = get_tiling(operation);
 
   int X = tiling.loops[0][tiling.x_loop_index[0]] *
           tiling.loops[1][tiling.x_loop_index[1]];
   int Y = tiling.loops[0][tiling.y_loop_index[0]] *
           tiling.loops[1][tiling.y_loop_index[1]];
-  int C = tiling.loops[1][tiling.reduction_loop_index[1]] * (16);
+  int C = tiling.loops[0][tiling.reduction_loop_index[0]] *
+          tiling.loops[1][tiling.reduction_loop_index[1]] * IC_DIMENSION;
   int K = tiling.loops[0][tiling.weight_loop_index[0]] *
-          tiling.loops[1][tiling.weight_loop_index[1]] * (16);
+          tiling.loops[1][tiling.weight_loop_index[1]] * OC_DIMENSION;
   int FX = tiling.loops[1][tiling.fx_index];
   int FY = tiling.loops[1][tiling.fy_index];
   int STRIDE = tiling.stride;
 
-  adjust_tiling_for_dimension(tiling);
+  std::cout << "Using tiling: " << std::endl << tiling << std::endl;
 
   const auto input = matrix_op.kwargs().at("input").tensor();
 
@@ -192,6 +196,19 @@ void MapMatrixOperation(const codegen::Operation &param,
   // matrix_params->weightAddressGenInputYLoopIndex = tiling.y_loop_index[0];
   matrix_params->weightAddressGenWeightLoopIndex[0] =
       tiling.weight_loop_index[0];
+  matrix_params->weightAddressGenReductionLoopIndex[0] =
+      tiling.reduction_loop_index[0];
+
+  // if OX and OY loops are the innermost L2 loops, they are irrelevant for
+  // weight address generation
+  if (tiling.loops[0][tiling.reduction_loop_index[0]] == 1) {
+    if (tiling.weight_loop_index[0] < tiling.x_loop_index[0]) {
+      matrix_params->weightAddressGenLoops[0][tiling.x_loop_index[0]] = 1;
+    }
+    if (tiling.weight_loop_index[0] < tiling.y_loop_index[0]) {
+      matrix_params->weightAddressGenLoops[0][tiling.y_loop_index[0]] = 1;
+    }
+  }
 
   // set outer loop values
   matrix_params->has_weight_transpose =
@@ -202,7 +219,7 @@ void MapMatrixOperation(const codegen::Operation &param,
 
     // C0 loop
     matrix_params->weightAddressGenLoops[1][4] = OC_DIMENSION;
-    matrix_params->weightAddressGenReductionLoopIndex[1] = 4;
+    matrix_params->weightAddressGenReductionLoopIndex[2] = 4;
 
     // FX loop
     matrix_params->weightAddressGenLoops[1][3] =
@@ -225,25 +242,34 @@ void MapMatrixOperation(const codegen::Operation &param,
     if (OC_DIMENSION > IC_DIMENSION) {
       // we can reduce the number of iterations, since we have already fetched
       // the values
-      matrix_params->weightAddressGenLoops[1][0] =
-          tiling.loops[1][tiling.reduction_loop_index[1]] /
-          (OC_DIMENSION / IC_DIMENSION);
+      if (tiling.loops[0][tiling.reduction_loop_index[0]] >=
+          (OC_DIMENSION / IC_DIMENSION)) {
+        matrix_params
+            ->weightAddressGenLoops[0][tiling.reduction_loop_index[0]] =
+            tiling.loops[0][tiling.reduction_loop_index[0]] /
+            (OC_DIMENSION / IC_DIMENSION);
+      } else {
+        matrix_params
+            ->weightAddressGenLoops[1][tiling.reduction_loop_index[1]] =
+            tiling.loops[1][tiling.reduction_loop_index[1]] /
+            (OC_DIMENSION / IC_DIMENSION);
+      }
     }
-    matrix_params->weightAddressGenReductionLoopIndex[0] = 0;
+    matrix_params->weightAddressGenReductionLoopIndex[1] = 0;
   } else {
     // if not transpose, then we have freedom to pick any loop order
 
-    // C0 loop
+    // K1 loop
     matrix_params->weightAddressGenLoops[1][4] =
         tiling.loops[1][tiling.weight_loop_index[1]];
     matrix_params->weightAddressGenWeightLoopIndex[1] = 4;
 
-    // FX loop
+    // FY loop
     matrix_params->weightAddressGenLoops[1][3] =
         tiling.loops[1][tiling.fy_index];
     matrix_params->weightAddressGenFyIndex = 3;
 
-    // FY loop
+    // FX loop
     matrix_params->weightAddressGenLoops[1][2] =
         tiling.loops[1][tiling.fx_index];
     if (tiling.replication) {
@@ -251,19 +277,18 @@ void MapMatrixOperation(const codegen::Operation &param,
     }
     matrix_params->weightAddressGenFxIndex = 2;
 
-    // K loop
+    // C0 loop
     if (tiling.replication) {
       matrix_params->weightAddressGenLoops[1][1] = 3;
-      matrix_params->weightAddressGenReductionLoopIndex[1] = 1;
     } else {
       matrix_params->weightAddressGenLoops[1][1] = IC_DIMENSION;
-      matrix_params->weightAddressGenReductionLoopIndex[1] = 1;
     }
+    matrix_params->weightAddressGenReductionLoopIndex[2] = 1;
 
     // C1 loop
     matrix_params->weightAddressGenLoops[1][0] =
         tiling.loops[1][tiling.reduction_loop_index[1]];
-    matrix_params->weightAddressGenReductionLoopIndex[0] = 0;
+    matrix_params->weightAddressGenReductionLoopIndex[1] = 0;
   }
 
   matrix_params->STRIDE = tiling.stride;
@@ -419,64 +444,61 @@ void MapMatrixOperation(const codegen::Operation &param,
         break;
       }
 
-      for (int stage = curr_stage; stage < 5; stage++) {
-        bool matched = vector_unit_stages[stage].find(opcode) !=
-                       vector_unit_stages[stage].end();
+      for (int stage = curr_stage; stage < 4; stage++) {
+        if (vector_unit_stages[stage].find(opcode) ==
+            vector_unit_stages[stage].end()) {
+          continue;
+        }
 
-        std::cerr << "stage: " << stage << "  opcode: " << opcode
-                  << "  matched: " << matched << std::endl;
+        std::cerr << "stage " << stage << " target: " << opcode << std::endl;
 
-        if (matched) {
-          unsigned int vop = inst_map[opcode];
-          if (stage == 0) {
-            inst.vector_op0 = vop;
-          } else if (stage == 1) {
-            inst.vector_op1 = vop;
-          } else if (stage == 2) {
-            inst.vector_op2 = vop;
-          } else if (stage == 3) {
-            inst.vector_op3 = vop;
-          }
+        unsigned int vop = inst_map[opcode];
+        if (stage == 0) {
+          inst.vector_op0 = vop;
+        } else if (stage == 1) {
+          inst.vector_op1 = vop;
+        } else if (stage == 2) {
+          inst.vector_op2 = vop;
+        } else if (stage == 3) {
+          inst.vector_op3 = vop;
+        }
 
-          if (opcode == "vmap") {
-            const auto other = op.kwargs().at("code").tensor();
-            inst.VMAP_OFFSET = other.memory().address();
-          } else if (op.kwargs().contains("other")) {
-            const auto other = op.kwargs().at("other");
+        if (opcode == "vmap") {
+          const auto other = op.kwargs().at("code").tensor();
+          inst.VMAP_OFFSET = other.memory().address();
+        } else if (op.kwargs().contains("other")) {
+          const auto other = op.kwargs().at("other");
 
-            if (other.has_float_value() || other.has_int_value()) {
-              float scalar = other.has_float_value() ? other.float_value()
-                                                     : other.int_value();
+          if (other.has_float_value() || other.has_int_value()) {
+            float scalar = other.has_float_value() ? other.float_value()
+                                                   : other.int_value();
+            set_immediate(scalar, stage, opcode, inst);
+          } else if (other.has_tensor()) {
+            const auto tensor = other.tensor();
+
+            if (get_size(tensor) == 1) {
+              float scalar = read_constant_param(tensor);
               set_immediate(scalar, stage, opcode, inst);
-            } else if (other.has_tensor()) {
-              const auto tensor = other.tensor();
+            } else {
+              const auto self = op.kwargs().at("input").tensor();
+              const auto tensor_to_load = tensor.has_memory() ? tensor : self;
 
-              if (get_size(tensor) == 1) {
-                float scalar = read_constant_param(tensor);
-                set_immediate(scalar, stage, opcode, inst);
-              } else {
-                const auto self = op.kwargs().at("input").tensor();
-                const auto tensor_to_load = tensor.has_memory() ? tensor : self;
-
-                if (stage == 0) {
-                  inst.vector_op0_src1 =
-                      VectorInstructions::from_vector_fetch_1;
-                  set_addr_gen1(tensor_to_load, tiling, accelerator_memory_map,
-                                vector_params);
-                } else if (stage == 2) {
-                  inst.vector_op2_src1 =
-                      VectorInstructions::from_vector_fetch_2;
-                  set_addr_gen2(tensor_to_load, tiling, accelerator_memory_map,
-                                vector_params);
-                }
+              if (stage == 0) {
+                inst.vector_op0_src1 = VectorInstructions::from_vector_fetch_1;
+                set_addr_gen1(tensor_to_load, tiling, accelerator_memory_map,
+                              vector_params);
+              } else if (stage == 2) {
+                inst.vector_op2_src1 = VectorInstructions::from_vector_fetch_2;
+                set_addr_gen2(tensor_to_load, tiling, accelerator_memory_map,
+                              vector_params);
               }
             }
           }
-
-          curr_stage = stage + 1;
-
-          break;
         }
+
+        curr_stage = stage + 1;
+
+        break;
       }
     }
   }

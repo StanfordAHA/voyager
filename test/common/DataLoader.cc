@@ -96,8 +96,8 @@ void DataLoader::load_inputs(const codegen::Operation param,
       if (value.has_tensor() && tensor.has_memory() &&
           tensor.node().find("constant") == std::string::npos) {
         bool is_conv2d = op.target().find("conv2d") != std::string::npos;
-        bool has_replication = is_conv2d && tensor.shape(1) == 3 && is_dut;
-        load_tensor(value.tensor(), data_dir, is_cnn, has_replication);
+        bool is_replication = is_conv2d && tensor.shape(1) == 3 && is_dut;
+        load_tensor(value.tensor(), data_dir, is_cnn, is_replication);
       }
     }
   }
@@ -114,7 +114,6 @@ void DataLoader::load_outputs(const codegen::Operation param,
   uint64_t address = 0;
 
   for (const auto& tensor : tensors) {
-    std::cerr << "Loading output tensor: " << tensor.node() << std::endl;
     codegen::Tensor output_tensor;
     output_tensor.CopyFrom(tensor);
     // Store output in the last memory partition

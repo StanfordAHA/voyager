@@ -22,8 +22,6 @@ SC_MODULE(VectorFetchUnit) {
   Connections::Out<Pack1D<Vector, Width>> CCS_INIT_S1(
       vectorFetch2DataResponseConverted);
 
-  Connections::Out<Scale> CCS_INIT_S1(vectorFetch1Scale);
-
   Connections::Combinational<VectorParams> CCS_INIT_S1(addressGen0Params);
   Connections::Combinational<VectorParams> CCS_INIT_S1(addressGen1Params);
   Connections::Combinational<VectorParams> CCS_INIT_S1(addressGen2Params);
@@ -71,6 +69,19 @@ SC_MODULE(VectorFetchUnit) {
 
     while (true) {
       VectorParams params = addressGen0Params.Pop();
+
+      ac_int<11, false> Y1 =
+          params.addressGen0Loop[0][params.addressGen0InputYLoopIndex[0]];
+      ac_int<11, false> X1 =
+          params.addressGen0Loop[0][params.addressGen0InputXLoopIndex[0]];
+      ac_int<11, false> K1 =
+          params.addressGen0Loop[0][params.addressGen0WeightLoopIndex[0]];
+      ac_int<11, false> Y0 =
+          params.addressGen0Loop[1][params.addressGen0InputYLoopIndex[1]];
+      ac_int<11, false> X0 =
+          params.addressGen0Loop[1][params.addressGen0InputXLoopIndex[1]];
+      ac_int<11, false> K0 =
+          params.addressGen0Loop[1][params.addressGen0WeightLoopIndex[1]];
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_starts[2][3];
@@ -139,25 +150,6 @@ SC_MODULE(VectorFetchUnit) {
                         loop_counters[1][params.addressGen0WeightLoopIndex[1]];
                     ac_int<11, false> k1 =
                         loop_counters[0][params.addressGen0WeightLoopIndex[0]];
-
-                    ac_int<11, false> X0 =
-                        params.addressGen0Loop
-                            [1][params.addressGen0InputXLoopIndex[1]];
-                    ac_int<11, false> X1 =
-                        params.addressGen0Loop
-                            [0][params.addressGen0InputXLoopIndex[0]];
-                    ac_int<11, false> Y0 =
-                        params.addressGen0Loop
-                            [1][params.addressGen0InputYLoopIndex[1]];
-                    ac_int<11, false> Y1 =
-                        params.addressGen0Loop
-                            [0][params.addressGen0InputYLoopIndex[0]];
-                    ac_int<11, false> K0 =
-                        params.addressGen0Loop
-                            [1][params.addressGen0WeightLoopIndex[1]];
-                    ac_int<11, false> K1 =
-                        params.addressGen0Loop
-                            [0][params.addressGen0WeightLoopIndex[0]];
 
                     ac_int<16, false> k = k1 * K0 * Width + k0 * Width;
                     ac_int<16, false> K = K1 * K0 * Width;
@@ -397,6 +389,19 @@ SC_MODULE(VectorFetchUnit) {
     while (true) {
       VectorParams params = addressGen1Params.Pop();
 
+      ac_int<11, false> Y1 =
+          params.addressGen1Loops[0][params.addressGen1InputYLoopIndex[0]];
+      ac_int<11, false> X1 =
+          params.addressGen1Loops[0][params.addressGen1InputXLoopIndex[0]];
+      ac_int<11, false> K1 =
+          params.addressGen1Loops[0][params.addressGen1WeightLoopIndex[0]];
+      ac_int<11, false> Y0 =
+          params.addressGen1Loops[1][params.addressGen1InputYLoopIndex[1]];
+      ac_int<11, false> X0 =
+          params.addressGen1Loops[1][params.addressGen1InputXLoopIndex[1]];
+      ac_int<11, false> K0 =
+          params.addressGen1Loops[1][params.addressGen1WeightLoopIndex[1]];
+
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_starts[2][3];
       ac_int<11, false> loop_ends[2][3];
@@ -443,25 +448,6 @@ SC_MODULE(VectorFetchUnit) {
                       loop_counters[1][params.addressGen1WeightLoopIndex[1]];
                   ac_int<11, false> k1 =
                       loop_counters[0][params.addressGen1WeightLoopIndex[0]];
-
-                  ac_int<11, false> X0 =
-                      params.addressGen1Loops
-                          [1][params.addressGen1InputXLoopIndex[1]];
-                  ac_int<11, false> X1 =
-                      params.addressGen1Loops
-                          [0][params.addressGen1InputXLoopIndex[0]];
-                  ac_int<11, false> Y0 =
-                      params.addressGen1Loops
-                          [1][params.addressGen1InputYLoopIndex[1]];
-                  ac_int<11, false> Y1 =
-                      params.addressGen1Loops
-                          [0][params.addressGen1InputYLoopIndex[0]];
-                  ac_int<11, false> K0 =
-                      params.addressGen1Loops
-                          [1][params.addressGen1WeightLoopIndex[1]];
-                  ac_int<11, false> K1 =
-                      params.addressGen1Loops
-                          [0][params.addressGen1WeightLoopIndex[0]];
 
                   ac_int<16, false> k = k1 * K0 * Width + k0 * Width;
                   ac_int<16, false> K = K1 * K0 * Width;
@@ -526,7 +512,6 @@ SC_MODULE(VectorFetchUnit) {
     dataResponse1Params.ResetRead();
     vectorFetch1DataResponse.Reset();
     vectorFetch1DataResponseConverted.Reset();
-    vectorFetch1Scale.Reset();
 
     wait();
 
@@ -628,6 +613,19 @@ SC_MODULE(VectorFetchUnit) {
     while (true) {
       VectorParams params = addressGen2Params.Pop();
 
+      ac_int<11, false> Y1 =
+          params.addressGen2Loops[0][params.addressGen2InputYLoopIndex[0]];
+      ac_int<11, false> X1 =
+          params.addressGen2Loops[0][params.addressGen2InputXLoopIndex[0]];
+      ac_int<11, false> K1 =
+          params.addressGen2Loops[0][params.addressGen2WeightLoopIndex[0]];
+      ac_int<11, false> Y0 =
+          params.addressGen2Loops[1][params.addressGen2InputYLoopIndex[1]];
+      ac_int<11, false> X0 =
+          params.addressGen2Loops[1][params.addressGen2InputXLoopIndex[1]];
+      ac_int<11, false> K0 =
+          params.addressGen2Loops[1][params.addressGen2WeightLoopIndex[1]];
+
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_starts[2][3];
       ac_int<11, false> loop_ends[2][3];
@@ -674,25 +672,6 @@ SC_MODULE(VectorFetchUnit) {
                       loop_counters[1][params.addressGen2WeightLoopIndex[1]];
                   ac_int<11, false> k1 =
                       loop_counters[0][params.addressGen2WeightLoopIndex[0]];
-
-                  ac_int<11, false> X0 =
-                      params.addressGen2Loops
-                          [1][params.addressGen2InputXLoopIndex[1]];
-                  ac_int<11, false> X1 =
-                      params.addressGen2Loops
-                          [0][params.addressGen2InputXLoopIndex[0]];
-                  ac_int<11, false> Y0 =
-                      params.addressGen2Loops
-                          [1][params.addressGen2InputYLoopIndex[1]];
-                  ac_int<11, false> Y1 =
-                      params.addressGen2Loops
-                          [0][params.addressGen2InputYLoopIndex[0]];
-                  ac_int<11, false> K0 =
-                      params.addressGen2Loops
-                          [1][params.addressGen2WeightLoopIndex[1]];
-                  ac_int<11, false> K1 =
-                      params.addressGen2Loops
-                          [0][params.addressGen2WeightLoopIndex[0]];
 
                   ac_int<16, false> k = k1 * K0 * Width + k0 * Width;
                   ac_int<16, false> K = K1 * K0 * Width;

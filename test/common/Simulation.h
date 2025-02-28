@@ -16,7 +16,7 @@
 #include "test/common/operations/Common.h"
 #include "test/compiler/proto/param.pb.h"
 
-void run_accelerator(std::vector<codegen::Operation> params, char *memory);
+void run_accelerator(std::vector<Operation> params, char *memory);
 
 class Simulation {
  public:
@@ -35,9 +35,8 @@ class Simulation {
   float tolerance = 0.1;
   std::vector<std::string> tests;
   std::vector<std::string> sims;
-
   Network *network;
-  std::vector<codegen::Operation> params;
+  std::vector<Operation> operations;
   std::map<std::string, ArrayMemory *> memories;
   std::map<std::string, DataLoader *> dataLoaders;
 

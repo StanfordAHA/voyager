@@ -138,7 +138,7 @@ using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 #define VECTOR_DATATYPE F16
 #define SCALE_DATATYPE E8M0
 
-#define SUPPORT_MX true
+#define SUPPORT_MX
 
 #elif defined(MXNF4)
 
@@ -153,7 +153,7 @@ using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 #define VECTOR_DATATYPE F16
 #define SCALE_DATATYPE E5M3
 
-#define SUPPORT_MX true
+#define SUPPORT_MX
 
 #elif defined(CFLOAT)
 

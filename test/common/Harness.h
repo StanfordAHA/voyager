@@ -10,6 +10,8 @@
 
 #include "AccelTypes.h"
 #include "ArchitectureParams.h"
+#include "test/common/AccessCounter.h"
+#include "test/common/Network.h"
 #include "test/common/VerificationTypes.h"
 
 #ifndef CFLOAT
@@ -72,11 +74,11 @@ SC_MODULE(Harness) {
       inputDataResponse);
 
 #if SUPPORT_MX
-  Connections::ConditionalCombinational<MemoryRequest, SUPPORT_MX> CCS_INIT_S1(
+  Connections::Combinational<MemoryRequest> CCS_INIT_S1(
       inputScaleAddressRequest);
   sc_fifo<Pack1D<INPUT_DATATYPE, 1>> inputScaleDataResponse_fifo;
-  Connections::ConditionalCombinational<Pack1D<INPUT_DATATYPE, 1>, SUPPORT_MX>
-      CCS_INIT_S1(inputScaleDataResponse);
+  Connections::Combinational<Pack1D<INPUT_DATATYPE, 1>> CCS_INIT_S1(
+      inputScaleDataResponse);
 #endif
 
   CombinationalInterface<MemoryRequest> CCS_INIT_S1(weightAddressRequest);
@@ -85,12 +87,11 @@ SC_MODULE(Harness) {
       weightDataResponse);
 
 #if SUPPORT_MX
-  Connections::ConditionalCombinational<MemoryRequest, SUPPORT_MX> CCS_INIT_S1(
+  Connections::Combinational<MemoryRequest> CCS_INIT_S1(
       weightScaleAddressRequest);
   sc_fifo<Pack1D<INPUT_DATATYPE, OC_DIMENSION>> weightScaleDataResponse_fifo;
-  Connections::ConditionalCombinational<Pack1D<INPUT_DATATYPE, OC_DIMENSION>,
-                                        SUPPORT_MX>
-      CCS_INIT_S1(weightScaleDataResponse);
+  Connections::Combinational<Pack1D<INPUT_DATATYPE, OC_DIMENSION>> CCS_INIT_S1(
+      weightScaleDataResponse);
 #endif
 
   CombinationalInterface<MemoryRequest> CCS_INIT_S1(biasAddressRequest);
@@ -128,14 +129,15 @@ SC_MODULE(Harness) {
   Connections::SyncChannel CCS_INIT_S1(vectorUnitStartSignal);
   Connections::SyncChannel CCS_INIT_S1(vectorUnitDoneSignal);
 
-  Harness(sc_module_name, std::vector<codegen::Operation>, char *);
+  Harness(sc_module_name, std::vector<Operation>, char *);
   SC_HAS_PROCESS(Harness);
 
  private:
-  std::vector<codegen::Operation> params;
-  codegen::Operation currentParams;
+  std::vector<Operation> operations;
+  Operation currentOperation;
   char *memory;
   AcceleratorMemoryMap currentMemoryMap;
+  AccessCounter *accessCounter;
 
 #ifdef SIM_Accelerator
   CCS_DESIGN(Accelerator) CCS_INIT_S1(accelerator);

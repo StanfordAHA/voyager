@@ -21,13 +21,13 @@
 
 template <typename Input, typename Psum, typename AccumBuffer, typename Scale,
           typename Vector>
-std::vector<std::any> run_operation(const codegen::Operation param,
+std::vector<std::any> run_operation(const Operation &operation,
                                     std::map<std::string, std::any> kwargs) {
   std::any output_ptr;
   std::vector<std::any> outputs;
 
+  const auto param = operation.param;
   auto op_list = get_op_list(param);
-
   const auto first_op = op_list.front();
   LOG("Running operation: " << first_op.target());
 
@@ -86,7 +86,7 @@ std::vector<std::any> run_operation(const codegen::Operation param,
     } else {
       output_ptr = gemm<Input, Psum, AccumBuffer, Scale>(
           input_ptr, input_scale_ptr, weight_ptr, weight_scale_ptr, bias_ptr,
-          first_op);
+          operation);
     }
   }
 
@@ -310,8 +310,8 @@ std::vector<std::any> run_operation(const codegen::Operation param,
   return outputs;
 }
 
-std::vector<std::any> run_gold_model(const codegen::Operation &op,
+std::vector<std::any> run_gold_model(const Operation &operation,
                                      std::map<std::string, std::any> kwargs) {
   return run_operation<INPUT_DATATYPE, ACCUM_DATATYPE, ACCUM_BUFFER_DATATYPE,
-                       SCALE_DATATYPE, VECTOR_DATATYPE>(op, kwargs);
+                       SCALE_DATATYPE, VECTOR_DATATYPE>(operation, kwargs);
 }

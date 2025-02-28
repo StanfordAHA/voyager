@@ -265,7 +265,7 @@ SC_MODULE(VectorOpUnit) {
 
       // DLOG("res2: " << res2);
 
-      // Stage 3: activation and value mapping
+      // Stage 3: activations
       if (inst.vector_op3 == VectorInstructions::vrelu ||
           inst.vector_op3 == VectorInstructions::vrelumask) {
         bool use_mask = inst.vector_op3 == VectorInstructions::vrelumask;
@@ -514,7 +514,6 @@ SC_MODULE(VectorUnit) {
     vector_fetch.vectorFetch2DataResponse(vectorFetch2DataResponse);
     vector_fetch.vectorFetch2DataResponseConverted(
         vectorFetch2DataResponseConverted);
-    vector_fetch.vectorFetch1Scale(vectorFetch1Scale);
 
     vector_simd.clk(clk);
     vector_simd.rstn(rstn);
@@ -543,7 +542,7 @@ SC_MODULE(VectorUnit) {
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
-    SC_THREAD(instructionSender);
+    SC_THREAD(send_instructions);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
   }
@@ -564,7 +563,7 @@ SC_MODULE(VectorUnit) {
     }
   }
 
-  void instructionSender() {
+  void send_instructions() {
     vectorOpInstructions.ResetWrite();
     reduceOpInstructions.ResetWrite();
     accumulationOpInstructions.ResetWrite();
@@ -581,12 +580,10 @@ SC_MODULE(VectorUnit) {
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
       for (int loop = 0; loop < instConfig.instLoopCount; loop++) {
-        for (int instAddress = 0; instAddress < 8; instAddress++) {
-          VectorInstructions inst = instConfig.inst[instAddress];
+        for (int i = 0; i < 8; i++) {
+          VectorInstructions inst = instConfig.inst[i];
 
-          for (int instRepeatCount = 0;
-               instRepeatCount < instConfig.instCount[instAddress];
-               instRepeatCount++) {
+          for (int count = 0; count < instConfig.instCount[i]; count++) {
             if (inst.instType == VectorInstructions::vector) {
               vectorOpInstructions.Push(inst);
             } else if (inst.instType == VectorInstructions::accumulation) {
@@ -596,7 +593,7 @@ SC_MODULE(VectorUnit) {
             }
           }
 
-          if (instAddress >= instConfig.instLen - 1) {
+          if (i >= instConfig.instLen - 1) {
             break;
           }
         }

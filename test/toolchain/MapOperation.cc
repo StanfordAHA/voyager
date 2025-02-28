@@ -9,9 +9,10 @@
 #include "test/toolchain/Softmax.h"
 #include "test/toolchain/VectorOps.h"
 
-void MapOperation(const codegen::Operation &param,
+void MapOperation(const Operation &operation,
                   std::deque<BaseParams *> &mappedParams,
                   std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
+  const auto param = operation.param;
   const auto op_list = get_op_list(param);
   const auto first_op = op_list[0];
 
@@ -26,7 +27,7 @@ void MapOperation(const codegen::Operation &param,
     if (dim == 1) {
       MapMatrixVectorMultiply(param, mappedParams, opMemoryMaps);
     } else {
-      MapMatrixOperation(param, mappedParams, opMemoryMaps);
+      MapMatrixOperation(operation, mappedParams, opMemoryMaps);
     }
   } else if (first_op.target() == "layer_norm") {
     MapLayerNorm(param, mappedParams, opMemoryMaps);

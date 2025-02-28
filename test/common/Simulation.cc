@@ -59,8 +59,9 @@ Simulation::Simulation() {
     out_dir = "./test_outputs/";
   }
 
+  // Get list of operations to run
   network = new Network(model);
-  params = network->get_params(tests);
+  operations = network->get_operations(tests);
 
   std::cout << "Starting new simulation with config:";
   std::cout << "\n> Model: " << model;
@@ -103,8 +104,6 @@ void Simulation::load_data() {
                          std::string(getenv("CODEGEN_DIR")) + "/networks/" +
                          model + "/" + datatype + "/tensor_files";
 
-  const auto params_to_load = network->get_params(tests);
-
   // Fully connected layer, or linear ops with input of a 1D tensor, is run on
   // the vector unit. Its weight does not need to be transposed. We check if an
   // op is a FC by checking its output dimension. This should be improved in the
@@ -116,9 +115,11 @@ void Simulation::load_data() {
     num_classes = 1000;
   }
 
+  const auto operations = network->get_operations(tests, false);
+
   for (const auto& [key, dataloader] : dataLoaders) {
-    dataloader->load_inputs(params_to_load.front(), data_dir);
-    dataloader->load_outputs(params_to_load.back(), data_dir);
+    dataloader->load_inputs(operations.front().param, data_dir);
+    dataloader->load_outputs(operations.back().param, data_dir);
 
     for (const auto& tensor : network->model.parameters()) {
       bool has_transpose = tensor.shape(0) != num_classes;
@@ -159,14 +160,15 @@ void Simulation::print_ideal_runtime(const codegen::Operation& param) {
 
 void Simulation::run() {
   // Run gold models
-  for (const auto& op : params) {
-    print_ideal_runtime(op);
+  for (const auto& operation : operations) {
+    const auto param = operation.param;
+    print_ideal_runtime(param);
 
     if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
       const auto memory = (ArrayMemory*)(memories["gold"]);
-      const auto kwargs = memory->get_args(op);
-      const auto outputs = run_gold_model(op, kwargs);
-      const auto tensors = get_op_outputs(op);
+      const auto kwargs = memory->get_args(param);
+      const auto outputs = run_gold_model(operation, kwargs);
+      const auto tensors = get_op_outputs(param);
 
       assert(outputs.size() == tensors.size());
 
@@ -179,20 +181,20 @@ void Simulation::run() {
   // Run accelerator test
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
     auto memory = (ArrayMemory*)(memories["accelerator"]);
-    run_accelerator(params, memory->memories[0]);
+    run_accelerator(operations, memory->memories[0]);
   }
 }
 
 int Simulation::check_outputs() {
   std::string prefix;
-  if (params.size() == 1) {
-    prefix = out_dir + model + '.' + get_op_name(params.front()) + '.';
+  if (operations.size() == 1) {
+    prefix = out_dir + model + '.' + operations.front().name + '.';
   } else {
-    prefix = out_dir + model + '.' + get_op_name(params.front()) + "_to_" +
-             get_op_name(params.back()) + '.';
+    prefix = out_dir + model + '.' + operations.front().name + "_to_" +
+             operations.back().name + '.';
   }
 
-  const auto param = params.back();
+  const auto param = operations.back().param;
 
   bool pytorch = std::find(sims.begin(), sims.end(), "pytorch") != sims.end();
   auto gold_memory = (ArrayMemory*)memories["gold"];

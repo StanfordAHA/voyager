@@ -48,12 +48,12 @@ void register_interface(
 // void copy_output(void *sram, int size, int data_size);
 #endif
 
-Harness::Harness(sc_module_name name, std::vector<codegen::Operation> params,
+Harness::Harness(sc_module_name name, std::vector<Operation> operations,
                  char *memory)
     : sc_module(name),
       clk("clk", std::stod(std::getenv("CLOCK_PERIOD")), SC_NS, 0.5, 0, SC_NS,
           true),
-      params(params),
+      operations(operations),
       memory(memory),
       inputDataResponse_fifo("inputDataResponse_fifo", 1024),
       weightDataResponse_fifo("weightDataResponse_fifo", 1024),
@@ -203,6 +203,13 @@ Harness::Harness(sc_module_name name, std::vector<codegen::Operation> params,
   SC_THREAD(sendParams);
   sensitive << clk.posedge_event();
   async_reset_signal_is(rstn, false);
+
+  accessCounter = new AccessCounter();
+// do not set access counters for an RTL simulation
+#ifndef CCS_DUT_RTL
+  accelerator.matrixUnit.inputBuffer.accessCounter = accessCounter;
+  accelerator.matrixUnit.weightBuffer.accessCounter = accessCounter;
+#endif
 }
 
 template <typename T, long unsigned int Dim>
@@ -219,6 +226,8 @@ void Harness::readMemoryRequest(
     uint64_t base_address = request.address;
     int num_bytes = request.burst_size;
     int num_groups = num_bytes / (T::width / 8.0) / Dim;
+
+    accessCounter->increment(std::string(name()), num_bytes);
 
     constexpr int buffer_size = (T::width / 8 + 2) * 8;
     ac_int<buffer_size, false> bits;
@@ -274,6 +283,8 @@ void Harness::storeMemoryResponse(
     Pack1D<T, Dim> data = data_out->Pop();
     uint64_t address = address_out->Pop();
     DLOG("write address: " << address << " data: " << data);
+    accessCounter->increment(std::string(name()) + "_" + "outputs",
+                             OC_DIMENSION);
 
     constexpr int width = T::width;
     constexpr int buf_width = (width / 8 + 2) * 8;
@@ -422,12 +433,12 @@ void Harness::sendParams() {
   wait();
 
   // Iterate through all params, ie all layers
-  for (int i = 0; i < params.size(); i++) {
-    currentParams = params.at(i);
+  for (int i = 0; i < operations.size(); i++) {
+    currentOperation = operations.at(i);
 
     std::deque<AcceleratorMemoryMap> accelerator_memory_maps;
     std::deque<BaseParams *> accelerator_params;
-    MapOperation(currentParams, accelerator_params, accelerator_memory_maps);
+    MapOperation(currentOperation, accelerator_params, accelerator_memory_maps);
 
     while (accelerator_params.size() > 0) {
       bool matrixParamsValid, vectorParamsValid;
@@ -462,7 +473,7 @@ void Harness::sendParams() {
       }
 
       sc_time start = sc_time_stamp();
-      CCS_LOG("----- Accelerator Layer '" << get_op_name(currentParams)
+      CCS_LOG("----- Accelerator Layer '" << currentOperation.name
                                           << "' Started. -----");
 
       if (vectorParamsValid) {
@@ -473,7 +484,7 @@ void Harness::sendParams() {
         vectorUnitStartSignal.SyncPop();
       }
 
-      CCS_LOG("----- Accelerator Layer '" << get_op_name(currentParams)
+      CCS_LOG("----- Accelerator Layer '" << currentOperation.name
                                           << "' Started. -----");
 
       if (matrixParamsValid) {
@@ -482,7 +493,7 @@ void Harness::sendParams() {
       if (vectorParamsValid) {
         vectorUnitDoneSignal.SyncPop();
       }
-      CCS_LOG("----- Accelerator Layer '" << get_op_name(currentParams)
+      CCS_LOG("----- Accelerator Layer '" << currentOperation.name
                                           << "' Finished. -----");
       sc_time end = sc_time_stamp();
 
@@ -492,6 +503,9 @@ void Harness::sendParams() {
                 << int(end.to_default_time_units() -
                        start.to_default_time_units())
                 << " ns" << std::endl;
+
+      accessCounter->print_summary(currentOperation.tiling,
+                                   currentOperation.has_valid_tiling);
 
       accelerator_memory_maps.pop_front();
     }
@@ -510,7 +524,7 @@ void Harness::sendParams() {
 
 #endif
 
-void run_accelerator(std::vector<codegen::Operation> params, char *memory) {
+void run_accelerator(std::vector<Operation> operations, char *memory) {
 #ifdef CFLOAT
   std::cerr
       << "The SystemC model does not support the CFloat datatype. Only the "
@@ -518,7 +532,7 @@ void run_accelerator(std::vector<codegen::Operation> params, char *memory) {
       << std::endl;
   std::abort();
 #else
-  Harness harness("harness", params, memory);
+  Harness harness("harness", operations, memory);
   sc_start();
 #endif
 }

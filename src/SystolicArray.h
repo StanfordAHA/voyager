@@ -9,21 +9,20 @@
 #include "Tieoff.h"
 #include "mc_scverify.h"
 
-template <typename InputT, typename WeightT, typename OutputT, int NRows,
-          int NCols>
+template <typename Input, typename Weight, typename Psum, int NRows, int NCols>
 SC_MODULE(SystolicArray) {
  private:
-  Connections::Combinational<PEInput<InputT> > input_wires[NRows][NCols];
-  Connections::Combinational<OutputT> psum_wires[NRows - 1][NCols];
-  Connections::Combinational<PEWeight<WeightT> > weight_wires[NRows][NCols];
+  Connections::Combinational<PEInput<Input> > input_wires[NRows][NCols];
+  Connections::Combinational<Psum> psum_wires[NRows - 1][NCols];
+  Connections::Combinational<PEWeight<Weight> > weight_wires[NRows][NCols];
 
 // To speed up HLS synthesis, we instantiate arrays of SC_MODULE on
 // the stack. However, for simulation, we will run into stack overflow issues,
 // so we have to instantiate them on the heap.
 #ifdef __SYNTHESIS__
-  ProcessingElement<InputT, WeightT, OutputT> pe[NRows * NCols];
-  Tieoff<PEInput<InputT> > input_wires_tieoff[NRows];
-  Tieoff<PEWeight<InputT> > weight_wires_tieoff[NCols];
+  ProcessingElement<Input, Weight, Psum> pe[NRows * NCols];
+  Tieoff<PEInput<Input> > input_wires_tieoff[NRows];
+  Tieoff<PEWeight<Input> > weight_wires_tieoff[NCols];
 
 #endif
 
@@ -31,20 +30,20 @@ SC_MODULE(SystolicArray) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
-  Connections::In<PEInput<InputT> > inputs[NRows];
-  Connections::In<PEWeight<WeightT> > weights[NCols];
-  Connections::In<OutputT> psums[NCols];
-  Connections::Out<OutputT> outputs[NCols];
+  Connections::In<PEInput<Input> > inputs[NRows];
+  Connections::In<PEWeight<Weight> > weights[NCols];
+  Connections::In<Psum> psums[NCols];
+  Connections::Out<Psum> outputs[NCols];
 
   SC_CTOR(SystolicArray) {
-    ProcessingElement<InputT, WeightT, OutputT> *pe_ptr[NRows * NCols];
+    ProcessingElement<Input, Weight, Psum> *pe_ptr[NRows * NCols];
 
     for (int i = 0; i < NRows; i++) {
       for (int j = 0; j < NCols; j++) {
 #ifdef __SYNTHESIS__
         pe_ptr[i * NCols + j] = &pe[i * NCols + j];
 #else
-        pe_ptr[i * NCols + j] = new ProcessingElement<InputT, WeightT, OutputT>(
+        pe_ptr[i * NCols + j] = new ProcessingElement<Input, Weight, Psum>(
             sc_gen_unique_name("pe"));
 #endif
 
@@ -83,13 +82,13 @@ SC_MODULE(SystolicArray) {
     // Tie off unused Connections
 
     // last column of array for inputs
-    Tieoff<PEInput<InputT> > *inputConnectionTieoff_ptr[NRows];
+    Tieoff<PEInput<Input> > *inputConnectionTieoff_ptr[NRows];
     for (int i = 0; i < NRows; i++) {
 #ifdef __SYNTHESIS__
       inputConnectionTieoff_ptr[i] = &input_wires_tieoff[i];
 #else
       inputConnectionTieoff_ptr[i] =
-          new Tieoff<PEInput<InputT> >(sc_gen_unique_name("tieoff"));
+          new Tieoff<PEInput<Input> >(sc_gen_unique_name("tieoff"));
 #endif
       inputConnectionTieoff_ptr[i]->in(input_wires[i][NCols - 1]);
 #ifdef CONNECTIONS_FAST_SIM
@@ -100,13 +99,13 @@ SC_MODULE(SystolicArray) {
     }
 
     // last row for weights
-    Tieoff<PEWeight<InputT> > *weight_wires_tieoff_pt[NCols];
+    Tieoff<PEWeight<Input> > *weight_wires_tieoff_pt[NCols];
     for (int i = 0; i < NCols; i++) {
 #ifdef __SYNTHESIS__
       weight_wires_tieoff_pt[i] = &weight_wires_tieoff[i];
 #else
       weight_wires_tieoff_pt[i] =
-          new Tieoff<PEWeight<InputT> >(sc_gen_unique_name("tieoff"));
+          new Tieoff<PEWeight<Input> >(sc_gen_unique_name("tieoff"));
 #endif
       weight_wires_tieoff_pt[i]->in(weight_wires[NRows - 1][i]);
 #ifdef CONNECTIONS_FAST_SIM

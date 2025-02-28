@@ -1,5 +1,6 @@
 #pragma once
 
+#include "test/common/Tiling.h"
 #include "test/toolchain/Common.h"
 
 void MapPoolingOperation(const codegen::Operation &param,
@@ -11,14 +12,12 @@ void MapPoolingOperation(const codegen::Operation &param,
   AcceleratorMemoryMap accelerator_memory_map;
 
   const auto op_list = get_op_list(param);
-  const auto pooling_op = op_list[0];
-
+  const auto pooling_op = op_list.front();
   const auto tiling = get_pool2d_tiling(pooling_op);
-  std::cerr << "pooling tiling: " << tiling << std::endl;
 
   const auto input = pooling_op.kwargs().at("input").tensor();
-  const auto output = param.output();
 
+  const auto output = param.output();
   const int output_dim = output.shape(1);
 
   // input

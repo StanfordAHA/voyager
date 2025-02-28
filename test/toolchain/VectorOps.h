@@ -460,80 +460,79 @@ void MapVectorOperations(const codegen::Operation &param,
         break;
       }
 
-      for (int stage = curr_stage; stage < 5; stage++) {
-        bool matched = vector_unit_stages[stage].find(opcode) !=
-                       vector_unit_stages[stage].end();
+      for (int stage = curr_stage; stage < 4; stage++) {
+        if (vector_unit_stages[stage].find(opcode) ==
+            vector_unit_stages[stage].end()) {
+          continue;
+        }
 
-        std::cerr << "stage: " << stage << "  opcode: " << opcode
-                  << "  matched: " << matched << std::endl;
+        std::cerr << "stage " << stage << " target: " << opcode << std::endl;
 
-        if (matched) {
-          unsigned int vop = inst_map[opcode];
-          if (stage == 0) {
-            inst.vector_op0 = vop;
-          } else if (stage == 1) {
-            inst.vector_op1 = vop;
-          } else if (stage == 2) {
-            inst.vector_op2 = vop;
-          } else if (stage == 3) {
-            inst.vector_op3 = vop;
-          }
+        unsigned int vop = inst_map[opcode];
+        if (stage == 0) {
+          inst.vector_op0 = vop;
+        } else if (stage == 1) {
+          inst.vector_op1 = vop;
+        } else if (stage == 2) {
+          inst.vector_op2 = vop;
+        } else if (stage == 3) {
+          inst.vector_op3 = vop;
+        }
 
-          if (opcode == "vmap") {
-            const auto other = op.kwargs().at("other").tensor();
-            inst.VMAP_OFFSET = other.memory().address();
-          } else if (opcode == "neg") {
-            const auto self = op.kwargs().at("input").tensor();
-            const auto output_shape = squeeze_shape(get_shape(self));
+        if (opcode == "vmap") {
+          const auto other = op.kwargs().at("other").tensor();
+          inst.VMAP_OFFSET = other.memory().address();
+        } else if (opcode == "neg") {
+          const auto self = op.kwargs().at("input").tensor();
+          const auto output_shape = squeeze_shape(get_shape(self));
 
-            inst.vector_op0_src0 = VectorInstructions::from_immediate_0;
+          inst.vector_op0_src0 = VectorInstructions::from_immediate_0;
 
-            VECTOR_DATATYPE immediate = 0;
-            inst.immediate0 = immediate.bits_rep();
+          VECTOR_DATATYPE immediate = 0;
+          inst.immediate0 = immediate.bits_rep();
 
-            inst.vector_op0_src1 = VectorInstructions::from_vector_fetch_0;
+          inst.vector_op0_src1 = VectorInstructions::from_vector_fetch_0;
 
-            set_vector_addr_gen1(self, output_shape, accelerator_memory_map,
-                                 vector_params);
-          } else if (op.kwargs().contains("other")) {
-            const auto other = op.kwargs().at("other");
+          set_vector_addr_gen1(self, output_shape, accelerator_memory_map,
+                               vector_params);
+        } else if (op.kwargs().contains("other")) {
+          const auto other = op.kwargs().at("other");
 
-            if (other.has_float_value() || other.has_int_value()) {
-              float scalar = other.has_float_value() ? other.float_value()
-                                                     : other.int_value();
+          if (other.has_float_value() || other.has_int_value()) {
+            float scalar = other.has_float_value() ? other.float_value()
+                                                   : other.int_value();
+            set_vector_immediate(scalar, stage, opcode, inst);
+          } else if (other.has_tensor()) {
+            const auto tensor = other.tensor();
+
+            if (get_size(tensor) == 1) {
+              float scalar = read_constant_param(tensor);
               set_vector_immediate(scalar, stage, opcode, inst);
-            } else if (other.has_tensor()) {
-              const auto tensor = other.tensor();
+            } else {
+              const auto self = op.kwargs().at("input").tensor();
+              const auto tensor_to_load = tensor.has_memory() ? tensor : self;
 
-              if (get_size(tensor) == 1) {
-                float scalar = read_constant_param(tensor);
-                set_vector_immediate(scalar, stage, opcode, inst);
-              } else {
-                const auto self = op.kwargs().at("input").tensor();
-                const auto tensor_to_load = tensor.has_memory() ? tensor : self;
+              const auto input_shape = get_shape(self);
+              const auto other_shape = get_shape(tensor);
+              const auto output_shape =
+                  squeeze_shape(broadcast_shape(input_shape, other_shape));
 
-                const auto input_shape = get_shape(self);
-                const auto other_shape = get_shape(tensor);
-                const auto output_shape =
-                    squeeze_shape(broadcast_shape(input_shape, other_shape));
-
-                if (stage == 0) {
-                  inst.vector_op0_src1 = VectorInstructions::from_vector_fetch_1;
-                  set_vector_addr_gen1(tensor_to_load, output_shape,
-                                       accelerator_memory_map, vector_params);
-                } else if (stage == 2) {
-                  inst.vector_op2_src1 = VectorInstructions::from_vector_fetch_2;
-                  set_vector_addr_gen2(tensor_to_load, output_shape,
-                                       accelerator_memory_map, vector_params);
-                }
+              if (stage == 0) {
+                inst.vector_op0_src1 = VectorInstructions::from_vector_fetch_1;
+                set_vector_addr_gen1(tensor_to_load, output_shape,
+                                     accelerator_memory_map, vector_params);
+              } else if (stage == 2) {
+                inst.vector_op2_src1 = VectorInstructions::from_vector_fetch_2;
+                set_vector_addr_gen2(tensor_to_load, output_shape,
+                                     accelerator_memory_map, vector_params);
               }
             }
           }
-
-          curr_stage = stage + 1;
-
-          break;
         }
+
+        curr_stage = stage + 1;
+
+        break;
       }
     }
   }

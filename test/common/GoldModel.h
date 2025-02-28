@@ -7,7 +7,8 @@
 #include "src/DataTypes.h"
 // clang-format on
 #include "src/ArchitectureParams.h"
+#include "test/common/Network.h"
 #include "test/compiler/proto/param.pb.h"
 
-std::vector<std::any> run_gold_model(const codegen::Operation &param,
+std::vector<std::any> run_gold_model(const Operation &operation,
                                      std::map<std::string, std::any> kwargs);

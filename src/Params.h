@@ -40,8 +40,10 @@ struct MatrixParams : BaseParams {
         weightAddressGenLoops[i][j] = 0;
       }
     }
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 3; i++) {
       weightAddressGenReductionLoopIndex[i] = 0;
+    }
+    for (int i = 0; i < 2; i++) {
       weightAddressGenWeightLoopIndex[i] = 0;
     }
     weightAddressGenFxIndex = 0;
@@ -80,7 +82,7 @@ struct MatrixParams : BaseParams {
   // in the inner loop, there are actually 2 reduction loops: the
   // standard reduction loop and the reduction that is parallelized in
   // the systolic array
-  ac_int<3, false> weightAddressGenReductionLoopIndex[2];
+  ac_int<3, false> weightAddressGenReductionLoopIndex[3];
   ac_int<3, false> weightAddressGenWeightLoopIndex[2];
   ac_int<3, false> weightAddressGenFxIndex;
   ac_int<3, false> weightAddressGenFyIndex;
@@ -97,7 +99,7 @@ struct MatrixParams : BaseParams {
 
   static const unsigned int width =
       5 * 64 /* OFFSETS */ + (12 + 10) * 10 /* Loops */ +
-      (6 + 3) * 2 * 3 /* Loop indices */ + 6 * 1 /* Bools */ + 2 + 8;
+      19 * 3 /* Loop indices */ + 6 * 1 /* Bools */ + 2 + 8;
 
 #ifndef NO_SYSC
   template <unsigned int Size>
@@ -135,7 +137,7 @@ struct MatrixParams : BaseParams {
         m& weightAddressGenLoops[i][j];
       }
     }
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 3; i++) {
       m& weightAddressGenReductionLoopIndex[i];
     }
     for (int i = 0; i < 2; i++) {
@@ -202,7 +204,7 @@ struct MatrixParams : BaseParams {
            << "]: " << params.weightAddressGenLoops[i][j] << std::endl;
       }
     }
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 3; i++) {
       os << "weightAddressGenReductionLoopIndex[" << i
          << "]: " << params.weightAddressGenReductionLoopIndex[i] << std::endl;
     }
@@ -257,6 +259,10 @@ struct MatrixParams : BaseParams {
           rhs.weightAddressGenWeightLoopIndex[i])
         return false;
     }
+
+    if (lhs.weightAddressGenReductionLoopIndex[2] !=
+        rhs.weightAddressGenReductionLoopIndex[2])
+      return false;
 
     // Compare other members
     if (lhs.fxIndex != rhs.fxIndex || lhs.fyIndex != rhs.fyIndex) return false;
