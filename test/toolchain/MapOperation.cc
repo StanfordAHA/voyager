@@ -5,7 +5,6 @@
 #include "test/toolchain/LayerNorm.h"
 #include "test/toolchain/MatrixOps.h"
 #include "test/toolchain/MatrixVectorMultiply.h"
-#include "test/toolchain/Microscaling.h"
 #include "test/toolchain/Pooling.h"
 #include "test/toolchain/Softmax.h"
 #include "test/toolchain/VectorOps.h"
@@ -13,41 +12,31 @@
 void MapOperation(const Operation &operation,
                   std::deque<BaseParams *> &mappedParams,
                   std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
-  if (operation.param.has_matrix_op()) {
-    const auto matrix_op = operation.param.matrix_op();
-    if (matrix_op.opcode() == "layer_norm") {
-      MapLayerNorm(operation.param, mappedParams, opMemoryMaps);
-      return;
-    }
+  const auto param = operation.param;
+  const auto op_list = get_op_list(param);
+  const auto first_op = op_list[0];
 
-    const auto &inputs = matrix_op.has_mx_input() ? matrix_op.mx_input().input()
-                                                  : matrix_op.input();
+  if (GEMM_OPS.find(first_op.target()) != GEMM_OPS.end()) {
+    const auto &input = first_op.kwargs().at("input").tensor();
+
     int dim = 1;
-    for (int i = 0; i < inputs.shape_size() - 1; i++) {
-      dim *= inputs.shape(i);
+    for (int i = 0; i < input.shape_size() - 1; i++) {
+      dim *= input.shape(i);
     }
 
     if (dim == 1) {
-      MapMatrixVectorMultiply(operation.param, mappedParams, opMemoryMaps);
+      MapMatrixVectorMultiply(param, mappedParams, opMemoryMaps);
     } else {
       MapMatrixOperation(operation, mappedParams, opMemoryMaps);
     }
-  } else if (operation.param.has_reduce_op()) {
-    const auto &reduce_op = operation.param.reduce_op();
-    if (reduce_op.opcode() == "softmax") {
-      MapSoftmax(operation.param, mappedParams, opMemoryMaps);
-    } else if (reduce_op.opcode() == "calculate_mx_qparam") {
-      MapMXQparam(operation.param, mappedParams, opMemoryMaps);
-    } else {
-      std::cerr << "Unsupported reduce instruction: " << reduce_op.opcode()
-                << std::endl;
-      exit(1);
-    }
-  } else if (operation.param.has_pooling_op()) {
-    MapPoolingOperation(operation.param, mappedParams, opMemoryMaps);
-  } else if (operation.param.has_slicing_op() ||
-             operation.param.has_reshape_op() ||
-             operation.param.vector_ops_size() > 0) {
-    MapVectorOperations(operation.param, mappedParams, opMemoryMaps);
+  } else if (first_op.target() == "layer_norm") {
+    MapLayerNorm(param, mappedParams, opMemoryMaps);
+  } else if (first_op.target() == "softmax") {
+    MapSoftmax(param, mappedParams, opMemoryMaps);
+  } else if (first_op.target() == "max_pool2d" ||
+             first_op.target() == "adaptive_avg_pool2d") {
+    MapPoolingOperation(param, mappedParams, opMemoryMaps);
+  } else {
+    MapVectorOperations(param, mappedParams, opMemoryMaps);
   }
 }

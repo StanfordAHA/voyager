@@ -9,26 +9,26 @@
 #include "test/checker/PEChecker.h"
 #endif
 
-template <typename IDTYPE, typename WDTYPE, typename ODTYPE>
+template <typename Input, typename Weight, typename Psum>
 SC_MODULE(ProcessingElement) {
  private:
-  IDTYPE weight_reg;
+  Input weight_reg;
 
  public:
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
-  Connections::In<PEWeight<WDTYPE> > CCS_INIT_S1(weightIn);
-  Connections::Out<PEWeight<WDTYPE> > CCS_INIT_S1(weightOut);
+  Connections::In<PEWeight<Weight> > CCS_INIT_S1(weight_in);
+  Connections::Out<PEWeight<Weight> > CCS_INIT_S1(weight_out);
 
-  Connections::In<PEInput<IDTYPE> > CCS_INIT_S1(inputIn);
-  Connections::Out<PEInput<IDTYPE> > CCS_INIT_S1(inputOut);
+  Connections::In<PEInput<Input> > CCS_INIT_S1(input_in);
+  Connections::Out<PEInput<Input> > CCS_INIT_S1(input_out);
 
-  Connections::In<ODTYPE> CCS_INIT_S1(psumIn);
-  Connections::Out<ODTYPE> CCS_INIT_S1(psumOut);
+  Connections::In<Psum> CCS_INIT_S1(psum_in);
+  Connections::Out<Psum> CCS_INIT_S1(psum_out);
 
-  Connections::Combinational<WDTYPE> CCS_INIT_S1(newWeightFifo);
-  Connections::Combinational<WDTYPE> CCS_INIT_S1(storedWeight);
+  Connections::Combinational<Weight> CCS_INIT_S1(new_weight_fifo);
+  Connections::Combinational<Weight> CCS_INIT_S1(stored_weight);
 
 #ifdef __SYNTHESIS__
   SC_HAS_PROCESS(ProcessingElement);
@@ -38,11 +38,11 @@ SC_MODULE(ProcessingElement) {
   SC_CTOR(ProcessingElement)
 #endif
   {
-    SC_THREAD(storeWeights);
+    SC_THREAD(store_weights);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
-    SC_THREAD(weightFifo);
+    SC_THREAD(weight_fifo);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
@@ -51,128 +51,71 @@ SC_MODULE(ProcessingElement) {
     async_reset_signal_is(rstn, false);
   }
 
-  void weightFifo() {
-    weightIn.Reset();
-    weightOut.Reset();
-    newWeightFifo.ResetWrite();
+  void weight_fifo() {
+    weight_in.Reset();
+    weight_out.Reset();
+    new_weight_fifo.ResetWrite();
 
     wait();
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode bubble
     while (true) {
-      PEWeight<WDTYPE> weightStruct = weightIn.Pop();
+      PEWeight<Weight> weightStruct = weight_in.Pop();
 
       if (weightStruct.tag == 0) {
-        newWeightFifo.Push(weightStruct.data);
+        new_weight_fifo.Push(weightStruct.data);
       } else {
         weightStruct.tag--;
-        weightOut.Push(weightStruct);
+        weight_out.Push(weightStruct);
       }
     }
   }
 
-  void storeWeights() {
-    storedWeight.ResetWrite();
-    newWeightFifo.ResetRead();
+  void store_weights() {
+    stored_weight.ResetWrite();
+    new_weight_fifo.ResetRead();
 
     wait();
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode bubble
     while (true) {
-      storedWeight.Push(newWeightFifo.Pop());
+      stored_weight.Push(new_weight_fifo.Pop());
     }
   }
 
   void run() {
-    inputIn.Reset();
-    psumIn.Reset();
-    inputOut.Reset();
-    psumOut.Reset();
+    input_in.Reset();
+    psum_in.Reset();
+    input_out.Reset();
+    psum_out.Reset();
 
-    storedWeight.ResetRead();
-
-    WDTYPE nextWeight0 = WDTYPE();
-    WDTYPE nextWeight1 = WDTYPE();
-    WDTYPE nextWeight2 = WDTYPE();
-    bool swapWeight0 = false;
-    bool swapWeight1 = false;
-    bool swapWeight2 = false;
-
-    // name is a string separated by '.'
-    // get the last part of the string
-    // bool debug = std::string(name()) ==
-    //              "harness.accelerator.matrixUnit.matrixProcessor.systolicArray."
-    //              "systolic_chunk_inst_0.systolic_row_inst_0.pe_inst_0";
-
-    // wait();
+    stored_weight.ResetRead();
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode bubble
     while (true) {
-      // if (swapWeight0) {
-      //   weight_reg = nextWeight0;
-      // }
+      PEInput<Input> input_struct = input_in.Pop();
 
-      // swapWeight0 = swapWeight1;
-      // swapWeight1 = swapWeight2;
-
-      // nextWeight0 = nextWeight1;
-      // nextWeight1 = nextWeight2;
-
-      PEInput<IDTYPE> inputStruct = inputIn.Pop();
-      // CCS_LOG("PE: " << inputStruct.data << " " << inputStruct.swapWeights);
-
-      if (inputStruct.swapWeights) {
-        weight_reg = storedWeight.Pop();
+      if (input_struct.swapWeights) {
+        weight_reg = stored_weight.Pop();
       }
 
-      ODTYPE psum = psumIn.Pop();
-      inputOut.Push(inputStruct);
-      // #ifdef HYBRID_FP8
-      //       ODTYPE output;
-      //       if (inputStruct.castToE5M2) {
-      //         StdFloat<2, 5> castedInput;
-      //         castedInput.float_val.d = inputStruct.data.float_val.d;
-      //         StdFloat<2, 5> castedWeight;
-      //         castedWeight.float_val.d = weight_reg.float_val.d;
+      Psum psum = psum_in.Pop();
 
-      //         output = castedInput.fma(castedWeight, psum);
+      input_out.Push(input_struct);
 
-      //       } else {
-      //         output = inputStruct.data.fma(weight_reg, psum);
-      //       }
-      // #else
-      ODTYPE output = pe_fma(inputStruct.data, weight_reg, psum);
-      // #endif
-
-      // if (debug) {
-      // CCS_LOG(inputStruct.data << " * " << weight_reg << " + " << psum);
-      // }
-
-      psumOut.Push(output);
-
-      // swapWeight2 = inputStruct.swapWeights;
-      // if (inputStruct.swapWeights) {  // for next iteration
-      //   nextWeight2 = storedWeight.Pop();
-      // }
+      Psum output = pe_fma(input_struct.data, weight_reg, psum);
+      psum_out.Push(output);
     }
   }
 
-  template <typename DTYPE>
-  DTYPE pe_fma(DTYPE input, DTYPE weight, DTYPE psum) {
-    // CCS_LOG(input << " * " << weight << " + " << psum);
-    return input * weight + psum;
-  }
-
-  ODTYPE pe_fma(IDTYPE input, WDTYPE weight, ODTYPE psum) {
-// CCS_LOG(input << " * " << weight << " + " << psum << " = "
-//               << input.fma(weight, psum));
+  Psum pe_fma(Input input, Weight weight, Psum psum) {
 #ifdef CHECK_PE
     std::string inst_name = name();
     int pe_num = std::stoi(inst_name.substr(inst_name.find_last_of('_') + 1));
-    pe_checker.checkReference(pe_num, input, weight, psum);
+    pe_checker.check_reference(pe_num, input, weight, psum);
 #endif
     return input.fma(weight, psum);
   }

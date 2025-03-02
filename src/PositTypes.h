@@ -7,12 +7,11 @@
 // but with more emphasis on a lightweight implementation.
 
 #pragma once
-#include <stdint.h>
-// #include <ac_float.h>
 #include <ac_int.h>
 #include <ac_math/ac_inverse_sqrt_pwl.h>
 #include <ac_math/ac_sqrt_pwl.h>
 #include <ac_std_float.h>
+#include <stdint.h>
 
 inline int max(int a, int b) { return a > b ? a : b; }
 
@@ -125,7 +124,7 @@ class Posit {
   static constexpr int max_exp = (nbits - 2) * (1 << es);
   static constexpr int sbits = ac::nbits<max_exp>::val + 1;
   static constexpr int fbits = nbits - 3 - es;
-  typedef StdFloat<fbits, sbits> Decoded;
+  typedef StdFloat<fbits, sbits> decoded;
 
   ac_int<nbits, false> bits;
 
@@ -136,24 +135,26 @@ class Posit {
 #endif
 
   template <int nbits2, int es2>
-  Posit(const Posit<nbits2, es2> &input);
+  Posit(const Posit<nbits2, es2> &other);
 
   template <int mantissa, int exp>
-  Posit(const StdFloat<mantissa, exp> &input);
+  Posit(const StdFloat<mantissa, exp> &other);
 
   ac_int<nbits, false> bits_rep() { return bits; }
-
   void set_bits(int i) { bits = i; }
   void set_zero() { bits = 0; }
-  bool isZero() const { return bits == 0; }
 
-  void sqrt() { throw "Posit sqrt function not implemented."; }
+  static decoded max() {
+    Posit<nbits, es> max;
+    max.set_bits((1 << nbits) - 1);
+    return max;
+  }
+
+  void negate() { twos_complement(bits); }
 
   void relu() {
     if (bits[nbits - 1] == 1) bits = 0;
   }
-
-  void negate() { twos_complement(bits); }
 
   void reciprocal() {
     // ac_int<nbits, false> sub = (1 << (nbits - 1));
@@ -167,10 +168,10 @@ class Posit {
     bits >>= 2;
   }
 
-  Posit operator+(const Posit &rhs);
-  Posit operator*(const Posit &rhs);
-  Posit operator/(const Posit &rhs);
-  Posit log_mult(const Posit &rhs);
+  Posit operator+(const Posit &rhs) const;
+  Posit operator-(const Posit &rhs) const;
+  Posit operator*(const Posit &rhs) const;
+  Posit operator/(const Posit &rhs) const;
 
   Posit &operator+=(const Posit &rhs);
   Posit &operator-=(const Posit &rhs);
@@ -179,12 +180,13 @@ class Posit {
 
   bool operator<(const Posit &rhs) const;
 
-  template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+  template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
             ac_q_mode Q>
-  operator StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>() const {
-    using FloatType = StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>;
-    FloatType f;
-    if (isZero()) {
+  operator StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>() const {
+    using std_float_t =
+        StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>;
+    std_float_t f;
+    if (bits == 0) {
       f.set_zero();
     } else {
       bool sign;
@@ -193,7 +195,7 @@ class Posit {
       decode<nbits, es, mantissa>(bits, sign, scale, mantissa_bits);
 
       ac_int<1, false> sign_bit = sign;
-      ac_int<exp, true> exp_bits = scale + FloatType::ac_float_rep::exp_bias;
+      ac_int<exp, true> exp_bits = scale + std_float_t::ac_float_rep::exp_bias;
 
       f.float_val.d.set_slc(0, mantissa_bits);
       f.float_val.d.set_slc(mantissa, exp_bits);
@@ -204,7 +206,7 @@ class Posit {
 
 #ifndef __SYNTHESIS__
   operator float() const {
-    Decoded tmp(*this);
+    decoded tmp(*this);
     return static_cast<float>(tmp);
   }
 #endif
@@ -240,25 +242,25 @@ Posit<nbits, es>::Posit(const float f) {
 
 template <int nbits, int es>
 template <int nbits2, int es2>
-Posit<nbits, es>::Posit(const Posit<nbits2, es2> &input) {
-  typename Posit<nbits2, es2>::Decoded tmp(input);
+Posit<nbits, es>::Posit(const Posit<nbits2, es2> &other) {
+  typename Posit<nbits2, es2>::decoded tmp(other);
   *this = tmp;
 }
 
 template <int nbits, int es>
 template <int mantissa, int exp>
-Posit<nbits, es>::Posit(const StdFloat<mantissa, exp> &input) {
-  if (input.float_val.d == 0) {
+Posit<nbits, es>::Posit(const StdFloat<mantissa, exp> &other) {
+  if (other.float_val.d == 0) {
     bits = 0;
   } else {
     const int e_width = StdFloat<mantissa, exp>::ac_float_rep::e_width;
     const int mant_bits = StdFloat<mantissa, exp>::ac_float_rep::mant_bits;
     const int exp_bias = StdFloat<mantissa, exp>::ac_float_rep::exp_bias;
 
-    bool sign = input.float_val.signbit();
+    bool sign = other.float_val.signbit();
     ac_int<e_width, true> scale =
-        input.float_val.d.template slc<e_width>(mant_bits) - exp_bias;
-    ac_int<mant_bits, false> fraction = input.float_val.d;
+        other.float_val.d.template slc<e_width>(mant_bits) - exp_bias;
+    ac_int<mant_bits, false> fraction = other.float_val.d;
     convert_<nbits, es, mant_bits>(sign, scale, fraction, bits);
   }
 }
@@ -291,35 +293,34 @@ Posit<nbits, es> exponential(Posit<nbits, es> val) {
 
 template <int nbits, int es>
 inline Posit<nbits, es> Posit<nbits, es>::operator+(
-    const Posit<nbits, es> &rhs) {
-  Decoded op1 = *this;
-  Decoded op2 = rhs;
+    const Posit<nbits, es> &rhs) const {
+  decoded op1 = *this;
+  decoded op2 = rhs;
   return op1 + op2;
 }
 
 template <int nbits, int es>
+inline Posit<nbits, es> Posit<nbits, es>::operator-(
+    const Posit<nbits, es> &rhs) const {
+  decoded op1 = *this;
+  decoded op2 = rhs;
+  return op1 - op2;
+}
+
+template <int nbits, int es>
 inline Posit<nbits, es> Posit<nbits, es>::operator*(
-    const Posit<nbits, es> &rhs) {
-  Decoded op1 = *this;
-  Decoded op2 = rhs;
+    const Posit<nbits, es> &rhs) const {
+  decoded op1 = *this;
+  decoded op2 = rhs;
   return op1 * op2;
 }
 
 template <int nbits, int es>
 inline Posit<nbits, es> Posit<nbits, es>::operator/(
-    const Posit<nbits, es> &rhs) {
+    const Posit<nbits, es> &rhs) const {
   Posit<nbits, es> op2 = rhs;
   op2.reciprocal();
   return *this * op2;
-}
-
-// TODO(fpedd): Deprecated, no need for log mult anymore?!
-template <int nbits, int es>
-inline Posit<nbits, es> Posit<nbits, es>::log_mult(
-    const Posit<nbits, es> &rhs) {
-  Decoded op1 = *this;
-  Decoded op2 = rhs;
-  return op1.log_mult(op2);
 }
 
 template <int nbits, int es>
@@ -332,9 +333,7 @@ inline Posit<nbits, es> &Posit<nbits, es>::operator+=(
 template <int nbits, int es>
 inline Posit<nbits, es> &Posit<nbits, es>::operator-=(
     const Posit<nbits, es> &rhs) {
-  Posit<nbits, es> op2 = rhs;
-  op2.negate();
-  *this = *this + op2;
+  *this = *this - rhs;
   return *this;
 }
 

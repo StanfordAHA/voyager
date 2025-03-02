@@ -27,7 +27,7 @@ class Simulation {
   void run();
   int check_outputs();
   void print_help();
-  void print_ideal_runtime(const codegen::Operator &param);
+  void print_ideal_runtime(const codegen::Operation &op);
 
  protected:
   std::string model;
@@ -37,7 +37,7 @@ class Simulation {
   std::vector<std::string> sims;
   Network *network;
   std::vector<Operation> operations;
-  std::map<std::string, MemoryInterface *> memories;
+  std::map<std::string, ArrayMemory *> memories;
   std::map<std::string, DataLoader *> dataLoaders;
 
  private:

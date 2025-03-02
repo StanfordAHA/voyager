@@ -54,12 +54,12 @@ Network::Network(std::string& model_name) {
     std::cerr << "Tilings file does not exist." << std::endl;
   }
 
-  for (const auto& param : model.ops()) {
-    if (tiling_map.find(param.name()) != tiling_map.end()) {
-      operations.push_back(
-          Operation(param.name(), param, tiling_map.at(param.name())));
+  for (const auto& op : model.ops()) {
+    const std::string name = get_op_name(op);
+    if (tiling_map.find(name) != tiling_map.end()) {
+      operations.push_back(Operation(name, op, tiling_map.at(name)));
     } else {
-      operations.push_back(Operation(param.name(), param));
+      operations.push_back(Operation(name, op));
     }
   }
 }
@@ -71,7 +71,7 @@ std::vector<Operation> Network::get_operations(bool filter_nop) {
 
   std::vector<Operation> ops;
   for (const auto& op : operations) {
-    if (!op.param.has_nop()) {
+    if (op.param.op().op() != "nop") {
       ops.push_back(op);
     }
   }
@@ -80,51 +80,47 @@ std::vector<Operation> Network::get_operations(bool filter_nop) {
 
 std::vector<Operation> Network::get_operations(
     const std::vector<std::string>& names, bool filter_nop) {
-  const auto all_params = get_operations(filter_nop);
+  const auto operations = get_operations(filter_nop);
 
-  std::vector<Operation> params;
+  std::vector<Operation> filtered_ops;
 
   if (names.size() == 1) {
     for (const auto& operation : operations) {
       if (operation.name == names[0]) {
-        params.push_back(operation);
+        filtered_ops.push_back(operation);
         break;
       }
     }
   } else if (names.size() == 2) {
-    auto first_it = std::find_if(
-        operations.begin(), operations.end(),
-        [&names](const auto& operation) { return operation.name == names[0]; });
-    auto last_it = std::find_if(operations.rbegin(), operations.rend(),
-                                [&names](const auto& operation) {
-                                  return operation.name == names[1];
-                                })
-                       .base();
+    bool found_first = false;
+    bool found_second = false;
+    for (const auto& operation : operations) {
+      const auto param = operation.param;
+      if (get_op_name(param) == names[0]) {
+        found_first = true;
+      }
+      if (found_first) {
+        filtered_ops.push_back(operation);
+      }
+      if (get_op_name(param) == names[1]) {
+        found_second = true;
+        break;
+      }
+    }
 
-    if (first_it != operations.end() && last_it != operations.begin() &&
-        first_it < last_it) {
-      params.assign(first_it, last_it);
+    if (!found_first || !found_second) {
+      std::cerr << "Invalid names provided" << std::endl;
+      exit(1);
     }
   } else {
     std::cerr << "Invalid number of names provided" << std::endl;
     exit(1);
   }
 
-  // if filter_nop, remove nop operations
-  if (filter_nop) {
-    std::vector<Operation> filtered_params;
-    for (const auto& param : params) {
-      if (!param.param.has_nop()) {
-        filtered_params.push_back(param);
-      }
-    }
-    params = filtered_params;
-  }
-
-  if (params.empty()) {
+  if (filtered_ops.empty()) {
     std::cerr << "Param not found" << std::endl;
     exit(1);
   }
 
-  return params;
+  return filtered_ops;
 }

@@ -14,7 +14,7 @@ class CFloat {
   static constexpr unsigned int width = 32;
   float float_val;
 
-  typedef CFloat Decoded;
+  typedef CFloat decoded;
 
   CFloat() : float_val(0) {}
   CFloat(const float val) : float_val(val) {}
@@ -25,53 +25,35 @@ class CFloat {
   }
 
   template <int WFX, int IFX, bool SFX, ac_q_mode QFX, ac_o_mode OFX>
-  ac_fixed<WFX, IFX, SFX, QFX, OFX> to_ac_fixed() {
+  ac_fixed<WFX, IFX, SFX, QFX, OFX> to_ac_fixed() const {
     return ac_fixed<WFX, IFX, SFX, QFX, OFX>(float_val);
   }
 
   ac_int<width, false> bits_rep() {
-    uint32_t float_bits = *reinterpret_cast<uint32_t *>(&float_val);
+    uint32_t float_bits;
+    std::memcpy(&float_bits, &float_val, sizeof(float_bits));
     ac_int<width, false> bits = float_bits;
     return bits;
   }
 
-  void negate() { float_val = -float_val; }
-
-  void relu() {
-    if (float_val < 0) float_val = 0;
-  }
-
-  void masked_relu(const CFloat &mask) {
-    if (mask.float_val == 0) float_val = 0;
-  }
-
-  void set_bits(int i) {
-    uint32_t float_bits = i;
-    float_val = *reinterpret_cast<float *>(&float_bits);
-  }
+  void set_bits(uint32_t bits) { std::memcpy(&float_val, &bits, sizeof(bits)); }
 
   void set_zero() { float_val = 0; }
 
-  void custom_converted_reciprocal() { this->reciprocal(); }
+  CFloat abs() const { return std::abs(float_val); }
+  CFloat negate() { return -float_val; }
+  CFloat exponential() const { return std::exp(float_val); }
+  CFloat reciprocal() const { return 1.0 / float_val; }
+  CFloat sqrt() const { return std::sqrt(float_val); }
+  CFloat inv_sqrt() const { return 1.0 / std::sqrt(float_val); }
+  CFloat max1() const { return std::max(float_val, 1.0f); }
 
-  void reciprocal() { float_val = 1.0 / float_val; }
-
-  void exponential() { float_val = exp(float_val); }
-
-  CFloat inv_sqrt() { return CFloat(1.0 / std::sqrt(float_val)); }
-
-  CFloat sqrt() { return CFloat(std::sqrt(float_val)); }
-
-  CFloat max1() {
-    if (float_val > 1) {
-      float_val = 1;
-    }
-    return *this;
+  CFloat relu() const { return float_val < 0 ? 0 : float_val; }
+  CFloat masked_relu(const CFloat &mask) const {
+    return mask.float_val < 0 ? 0 : float_val;
   }
 
-  void expScale(ac_int<8, false> offset) {
-    // TODO: fix this to be scale the exponent
-  }
+  void scale_exp(int offset) { float_val *= std::pow(2, offset); }
 
   CFloat fma(CFloat &b, CFloat &c) {
     return CFloat(float_val * b.float_val + c.float_val);

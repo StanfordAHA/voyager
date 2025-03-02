@@ -12,9 +12,12 @@
 #include "test/compiler/proto/param.pb.h"
 
 template <typename Input, typename Output, typename Scale>
-Output* quantize(std::any input, std::any scale, int size) {
+Output* quantize(std::any input, std::any scale, std::vector<int> shape) {
+  const int size = get_size(shape);
+
   Input* inputs = std::any_cast<Input*>(input);
   Scale* scales = std::any_cast<Scale*>(scale);
+
   Output* outputs = new Output[size];
 
   for (int i = 0; i < size; i++) {
@@ -28,13 +31,17 @@ Output* quantize(std::any input, std::any scale, int size) {
 }
 
 template <typename Input, typename Output, typename Scale>
-Output* quantizeMX(std::any input, std::any scale, int tensor_size,
-                   int scale_size) {
+Output* quantize_mx(std::any input, std::any scale,
+                    const std::vector<int> input_shape, const int block_size) {
+  LOG("Performing microscaling quantization operation");
+
   Input* inputs = std::any_cast<Input*>(input);
   Scale* scales = std::any_cast<Scale*>(scale);
-  Output* outputs = new Output[tensor_size];
 
-  int block_size = tensor_size / scale_size;
+  const int input_size = get_size(input_shape);
+  const int scale_size = input_size / block_size;
+
+  Output* outputs = new Output[input_size];
 
   for (int i = 0; i < scale_size; i++) {
     Scale scale = scales[i];
@@ -44,15 +51,65 @@ Output* quantizeMX(std::any input, std::any scale, int tensor_size,
   }
 
   delete[] inputs;
-  delete[] scales;
 
   return outputs;
 }
+
+// template <typename Input, typename Output, typename Scale>
+// Output* quantize_mx(std::any input, std::any scale,
+//                     const codegen::VectorOp& op) {
+//   LOG("Performing microscaling quantization operation");
+
+//   Input* inputs = std::any_cast<Input*>(input);
+//   Scale* scales = std::any_cast<Scale*>(scale);
+
+//   const auto& shape_a = get_shape(op.input());
+//   const auto& shape_b = get_shape(op.other());
+
+//   Output* outputs = new Output[get_size(op.input())];
+
+//   // Ensure shape_a and shape_b have the same number of dimensions
+//   int num_dims = shape_a.size();
+//   if (shape_b.size() != num_dims) {
+//     throw std::runtime_error("Shapes must have the same number of
+//     dimensions!");
+//   }
+
+//   // Compute the total number of elements in a
+//   int total_elements_a = 1;
+//   for (int dim : shape_a) total_elements_a *= dim;
+
+//   // Perform elementwise division with broadcasting
+//   for (int i = 0; i < total_elements_a; ++i) {
+//     std::vector<int> indices_a = get_indices(i, shape_a);
+
+//     // Map indices_a to indices_b with broadcasting
+//     std::vector<int> indices_b(num_dims);
+//     for (int d = 0; d < num_dims; ++d) {
+//       if (shape_b[d] == shape_a[d]) {
+//         indices_b[d] = indices_a[d];  // Match
+//       } else if (shape_a[d] % shape_b[d] == 0) {
+//         indices_b[d] = indices_a[d] / (shape_a[d] / shape_b[d]);
+//       } else {
+//         throw std::runtime_error("Invalid shape for broadcasting!");
+//       }
+//     }
+
+//     int flat_idx_b = get_flat_index(indices_b, shape_b);
+//     outputs[i] = inputs[i] / scales[flat_idx_b];
+//   }
+
+//   delete[] inputs;
+//   delete[] scales;
+
+//   return outputs;
+// }
 
 template <typename Input, typename Output>
 Output* dequantize(std::any input, std::any scale, int size) {
   Input* inputs = std::any_cast<Input*>(input);
   Output* scales = std::any_cast<Output*>(scale);
+
   Output* outputs = new Output[size];
 
   for (int i = 0; i < size; i++) {

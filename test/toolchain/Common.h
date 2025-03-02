@@ -8,11 +8,10 @@
 #include "test/compiler/proto/param.pb.h"
 
 std::map<int, std::set<std::string>> vector_unit_stages = {
-    {0, {"add", "add_", "sub", "sub_", "mul", "mul_", "div", "div_"}},
+    {0, {"add", "add_", "sub", "sub_", "mul", "mul_", "div", "div_", "neg"}},
     {1, {"exp"}},
-    {2, {}},
-    {3, {"add", "add_", "mul", "mul_", "div", "div_", "square"}},
-    {4, {"relu", "relu_", "gelu", "gelu_", "silu", "silu_", "vmap"}},
+    {2, {"add", "add_", "mul", "mul_", "div", "div_", "square"}},
+    {3, {"relu", "relu_", "gelu", "gelu_", "silu", "silu_", "vmap"}},
 };
 
 std::map<std::string, unsigned int> get_vector_instruction_mapping() {
@@ -25,6 +24,7 @@ std::map<std::string, unsigned int> get_vector_instruction_mapping() {
   mapping["mul_"] = VectorInstructions::vmult;
   mapping["div"] = VectorInstructions::vmult;
   mapping["div_"] = VectorInstructions::vmult;
+  mapping["neg"] = VectorInstructions::vsub;
   mapping["relu"] = VectorInstructions::vrelu;
   mapping["relu_"] = VectorInstructions::vrelu;
   mapping["gelu"] = VectorInstructions::vgelu;
@@ -56,45 +56,25 @@ inline float read_constant_param(const codegen::Tensor tensor) {
   return array_ptr[0];
 }
 
-int getLargestFactor(const int dim) {
-  int largestFactor = 1;
-  for (int i = 2; i <= 1024; i++) {  // 1024 is the maximum dimension
+int find_largest_factor(const int dim) {
+  // Start from the largest possible factor
+  for (int i = std::min(dim, 1024); i > 1; --i) {
     if (dim % i == 0) {
-      largestFactor = i;
+      return i;
     }
   }
-
-  return largestFactor;
+  return 1;  // If no factor is found, return 1
 }
 
-void factorizeForAddressGen(const int dim, int *factors) {
+void factorize_for_address_gen(const int dim, int *shape) {
   if (dim > 1024) {
-    int largestFactor = getLargestFactor(dim);
-    factors[0] = dim / largestFactor;
-    factors[1] = largestFactor;
+    int factor = find_largest_factor(dim);
+    shape[0] = dim / factor;
+    shape[1] = factor;
   } else {
-    factors[0] = 1;
-    factors[1] = dim;
+    shape[0] = 1;
+    shape[1] = dim;
   }
-}
-
-inline std::vector<int> get_tensor_shape(const codegen::Tensor &tensor) {
-  return std::vector<int>(tensor.shape().begin(), tensor.shape().end());
-}
-
-inline std::vector<int> get_input_shape(const codegen::Tensor &tensor) {
-  if (tensor.has_reshape()) {
-    const auto &param = tensor.reshape();
-    return {param.output_sizes().begin(), param.output_sizes().end()};
-  }
-
-  if (tensor.has_slicing()) {
-    const auto &param = tensor.slicing();
-    return {param.output_sizes().begin(), param.output_sizes().end()};
-  }
-
-  const auto repeated_field = tensor.shape();
-  return {repeated_field.begin(), repeated_field.end()};
 }
 
 inline std::vector<int> squeeze_shape(const std::vector<int> &input) {
@@ -105,17 +85,6 @@ inline std::vector<int> squeeze_shape(const std::vector<int> &input) {
     }
   }
   return result;
-}
-
-inline int get_size(const std::vector<int> &shape) {
-  int size = 1;
-  for (const auto &dim : shape) size *= dim;
-  return size;
-}
-
-inline int get_size(const codegen::Tensor &tensor) {
-  const auto shape = get_input_shape(tensor);
-  return get_size(shape);
 }
 
 std::vector<int> split_loops(std::vector<int> loops, int max_value) {
@@ -220,4 +189,20 @@ int pad_shape_to_ndim(std::vector<int> &shape, const int ndim) {
     shape.insert(shape.begin(), 1);
   }
   return padding;
+}
+
+bool is_transpose(const std::vector<int> &dims) {
+  int n = dims.size();
+  // If there are fewer than 2 axes, there's nothing to swap.
+  if (n < 2) return false;
+
+  // Check that all axes except the last two are in their natural order.
+  for (int i = 0; i < n - 2; ++i) {
+    if (dims[i] != i) {
+      return false;
+    }
+  }
+
+  // Check that the last two axes are swapped.
+  return (dims[n - 2] == n - 1 && dims[n - 1] == n - 2);
 }

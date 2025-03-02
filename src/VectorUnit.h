@@ -8,109 +8,91 @@
 #include "VectorOps.h"
 // clang-format on
 #include "Broadcaster.h"
-#include "MaxpoolUnit.h"
-#include "OutputAddressGenerator.h"
 #include "ParamsDeserializer.h"
 #include "VectorFetch.h"
+#include "VectorUnitOutput.h"
 
-template <typename IO_DTYPE, typename VEC_DTYPE, typename MU_OUTPUT_DTYPE,
-          int WIDTH>
+template <typename IOType, typename VectorType, typename BufferType,
+          typename ScaleType, int Width>
 SC_MODULE(VectorOpUnit) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
-  Connections::In<VectorInstructions> CCS_INIT_S1(vectorOpUnitInstructions);
-  Connections::In<VectorInstructions> CCS_INIT_S1(
-      accumulationOpUnitInstructions);
-  Connections::In<VectorInstructions> CCS_INIT_S1(reductionOpUnitInstructions);
+  Connections::In<VectorInstructions> CCS_INIT_S1(vector_op_inst);
+  Connections::In<VectorInstructions> CCS_INIT_S1(accumulation_inst);
+  Connections::In<VectorInstructions> CCS_INIT_S1(reduction_inst);
 
-  Connections::In<Pack1D<MU_OUTPUT_DTYPE, WIDTH> > CCS_INIT_S1(
-      systolicArrayOutput);
-  Connections::In<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch0Output);
-  Connections::In<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch1Output);
-  Connections::In<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(vectorFetch2Output);
+  Connections::In<Pack1D<BufferType, Width>> CCS_INIT_S1(systolicArrayOutput);
+  Connections::In<Pack1D<VectorType, Width>> CCS_INIT_S1(vectorFetch0Output);
+  Connections::In<Pack1D<VectorType, Width>> CCS_INIT_S1(vectorFetch1Output);
+  Connections::In<Pack1D<VectorType, Width>> CCS_INIT_S1(vectorFetch2Output);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch3AddressRequest);
-  Connections::In<IO_DTYPE> CCS_INIT_S1(vectorFetch3DataResponse);
+  Connections::In<Pack1D<IOType, 16 / IOType::width>> CCS_INIT_S1(
+      vectorFetch3DataResponse);
 
-  Connections::Out<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(vectorOpUnitOutput);
+  Connections::Out<Pack1D<VectorType, Width>> CCS_INIT_S1(
+      vector_op_unit_output);
 
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
-      accumulationOpInput);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
-      accumulationOpOutput);
+  Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
+      accumulation_input);
+  Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
+      accumulation_output);
 
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
-      reductionOpInput);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
-      reductionOpOutputOp0Src0);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
-      reductionOpOutputOp0Src1);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
-      reductionOpOutputOp3Src1);
+  Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
+      reduction_input);
 
-  Broadcaster<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(broadcastReduction0);
-  Connections::Combinational<ac_int<16, false> > broadcastReduction0Count;
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
-      broadcastReductionOpOutputOp0Src0);
+  Broadcaster<Pack1D<VectorType, Width>> CCS_INIT_S1(reduction_broadcaster);
+  Connections::Combinational<ac_int<16, false>> broadcast_count;
+  Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
+      broadcast_input);
+  Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
+      reduction_output);
 
-  Broadcaster<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(broadcastReduction1);
-  Connections::Combinational<ac_int<16, false> > broadcastReduction1Count;
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
-      broadcastReductionOpOutputOp0Src1);
-
-  Broadcaster<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(broadcastReduction2);
-  Connections::Combinational<ac_int<16, false> > broadcastReduction2Count;
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
-      broadcastReductionOpOutputOp3Src1);
+  Broadcaster<Pack1D<VectorType, Width>> CCS_INIT_S1(reduction_broadcaster_1);
+  Connections::Combinational<ac_int<16, false>> broadcast1_count;
+  Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
+      broadcast1_input);
+  Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
+      reduction_output_1);
 
   SC_CTOR(VectorOpUnit) {
-    // systolicArrayOutput.enable_local_rand_stall();
+    reduction_broadcaster.clk(clk);
+    reduction_broadcaster.rstn(rstn);
+    reduction_broadcaster.dataIn(broadcast_input);
+    reduction_broadcaster.count(broadcast_count);
+    reduction_broadcaster.dataOut(reduction_output);
 
-    broadcastReduction0.clk(clk);
-    broadcastReduction0.rstn(rstn);
-    broadcastReduction0.dataIn(reductionOpOutputOp0Src0);
-    broadcastReduction0.count(broadcastReduction0Count);
-    broadcastReduction0.dataOut(broadcastReductionOpOutputOp0Src0);
+    reduction_broadcaster_1.clk(clk);
+    reduction_broadcaster_1.rstn(rstn);
+    reduction_broadcaster_1.dataIn(broadcast1_input);
+    reduction_broadcaster_1.count(broadcast1_count);
+    reduction_broadcaster_1.dataOut(reduction_output_1);
 
-    broadcastReduction1.clk(clk);
-    broadcastReduction1.rstn(rstn);
-    broadcastReduction1.dataIn(reductionOpOutputOp0Src1);
-    broadcastReduction1.count(broadcastReduction1Count);
-    broadcastReduction1.dataOut(broadcastReductionOpOutputOp0Src1);
-
-    broadcastReduction2.clk(clk);
-    broadcastReduction2.rstn(rstn);
-    broadcastReduction2.dataIn(reductionOpOutputOp3Src1);
-    broadcastReduction2.count(broadcastReduction2Count);
-    broadcastReduction2.dataOut(broadcastReductionOpOutputOp3Src1);
-
-    SC_THREAD(vectorOpRun);
+    SC_THREAD(run_vector_ops);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
-    SC_THREAD(accumulationOpRun);
+    SC_THREAD(run_accumulation);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
-    SC_THREAD(reductionOpRun);
+    SC_THREAD(run_reduction);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
   }
 
-  void vectorOpRun() {
-    vectorOpUnitInstructions.Reset();
+  void run_vector_ops() {
+    vector_op_inst.Reset();
     systolicArrayOutput.Reset();
     vectorFetch0Output.Reset();
     vectorFetch1Output.Reset();
     vectorFetch2Output.Reset();
-    vectorOpUnitOutput.Reset();
-    accumulationOpInput.ResetWrite();
-    accumulationOpOutput.ResetRead();
-    reductionOpInput.ResetWrite();
-    broadcastReductionOpOutputOp0Src0.ResetRead();
-    broadcastReductionOpOutputOp0Src1.ResetRead();
-    broadcastReductionOpOutputOp3Src1.ResetRead();
+    vector_op_unit_output.Reset();
+    accumulation_input.ResetWrite();
+    accumulation_output.ResetRead();
+    reduction_input.ResetWrite();
+    reduction_output.ResetRead();
     vectorFetch3AddressRequest.Reset();
     vectorFetch3DataResponse.Reset();
 
@@ -119,454 +101,384 @@ SC_MODULE(VectorOpUnit) {
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode bubble
     while (true) {
-      VectorInstructions inst = vectorOpUnitInstructions.Pop();
+      VectorInstructions inst = vector_op_inst.Pop();
 
-      Pack1D<VEC_DTYPE, WIDTH> op0;
-      Pack1D<VEC_DTYPE, WIDTH> op1;
-      Pack1D<VEC_DTYPE, WIDTH> op2;
+      Pack1D<VectorType, Width> res0;
+      Pack1D<VectorType, Width> res1;
+      Pack1D<VectorType, Width> res2;
+      Pack1D<VectorType, Width> res3;
 
-      Pack1D<VEC_DTYPE, WIDTH> res0;
-      Pack1D<VEC_DTYPE, WIDTH> res1;
-      Pack1D<VEC_DTYPE, WIDTH> res2;
-      Pack1D<VEC_DTYPE, WIDTH> res3;
-      Pack1D<VEC_DTYPE, WIDTH> res4;
-      Pack1D<VEC_DTYPE, WIDTH> res5;
+      // Vector unit inputs
+      Pack1D<VectorType, Width> op0_src0;
+      Pack1D<VectorType, Width> op0_src1;
+      Pack1D<VectorType, Width> op2_src1;
 
-      /*
-       * Stage 0: add, sub, mult
-       */
-      // Read from interfaces
-      Pack1D<VEC_DTYPE, WIDTH> op0Src0;
-      if (inst.vInput == VectorInstructions::readFromSystolicArray) {
-        Pack1D<MU_OUTPUT_DTYPE, WIDTH> tmp = systolicArrayOutput.Pop();
-        if (inst.vDequantize) {
-          vdequantize<MU_OUTPUT_DTYPE, VEC_DTYPE, WIDTH>(tmp, op0Src0,
-                                                         inst.vDequantizeScale);
+      if (inst.vector_op0_src0 == VectorInstructions::from_matrix_unit ||
+          inst.vector_op0_src1 == VectorInstructions::from_matrix_unit) {
+        Pack1D<BufferType, Width> sa_output = systolicArrayOutput.Pop();
+
+        Pack1D<VectorType, Width> temp;
+        if (inst.vdequantize) {
+          vdequantize<BufferType, VectorType, Width>(sa_output, temp,
+                                                     inst.vector_dq_scale);
         } else {
 #pragma hls_unroll yes
-          for (int i = 0; i < WIDTH; i++) {
-            op0Src0[i] = tmp[i];
+          for (int i = 0; i < Width; i++) {
+            temp[i] = sa_output[i];
           }
         }
-      } else if (inst.vInput == VectorInstructions::readFromVectorFetch) {
-        Pack1D<VEC_DTYPE, WIDTH> tmp = vectorFetch0Output.Pop();
 
-#pragma hls_unroll yes
-        for (int i = 0; i < WIDTH; i++) {
-          op0Src0[i] = tmp[i];
+        if (inst.vector_op0_src0 == VectorInstructions::from_matrix_unit) {
+          op0_src0 = temp;
+        } else {
+          op0_src1 = temp;
         }
-      } else if (inst.vInput == VectorInstructions::readFromAccumulation) {
-        op0Src0 = accumulationOpOutput.Pop();
-      } else if (inst.vInput == VectorInstructions::readFromReduce) {
-        op0Src0 = broadcastReductionOpOutputOp0Src0.Pop();
       }
 
-      Pack1D<VEC_DTYPE, WIDTH> op0Src1;
-      if (inst.vOp0Src1 == VectorInstructions::readInterface) {
-        Pack1D<VEC_DTYPE, WIDTH> tmp = vectorFetch1Output.Pop();
-#pragma hls_unroll yes
-        for (int i = 0; i < WIDTH; i++) {
-          op0Src1[i] = tmp[i];
+      if (inst.vector_op0_src0 == VectorInstructions::from_vector_fetch_0 ||
+          inst.vector_op0_src1 == VectorInstructions::from_vector_fetch_0) {
+        Pack1D<VectorType, Width> temp = vectorFetch0Output.Pop();
+        if (inst.vector_op0_src0 == VectorInstructions::from_vector_fetch_0) {
+          op0_src0 = temp;
+        } else {
+          op0_src1 = temp;
         }
-      } else if (inst.vOp0Src1 == VectorInstructions::op0immediate) {
-        VEC_DTYPE immediate;
+      }
+
+      if (inst.vector_op0_src0 == VectorInstructions::from_vector_fetch_1 ||
+          inst.vector_op0_src1 == VectorInstructions::from_vector_fetch_1) {
+        Pack1D<VectorType, Width> temp = vectorFetch1Output.Pop();
+        if (inst.vector_op0_src0 == VectorInstructions::from_vector_fetch_1) {
+          op0_src0 = temp;
+        } else {
+          op0_src1 = temp;
+        }
+      }
+
+      if (inst.vector_op2_src1 == VectorInstructions::from_vector_fetch_2) {
+        op2_src1 = vectorFetch2Output.Pop();
+      }
+
+      if (inst.vector_op0_src0 == VectorInstructions::from_accumulation ||
+          inst.vector_op0_src1 == VectorInstructions::from_accumulation ||
+          inst.vector_op2_src1 == VectorInstructions::from_accumulation) {
+        Pack1D<VectorType, Width> temp = accumulation_output.Pop();
+        if (inst.vector_op0_src0 == VectorInstructions::from_accumulation) {
+          op0_src0 = temp;
+        } else if (inst.vector_op0_src1 ==
+                   VectorInstructions::from_accumulation) {
+          op0_src1 = temp;
+        } else {
+          op2_src1 = temp;
+        }
+      }
+
+      if (inst.vector_op0_src0 == VectorInstructions::from_reduction_0 ||
+          inst.vector_op0_src1 == VectorInstructions::from_reduction_0 ||
+          inst.vector_op2_src1 == VectorInstructions::from_reduction_0) {
+        Pack1D<VectorType, Width> temp = reduction_output.Pop();
+        if (inst.vector_op0_src0 == VectorInstructions::from_reduction_0) {
+          op0_src0 = temp;
+        } else if (inst.vector_op0_src1 ==
+                   VectorInstructions::from_reduction_0) {
+          op0_src1 = temp;
+        } else {
+          op2_src1 = temp;
+        }
+      }
+
+      if (inst.vector_op2_src1 == VectorInstructions::from_reduction_1) {
+        op2_src1 = reduction_output_1.Pop();
+      }
+
+      if (inst.vector_op0_src0 == VectorInstructions::from_immediate_0 ||
+          inst.vector_op0_src1 == VectorInstructions::from_immediate_0) {
+        VectorType immediate;
         immediate.set_bits(inst.immediate0);
 
+        Pack1D<VectorType, Width> temp;
 #pragma hls_unroll yes
-        for (int i = 0; i < WIDTH; i++) {
-          op0Src1[i] = immediate;
+        for (int i = 0; i < Width; i++) {
+          temp[i] = immediate;
         }
-      } else if (inst.vOp0Src1 == VectorInstructions::readFromReduce) {
-        op0Src1 = broadcastReductionOpOutputOp0Src1.Pop();
+
+        if (inst.vector_op0_src0 == VectorInstructions::from_immediate_0) {
+          op0_src0 = temp;
+        } else {
+          op0_src1 = temp;
+        }
       }
 
-      // DLOG("vector unit input: " << op0Src0);
+      if (inst.vector_op2_src1 == VectorInstructions::from_immediate_1) {
+        VectorType immediate;
+        immediate.set_bits(inst.immediate1);
 
-      if (inst.vOp0 == VectorInstructions::vadd ||
-          inst.vOp0 == VectorInstructions::vsub) {
-        if (inst.vOp0 == VectorInstructions::vsub) {
 #pragma hls_unroll yes
-          for (int i = 0; i < WIDTH; i++) {
-            op0Src1[i].negate();
+        for (int i = 0; i < Width; i++) {
+          op2_src1[i] = immediate;
+        }
+      }
+
+      // DLOG("vector unit input: " << op0_src0);
+
+      // Stage 0: add, sub, mult
+      if (inst.vector_op0 == VectorInstructions::vadd ||
+          inst.vector_op0 == VectorInstructions::vsub) {
+        if (inst.vector_op0 == VectorInstructions::vsub) {
+#pragma hls_unroll yes
+          for (int i = 0; i < Width; i++) {
+            op0_src1[i] = op0_src1[i].negate();
           }
         }
-        vadd<VEC_DTYPE, WIDTH>(op0Src0, op0Src1, res0);
-        DLOG(op0Src0 << std::endl
-                     << " + " << std::endl
-                     << op0Src1 << std::endl
-                     << " = " << std::endl
-                     << res0);
-      } else if (inst.vOp0 == VectorInstructions::vmult) {
-        vmult<VEC_DTYPE, WIDTH>(op0Src0, op0Src1, res0);
-        DLOG(op0Src0 << std::endl
-                     << " * " << std::endl
-                     << op0Src1 << std::endl
-                     << " = " << std::endl
-                     << res0);
+        vadd<VectorType, Width>(op0_src0, op0_src1, res0);
+      } else if (inst.vector_op0 == VectorInstructions::vmult) {
+        vmult<VectorType, Width>(op0_src0, op0_src1, res0);
       } else {
-        res0 = op0Src0;
+        res0 = op0_src0;
       }
 
       // DLOG("res0: " << res0);
-      /*
-       * Stage 1: exp
-       */
-      if (inst.vOp1 == VectorInstructions::vexp) {
-        vexp<VEC_DTYPE, WIDTH>(res0, res1);
-      } else if (inst.vOp1 == VectorInstructions::vscaleexp) {
-        ac_int<8, true> scaleVal;
-        if (inst.vOp1Src1 == VectorInstructions::op1immediate) {
-          scaleVal = inst.immediate0;
-        }
-        vscaleexp<VEC_DTYPE, WIDTH>(res0, scaleVal, res1);
+
+      // Stage 1: exp
+      if (inst.vector_op1 == VectorInstructions::vexp) {
+        vexp<VectorType, Width>(res0, res1);
+      } else if (inst.vector_op1 == VectorInstructions::vscaleexp) {
+        vscaleexp<VectorType, Width>(res0, inst.immediate0, res1);
       } else {
         res1 = res0;
       }
 
       // DLOG("res1: " << res1);
 
-      /*
-       * Stage 2: reduction
-       */
-      // FIXME: delete this stage (moved reduction moved to end of pipeline)
-      res2 = res1;
+      // Stage 2: add, mult, square
+      if (inst.vector_op2 == VectorInstructions::vadd) {
+        vadd<VectorType, Width>(res1, op2_src1, res2);
+      } else if (inst.vector_op2 == VectorInstructions::vmult ||
+                 inst.vector_op2 == VectorInstructions::vsquare) {
+        if (inst.vector_op2 == VectorInstructions::vsquare) {
+          op2_src1 = res1;
+        }
+        vmult<VectorType, Width>(res1, op2_src1, res2);
+      } else {
+        res2 = res1;
+      }
 
       // DLOG("res2: " << res2);
 
-      /*
-       * Stage 3: add, div
-       */
-      Pack1D<VEC_DTYPE, WIDTH> op3Src0;
-      op3Src0 = res2;
+      // Stage 3: activations
+      if (inst.vector_op3 == VectorInstructions::vrelu ||
+          inst.vector_op3 == VectorInstructions::vrelumask) {
+        bool use_mask = inst.vector_op3 == VectorInstructions::vrelumask;
+        vrelu<VectorType, Width>(res2, op0_src1, use_mask, res3);
+      } else if (inst.vector_op3 == VectorInstructions::vgelu) {
+        vgelu<VectorType, Width>(res2, res3);
+      } else if (inst.vector_op3 == VectorInstructions::vsilu) {
+        vsilu<VectorType, Width>(res2, res3);
+      } else if (inst.vector_op3 == VectorInstructions::vmap) {
+        for (int i = 0; i < Width; i++) {
+          DataTypes::bfloat16 value = res2[i];
 
-      Pack1D<VEC_DTYPE, WIDTH> op3Src1;
-      if (inst.vOp3Src1 == VectorInstructions::readReduceInterface) {
-        op3Src1 = broadcastReductionOpOutputOp3Src1.Pop();
-      } else if (inst.vOp3Src1 == VectorInstructions::readNormalInterface) {
-        Pack1D<VEC_DTYPE, WIDTH> tmp = vectorFetch2Output.Pop();
+          ac_int<32, false> address = value.bits_rep() * 2;
+          MemoryRequest request = {inst.VMAP_OFFSET + address, 2};
+          vectorFetch3AddressRequest.Push(request);
 
+          constexpr int num_words = 16 / IOType::width;
+          Pack1D<IOType, num_words> response = vectorFetch3DataResponse.Pop();
+
+          ac_int<16, false> bits = 0;
 #pragma hls_unroll yes
-        for (int i = 0; i < WIDTH; i++) {
-          op3Src1[i] = tmp[i];
-        }
-      } else if (inst.vOp3Src1 == VectorInstructions::op3immediate) {
-        VEC_DTYPE immediate;
-        immediate.set_bits(inst.immediate1);
+          for (int j = 0; j < num_words; j++) {
+            ac_int<16, false> bits_rep = response[j].bits_rep();
+            bits = bits | (bits_rep << (IOType::width * j));
+          }
 
-#pragma hls_unroll yes
-        for (int i = 0; i < WIDTH; i++) {
-          op3Src1[i] = immediate;
+          value.set_bits(bits);
+          res3[i] = value;
         }
-      }
-
-      if (inst.vOp3 == VectorInstructions::vadd) {
-        vadd<VEC_DTYPE, WIDTH>(op3Src0, op3Src1, res3);
-        DLOG(op3Src0 << std::endl
-                     << " + " << std::endl
-                     << op3Src1 << std::endl
-                     << " = " << std::endl
-                     << res3);
-      } else if (inst.vOp3 == VectorInstructions::vmult ||
-                 inst.vOp3 == VectorInstructions::vsquare) {
-        if (inst.vOp3 == VectorInstructions::vsquare) {
-          op3Src1 = op3Src0;
-        }
-        vmult<VEC_DTYPE, WIDTH>(op3Src0, op3Src1, res3);
-        DLOG(op3Src0 << std::endl
-                     << " * " << std::endl
-                     << op3Src1 << std::endl
-                     << " = " << std::endl
-                     << res3);
-      } else if (inst.vOp3 == VectorInstructions::vscaleexp) {
-        ac_int<8, true> scaleVal;
-        scaleVal = inst.immediate1;
-        vscaleexp<VEC_DTYPE, WIDTH>(op3Src0, scaleVal, res3);
       } else {
-        res3 = op3Src0;
+        res3 = res2;
       }
 
       // DLOG("res3: " << res3);
 
-      /*
-       * Stage 4: relu and value mapping
-       */
-      if (inst.vOp4 == VectorInstructions::vrelu ||
-          inst.vOp4 == VectorInstructions::vrelumask) {
-        bool useMask = inst.vOp4 == VectorInstructions::vrelumask;
-        vrelu<VEC_DTYPE, WIDTH>(res3, op0Src1, useMask, res4);
-      } else if (inst.vOp4 == VectorInstructions::vgelu) {
-        vgelu<VEC_DTYPE, WIDTH>(res3, res4);
-      } else if (inst.vOp4 == VectorInstructions::vsilu) {
-        vsilu<VEC_DTYPE, WIDTH>(res3, res4);
-      } else if (inst.vOp4 == VectorInstructions::vmap) {
-        for (int i = 0; i < WIDTH; i++) {
-          DataTypes::bfloat16 value = res3[i];
-          uint offset = value.bits_rep().to_uint();
-
-          MemoryRequest memRequest = {inst.vmapOffset + offset * 2, 2};
-          vectorFetch3AddressRequest.Push(memRequest);
-
-          ac_int<16, false> bits = 0;
-          for (int j = 0; j < 2; j++) {
-            IO_DTYPE response = vectorFetch3DataResponse.Pop();
-            ac_int<16, false> bits_rep = response.bits_rep();
-            bits = bits | (bits_rep << (8 * j));
-          }
-
-          DataTypes::bfloat16 mappedValue;
-          mappedValue.set_bits(bits);
-
-          res4[i] = mappedValue;
-        }
-      } else {
-        res4 = res3;
-      }
-
-      if (inst.vAccumulatePush) {
-        accumulationOpInput.Push(res4);
-      }
-      if (inst.vOp2 == VectorInstructions::toReduce) {
-        reductionOpInput.Push(res4);
-      }
-
-      // DLOG("res4: " << res4);
-
-      if (inst.vDest == VectorInstructions::vWriteOut) {
-        vectorOpUnitOutput.Push(res4);
+      if (inst.vdest == VectorInstructions::to_output) {
+        vector_op_unit_output.Push(res3);
+      } else if (inst.vdest == VectorInstructions::to_reduce) {
+        reduction_input.Push(res3);
+      } else if (inst.vdest == VectorInstructions::to_accumulate) {
+        accumulation_input.Push(res3);
       }
     }
   }
 
-  void accumulationOpRun() {
-    accumulationOpInput.ResetRead();
-    accumulationOpOutput.ResetWrite();
-    accumulationOpUnitInstructions.Reset();
+  void run_accumulation() {
+    accumulation_inst.Reset();
+    accumulation_input.ResetRead();
+    accumulation_output.ResetWrite();
 
     wait();
 
     while (true) {
-      VectorInstructions inst = accumulationOpUnitInstructions.Pop();
+      VectorInstructions inst = accumulation_inst.Pop();
 
-      Pack1D<VEC_DTYPE, WIDTH> accum;
+      Pack1D<VectorType, Width> outputs;
 
 #pragma hls_unroll yes
-      for (int i = 0; i < WIDTH; i++) {
-        accum[i].set_zero();
+      for (int i = 0; i < Width; i++) {
+        outputs[i].set_zero();
       }
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
-      for (int count = 0; count < inst.rCount; count++) {
-        DLOG("accumulation " << count << " / " << inst.rCount);
-        Pack1D<VEC_DTYPE, WIDTH> op = accumulationOpInput.Pop();
+      for (int i = 0; i < inst.rCount; i++) {
+        Pack1D<VectorType, Width> op = accumulation_input.Pop();
 
         if (inst.rOp == VectorInstructions::radd) {
 #pragma hls_unroll yes
-          for (int i = 0; i < WIDTH; i++) {
-            // accum[i] = accum[i] + op[i];
-            accum[i] += op[i];
+          for (int j = 0; j < Width; j++) {
+            outputs[j] += op[j];
           }
         } else if (inst.rOp == VectorInstructions::rmax) {
 #pragma hls_unroll yes
-          for (int i = 0; i < WIDTH; i++) {
-            accum[i] = accum[i] < op[i] ? op[i] : accum[i];
+          for (int j = 0; j < Width; j++) {
+            outputs[j] = (outputs[j] < op[j] || i == 0) ? op[j] : outputs[j];
           }
         }
       }
 
-      DLOG("accumulation finished: " << accum);
-      accumulationOpOutput.Push(accum);
+      DLOG("accumulation finished: " << outputs);
+      accumulation_output.Push(outputs);
     }
   }
 
-  void reductionOpRun() {
-    reductionOpUnitInstructions.Reset();
-    reductionOpInput.ResetRead();
-    reductionOpOutputOp0Src0.ResetWrite();
-    reductionOpOutputOp0Src1.ResetWrite();
-    reductionOpOutputOp3Src1.ResetWrite();
-    broadcastReduction0Count.ResetWrite();
-    broadcastReduction1Count.ResetWrite();
-    broadcastReduction2Count.ResetWrite();
+  void run_reduction() {
+    reduction_inst.Reset();
+    reduction_input.ResetRead();
+    broadcast_input.ResetWrite();
+    broadcast_count.ResetWrite();
+    broadcast1_input.ResetWrite();
+    broadcast1_count.ResetWrite();
 
     wait();
 
     while (true) {
-      VectorInstructions inst = reductionOpUnitInstructions.Pop();
+      VectorInstructions inst = reduction_inst.Pop();
 
-      Pack1D<VEC_DTYPE, WIDTH> res;
+      Pack1D<VectorType, Width> res;
+      VectorType output;
 
-      int iterationCount = inst.rDuplicate ? 1 : WIDTH;
-
-      VEC_DTYPE scalarResult;
+      int num_outputs = inst.rDuplicate ? 1 : Width;
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
-      for (int index = 0; index < iterationCount; index++) {
-        VEC_DTYPE prevResult;
+      for (int i = 0; i < num_outputs; i++) {
+        for (int j = 0; j < inst.rCount; j++) {
+          Pack1D<VectorType, Width> op = reduction_input.Pop();
 
-        if (inst.rOp == VectorInstructions::radd) {
-          for (int i = 0; i < inst.rCount; i++) {
-            Pack1D<VEC_DTYPE, WIDTH> op = reductionOpInput.Pop();
-            VEC_DTYPE result = treeadd(op);
-            DLOG("reduction: " << op << " = " << result);
-            if (i != 0) {
-              result += prevResult;
-            }
-
-            prevResult = result;
+          if (inst.rOp == VectorInstructions::radd) {
+            VectorType sum = treeadd(op);
+            output = (j == 0) ? sum : output + sum;
+          } else if (inst.rOp == VectorInstructions::rmax) {
+            VectorType max = treemax(op);
+            output = (output < max || j == 0) ? max : output;
           }
-        } else if (inst.rOp == VectorInstructions::rmax) {
-          for (int i = 0; i < inst.rCount; i++) {
-            Pack1D<VEC_DTYPE, WIDTH> op = reductionOpInput.Pop();
-            VEC_DTYPE result = treemax(op);
-            if (i != 0) {
-              result = result < prevResult ? prevResult : result;
-            }
-
-            prevResult = result;
-          }
-        } else if (inst.rOp == VectorInstructions::rmxscale) {
-          typedef ac_int<VEC_DTYPE::exponent_width, false> exp_type_t;
-
-          exp_type_t prevExpResult;
-          for (int i = 0; i < inst.rCount; i++) {
-            Pack1D<VEC_DTYPE, WIDTH> op = reductionOpInput.Pop();
-
-            Pack1D<exp_type_t, WIDTH> exponents;
-
-#pragma hls_unroll yes
-            for (int j = 0; j < WIDTH; j++) {
-              exponents[j] = op[j].unbiased_exponent();
-            }
-
-            exp_type_t result = treemax(exponents);
-
-            if (i != 0) {
-              result = result < prevExpResult ? prevExpResult : result;
-            }
-
-            prevExpResult = result;
-          }
-
-          // FIXME: 6 is hardcoded for INT8
-          ac_int<VEC_DTYPE::exponent_width, true> scaledExp = prevExpResult - 6;
-
-          prevResult.set_bits(scaledExp);
         }
 
         if (!inst.rDuplicate) {
-          res[index] = prevResult;
-        } else {
-          scalarResult = prevResult;
+          res[i] = output;
         }
 
-        DLOG("Reduction " << index << "/" << iterationCount << " : "
-                          << prevResult << std::endl
-                          << res);
+        DLOG("Reduction " << i << "/" << num_outputs << " : " << output);
       }
 
       if (inst.rSqrt) {
-        scalarResult = scalarResult.sqrt();
+        output = output.sqrt();
       }
 
       if (inst.rReciprocal) {
-        scalarResult.reciprocal();
+        output = output.reciprocal();
       }
 
       if (inst.rMax1) {
-        scalarResult = scalarResult.max1();
+        output = output.max1();
       }
 
+      // Duplicate the scalar result into a vector
       if (inst.rDuplicate) {
-        // Duplicate the scalar result into a vector
 #pragma hls_unroll yes
-        for (int i = 0; i < WIDTH; i++) {
-          res[i] = scalarResult;
+        for (int i = 0; i < Width; i++) {
+          res[i] = output;
         }
       }
 
-      if (inst.rDest != 0) {
-        if (inst.rDest == VectorInstructions::toVectorOp0Src0) {
-          ac_int<16, false> broadcastCount = 1;
-          if (inst.rBroadcast) {
-            broadcastCount = inst.immediate0;
-          }
-          broadcastReduction0Count.Push(broadcastCount);
-          reductionOpOutputOp0Src0.Push(res);
-        } else if (inst.rDest == VectorInstructions::toVectorOp0Src1) {
-          ac_int<16, false> broadcastCount = 1;
-          if (inst.rBroadcast) {
-            broadcastCount = inst.immediate0;
-          }
-          broadcastReduction1Count.Push(broadcastCount);
-          reductionOpOutputOp0Src1.Push(res);
-        } else if (inst.rDest == VectorInstructions::toVectorOp3Src1) {
-          ac_int<16, false> broadcastCount = 1;
-          if (inst.rBroadcast) {
-            broadcastCount = inst.immediate0;
-          }
-          broadcastReduction2Count.Push(broadcastCount);
-          reductionOpOutputOp3Src1.Push(res);
-        }
+      ac_int<16, false> count = 1;
+      if (inst.rBroadcast) {
+        count = inst.immediate0;
+      }
+
+      if (inst.rdest == 0) {
+        broadcast_count.Push(count);
+        broadcast_input.Push(res);
+      } else {
+        broadcast1_count.Push(count);
+        broadcast1_input.Push(res);
       }
     }
   }
 };
 
-template <typename IO_DTYPE, typename VEC_DTYPE, typename MU_OUTPUT_DTYPE,
-          typename MX_DTYPE, int WIDTH>
+template <typename IOType, typename VectorType, typename BufferType,
+          typename ScaleType, int Width>
 SC_MODULE(VectorUnit) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
   Connections::In<int> CCS_INIT_S1(serialParamsIn);
 
-  Connections::In<Pack1D<MU_OUTPUT_DTYPE, WIDTH> > CCS_INIT_S1(
-      systolicArrayOutput);
+  Connections::In<Pack1D<BufferType, Width>> CCS_INIT_S1(systolicArrayOutput);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch0AddressRequest);
-  Connections::In<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(
-      vectorFetch0DataResponse);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
-      vectorFetch0DataResponseBroadcasted);
+  Connections::In<Pack1D<IOType, Width>> CCS_INIT_S1(vectorFetch0DataResponse);
+  Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
+      vectorFetch0DataResponseConverted);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch1AddressRequest);
-  Connections::In<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(
-      vectorFetch1DataResponse);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::In<Pack1D<IOType, Width>> CCS_INIT_S1(vectorFetch1DataResponse);
+  Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
       vectorFetch1DataResponseConverted);
-  Connections::Combinational<MX_DTYPE> CCS_INIT_S1(vectorFetch1Scale);
+  Connections::Combinational<ScaleType> CCS_INIT_S1(vectorFetch1Scale);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch2AddressRequest);
-  Connections::In<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(
-      vectorFetch2DataResponse);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
+  Connections::In<Pack1D<IOType, Width>> CCS_INIT_S1(vectorFetch2DataResponse);
+  Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
       vectorFetch2DataResponseConverted);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch3AddressRequest);
-  Connections::In<IO_DTYPE> CCS_INIT_S1(vectorFetch3DataResponse);
+  Connections::In<Pack1D<IOType, 16 / IOType::width>> CCS_INIT_S1(
+      vectorFetch3DataResponse);
 
-  Connections::Out<ac_int<64, false> > CCS_INIT_S1(vectorOutputAddress);
-  Connections::Out<Pack1D<IO_DTYPE, WIDTH> > CCS_INIT_S1(finalVectorOutput);
-  Connections::Combinational<Pack1D<VEC_DTYPE, WIDTH> > CCS_INIT_S1(
-      vectorOpUnitOutput);
+  Connections::Out<Pack1D<IOType, Width>> CCS_INIT_S1(vector_output);
+  Connections::Out<ac_int<64, false>> CCS_INIT_S1(vector_output_address);
+  Connections::Out<Pack1D<INT8_, 1>> CCS_INIT_S1(scalar_output);
+  Connections::Out<ac_int<64, false>> CCS_INIT_S1(scalar_output_address);
+
+  Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
+      vector_op_unit_output);
 
   Connections::SyncOut CCS_INIT_S1(start);
   Connections::SyncOut CCS_INIT_S1(done);
 
-  VectorFetchUnit<IO_DTYPE, VEC_DTYPE, MX_DTYPE, WIDTH> CCS_INIT_S1(
-      vectorFetch);
+  VectorFetchUnit<IOType, VectorType, ScaleType, Width> CCS_INIT_S1(
+      vector_fetch);
   Connections::Combinational<VectorParams> CCS_INIT_S1(vectorFetchParams);
 
-  VectorOpUnit<IO_DTYPE, VEC_DTYPE, MU_OUTPUT_DTYPE, WIDTH> CCS_INIT_S1(
-      vectorOpUnit);
+  VectorOpUnit<IOType, VectorType, BufferType, ScaleType, Width> CCS_INIT_S1(
+      vector_simd);
 
-  MaxpoolUnit<VEC_DTYPE, IO_DTYPE, MX_DTYPE, WIDTH> CCS_INIT_S1(maxpoolUnit);
-  Connections::Combinational<VectorParams> CCS_INIT_S1(maxpoolUnitParams);
-
-  OutputAddressGenerator<IO_DTYPE, WIDTH> CCS_INIT_S1(outputAddressGenerator);
-  Connections::Combinational<VectorParams> CCS_INIT_S1(outputAddressGenParams);
+  VectorUnitOutput<VectorType, ScaleType, IOType, Width> CCS_INIT_S1(
+      vector_unit_output);
+  Connections::Combinational<VectorParams> CCS_INIT_S1(
+      vector_unit_output_params);
 
   Connections::Combinational<VectorInstructions> CCS_INIT_S1(
       vectorOpInstructions);
@@ -587,54 +499,50 @@ SC_MODULE(VectorUnit) {
     paramsDeserializer.vectorParamsOut(vectorParamsIn);
     paramsDeserializer.vectorInstructionsOut(vectorInstructionsIn);
 
-    vectorFetch.clk(clk);
-    vectorFetch.rstn(rstn);
-    vectorFetch.paramsIn(vectorFetchParams);
-    vectorFetch.vectorFetch0AddressRequest(vectorFetch0AddressRequest);
-    vectorFetch.vectorFetch0DataResponse(vectorFetch0DataResponse);
-    vectorFetch.vectorFetch0DataResponseBroadcasted(
-        vectorFetch0DataResponseBroadcasted);
-    vectorFetch.vectorFetch1AddressRequest(vectorFetch1AddressRequest);
-    vectorFetch.vectorFetch1DataResponse(vectorFetch1DataResponse);
-    vectorFetch.vectorFetch1DataResponseConverted(
+    vector_fetch.clk(clk);
+    vector_fetch.rstn(rstn);
+    vector_fetch.paramsIn(vectorFetchParams);
+    vector_fetch.vectorFetch0AddressRequest(vectorFetch0AddressRequest);
+    vector_fetch.vectorFetch0DataResponse(vectorFetch0DataResponse);
+    vector_fetch.vectorFetch0DataResponseConverted(
+        vectorFetch0DataResponseConverted);
+    vector_fetch.vectorFetch1AddressRequest(vectorFetch1AddressRequest);
+    vector_fetch.vectorFetch1DataResponse(vectorFetch1DataResponse);
+    vector_fetch.vectorFetch1DataResponseConverted(
         vectorFetch1DataResponseConverted);
-    vectorFetch.vectorFetch2AddressRequest(vectorFetch2AddressRequest);
-    vectorFetch.vectorFetch2DataResponse(vectorFetch2DataResponse);
-    vectorFetch.vectorFetch2DataResponseConverted(
+    vector_fetch.vectorFetch2AddressRequest(vectorFetch2AddressRequest);
+    vector_fetch.vectorFetch2DataResponse(vectorFetch2DataResponse);
+    vector_fetch.vectorFetch2DataResponseConverted(
         vectorFetch2DataResponseConverted);
-    vectorFetch.vectorFetch1Scale(vectorFetch1Scale);
 
-    vectorOpUnit.clk(clk);
-    vectorOpUnit.rstn(rstn);
-    vectorOpUnit.vectorOpUnitInstructions(vectorOpInstructions);
-    vectorOpUnit.accumulationOpUnitInstructions(accumulationOpInstructions);
-    vectorOpUnit.reductionOpUnitInstructions(reduceOpInstructions);
-    vectorOpUnit.systolicArrayOutput(systolicArrayOutput);
-    vectorOpUnit.vectorFetch0Output(vectorFetch0DataResponseBroadcasted);
-    vectorOpUnit.vectorFetch1Output(vectorFetch1DataResponseConverted);
-    vectorOpUnit.vectorFetch2Output(vectorFetch2DataResponseConverted);
-    vectorOpUnit.vectorOpUnitOutput(vectorOpUnitOutput);
-    vectorOpUnit.vectorFetch3AddressRequest(vectorFetch3AddressRequest);
-    vectorOpUnit.vectorFetch3DataResponse(vectorFetch3DataResponse);
+    vector_simd.clk(clk);
+    vector_simd.rstn(rstn);
+    vector_simd.vector_op_inst(vectorOpInstructions);
+    vector_simd.accumulation_inst(accumulationOpInstructions);
+    vector_simd.reduction_inst(reduceOpInstructions);
+    vector_simd.systolicArrayOutput(systolicArrayOutput);
+    vector_simd.vectorFetch0Output(vectorFetch0DataResponseConverted);
+    vector_simd.vectorFetch1Output(vectorFetch1DataResponseConverted);
+    vector_simd.vectorFetch2Output(vectorFetch2DataResponseConverted);
+    vector_simd.vector_op_unit_output(vector_op_unit_output);
+    vector_simd.vectorFetch3AddressRequest(vectorFetch3AddressRequest);
+    vector_simd.vectorFetch3DataResponse(vectorFetch3DataResponse);
 
-    maxpoolUnit.clk(clk);
-    maxpoolUnit.rstn(rstn);
-    maxpoolUnit.paramsIn(maxpoolUnitParams);
-    maxpoolUnit.tensorIn(vectorOpUnitOutput);
-    maxpoolUnit.tensorOut(finalVectorOutput);
-    maxpoolUnit.doneSignal(done);
-    maxpoolUnit.mxScaleIn(vectorFetch1Scale);
-
-    outputAddressGenerator.clk(clk);
-    outputAddressGenerator.rstn(rstn);
-    outputAddressGenerator.paramsIn(outputAddressGenParams);
-    outputAddressGenerator.vectorOutputAddress(vectorOutputAddress);
+    vector_unit_output.clk(clk);
+    vector_unit_output.rstn(rstn);
+    vector_unit_output.params_in(vector_unit_output_params);
+    vector_unit_output.tensor_in(vector_op_unit_output);
+    vector_unit_output.vector_output(vector_output);
+    vector_unit_output.vector_output_address(vector_output_address);
+    vector_unit_output.scalar_output(scalar_output);
+    vector_unit_output.scalar_output_address(scalar_output_address);
+    vector_unit_output.done(done);
 
     SC_THREAD(read_params);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
 
-    SC_THREAD(instructionSender);
+    SC_THREAD(send_instructions);
     sensitive << clk.pos();
     async_reset_signal_is(rstn, false);
   }
@@ -642,8 +550,7 @@ SC_MODULE(VectorUnit) {
   void read_params() {
     vectorParamsIn.ResetRead();
     vectorFetchParams.ResetWrite();
-    maxpoolUnitParams.ResetWrite();
-    outputAddressGenParams.ResetWrite();
+    vector_unit_output_params.ResetWrite();
 
     wait();
 
@@ -651,12 +558,12 @@ SC_MODULE(VectorUnit) {
       VectorParams params = vectorParamsIn.Pop();
 
       vectorFetchParams.Push(params);
-      maxpoolUnitParams.Push(params);
-      outputAddressGenParams.Push(params);
+      vector_unit_output_params.Push(params);
+      // outputAddressGenParams.Push(params);
     }
   }
 
-  void instructionSender() {
+  void send_instructions() {
     vectorOpInstructions.ResetWrite();
     reduceOpInstructions.ResetWrite();
     accumulationOpInstructions.ResetWrite();
@@ -673,12 +580,10 @@ SC_MODULE(VectorUnit) {
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
       for (int loop = 0; loop < instConfig.instLoopCount; loop++) {
-        for (int instAddress = 0; instAddress < 8; instAddress++) {
-          VectorInstructions inst = instConfig.inst[instAddress];
+        for (int i = 0; i < 8; i++) {
+          VectorInstructions inst = instConfig.inst[i];
 
-          for (int instRepeatCount = 0;
-               instRepeatCount < instConfig.instCount[instAddress];
-               instRepeatCount++) {
+          for (int count = 0; count < instConfig.instCount[i]; count++) {
             if (inst.instType == VectorInstructions::vector) {
               vectorOpInstructions.Push(inst);
             } else if (inst.instType == VectorInstructions::accumulation) {
@@ -688,7 +593,7 @@ SC_MODULE(VectorUnit) {
             }
           }
 
-          if (instAddress >= instConfig.instLen - 1) {
+          if (i >= instConfig.instLen - 1) {
             break;
           }
         }

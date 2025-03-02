@@ -7,15 +7,15 @@
 class Operation {
  public:
   Operation() {}
-  Operation(const std::string& name, const codegen::Operator& param,
+  Operation(const std::string& name, const codegen::Operation& param,
             const voyager::Tiling& tiling)
       : name(name), param(param), tiling(tiling), has_valid_tiling(true) {}
 
-  Operation(const std::string& name, const codegen::Operator& param)
+  Operation(const std::string& name, const codegen::Operation& param)
       : name(name), param(param), has_valid_tiling(false) {}
 
   std::string name;
-  codegen::Operator param;
+  codegen::Operation param;
   voyager::Tiling tiling;
   bool has_valid_tiling;
 };

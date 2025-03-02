@@ -12,7 +12,7 @@
 #include "DataTypes.h"
 #include "Params.h"
 
-#ifdef DEBUG_LOG
+#ifdef DEBUG
 #define DLOG(x) CCS_LOG(x)
 #else
 #define DLOG(x)
@@ -20,59 +20,46 @@
 
 struct MemoryRequest {
   ac_int<64, false> address;
-  ac_int<32, false> burstSize;
+  ac_int<32, false> burst_size;
 
   static const unsigned int width = 64 + 32;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
     m & address;
-    m & burstSize;
+    m & burst_size;
   }
 
-  inline friend void sc_trace(sc_trace_file *tf,
-                              const MemoryRequest &memRequest,
+  inline friend void sc_trace(sc_trace_file *tf, const MemoryRequest &request,
                               const std::string &name) {
-    sc_trace(tf, memRequest.address, name + ".address");
-    sc_trace(tf, memRequest.burstSize, name + ".burstSize");
+    sc_trace(tf, request.address, name + ".address");
+    sc_trace(tf, request.burst_size, name + ".burst_size");
   }
 
   inline friend std::ostream &operator<<(ostream &os,
-                                         const MemoryRequest &memRequest) {
-    os << memRequest.address << " ";
-    os << memRequest.burstSize << " ";
-
+                                         const MemoryRequest &request) {
+    os << request.address << " ";
+    os << request.burst_size << " ";
     return os;
   }
 
   inline friend bool operator==(const MemoryRequest &lhs,
                                 const MemoryRequest &rhs) {
-    return lhs.address == rhs.address && lhs.burstSize == rhs.burstSize;
+    return lhs.address == rhs.address && lhs.burst_size == rhs.burst_size;
   }
 };
 
-template <typename TYPE>
+template <typename T>
 struct PEInput {
-  TYPE data;
+  T data;
   ac_int<1, false> swapWeights;
 
-  // #ifdef HYBRID_FP8
-  //   ac_int<1, false> castToE5M2;
-  // #endif
-
-  static const unsigned int width = TYPE::width + 1
-      // #ifdef HYBRID_FP8
-      //                                     + 1
-      // #endif
-      ;
+  static const unsigned int width = T::width + 1;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
     m & data;
     m & swapWeights;
-    // #ifdef HYBRID_FP8
-    //     m & castToE5M2;
-    // #endif
   }
 
   inline friend void sc_trace(sc_trace_file *tf, const PEInput &peInput,
@@ -93,9 +80,9 @@ struct PEInput {
   }
 };
 
-template <typename TYPE>
+template <typename T>
 struct PEWeight {
-  TYPE data;
+  T data;
 
   static constexpr int int_log2(unsigned int n) {
     return (n <= 1) ? 0 : 1 + int_log2(n / 2);
@@ -103,7 +90,7 @@ struct PEWeight {
 
   static constexpr int TAG_WIDTH = int_log2(IC_DIMENSION);
   ac_int<TAG_WIDTH, false> tag;
-  static const unsigned int width = TYPE::width + TAG_WIDTH;
+  static const unsigned int width = T::width + TAG_WIDTH;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
@@ -130,31 +117,31 @@ struct PEWeight {
   }
 };
 
-template <typename TYPE, size_t SIZE>
+template <typename T, size_t Width>
 class Pack1D {
  public:
-  TYPE value[SIZE];
+  T value[Width];
 
-  static const unsigned int width = TYPE::width * SIZE;
+  static const unsigned int width = T::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
-  operator int() const { return Pack1D<TYPE, SIZE>(); }
+  operator int() const { return Pack1D<T, Width>(); }
 
-  TYPE &operator[](unsigned int i) { return this->value[i]; }
-  const TYPE &operator[](unsigned int i) const { return this->value[i]; }
+  T &operator[](unsigned int i) { return this->value[i]; }
+  const T &operator[](unsigned int i) const { return this->value[i]; }
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i];
     }
   }
 
   inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       if (!(lhs.value[i] == rhs.value[i])) {
         return false;
       }
@@ -166,17 +153,17 @@ class Pack1D {
 
 // TODO: is there a way to make this more generic?
 
-template <size_t SIZE, int nbits, int es>
-class Pack1D<PEInput<Posit<nbits, es> >, SIZE> {
+template <size_t Width, int nbits, int es>
+class Pack1D<PEInput<Posit<nbits, es> >, Width> {
  public:
-  PEInput<Posit<nbits, es> > value[SIZE];
+  PEInput<Posit<nbits, es> > value[Width];
 
-  static const unsigned int width = PEInput<Posit<nbits, es> >::width * SIZE;
+  static const unsigned int width = PEInput<Posit<nbits, es> >::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
-  operator int() const { return Pack1D<PEInput<Posit<nbits, es> >, SIZE>(); }
+  operator int() const { return Pack1D<PEInput<Posit<nbits, es> >, Width>(); }
 
   PEInput<Posit<nbits, es> > &operator[](unsigned int i) {
     return this->value[i];
@@ -187,17 +174,17 @@ class Pack1D<PEInput<Posit<nbits, es> >, SIZE> {
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].data.bits;
     }
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].swapWeights;
     }
   }
 
   inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       if (!(lhs.value[i] == rhs.value[i])) {
         return false;
       }
@@ -207,17 +194,17 @@ class Pack1D<PEInput<Posit<nbits, es> >, SIZE> {
   }
 };
 
-template <size_t SIZE, int nbits, int es>
-class Pack1D<PEWeight<Posit<nbits, es> >, SIZE> {
+template <size_t Width, int nbits, int es>
+class Pack1D<PEWeight<Posit<nbits, es> >, Width> {
  public:
-  PEWeight<Posit<nbits, es> > value[SIZE];
+  PEWeight<Posit<nbits, es> > value[Width];
 
-  static const unsigned int width = PEWeight<Posit<nbits, es> >::width * SIZE;
+  static const unsigned int width = PEWeight<Posit<nbits, es> >::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
-  operator int() const { return Pack1D<PEWeight<Posit<nbits, es> >, SIZE>(); }
+  operator int() const { return Pack1D<PEWeight<Posit<nbits, es> >, Width>(); }
 
   PEWeight<Posit<nbits, es> > &operator[](unsigned int i) {
     return this->value[i];
@@ -228,17 +215,17 @@ class Pack1D<PEWeight<Posit<nbits, es> >, SIZE> {
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].data.bits;
     }
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].tag;
     }
   }
 
   inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       if (!(lhs.value[i] == rhs.value[i])) {
         return false;
       }
@@ -248,16 +235,16 @@ class Pack1D<PEWeight<Posit<nbits, es> >, SIZE> {
   }
 };
 
-template <size_t SIZE, int mantissa, int exp>
-class Pack1D<StdFloat<mantissa, exp>, SIZE> {
+template <size_t Width, int mantissa, int exp>
+class Pack1D<StdFloat<mantissa, exp>, Width> {
  public:
-  StdFloat<mantissa, exp> value[SIZE];
-  static const unsigned int width = StdFloat<mantissa, exp>::width * SIZE;
+  StdFloat<mantissa, exp> value[Width];
+  static const unsigned int width = StdFloat<mantissa, exp>::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
-  operator int() const { return Pack1D<StdFloat<mantissa, exp>, SIZE>(); }
+  operator int() const { return Pack1D<StdFloat<mantissa, exp>, Width>(); }
 
   StdFloat<mantissa, exp> &operator[](size_t i) { return value[i]; }
   const StdFloat<mantissa, exp> &operator[](size_t i) const { return value[i]; }
@@ -265,13 +252,13 @@ class Pack1D<StdFloat<mantissa, exp>, SIZE> {
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].float_val.d;
     }
   }
 
   inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       if (!(lhs.value[i] == rhs.value[i])) {
         return false;
       }
@@ -281,19 +268,19 @@ class Pack1D<StdFloat<mantissa, exp>, SIZE> {
   }
 };
 
-template <size_t SIZE, int mantissa, int exp>
-class Pack1D<PEInput<StdFloat<mantissa, exp> >, SIZE> {
+template <size_t Width, int mantissa, int exp>
+class Pack1D<PEInput<StdFloat<mantissa, exp> >, Width> {
  public:
-  PEInput<StdFloat<mantissa, exp> > value[SIZE];
+  PEInput<StdFloat<mantissa, exp> > value[Width];
 
   static const unsigned int width =
-      PEInput<StdFloat<mantissa, exp> >::width * SIZE;
+      PEInput<StdFloat<mantissa, exp> >::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
   operator int() const {
-    return Pack1D<PEInput<StdFloat<mantissa, exp> >, SIZE>();
+    return Pack1D<PEInput<StdFloat<mantissa, exp> >, Width>();
   }
 
   PEInput<StdFloat<mantissa, exp> > &operator[](unsigned int i) {
@@ -305,24 +292,17 @@ class Pack1D<PEInput<StdFloat<mantissa, exp> >, SIZE> {
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].data.float_val.d;
     }
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].swapWeights;
     }
-
-    // #ifdef HYBRID_FP8
-    // #pragma hls_unroll yes
-    //     for (unsigned int i = 0; i < SIZE; i++) {
-    //       m &value[i].castToE5M2;
-    //     }
-    // #endif
   }
 
   inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       if (!(lhs.value[i] == rhs.value[i])) {
         return false;
       }
@@ -332,19 +312,19 @@ class Pack1D<PEInput<StdFloat<mantissa, exp> >, SIZE> {
   }
 };
 
-template <size_t SIZE, int mantissa, int exp>
-class Pack1D<PEWeight<StdFloat<mantissa, exp> >, SIZE> {
+template <size_t Width, int mantissa, int exp>
+class Pack1D<PEWeight<StdFloat<mantissa, exp> >, Width> {
  public:
-  PEWeight<StdFloat<mantissa, exp> > value[SIZE];
+  PEWeight<StdFloat<mantissa, exp> > value[Width];
 
   static const unsigned int width =
-      PEWeight<StdFloat<mantissa, exp> >::width * SIZE;
+      PEWeight<StdFloat<mantissa, exp> >::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
   operator int() const {
-    return Pack1D<PEWeight<StdFloat<mantissa, exp> >, SIZE>();
+    return Pack1D<PEWeight<StdFloat<mantissa, exp> >, Width>();
   }
 
   PEWeight<StdFloat<mantissa, exp> > &operator[](unsigned int i) {
@@ -356,17 +336,17 @@ class Pack1D<PEWeight<StdFloat<mantissa, exp> >, SIZE> {
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].data.float_val.d;
     }
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].tag;
     }
   }
 
   inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       if (!(lhs.value[i] == rhs.value[i])) {
         return false;
       }
@@ -376,16 +356,16 @@ class Pack1D<PEWeight<StdFloat<mantissa, exp> >, SIZE> {
   }
 };
 
-template <size_t SIZE, int i_width, bool i_signed>
-class Pack1D<Int<i_width, i_signed>, SIZE> {
+template <size_t Width, int i_width, bool i_signed>
+class Pack1D<Int<i_width, i_signed>, Width> {
  public:
-  Int<i_width, i_signed> value[SIZE];
-  static const unsigned int width = Int<i_width, i_signed>::width * SIZE;
+  Int<i_width, i_signed> value[Width];
+  static const unsigned int width = Int<i_width, i_signed>::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
-  operator int() const { return Pack1D<Int<i_width, i_signed>, SIZE>(); }
+  operator int() const { return Pack1D<Int<i_width, i_signed>, Width>(); }
 
   Int<i_width, i_signed> &operator[](size_t i) { return value[i]; }
   const Int<i_width, i_signed> &operator[](size_t i) const { return value[i]; }
@@ -393,13 +373,13 @@ class Pack1D<Int<i_width, i_signed>, SIZE> {
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].int_val;
     }
   }
 
   inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       if (!(lhs.value[i] == rhs.value[i])) {
         return false;
       }
@@ -409,19 +389,19 @@ class Pack1D<Int<i_width, i_signed>, SIZE> {
   }
 };
 
-template <size_t SIZE, int i_width, bool i_signed>
-class Pack1D<PEInput<Int<i_width, i_signed> >, SIZE> {
+template <size_t Width, int i_width, bool i_signed>
+class Pack1D<PEInput<Int<i_width, i_signed> >, Width> {
  public:
-  PEInput<Int<i_width, i_signed> > value[SIZE];
+  PEInput<Int<i_width, i_signed> > value[Width];
 
   static const unsigned int width =
-      PEInput<Int<i_width, i_signed> >::width * SIZE;
+      PEInput<Int<i_width, i_signed> >::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
   operator int() const {
-    return Pack1D<PEInput<Int<i_width, i_signed> >, SIZE>();
+    return Pack1D<PEInput<Int<i_width, i_signed> >, Width>();
   }
 
   PEInput<Int<i_width, i_signed> > &operator[](unsigned int i) {
@@ -433,17 +413,17 @@ class Pack1D<PEInput<Int<i_width, i_signed> >, SIZE> {
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].data.int_val;
     }
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].swapWeights;
     }
   }
 
   inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       if (!(lhs.value[i] == rhs.value[i])) {
         return false;
       }
@@ -453,19 +433,19 @@ class Pack1D<PEInput<Int<i_width, i_signed> >, SIZE> {
   }
 };
 
-template <size_t SIZE, int i_width, bool i_signed>
-class Pack1D<PEWeight<Int<i_width, i_signed> >, SIZE> {
+template <size_t Width, int i_width, bool i_signed>
+class Pack1D<PEWeight<Int<i_width, i_signed> >, Width> {
  public:
-  PEWeight<Int<i_width, i_signed> > value[SIZE];
+  PEWeight<Int<i_width, i_signed> > value[Width];
 
   static const unsigned int width =
-      PEWeight<Int<i_width, i_signed> >::width * SIZE;
+      PEWeight<Int<i_width, i_signed> >::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
   operator int() const {
-    return Pack1D<PEWeight<Int<i_width, i_signed> >, SIZE>();
+    return Pack1D<PEWeight<Int<i_width, i_signed> >, Width>();
   }
 
   PEWeight<Int<i_width, i_signed> > &operator[](unsigned int i) {
@@ -477,17 +457,17 @@ class Pack1D<PEWeight<Int<i_width, i_signed> >, SIZE> {
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].data.int_val;
     }
 #pragma hls_unroll yes
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       m &value[i].tag;
     }
   }
 
   inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
-    for (unsigned int i = 0; i < SIZE; i++) {
+    for (unsigned int i = 0; i < Width; i++) {
       if (!(lhs.value[i] == rhs.value[i])) {
         return false;
       }
@@ -497,12 +477,158 @@ class Pack1D<PEWeight<Int<i_width, i_signed> >, SIZE> {
   }
 };
 
-template <typename TYPE, size_t SIZE>
+template <size_t Width>
+class Pack1D<NormalFloat4, Width> {
+ public:
+  NormalFloat4 value[Width];
+  static const unsigned int width = NormalFloat4::width * Width;
+
+  Pack1D() {}
+  Pack1D(const int a) {}
+
+  operator int() const { return Pack1D<NormalFloat4, Width>(); }
+
+  NormalFloat4 &operator[](size_t i) { return value[i]; }
+  const NormalFloat4 &operator[](size_t i) const { return value[i]; }
+
+  template <unsigned int Size>
+  void Marshall(Marshaller<Size> &m) {
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Width; i++) {
+      m &value[i].index;
+    }
+  }
+
+  inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
+    for (unsigned int i = 0; i < Width; i++) {
+      if (!(lhs.value[i] == rhs.value[i])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
+template <size_t Width>
+class Pack1D<PEInput<NormalFloat4>, Width> {
+ public:
+  PEInput<NormalFloat4> value[Width];
+
+  static const unsigned int width = PEInput<NormalFloat4>::width * Width;
+
+  Pack1D() {}
+  Pack1D(const int a) {}
+
+  operator int() const { return Pack1D<PEInput<NormalFloat4>, Width>(); }
+
+  PEInput<NormalFloat4> &operator[](unsigned int i) { return this->value[i]; }
+  const PEInput<NormalFloat4> &operator[](unsigned int i) const {
+    return this->value[i];
+  }
+
+  template <unsigned int Size>
+  void Marshall(Marshaller<Size> &m) {
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Width; i++) {
+      m &value[i].data.index;
+    }
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Width; i++) {
+      m &value[i].swapWeights;
+    }
+  }
+
+  inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
+    for (unsigned int i = 0; i < Width; i++) {
+      if (!(lhs.value[i] == rhs.value[i])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
+template <size_t Width>
+class Pack1D<PEWeight<NormalFloat4>, Width> {
+ public:
+  PEWeight<NormalFloat4> value[Width];
+
+  static const unsigned int width = PEWeight<NormalFloat4>::width * Width;
+
+  Pack1D() {}
+  Pack1D(const int a) {}
+
+  operator int() const { return Pack1D<PEWeight<NormalFloat4>, Width>(); }
+
+  PEWeight<NormalFloat4> &operator[](unsigned int i) { return this->value[i]; }
+  const PEWeight<NormalFloat4> &operator[](unsigned int i) const {
+    return this->value[i];
+  }
+
+  template <unsigned int Size>
+  void Marshall(Marshaller<Size> &m) {
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Width; i++) {
+      m &value[i].data.index;
+    }
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Width; i++) {
+      m &value[i].tag;
+    }
+  }
+
+  inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
+    for (unsigned int i = 0; i < Width; i++) {
+      if (!(lhs.value[i] == rhs.value[i])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
+template <size_t Width, int W, int E>
+class Pack1D<UFloat<W, E>, Width> {
+ public:
+  UFloat<W, E> value[Width];
+  static const unsigned int width = UFloat<W, E>::width * Width;
+
+  Pack1D() {}
+  Pack1D(const int a) {}
+
+  operator int() const { return Pack1D<UFloat<W, E>, Width>(); }
+
+  UFloat<W, E> &operator[](size_t i) { return value[i]; }
+  const UFloat<W, E> &operator[](size_t i) const { return value[i]; }
+
+  template <unsigned int Size>
+  void Marshall(Marshaller<Size> &m) {
+#pragma hls_unroll yes
+    for (unsigned int i = 0; i < Width; i++) {
+      m &value[i].d;
+    }
+  }
+
+  inline friend bool operator==(const Pack1D &lhs, const Pack1D &rhs) {
+    for (unsigned int i = 0; i < Width; i++) {
+      if (!(lhs.value[i] == rhs.value[i])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
+template <typename T, size_t Width>
 struct BufferWriteRequest {
   ac_int<16, false> address;
-  Pack1D<TYPE, SIZE> data;
+  Pack1D<T, Width> data;
 
-  static const unsigned int width = 16 + Pack1D<TYPE, SIZE>::width;
+  static const unsigned int width = 16 + Pack1D<T, Width>::width;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
@@ -531,156 +657,70 @@ struct BufferWriteRequest {
   }
 };
 
-// template <typename TYPE, size_t SIZE>
-// class Wrapped<Pack1D<TYPE, SIZE> > {
-//  public:
-//   Pack1D<TYPE, SIZE> val;
-//   Wrapped() : val(0) {}
-//   Wrapped(const Pack1D<TYPE, SIZE> &v) : val(v) {}
-//   static const unsigned int width = TYPE::width * SIZE;
-//   static const bool is_signed = false;
-//   template <unsigned int Size>
-//   void Marshall(Marshaller<Size> &m) {
-//     m &val;
-//   }
-// };
-
-// template <unsigned int Size, typename TYPE, size_t SIZE>
-// Marshaller<Size> &operator&(Marshaller<Size> &m, Pack1D<TYPE, SIZE> &rhs) {
-// #pragma hls_unroll yes
-//   for (unsigned int i = 0; i < SIZE; i++) {
-//     m &rhs.value[i];
-//   }
-// }
-
-// template <unsigned int Size, size_t SIZE>
-// Marshaller<Size> &operator&(Marshaller<Size> &m, Pack1D<PositFP, SIZE> &rhs)
-// { #pragma hls_unroll yes
-//   for (unsigned int i = 0; i < SIZE; i++) {
-//     m &value[i].sign;
-//     m &value[i].scale;
-//     m &value[i].fraction;
-//   }
-// }
-
-// template <size_t SIZE>
-// template <unsigned int Size>
-// void Pack1D<PositFP, SIZE>::Marshall(Marshaller<Size> &m) {
-//   for (unsigned int i = 0; i < SIZE; i++) {
-//     m &value[i].sign;
-//   }
-//   for (unsigned int i = 0; i < SIZE; i++) {
-//     m &value[i].scale;
-//   }
-//   for (unsigned int i = 0; i < SIZE; i++) {
-//     m &value[i].fraction;
-//   }
-// }
-
-// template <typename TYPE, size_t SIZE>
-// class Wrapped<Pack1D<TYPE, SIZE> > {
-//  public:
-//   typedef PositFP Type;
-//   Type val;
-//   Wrapped() {}
-//   Wrapped(const Type &v) : val(v) {}
-//   static const unsigned int width = Type::width * SIZE;
-//   static const bool is_signed = 1;
-//   template <unsigned int Size>
-//   void Marshall(Marshaller<Size> &m) {
-//     for (int i = 0; i < SIZE; i++) {
-//     }
-//     m &val.sign;
-//     m &val.scale;
-//     m &val.fraction;
-//   }
-// };
-// template <unsigned int Size, size_t SIZE>
-// Marshaller<Size> &operator&(Marshaller<Size> &m, Pack1D < PositFP & rhs) {
-//   typedef PositFP Type;
-//   m.template AddField<ac_int<1, false>, 1>(rhs.sign);
-//   m.template AddField<ac_int<8, true>, 8>(rhs.scale);
-//   m.template AddField<ac_int<16, false>, 16>(rhs.fraction);
-//   return m;
-// }
-
-template <typename TYPE, size_t SIZE>
-inline bool operator==(const Pack1D<TYPE, SIZE> &lhs,
-                       const Pack1D<TYPE, SIZE> &rhs) {
+template <typename T, size_t Width>
+inline bool operator==(const Pack1D<T, Width> &lhs,
+                       const Pack1D<T, Width> &rhs) {
   bool is_equal = true;
 #pragma hls_unroll yes
-  for (unsigned int i = 0; i < SIZE; i++) {
+  for (unsigned int i = 0; i < Width; i++) {
     is_equal &= (lhs.value[i] == rhs.value[i]);
   }
   return is_equal;
 }
 
-template <typename TYPE, size_t SIZE>
-inline void sc_trace(sc_trace_file *tf, const Pack1D<TYPE, SIZE> &vec,
+template <typename T, size_t Width>
+inline void sc_trace(sc_trace_file *tf, const Pack1D<T, Width> &vec,
                      const std::string &name) {
   sc_trace(tf, vec.value, name);
 }
 
-template <typename TYPE, size_t SIZE>
-inline std::ostream &operator<<(ostream &os, const Pack1D<TYPE, SIZE> &vec) {
-  for (int i = 0; i < SIZE; i++) {
+template <typename T, size_t Width>
+inline std::ostream &operator<<(ostream &os, const Pack1D<T, Width> &vec) {
+  for (int i = 0; i < Width; i++) {
     os << vec[i] << " ";
   }
   return os;
 }
 
 // Convert lower precision Pack1D to higher precision Pack1D
-template <typename LOWER_PRECISION_TYPE, typename HIGHER_PRECISION_TYPE,
-          size_t SIZE>
-void convertPack1D(Pack1D<LOWER_PRECISION_TYPE, SIZE>
-                       lowerPrecision[HIGHER_PRECISION_TYPE::width /
-                                      LOWER_PRECISION_TYPE::width],
-                   Pack1D<HIGHER_PRECISION_TYPE, SIZE> &higherPrecision) {
+template <typename T1, typename T2, size_t Width>
+void convertPack1D(Pack1D<T1, Width> low_precision[T2::width / T1::width],
+                   Pack1D<T2, Width> &high_precision) {
   static_assert(
-      LOWER_PRECISION_TYPE::width <= HIGHER_PRECISION_TYPE::width,
+      T1::width <= T2::width,
       "Lower precision type must be smaller than higher precision type.");
 
-  constexpr int num_words =
-      HIGHER_PRECISION_TYPE::width / LOWER_PRECISION_TYPE::width;
-  ac_int<HIGHER_PRECISION_TYPE::width * SIZE, false> higherPrecisionBits;
+  constexpr int num_words = T2::width / T1::width;
+  ac_int<T2::width * Width, false> bits;
 
 #pragma hls_unroll yes
   for (int i = 0; i < num_words; i++) {
-    higherPrecisionBits.set_slc(
-        static_cast<unsigned int>(i * LOWER_PRECISION_TYPE::width * SIZE),
-        BitsToType<ac_int<LOWER_PRECISION_TYPE::width * SIZE, false> >(
-            TypeToBits(lowerPrecision[i])));
+    bits.set_slc(static_cast<unsigned int>(i * T1::width * Width),
+                 BitsToType<ac_int<T1::width * Width, false> >(
+                     TypeToBits(low_precision[i])));
   }
 
-  higherPrecision = BitsToType<Pack1D<HIGHER_PRECISION_TYPE, SIZE> >(
-      TypeToBits(higherPrecisionBits));
+  high_precision = BitsToType<Pack1D<T2, Width> >(TypeToBits(bits));
 }
 
 // Convert higher precision Pack1D to lower precision Pack1D
-template <typename LOWER_PRECISION_TYPE, typename HIGHER_PRECISION_TYPE,
-          size_t SIZE>
-void convertPack1D(Pack1D<HIGHER_PRECISION_TYPE, SIZE> &higherPrecision,
-                   Pack1D<LOWER_PRECISION_TYPE, SIZE>
-                       lowerPrecision[HIGHER_PRECISION_TYPE::width /
-                                      LOWER_PRECISION_TYPE::width]) {
+template <typename T1, typename T2, size_t Width>
+void convertPack1D(Pack1D<T2, Width> &high_precision,
+                   Pack1D<T1, Width> low_precision[T2::width / T1::width]) {
   static_assert(
-      LOWER_PRECISION_TYPE::width <= HIGHER_PRECISION_TYPE::width,
+      T1::width <= T2::width,
       "Lower precision type must be smaller than higher precision type.");
 
-  constexpr int num_words =
-      HIGHER_PRECISION_TYPE::width / LOWER_PRECISION_TYPE::width;
+  constexpr int num_words = T2::width / T1::width;
 
-  ac_int<HIGHER_PRECISION_TYPE::width * SIZE, false> higherPrecisionBits;
-  higherPrecisionBits =
-      BitsToType<decltype(higherPrecisionBits)>(TypeToBits(higherPrecision));
+  ac_int<T2::width * Width, false> bits;
+  bits = BitsToType<decltype(bits)>(TypeToBits(high_precision));
 
 #pragma hls_unroll yes
   for (int i = 0; i < num_words; i++) {
-    ac_int<LOWER_PRECISION_TYPE::width * SIZE, false> lowerPrecisionBits;
-    lowerPrecisionBits =
-        higherPrecisionBits.template slc<LOWER_PRECISION_TYPE::width * SIZE>(
-            static_cast<unsigned int>(i * LOWER_PRECISION_TYPE::width * SIZE));
-    lowerPrecision[i] = BitsToType<Pack1D<LOWER_PRECISION_TYPE, SIZE> >(
-        TypeToBits(lowerPrecisionBits));
+    ac_int<T1::width * Width, false> slice =
+        bits.template slc<T1::width * Width>(
+            static_cast<unsigned int>(i * T1::width * Width));
+    low_precision[i] = BitsToType<Pack1D<T1, Width> >(TypeToBits(slice));
   }
 }

@@ -19,10 +19,10 @@ void set_addr_gen1(const codegen::Tensor &tensor, const Tiling &tiling,
 
   const auto memory = tensor.memory();
   accelerator_memory_map["vector1"] = get_partition(memory.partition());
-  vector_params->ADDRESS_GEN1_OFFSET = memory.offset();
+  vector_params->ADDRESS_GEN1_OFFSET = memory.address();
   vector_params->addressGen1Mode = nonzero_dims == 1 ? 3 : 1;
-  vector_params->DP_VEC1 =
-      DataTypes::TypeName<INPUT_DATATYPE>::name() != tensor.dtype();
+  vector_params->fetch_vector_type_1 =
+      DataTypes::TypeName<VECTOR_DATATYPE>::name() == tensor.dtype();
 
   // copy loop values and indices
   for (int i = 0; i < 3; i++) {
@@ -52,7 +52,7 @@ void set_addr_gen1(const codegen::Tensor &tensor, const Tiling &tiling,
   }
 
   DataTypes::bfloat16 scale = tensor.scale() != 0 ? tensor.scale() : 1.0;
-  vector_params->vec1DequantizeScale = scale.bits_rep();
+  vector_params->vec1_dq_scale = scale.bits_rep();
 }
 
 void set_addr_gen2(const codegen::Tensor &tensor, const Tiling &tiling,
@@ -65,10 +65,10 @@ void set_addr_gen2(const codegen::Tensor &tensor, const Tiling &tiling,
 
   const auto memory = tensor.memory();
   accelerator_memory_map["vector2"] = get_partition(memory.partition());
-  vector_params->ADDRESS_GEN2_OFFSET = memory.offset();
+  vector_params->ADDRESS_GEN2_OFFSET = memory.address();
   vector_params->addressGen2Mode = nonzero_dims == 1 ? 3 : 1;
-  vector_params->DP_VEC2 =
-      DataTypes::TypeName<INPUT_DATATYPE>::name() != tensor.dtype();
+  vector_params->fetch_vector_type_2 =
+      DataTypes::TypeName<VECTOR_DATATYPE>::name() == tensor.dtype();
 
   // copy loop values and indices
   for (int i = 0; i < 3; i++) {
@@ -98,14 +98,39 @@ void set_addr_gen2(const codegen::Tensor &tensor, const Tiling &tiling,
   }
 
   DataTypes::bfloat16 scale = tensor.scale() != 0 ? tensor.scale() : 1.0;
-  vector_params->vec2DequantizeScale = scale.bits_rep();
+  vector_params->vec2_dq_scale = scale.bits_rep();
+}
+
+void set_immediate(const float scalar, const int stage,
+                   const std::string opcode, VectorInstructions &inst) {
+  std::cerr << "immediate: " << scalar << std::endl;
+
+  VECTOR_DATATYPE immediate = scalar;
+
+  if (opcode == "div" || opcode == "div_") {
+    immediate = 1.0 / immediate;
+  }
+
+  if (stage == 0) {
+    inst.vector_op0_src1 = VectorInstructions::from_immediate_0;
+    inst.immediate0 = immediate.bits_rep();
+  } else if (stage == 3) {
+    inst.vector_op2_src1 = VectorInstructions::from_immediate_1;
+    inst.immediate1 = immediate.bits_rep();
+  } else if (stage == 5) {
+    inst.immediate1 = immediate.bits_rep();
+  }
 }
 
 void MapMatrixOperation(const Operation &operation,
                         std::deque<BaseParams *> &mappedParams,
                         std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
-  codegen::Operator param = operation.param;
-  const auto matrix_op = param.matrix_op();
+  MatrixParams *matrix_params = new MatrixParams;
+  AcceleratorMemoryMap accelerator_memory_map;
+
+  const auto param = operation.param;
+  const auto op_list = get_op_list(param);
+  const auto matrix_op = op_list[0];
 
   Tiling tiling = get_tiling(operation);
 
@@ -114,40 +139,41 @@ void MapMatrixOperation(const Operation &operation,
   int Y = tiling.loops[0][tiling.y_loop_index[0]] *
           tiling.loops[1][tiling.y_loop_index[1]];
   int C = tiling.loops[0][tiling.reduction_loop_index[0]] *
-          tiling.loops[1][tiling.reduction_loop_index[1]] * (IC_DIMENSION);
+          tiling.loops[1][tiling.reduction_loop_index[1]] * IC_DIMENSION;
   int K = tiling.loops[0][tiling.weight_loop_index[0]] *
-          tiling.loops[1][tiling.weight_loop_index[1]] * (OC_DIMENSION);
+          tiling.loops[1][tiling.weight_loop_index[1]] * OC_DIMENSION;
   int FX = tiling.loops[1][tiling.fx_index];
   int FY = tiling.loops[1][tiling.fy_index];
   int STRIDE = tiling.stride;
 
   std::cout << "Using tiling: " << std::endl << tiling << std::endl;
 
-  MatrixParams *matrix_params = new MatrixParams;
-  AcceleratorMemoryMap accelerator_memory_map;
+  const auto input = matrix_op.kwargs().at("input").tensor();
 
-  // matrix tiling
-  const auto input_memory = matrix_op.has_mx_input()
-                                ? matrix_op.mx_input().input().memory()
-                                : matrix_op.input().memory();
+  bool is_matmul = matrix_op.target().find("matmul") != std::string::npos;
+  std::string weight_key = is_matmul ? "other" : "weight";
+  const auto weight = matrix_op.kwargs().at(weight_key).tensor();
+
+  const auto input_memory = input.memory();
   accelerator_memory_map["inputs"] = get_partition(input_memory.partition());
-  matrix_params->INPUT_OFFSET = input_memory.offset();
+  matrix_params->INPUT_OFFSET = input_memory.address();
 
-  if (matrix_op.has_mx_input()) {
-    matrix_params->INPUT_SCALE_OFFSET =
-        matrix_op.mx_input().scale().memory().offset();
-  }
-  const auto weight_memory = matrix_op.has_mx_weight()
-                                 ? matrix_op.mx_weight().input().memory()
-                                 : matrix_op.weight().memory();
+  const auto weight_memory = weight.memory();
   accelerator_memory_map["weights"] = get_partition(weight_memory.partition());
+  matrix_params->WEIGHT_OFFSET = weight_memory.address();
 
-  if (matrix_op.has_mx_weight()) {
-    matrix_params->WEIGHT_SCALE_OFFSET =
-        matrix_op.mx_weight().scale().memory().offset();
+  matrix_params->is_mx_op = matrix_op.target().find("mx") != std::string::npos;
+
+  if (matrix_params->is_mx_op) {
+    const int block_size = matrix_op.kwargs().at("block_size").int_value();
+    assert(block_size == std::max(IC_DIMENSION, OC_DIMENSION));
+
+    const auto input_scale = matrix_op.kwargs().at("input_scale").tensor();
+    matrix_params->INPUT_SCALE_OFFSET = input_scale.memory().address();
+
+    const auto weight_scale = matrix_op.kwargs().at("weight_scale").tensor();
+    matrix_params->WEIGHT_SCALE_OFFSET = weight_scale.memory().address();
   }
-
-  matrix_params->WEIGHT_OFFSET = weight_memory.offset();
 
   for (int i = 0; i < 2; i++) {
     for (int j = 0; j < 6; j++) {
@@ -185,28 +211,34 @@ void MapMatrixOperation(const Operation &operation,
   }
 
   // set outer loop values
-  const auto weight = matrix_op.weight();
-  matrix_params->WEIGHT_TRANSPOSE = weight.reshape().opcode() == "transpose";
-  if (matrix_params->WEIGHT_TRANSPOSE) {
-    // for tranpose, we need to enforce that the innermost loop is the
-    // unrolled reduction loop
-    // we can just use the following loop nest:
-    // C1, K, FY, FX, C0
+  matrix_params->has_weight_transpose =
+      weight.reshape().target() == "transpose";
+  if (matrix_params->has_weight_transpose) {
+    // for transpose, we need to enforce that the innermost loop is the unrolled
+    // reduction loop we can just use the following loop nest: C1, K, FY, FX, C0
+
+    // C0 loop
     matrix_params->weightAddressGenLoops[1][4] = OC_DIMENSION;
     matrix_params->weightAddressGenReductionLoopIndex[2] = 4;
+
+    // FX loop
     matrix_params->weightAddressGenLoops[1][3] =
         tiling.loops[1][tiling.fx_index];
     matrix_params->weightAddressGenFxIndex = 3;
+
+    // FY loop
     matrix_params->weightAddressGenLoops[1][2] =
         tiling.loops[1][tiling.fy_index];
     matrix_params->weightAddressGenFyIndex = 2;
+
+    // K loop
     matrix_params->weightAddressGenLoops[1][1] =
         tiling.loops[1][tiling.weight_loop_index[1]];
-
     matrix_params->weightAddressGenWeightLoopIndex[1] = 1;
+
+    // C1 loop
     matrix_params->weightAddressGenLoops[1][0] =
         tiling.loops[1][tiling.reduction_loop_index[1]];
-
     if (OC_DIMENSION > IC_DIMENSION) {
       // we can reduce the number of iterations, since we have already fetched
       // the values
@@ -224,15 +256,20 @@ void MapMatrixOperation(const Operation &operation,
       }
     }
     matrix_params->weightAddressGenReductionLoopIndex[1] = 0;
-  } else {  // if not tranpose, then we have freedom to pick any loop order
+  } else {
+    // if not transpose, then we have freedom to pick any loop order
+
+    // K1 loop
     matrix_params->weightAddressGenLoops[1][4] =
         tiling.loops[1][tiling.weight_loop_index[1]];
     matrix_params->weightAddressGenWeightLoopIndex[1] = 4;
 
+    // FY loop
     matrix_params->weightAddressGenLoops[1][3] =
         tiling.loops[1][tiling.fy_index];
     matrix_params->weightAddressGenFyIndex = 3;
 
+    // FX loop
     matrix_params->weightAddressGenLoops[1][2] =
         tiling.loops[1][tiling.fx_index];
     if (tiling.replication) {
@@ -240,85 +277,111 @@ void MapMatrixOperation(const Operation &operation,
     }
     matrix_params->weightAddressGenFxIndex = 2;
 
+    // C0 loop
     if (tiling.replication) {
       matrix_params->weightAddressGenLoops[1][1] = 3;
-      matrix_params->weightAddressGenReductionLoopIndex[2] = 1;
     } else {
       matrix_params->weightAddressGenLoops[1][1] = IC_DIMENSION;
-      matrix_params->weightAddressGenReductionLoopIndex[2] = 1;
     }
+    matrix_params->weightAddressGenReductionLoopIndex[2] = 1;
+
+    // C1 loop
     matrix_params->weightAddressGenLoops[1][0] =
         tiling.loops[1][tiling.reduction_loop_index[1]];
     matrix_params->weightAddressGenReductionLoopIndex[1] = 0;
   }
 
   matrix_params->STRIDE = tiling.stride;
-  matrix_params->REPLICATION = tiling.replication;
-  // TODO:
-  matrix_params->STORE_IN_ACC = false;
-  matrix_params->ACC_FROM_ACC = false;
+  matrix_params->is_replication = tiling.replication;
 
   // Permute input for transformer attention outputs
-  const auto input = matrix_op.has_mx_input() ? matrix_op.mx_input().input()
-                                              : matrix_op.input();
   if (input.has_reshape()) {
     const auto reshape_op = input.reshape();
-    // This is hardcoded for Transformer head permutation
-    std::vector<int> dims(reshape_op.dims().begin(), reshape_op.dims().end());
-    bool is_permute = std::all_of(dims.begin(), dims.end(),
-                                  [](int x) { return x == 1 || x == 2; });
+    const auto reshape_kwargs = reshape_op.kwargs();
 
-    if (reshape_op.opcode() == "permute" || is_permute) {
-      matrix_params->CONCAT_INPUT = true;
-    } else if (reshape_op.opcode() == "transpose") {
-      matrix_params->TRANPOSE_INPUTS = true;
+    if (reshape_op.target() == "permute") {
+      const auto int_list = reshape_kwargs.at("dims").int_list().values();
+      std::vector<int> dims(int_list.begin(), int_list.end());
+      const int ndim = input.shape_size();
+
+      if (is_transpose(dims)) {
+        matrix_params->has_input_transpose = true;
+      } else if (dims[ndim - 1] == ndim - 1) {
+        matrix_params->has_attn_output_permute = true;
+      } else {
+        throw std::invalid_argument("Unsupported permute operation!");
+      }
+    } else if (reshape_op.target() == "transpose") {
+      int dim0 = reshape_kwargs.at("dim0").int_value();
+      int dim1 = reshape_kwargs.at("dim1").int_value();
+      if (dim0 > dim1) {
+        std::swap(dim0, dim1);
+      }
+
+      if (dim0 == input.shape_size() - 2 && dim1 == input.shape_size() - 1) {
+        matrix_params->has_input_transpose = true;
+      } else if (dim1 != input.shape_size() - 1) {
+        matrix_params->has_attn_output_permute = true;
+      } else {
+        throw std::invalid_argument("Unsupported transpose operation!");
+      }
     }
 
-    if (matrix_params->CONCAT_INPUT) {
+    if (matrix_params->has_attn_output_permute) {
       const auto input_shape = input.shape();
       double result = std::log2(input_shape[input_shape.size() - 1]);
       if (std::fmod(result, 1.0) != 0.0) {
         throw std::runtime_error("Result is not an integer!");
       }
-      matrix_params->headSizeInPowerOfTwo = result;
+      matrix_params->head_size_power_of_two = result;
     }
   }
 
   // bias
-  const auto bias_memory = matrix_op.bias().memory();
-  matrix_params->BIAS = matrix_op.has_bias();
-  matrix_params->BIAS_OFFSET = bias_memory.offset();
-  accelerator_memory_map["bias"] = get_partition(bias_memory.partition());
-
-  matrix_params->MX =
-      matrix_op.opcode() == "conv2d_mx" || matrix_op.opcode() == "linear_mx";
+  if (matrix_op.kwargs().contains("bias")) {
+    const auto bias = matrix_op.kwargs().at("bias").tensor();
+    const auto bias_memory = bias.memory();
+    matrix_params->has_bias = true;
+    matrix_params->BIAS_OFFSET = bias_memory.address();
+    accelerator_memory_map["bias"] = get_partition(bias_memory.partition());
+  }
 
   // vector instructions
   VectorParams *vector_params = new VectorParams;
   vector_params->addressGen0Mode = 0;  // use matrix unit outputs
 
-  const auto output_memory = param.output().memory();
-  accelerator_memory_map["outputs"] = get_partition(output_memory.partition());
-  vector_params->VECTOR_OUTPUT_OFFSET = output_memory.offset();
+  codegen::Tensor output;
+  if (param.has_output()) {
+    output = param.output();
+  } else {
+    assert(op_list.back().target() == "quantize_mx");
+    output = param.outputs().tensors(1);
+  }
 
+  const auto output_memory = output.memory();
+  accelerator_memory_map["outputs"] = get_partition(output_memory.partition());
+  vector_params->VECTOR_OUTPUT_OFFSET = output_memory.address();
+
+  // Set outer loops
   for (int i = 0; i < 3; i++) {
     vector_params->outputLoops[0][i] = tiling.loops[0][i];
   }
-  vector_params->outputXLoopIndex[0] = tiling.x_loop_index[0];
   vector_params->outputYLoopIndex[0] = tiling.y_loop_index[0];
+  vector_params->outputXLoopIndex[0] = tiling.x_loop_index[0];
   vector_params->outputWeightLoopIndex[0] = tiling.weight_loop_index[0];
 
+  // Set inner loops
   int outputLoopIndex = 0;
   for (int i = 0; i < 6; i++) {
     // ignore the loops not present in outputs (reduction, fx, fy)
     if (i == tiling.weight_loop_index[1] || i == tiling.x_loop_index[1] ||
         i == tiling.y_loop_index[1]) {
       vector_params->outputLoops[1][outputLoopIndex] = tiling.loops[1][i];
-      if (i == tiling.x_loop_index[1]) {
-        vector_params->outputXLoopIndex[1] = outputLoopIndex;
-      }
       if (i == tiling.y_loop_index[1]) {
         vector_params->outputYLoopIndex[1] = outputLoopIndex;
+      }
+      if (i == tiling.x_loop_index[1]) {
+        vector_params->outputXLoopIndex[1] = outputLoopIndex;
       }
       if (i == tiling.weight_loop_index[1]) {
         vector_params->outputWeightLoopIndex[1] = outputLoopIndex;
@@ -327,151 +390,123 @@ void MapMatrixOperation(const Operation &operation,
     }
   }
 
-  vector_params->DP_OUTPUT =
-      DataTypes::TypeName<INPUT_DATATYPE>::name() != param.output().dtype();
+  vector_params->output_vector_type =
+      DataTypes::TypeName<VECTOR_DATATYPE>::name() == output.dtype();
 
   // Transformer head permutation
-  if (param.output().has_reshape()) {
-    vector_params->SPLIT_OUTPUT = true;
-    const auto permuted_shape = param.output().reshape().output_sizes();
+  if (output.has_reshape()) {
+    vector_params->has_attn_head_permute = true;
+    const auto permuted_shape =
+        output.reshape().kwargs().at("output_shape").int_list().values();
     double result = std::log2(permuted_shape[permuted_shape.size() - 1]);
     if (std::fmod(result, 1.0) != 0.0) {
       throw std::runtime_error("Result is not an integer!");
     }
-    vector_params->headSizeInPowerOfTwo = result;
+    vector_params->head_size_power_of_two = result;
   }
 
-  VectorInstructions vinst;
-  memset(&vinst, 0, sizeof(vinst));
-  vinst.instType = VectorInstructions::vector;
-  vinst.vInput = VectorInstructions::readFromSystolicArray;
-  vinst.vAccumulatePush = VectorInstructions::nop;
-  vinst.vDest = VectorInstructions::vWriteOut;
+  VectorInstructions inst;
+  memset(&inst, 0, sizeof(inst));
+  inst.instType = VectorInstructions::vector;
+  inst.vector_op0_src0 = VectorInstructions::from_matrix_unit;
+  inst.vdest = VectorInstructions::to_output;
 
-  auto vinst_mappings = get_vector_instruction_mapping();
-  auto it = param.vector_ops().begin();
-  bool has_vector_params = it != param.vector_ops().end();
-  std::string output_node = matrix_op.name();
+  auto inst_map = get_vector_instruction_mapping();
 
-  int vectorStage = 0;
-  while (has_vector_params) {
-    const auto opcode = it->opcode();
+  int curr_stage = 0;
 
-    if (opcode.rfind("dequantize", 0) == 0 ||
-        opcode.rfind("quantize", 0) == 0) {
-      const int size = get_size(it->other());
-      // support only scalar scale factor
-      assert(size == 1);
-      VECTOR_DATATYPE immediate = read_constant_param(it->other());
-      if (opcode.rfind("dequantize", 0) == 0) {
-        vinst.vDequantize = true;
-        vinst.vDequantizeScale = immediate.bits_rep();
-      } else if (opcode.rfind("quantize", 0) == 0) {
-        vector_params->OUTPUT_QUANTIZE = true;
-        vector_params->outputQuantizeScale = immediate.bits_rep();
+  for (int i = 1; i < op_list.size(); i++) {
+    const auto op = op_list[i];
+    const std::string opcode = op.target();
+
+    if (opcode == "quantize" || opcode == "dequantize") {
+      const auto other = op.kwargs().at("scale").tensor();
+
+      assert(get_size(other) == 1);
+
+      VECTOR_DATATYPE immediate = read_constant_param(other);
+
+      if (opcode == "quantize") {
+        vector_params->quantize_output = true;
+        vector_params->output_scale = immediate.bits_rep();
+      } else {
+        inst.vdequantize = true;
+        inst.vector_dq_scale = immediate.bits_rep();
       }
+    } else if (opcode == "quantize_mx") {
+      vector_params->quantize_output_mx = true;
+      vector_params->SCALE_OFFSET =
+          param.outputs().tensors(0).memory().address();
     } else {
-      if (vectorStage == 5) {
+      if (curr_stage == 4) {
         // we have already processed all the stages
+        assert(i == op_list.size() - 1);
         break;
       }
 
-      for (int stage = vectorStage; stage < 5; stage++) {
-        bool matched = vector_unit_stages[stage].find(opcode) !=
-                       vector_unit_stages[stage].end();
+      for (int stage = curr_stage; stage < 4; stage++) {
+        if (vector_unit_stages[stage].find(opcode) ==
+            vector_unit_stages[stage].end()) {
+          continue;
+        }
 
-        std::cerr << "stage: " << stage << "  opcode: " << opcode
-                  << "  matched: " << matched << std::endl;
+        std::cerr << "stage " << stage << " target: " << opcode << std::endl;
 
-        if (matched) {
-          // set the opcode for the vector stage
-          unsigned int vop = vinst_mappings[opcode];
-          if (stage == 0) {
-            vinst.vOp0 = vop;
-          } else if (stage == 1) {
-            vinst.vOp1 = vop;
-          } else if (stage == 2) {
-            vinst.vOp2 = vop;
-          } else if (stage == 3) {
-            vinst.vOp3 = vop;
-          } else if (stage == 4) {
-            vinst.vOp4 = vop;
-          }
+        unsigned int vop = inst_map[opcode];
+        if (stage == 0) {
+          inst.vector_op0 = vop;
+        } else if (stage == 1) {
+          inst.vector_op1 = vop;
+        } else if (stage == 2) {
+          inst.vector_op2 = vop;
+        } else if (stage == 3) {
+          inst.vector_op3 = vop;
+        }
 
-          // increment the stage for the next operation
-          vectorStage = stage + 1;
-          if (it->opcode() == "vmap") {
-            vinst.vmapOffset = it->other().memory().offset();
-          } else if (it->has_other_scalar()) {
-            std::cerr << "immediate: " << it->other_scalar() << std::endl;
-            VECTOR_DATATYPE immediate = it->other_scalar();
+        if (opcode == "vmap") {
+          const auto other = op.kwargs().at("code").tensor();
+          inst.VMAP_OFFSET = other.memory().address();
+        } else if (op.kwargs().contains("other")) {
+          const auto other = op.kwargs().at("other");
 
-            if (it->opcode() == "div" || it->opcode() == "div_") {
-              immediate = 1.0 / immediate;
-            }
+          if (other.has_float_value() || other.has_int_value()) {
+            float scalar = other.has_float_value() ? other.float_value()
+                                                   : other.int_value();
+            set_immediate(scalar, stage, opcode, inst);
+          } else if (other.has_tensor()) {
+            const auto tensor = other.tensor();
 
-            if (stage == 0) {
-              vinst.vOp0Src1 = VectorInstructions::op0immediate;
-              vinst.immediate0 = immediate.bits_rep();
-            } else if (stage == 3) {
-              vinst.vOp3Src1 = VectorInstructions::op3immediate;
-              vinst.immediate1 = immediate.bits_rep();
-            } else if (stage == 5) {
-              vinst.immediate1 = immediate.bits_rep();
-            }
-          } else if (it->has_other()) {
-            const auto tensor_to_load =
-                output_node == it->other().node() ? it->input() : it->other();
-            const int size = get_size(tensor_to_load);
-            if (size == 1) {
-              VECTOR_DATATYPE immediate = read_constant_param(tensor_to_load);
-
-              if (it->opcode() == "div" || it->opcode() == "div_") {
-                immediate = 1.0 / immediate;
-              }
-
-              if (stage == 0) {
-                vinst.vOp0Src1 = VectorInstructions::op0immediate;
-                vinst.immediate0 = immediate.bits_rep();
-              } else if (stage == 3) {
-                vinst.vOp3Src1 = VectorInstructions::op3immediate;
-                vinst.immediate1 = immediate.bits_rep();
-              } else if (stage == 5) {
-                vinst.immediate1 = immediate.bits_rep();
-              }
+            if (get_size(tensor) == 1) {
+              float scalar = read_constant_param(tensor);
+              set_immediate(scalar, stage, opcode, inst);
             } else {
+              const auto self = op.kwargs().at("input").tensor();
+              const auto tensor_to_load = tensor.has_memory() ? tensor : self;
+
               if (stage == 0) {
-                vinst.vOp0Src1 = VectorInstructions::readInterface;
+                inst.vector_op0_src1 = VectorInstructions::from_vector_fetch_1;
                 set_addr_gen1(tensor_to_load, tiling, accelerator_memory_map,
                               vector_params);
-              } else if (stage == 3) {
-                vinst.vOp3Src1 = VectorInstructions::readNormalInterface;
+              } else if (stage == 2) {
+                inst.vector_op2_src1 = VectorInstructions::from_vector_fetch_2;
                 set_addr_gen2(tensor_to_load, tiling, accelerator_memory_map,
                               vector_params);
               }
             }
           }
-
-          break;
         }
+
+        curr_stage = stage + 1;
+
+        break;
       }
     }
-
-    output_node = it->name();
-    ++it;
-    has_vector_params = it != param.vector_ops().end();
-  }
-
-  // check that no more vector instructions are present
-  if (it != param.vector_ops().end()) {
-    std::cerr << "Error: unsupported vector fusion pattern" << std::endl;
-    exit(1);
   }
 
   // total output count
   VectorInstructionConfig *vector_instruction_config =
       new VectorInstructionConfig;
-  vector_instruction_config->inst[0] = vinst;
+  vector_instruction_config->inst[0] = inst;
   vector_instruction_config->instCount[0] =
       tiling.loops[0][tiling.x_loop_index[0]] *
       tiling.loops[1][tiling.x_loop_index[1]] *

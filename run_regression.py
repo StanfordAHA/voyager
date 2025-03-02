@@ -153,7 +153,7 @@ def run_systemc_unit_test(model, layer, output_folder, fast):
                 env=env_vars,
                 stdout=stdout_file,
                 stderr=subprocess.STDOUT,
-                timeout=10 * 60 if fast else 1 * 60 * 60,
+                timeout=1 * 60 * 60,
             )
         except subprocess.TimeoutExpired:
             print(f"Test {model}_{layer} timed out")
@@ -226,7 +226,7 @@ def run_rtl_test(model, layer, output_folder):
                     env=env_vars,
                     stdout=stdout_file,
                     stderr=subprocess.STDOUT,
-                    timeout=4 * 60 * 60,
+                    timeout=8 * 60 * 60,
                 )
             except subprocess.TimeoutExpired:
                 print(f"Test {model}_{layer} timed out")
@@ -317,20 +317,14 @@ def run_rtl_tests(layers, num_processes, results_folder, keep_build=False):
             stderr=subprocess.STDOUT,
         )
 
-    # Generate ResNet18 model
-    env_vars = os.environ.copy()
-    subprocess.run(
-        [
-            "make",
-            f"{env_vars['CODEGEN_DIR']}/networks/resnet18/{env_vars['DATATYPE']}/model.txt",
-        ],
-        env=os.environ,
-    )
+    model, (test, *_) = next(iter(layers.items()))
+    print(f"Running {model} {test}")
 
     # build VCS simulation binary
     with open(f"{results_folder}/vcs_build.log", "w") as stdout_file:
-        env_vars["NETWORK"] = "resnet18"
-        env_vars["TESTS"] = "submodule_0"
+        env_vars = os.environ.copy()
+        env_vars["NETWORK"] = model
+        env_vars["TESTS"] = test
         env_vars["SIMS"] = "gold,accelerator"
         env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
 
@@ -454,6 +448,8 @@ def run_accuracy(model, dataset, num_processes, output_folder):
     else:
         raise ValueError("Invalid model")
 
+    block_size = max(os.environ['OC_DIMENSION'], os.environ['IC_DIMENSION'])
+
     if env_vars["DATATYPE"] == "E4M3":
         quantization_args = [
             "--activation",
@@ -486,9 +482,9 @@ def run_accuracy(model, dataset, num_processes, output_folder):
         quantization_args = [
             "--force_scale_power_of_two",
             "--activation",
-            "int8,qs=microscaling,bs=32",
+            "int8,qs=microscaling,bs=" + block_size,
             "--weight",
-            "int8,qs=microscaling,bs=32",
+            "int8,qs=microscaling,bs=" + block_size,
             "--bf16",
         ]
     else:

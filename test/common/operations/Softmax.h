@@ -1,0 +1,65 @@
+#pragma once
+
+#include "test/common/operations/Common.h"
+
+template <typename T>
+inline T *softmax(std::any input_ptr, const std::vector<int> shape) {
+  T *inputs = std::any_cast<T *>(input_ptr);
+
+  int num_rows = 1;
+  for (int i = 0; i < shape.size() - 1; i++) {
+    num_rows *= shape[i];
+  }
+  int num_cols = shape[shape.size() - 1];
+
+  T *outputs = new T[num_rows * num_cols];
+
+  for (int i = 0; i < num_rows; i++) {
+    int offset = i * num_cols;
+    T max = -32768;
+    for (int j = 0; j < num_cols; j++) {
+      max = inputs[offset + j] > max ? inputs[offset + j] : max;
+    }
+
+    for (int j = 0; j < num_cols; j++) {
+      T normalized = static_cast<T>(inputs[offset + j] - max);
+      outputs[offset + j] = normalized.exponential();
+    }
+
+    // perform a tree addition
+    T sum = 0.0;
+    for (int j = 0; j < num_cols; j += OC_DIMENSION) {
+      T buffer[OC_DIMENSION];
+      for (int k = 0; k < OC_DIMENSION; k++) {
+        buffer[k] = j + k < num_cols ? outputs[offset + j + k] : T(0.0);
+      }
+
+      int depth = OC_DIMENSION;
+      while (depth > 1) {
+        for (int k = 0; k < depth; k += 2) {
+          buffer[k / 2] = static_cast<T>(buffer[k] + buffer[k + 1]);
+        }
+        depth = depth / 2;
+      }
+      sum = static_cast<T>(sum + buffer[0]);
+    }
+
+    T divisor = sum.reciprocal();
+    for (int j = 0; j < num_cols; j++) {
+      outputs[offset + j] *= divisor;
+    }
+  }
+
+  delete[] inputs;
+
+  return outputs;
+}
+
+template <typename T>
+inline T *softmax(std::map<std::string, std::any> kwargs,
+                  const codegen::OpOverload op) {
+  const auto input = op.kwargs().at("input").tensor();
+  std::any input_ptr = kwargs[input.node()];
+  const auto input_shape = get_shape(input);
+  return softmax<T>(input_ptr, input_shape);
+}

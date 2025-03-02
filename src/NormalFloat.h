@@ -3,107 +3,104 @@
 // clang-format off
 #include <ac_std_float.h>
 // clang-format on
-#include <ac_math/ac_inverse_sqrt_pwl.h>
-#include <ac_math/ac_pow_pwl.h>
-#include <ac_math/ac_reciprocal_pwl.h>
-#include <ccs_dw_fp_lib.h>
 
-template <typename T>
-inline ac_int<4, false> get_nf4_index(T val) {
-  // -31, -22, -16, -12, -9, -6, -3, 0, 2, 5, 8, 10, 14, 17, 22, 31
-  if (val <= 1) {
-    if (val <= -10.5) {
-      if (val <= -19.0) {
-        return val <= -26.5 ? 0 : 1;
-      } else {
-        return val <= -14.0 ? 2 : 3;
-      }
-    } else {
-      if (val <= -4.5) {
-        return val <= -7.5 ? 4 : 5;
-      } else {
-        return val <= -1.5 ? 6 : 7;
-      }
-    }
-  } else {
-    if (val <= 12.0) {
-      if (val < 6.5) {
-        return val < 3.5 ? 8 : 9;
-      } else {
-        return val < 9.0 ? 10 : 11;
-      }
-    } else {
-      if (val < 19.5) {
-        return val < 15.5 ? 12 : 13;
-      } else {
-        return val < 26.5 ? 14 : 15;
-      }
-    }
-  }
-}
-
-template <int nbits, int ibits>
-class NormalFloat {
+class NormalFloat4 {
  public:
-  typedef ac_int<nbits, false> ac_int_rep;
+  static constexpr unsigned int width = 4;
+  static constexpr int emax = 3;  // max normal exponent
 
-  static constexpr unsigned int width = nbits;
+  typedef ac_int<4, false> ac_int_rep;
+  typedef Int<6, true> decoded;
 
-  typedef Int<ibits + 1, true> Decoded;
+  static inline const ac_int<6, true> code[16] = {
+      -31, -22, -16, -12, -9, -6, -3, 0, 2, 5, 8, 10, 14, 17, 22, 31};
 
-  ac_int<ibits + 1, true> code[16] = {-31, -22, -16, -12, -9, -6, -3, 0,
-                                      2,   5,   8,   10,  14, 17, 22, 31};
+  ac_int_rep index;
 
-  ac_int_rep encoding;
-
-  NormalFloat() {}
-  NormalFloat(const ac_int_rep &encoding);
+  NormalFloat4() {}
+  NormalFloat4(const ac_int_rep &other) { index = other; }
 
 #ifndef __SYNTHESIS__
-  NormalFloat(const float val);
+  NormalFloat4(const float other) { index = other; }
 #endif
 
-  template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+  template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
             ac_q_mode Q>
-  NormalFloat(
-      const StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &input);
+  NormalFloat4(
+      const StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q> &other);
 
-  ac_int<nbits, false> bits_rep() { return encoding; }
+  ac_int<4, false> bits_rep() { return index; }
 
-  void set_bits(int i) { encoding = i; }
+  void set_bits(int i) { index = i; }
 
-  void set_zero() { encoding = 7; }
+  void set_zero() { index = 7; }
 
-  template <int wdth, bool sgnd>
-  operator Int<wdth, sgnd>() const {
-    return code[encoding];
+  static decoded max() {
+    ac_int<6, true> r(31);
+    return decoded(r);
   }
 
-  operator float() const { return code[encoding]; }
+  template <int W, bool S>
+  operator Int<W, S>() const {
+    return code[index];
+  }
+
+  operator float() const { return code[index]; }
+
+  template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
+            ac_q_mode Q>
+  operator StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>() const {
+    using std_float_t =
+        StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>;
+    std_float_t f;
+    f.float_val = typename std_float_t::ac_float_rep(code[index]);
+    return f;
+  }
 
 #ifndef NO_SYSC
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
-    m & encoding;
+    m & index;
   }
 #endif
 };
 
-#ifndef __SYNTHESIS__
-
-#include <float.h>
-#include <math.h>
-
-template <int nbits, int ibits>
-NormalFloat<nbits, ibits>::NormalFloat(const float val) {
-  encoding = get_nf4_index(val);
-}
-#endif
-
-template <int nbits, int ibits>
-template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
           ac_q_mode Q>
-NormalFloat<nbits, ibits>::NormalFloat(
-    const StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q> &input) {
-  encoding = get_nf4_index(input);
+NormalFloat4::NormalFloat4(
+    const StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q> &other) {
+  using ac_float_t = typename StdFloat<mantissa, exp, use_dw_impl,
+                                       ieee_compliance, Q>::ac_float_rep;
+
+  const ac_float_t float_val = other.float_val;
+
+  if (float_val <= ac_float_t(1.0)) {
+    if (float_val <= ac_float_t(-10.5)) {
+      if (float_val <= ac_float_t(-19.0)) {
+        index = float_val <= ac_float_t(-26.5) ? 0 : 1;
+      } else {
+        index = float_val <= ac_float_t(-14.0) ? 2 : 3;
+      }
+    } else {
+      if (float_val <= ac_float_t(-4.5)) {
+        index = float_val <= ac_float_t(-7.5) ? 4 : 5;
+      } else {
+        index = float_val <= ac_float_t(-1.5) ? 6 : 7;
+      }
+    }
+  } else {
+    if (float_val <= ac_float_t(12.0)) {
+      if (float_val <= ac_float_t(6.5)) {
+        index = float_val <= ac_float_t(3.5) ? 8 : 9;
+      } else {
+        index = float_val <= ac_float_t(9.0) ? 10 : 11;
+      }
+    } else {
+      if (float_val <= ac_float_t(19.5)) {
+        index = float_val <= ac_float_t(15.5) ? 12 : 13;
+      } else {
+        index = float_val <= ac_float_t(26.5) ? 14 : 15;
+      }
+    }
+  }
 }

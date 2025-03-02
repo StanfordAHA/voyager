@@ -86,13 +86,16 @@ Simulation::~Simulation() {
 void Simulation::load_data() {
   std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE, REFERENCE_MEMORY_SIZE};
 
+  bool is_cnn = model == "resnet18" || model == "resnet50";
+
   if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
     memories["gold"] = new ArrayMemory(memory_sizes);
-    dataLoaders["gold"] = new DataLoader(memories["gold"], false);
+    dataLoaders["gold"] = new DataLoader(memories["gold"], false, is_cnn);
   }
   if (std::find(sims.begin(), sims.end(), "accelerator") != sims.end()) {
     memories["accelerator"] = new ArrayMemory(memory_sizes);
-    dataLoaders["accelerator"] = new DataLoader(memories["accelerator"], true);
+    dataLoaders["accelerator"] =
+        new DataLoader(memories["accelerator"], true, is_cnn);
   }
 
   std::string project_root = std::string(getenv("PROJECT_ROOT"));
@@ -101,56 +104,77 @@ void Simulation::load_data() {
                          std::string(getenv("CODEGEN_DIR")) + "/networks/" +
                          model + "/" + datatype + "/tensor_files";
 
-  const auto params_to_load = network->get_operations(tests, false);
+  // Fully connected layer, or linear ops with input of a 1D tensor, is run on
+  // the vector unit. Its weight does not need to be transposed. We check if an
+  // op is a FC by checking its output dimension. This should be improved in the
+  // future.
+  int num_classes;
+  if (model == "mobilebert" || model == "bert") {
+    num_classes = 2;
+  } else if (model == "resnet18" || model == "resnet50") {
+    num_classes = 1000;
+  }
 
-  for (const auto& [key, dataLoader] : dataLoaders) {
-    dataLoader->load_inputs(operations.front().param, data_dir);
-    dataLoader->load_outputs(operations.back().param, data_dir);
-    for (const auto& operation : operations) {
-      dataLoader->load_weights(operation.param, data_dir);
+  const auto operations = network->get_operations(tests, false);
+
+  for (const auto& [key, dataloader] : dataLoaders) {
+    dataloader->load_inputs(operations.front().param, data_dir);
+    dataloader->load_outputs(operations.back().param, data_dir);
+
+    for (const auto& tensor : network->model.parameters()) {
+      bool has_transpose = tensor.shape(0) != num_classes;
+      dataloader->load_tensor(tensor, data_dir, has_transpose);
     }
   }
 
   std::cout << "Data loaded successfully" << std::endl;
 }
 
-void Simulation::print_ideal_runtime(const codegen::Operator& param) {
+void Simulation::print_ideal_runtime(const codegen::Operation& param) {
+  const auto op_list = get_op_list(param);
+  const auto first_op = op_list.front();
+  const auto output = get_op_outputs(param).back();
+
   long cycles;
-  if (param.has_matrix_op()) {
-    // the total number of operations is X*Y*C*FX*FY*K.
-    long num_ops = 1;
 
-    for (const auto& dim : param.output().shape()) num_ops *= dim;  // X * Y * K
+  if (GEMM_OPS.find(first_op.target()) != GEMM_OPS.end()) {
+    bool is_matmul = first_op.target().find("matmul") != std::string::npos;
+    std::string weight_key = is_matmul ? "other" : "weight";
+    const auto weight = first_op.kwargs().at(weight_key).tensor();
+    const auto weight_shape = get_shape(weight);
 
-    // skip the first dimension (K) since it is already accounted for
-    for (int i = 1; i < param.matrix_op().weight().shape_size(); i++) {
-      num_ops *= param.matrix_op().weight().shape(i);  // FX * FY * C
-    }
-
-    cycles = num_ops / (IC_DIMENSION * OC_DIMENSION);
-    std::cout << param.name() << ", matrix unit ideal runtime: ";
+    // the total number of operations is X * Y * C * FX * FY * K.
+    long num_macs = get_size(output) * get_size(weight) / weight_shape[0];
+    cycles = num_macs / (IC_DIMENSION * OC_DIMENSION);
+    std::cout << get_op_name(param) << ", matrix unit ideal runtime: ";
   } else {
-    long num_ops = 1;
-    for (const auto& dim : param.output().shape()) num_ops *= dim;
-
+    long num_ops = get_size(output);
     cycles = num_ops / OC_DIMENSION;
-    std::cout << param.name() << ", vector unit ideal runtime: ";
+    std::cout << get_op_name(param) << ", vector unit ideal runtime: ";
   }
-  // read CLOCK_PERIOD from environment
-  int clock_period =
-      std::getenv("CLOCK_PERIOD") ? std::stoi(std::getenv("CLOCK_PERIOD")) : 1;
-  std::cout << cycles * clock_period << " ns" << std::endl;
+
+  char* clock_period = std::getenv("CLOCK_PERIOD");
+  long clock_period_ns = clock_period ? std::stoi(clock_period) : 1;
+  std::cout << cycles * clock_period_ns << " ns" << std::endl;
 }
 
 void Simulation::run() {
   // Run gold models
   for (const auto& operation : operations) {
-    print_ideal_runtime(operation.param);
+    const auto param = operation.param;
+    print_ideal_runtime(param);
 
     if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
-      auto memory = (ArrayMemory*)(memories["gold"]);
-      auto args = memory->get_args(operation.param);
-      run_gold_model(operation, args);
+      const auto memory = (ArrayMemory*)(memories["gold"]);
+      const auto kwargs = memory->get_args(param);
+      const auto outputs = run_gold_model(operation, kwargs);
+      const auto tensors = get_op_outputs(param);
+
+      assert(outputs.size() == tensors.size());
+
+      for (int i = 0; i < outputs.size(); i++) {
+        memory->write_tensor(tensors[i], outputs[i]);
+      }
     }
   }
 
@@ -170,32 +194,28 @@ int Simulation::check_outputs() {
              operations.back().name + '.';
   }
 
-  bool has_valid_comp = false;
-  double rel_err = 0.0;
-
-  auto param = operations.back().param;
-  int size = 1;
-  for (const auto& dim : param.output().shape()) size *= dim;
+  const auto param = operations.back().param;
 
   bool pytorch = std::find(sims.begin(), sims.end(), "pytorch") != sims.end();
-
   auto gold_memory = (ArrayMemory*)memories["gold"];
   auto accel_memory = (ArrayMemory*)memories["accelerator"];
 
   std::string filename;
-  std::any output1, output2;
+  std::vector<std::any> outputs1, outputs2;
   std::string output_names[2];
+
+  bool has_valid_comp = false;
 
   if (gold_memory && pytorch) {
     std::cout << "Gold Model vs. PyTorch" << std::endl;
     std::cout << "(reveals issues in data loading or mapping)" << std::endl;
-    filename = prefix + "gold_vs_pytorch.txt";
+    filename = prefix + "gold_vs_pytorch";
 
     output_names[0] = "gold_model";
-    output1 = gold_memory->get_output(param);
+    outputs1 = gold_memory->get_outputs(param);
 
     output_names[1] = "pytorch";
-    output2 = gold_memory->get_reference_output(param);
+    outputs2 = gold_memory->get_reference_outputs(param);
 
     has_valid_comp = true;
   }
@@ -204,13 +224,13 @@ int Simulation::check_outputs() {
     std::cout << "Accelerator vs. PyTorch" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
-    filename = prefix + "accelerator_vs_pytorch.txt";
+    filename = prefix + "accelerator_vs_pytorch";
 
     output_names[0] = "accelerator";
-    output1 = accel_memory->get_output(param);
+    outputs1 = accel_memory->get_outputs(param);
 
     output_names[1] = "pytorch";
-    output2 = accel_memory->get_reference_output(param);
+    outputs2 = accel_memory->get_reference_outputs(param);
 
     has_valid_comp = true;
   }
@@ -219,41 +239,55 @@ int Simulation::check_outputs() {
     std::cout << "Accelerator vs. Gold Model" << std::endl;
     std::cout << "(reveals bugs in accelerator or memory placement)"
               << std::endl;
-    filename = prefix + "accelerator_vs_gold.txt";
+    filename = prefix + "accelerator_vs_gold";
 
     output_names[0] = "accelerator";
-    output1 = accel_memory->get_output(param);
+    outputs1 = accel_memory->get_outputs(param);
 
     output_names[1] = "gold_model";
-    output2 = gold_memory->get_output(param);
+    outputs2 = gold_memory->get_outputs(param);
 
     has_valid_comp = true;
-  }
-
-  if (has_valid_comp) {
-    if (param.output().dtype() == "int8") {
-      rel_err += compare_arrays<DataTypes::int8, DataTypes::int8>(
-          output1, output_names[0], output2, output_names[1], size, filename,
-          false);
-    } else if (param.output().dtype() == "e8m0") {
-      rel_err += compare_arrays<DataTypes::e8m0, DataTypes::e8m0>(
-          output1, output_names[0], output2, output_names[1], size, filename,
-          false);
-    } else if (param.output().dtype() == "bfloat16") {
-      rel_err += compare_arrays<DataTypes::bfloat16, DataTypes::bfloat16>(
-          output1, output_names[0], output2, output_names[1], size, filename,
-          false);
-    } else {
-      // if unspecified, we will assume it's INPUT_DATATYPE
-      rel_err += compare_arrays<INPUT_DATATYPE, INPUT_DATATYPE>(
-          output1, output_names[0], output2, output_names[1], size, filename,
-          false);
-    }
   }
 
   if (!has_valid_comp) {
     std::cout << "No valid comparisons specified" << std::endl;
     std::abort();
+  }
+
+  double rel_err = 0.0;
+  const auto output_tensors = get_op_outputs(param);
+
+  for (int i = 0; i < outputs1.size(); i++) {
+    const auto output1 = outputs1[i];
+    const auto output2 = outputs2[i];
+
+    const auto tensor = output_tensors[i];
+    const int size = get_size(tensor);
+
+    std::string suffix = ".txt";
+    if (outputs1.size() > 1) {
+      suffix = "_" + std::to_string(i) + ".txt";
+    }
+
+    if (tensor.dtype() == "bfloat16") {
+      rel_err += compare_arrays<DataTypes::bfloat16, DataTypes::bfloat16>(
+          output1, output_names[0], output2, output_names[1], size,
+          filename + suffix, false);
+    } else if (tensor.dtype() == "fp8_e8m0") {
+      rel_err += compare_arrays<DataTypes::fp8_e8m0, DataTypes::fp8_e8m0>(
+          output1, output_names[0], output2, output_names[1], size,
+          filename + suffix, false);
+    } else if (tensor.dtype() == "fp8_e5m3") {
+      rel_err += compare_arrays<DataTypes::fp8_e5m3, DataTypes::fp8_e5m3>(
+          output1, output_names[0], output2, output_names[1], size,
+          filename + suffix, false);
+    } else {
+      // if unspecified, we will assume it's INPUT_DATATYPE
+      rel_err += compare_arrays<INPUT_DATATYPE, INPUT_DATATYPE>(
+          output1, output_names[0], output2, output_names[1], size,
+          filename + suffix, false);
+    }
   }
 
   int error_count = 0;

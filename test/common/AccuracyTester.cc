@@ -25,7 +25,11 @@ bool run_sample(std::string model_name, std::string data_dir,
                 std::string sample, Network network) {
   std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE};
   auto memory = std::make_unique<ArrayMemory>(memory_sizes);
-  auto data_loader = std::make_unique<DataLoader>(memory.get(), false);
+
+  const auto model = network.model;
+
+  bool is_cnn = model_name == "resnet18" || model_name == "resnet50";
+  auto data_loader = std::make_unique<DataLoader>(memory.get(), false, is_cnn);
 
   int num_classes;
   if (model_name == "mobilebert" || model_name == "bert") {
@@ -39,34 +43,41 @@ bool run_sample(std::string model_name, std::string data_dir,
   float logits[num_classes];
 
   // Load inputs and parameters
-  bool transpose = model_name == "resnet18" || model_name == "resnet50";
-
   std::string inputs_dir = data_dir + "/" + sample;
-  for (const auto& tensor : network.model.inputs()) {
-    data_loader->load_tensor(tensor, inputs_dir, transpose);
+  for (const auto& tensor : model.inputs()) {
+    data_loader->load_tensor(tensor, inputs_dir, is_cnn);
   }
 
+  // Fully connected layer, or linear ops with input of a 1D tensor, is run
+  // on the vector unit. Its weight does not need to be transposed. We check
+  // if an op is a FC by checking its output dimension. This should be
+  // improved in the future.
   std::string params_dir = std::string(getenv("CODEGEN_DIR")) + "/networks/" +
                            model_name + "/" + std::getenv("DATATYPE") +
                            "/tensor_files";
-  for (const auto& tensor : network.model.parameters()) {
-    // Fully connected layer, or linear ops with input of a 1D tensor, is run
-    // on the vector unit. Its weight does not need to be transposed. We check
-    // if an op is a FC by checking its output dimension. This should be
-    // improved in the future.
+  for (const auto& tensor : model.parameters()) {
     bool transpose_weight = tensor.shape(0) != num_classes;
     data_loader->load_tensor(tensor, params_dir, transpose_weight);
   }
 
   // Run inference
-  for (const auto& operation : network.get_operations()) {
-    auto args = memory->get_args(operation.param);
-    run_gold_model(operation, args);
+  const auto operations = network.get_operations(true);
+  for (const auto& operation : operations) {
+    const auto param = operation.param;
+    const auto kwargs = memory->get_args(param);
+    const auto outputs = run_gold_model(operation, kwargs);
+    const auto tensors = get_op_outputs(param);
+
+    assert(outputs.size() == tensors.size());
+
+    for (int i = 0; i < outputs.size(); i++) {
+      memory->write_tensor(tensors[i], outputs[i]);
+    }
   }
 
   // Extract final output
-  const auto last_op = network.model.ops(network.model.ops_size() - 1);
-  const auto output = memory->get_output(last_op);
+  const auto last_op = model.ops(model.ops_size() - 1);
+  const auto output = memory->get_outputs(last_op).back();
   if (last_op.output().dtype() == "bfloat16") {
     auto output_ptr = std::any_cast<DataTypes::bfloat16*>(output);
     for (int i = 0; i < num_classes; i++) {

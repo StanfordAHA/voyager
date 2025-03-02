@@ -22,12 +22,7 @@ SC_MODULE(InputController) {
   Connections::Out<ac_int<32, false> > readControl[2];
 
   Connections::In<Pack1D<Input, NRows> > CCS_INIT_S1(windowBufferIn);
-
-#ifdef HYBRID_FP8
-  Connections::Out<Pack1D<HYBRID_TYPE, NRows> > CCS_INIT_S1(windowBufferOut);
-#else
   Connections::Out<Pack1D<Input, NRows> > CCS_INIT_S1(windowBufferOut);
-#endif
 
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(fetcherParams);
@@ -40,13 +35,7 @@ SC_MODULE(InputController) {
 
   MatrixParamsDeserializer<0> CCS_INIT_S1(paramsDeserializer);
 
-  static constexpr int int_log2(unsigned int n) {
-    return (n <= 1) ? 0 : 1 + int_log2(n / 2);
-  }
-
-  static constexpr int LOOP_WIDTH =
-      (10 + int_log2(16 / (IC_DIMENSION < OC_DIMENSION ? IC_DIMENSION
-                                                       : OC_DIMENSION)));
+  static constexpr int LOOP_WIDTH = 10;
 
   SC_CTOR(InputController) {
     paramsDeserializer.clk(clk);
@@ -89,25 +78,36 @@ SC_MODULE(InputController) {
       const MatrixParams params = fetcherParams.Pop();
 
       ac_int<4, false> FX = params.loops[1][params.fxIndex];
-      if (params.REPLICATION) {
+      if (params.is_replication) {
         FX = 7;
       }
       ac_int<4, false> FY = params.loops[1][params.fyIndex];
       ac_int<2, false> STRIDE = params.STRIDE;
 
+      ac_int<LOOP_WIDTH, false> X1 = params.loops[0][params.inputXLoopIndex[0]];
+      ac_int<16, false> X0 =
+          STRIDE * params.loops[1][params.inputXLoopIndex[1]];
+      ac_int<LOOP_WIDTH, false> Y1 = params.loops[0][params.inputYLoopIndex[0]];
+      ac_int<16, false> Y0 =
+          STRIDE * params.loops[1][params.inputYLoopIndex[1]];
+      ac_int<LOOP_WIDTH, false> C2 =
+          params.loops[0][params.reductionLoopIndex[0]];
+      ac_int<LOOP_WIDTH, false> C1 =
+          params.loops[1][params.reductionLoopIndex[1]];
+
       int packingFactor;  // num x values packed in a word
       int boundaryWords;  // num words needed to store the boundary pixels.
                           // essentially ceil(3/packingFactor)
-      if (IC_DIMENSION == 4) {
+      if (NRows == 4) {
         packingFactor = 1;
         boundaryWords = 3;
-      } else if (IC_DIMENSION == 8) {
+      } else if (NRows == 8) {
         packingFactor = 2;
         boundaryWords = 2;
-      } else if (IC_DIMENSION == 16) {
+      } else if (NRows == 16) {
         packingFactor = 4;
         boundaryWords = 1;
-      } else if (IC_DIMENSION == 32) {
+      } else if (NRows == 32) {
         packingFactor = 8;
         boundaryWords = 1;
       }
@@ -156,7 +156,7 @@ SC_MODULE(InputController) {
                     params.loops[1][params.inputYLoopIndex[1]] * STRIDE;
               }
 
-              if (params.REPLICATION) {
+              if (params.is_replication) {
                 loop_bounds[1][params.inputXLoopIndex[1]] /= packingFactor;
               }
 
@@ -165,7 +165,7 @@ SC_MODULE(InputController) {
               ac_int<4, false> y_min_offset = 0;
               ac_int<4, false> y_max_offset = 0;
 
-              if (params.REPLICATION) {
+              if (params.is_replication) {
                 if (loop_counters[0][params.inputXLoopIndex[0]] != 0) {
                   x_min_offset = (FX - 1) / 2;
                   loop_bounds[1][params.inputXLoopIndex[1]] += boundaryWords;
@@ -220,32 +220,18 @@ SC_MODULE(InputController) {
                         for (loop_counters[1][5] = 0;
                              loop_counters[1][5] < loop_bounds[1][5];
                              loop_counters[1][5]++) {
-                          ac_int<LOOP_WIDTH, false> x0 =
-                              loop_counters[1][params.inputXLoopIndex[1]];
                           ac_int<LOOP_WIDTH, false> x1 =
                               loop_counters[0][params.inputXLoopIndex[0]];
-                          ac_int<16, false> X0 =
-                              STRIDE *
-                              params.loops[1][params.inputXLoopIndex[1]];
-                          ac_int<LOOP_WIDTH, false> X1 =
-                              params.loops[0][params.inputXLoopIndex[0]];
-                          ac_int<LOOP_WIDTH, false> y0 =
-                              loop_counters[1][params.inputYLoopIndex[1]];
+                          ac_int<LOOP_WIDTH, false> x0 =
+                              loop_counters[1][params.inputXLoopIndex[1]];
                           ac_int<LOOP_WIDTH, false> y1 =
                               loop_counters[0][params.inputYLoopIndex[0]];
-                          ac_int<16, false> Y0 =
-                              STRIDE *
-                              params.loops[1][params.inputYLoopIndex[1]];
-                          ac_int<LOOP_WIDTH, false> Y1 =
-                              params.loops[0][params.inputYLoopIndex[0]];
-                          ac_int<LOOP_WIDTH, false> c1 =
-                              loop_counters[1][params.reductionLoopIndex[1]];
-                          ac_int<LOOP_WIDTH, false> C1 =
-                              params.loops[1][params.reductionLoopIndex[1]];
+                          ac_int<LOOP_WIDTH, false> y0 =
+                              loop_counters[1][params.inputYLoopIndex[1]];
                           ac_int<LOOP_WIDTH, false> c2 =
                               loop_counters[0][params.reductionLoopIndex[0]];
-                          ac_int<LOOP_WIDTH, false> C2 =
-                              params.loops[0][params.reductionLoopIndex[0]];
+                          ac_int<LOOP_WIDTH, false> c1 =
+                              loop_counters[1][params.reductionLoopIndex[1]];
 
                           ac_int<16, false> c = c2 * C1 * NRows + c1 * NRows;
                           ac_int<16, false> C = C2 * C1 * NRows;
@@ -256,7 +242,7 @@ SC_MODULE(InputController) {
                             y0 = y0 * STRIDE;
                           }
 
-                          if (params.REPLICATION) {
+                          if (params.is_replication) {
                             if (x0 != 0 && x_min_offset == 3) {
                               x0 = x_min_offset +
                                    (x0 - boundaryWords) * packingFactor;
@@ -271,34 +257,31 @@ SC_MODULE(InputController) {
                           ac_int<16, false> y = (y0 - y_min_offset) + y1 * Y0;
                           ac_int<16, false> Y = Y0 * Y1;
 
-                          ac_int<32, false> baseAddress = y * X * C + x * C + c;
-                          int burstSize = NRows;
+                          ac_int<32, false> address = y * X * C + x * C + c;
 
-                          if (params.REPLICATION) {
-                            baseAddress =
-                                y * (X / packingFactor) * IC_DIMENSION +
-                                (x / packingFactor) * IC_DIMENSION + c;
+                          if (params.is_replication) {
+                            address = y * (X / packingFactor) * NRows +
+                                      (x / packingFactor) * NRows + c;
                           }
 
-                          ac_int<8, false> headSize =
-                              params.headSizeInPowerOfTwo;
-                          if (params.CONCAT_INPUT) {
-                            ac_int<16, false> mask = (1 << headSize) - 1;
-                            baseAddress = (((c >> headSize) * X) << headSize) +
-                                          (x << headSize) + (c & mask);
+                          if (params.has_attn_output_permute) {
+                            ac_int<8, false> head_size =
+                                params.head_size_power_of_two;
+                            ac_int<16, false> mask = (1 << head_size) - 1;
+                            address = (((c >> head_size) * X) << head_size) +
+                                      (x << head_size) + (c & mask);
                           }
 
-                          if (params.TRANPOSE_INPUTS) {
-                            baseAddress =
-                                (c + (x % 16)) * X + (x / 16) * IC_DIMENSION;
+                          if (params.has_input_transpose) {
+                            address =
+                                (c + (x % NRows)) * X + (x / NRows) * NRows;
                           }
 
-                          MemoryRequest memRequest;
-                          memRequest = {params.INPUT_OFFSET +
-                                            baseAddress * (Input::width / 8),
-                                        burstSize * (Input::width / 8)};
+                          MemoryRequest request = {
+                              params.INPUT_OFFSET + address * Input::width / 8,
+                              NRows * Input::width / 8};
 
-                          addressRequest.Push(memRequest);
+                          addressRequest.Push(request);
 
                           if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
                             break;
@@ -360,23 +343,23 @@ SC_MODULE(InputController) {
       const MatrixParams params = writerParams.Pop();
 
       ac_int<4, false> FX = params.loops[1][params.fxIndex];
-      if (params.REPLICATION) {
+      if (params.is_replication) {
         FX = 7;
       }
 
       // replication packing factor
       int packingFactor;
       int boundaryWords;
-      if (IC_DIMENSION == 4) {
+      if (NRows == 4) {
         packingFactor = 1;
         boundaryWords = 3;
-      } else if (IC_DIMENSION == 8) {
+      } else if (NRows == 8) {
         packingFactor = 2;
         boundaryWords = 2;
-      } else if (IC_DIMENSION == 16) {
+      } else if (NRows == 16) {
         packingFactor = 4;
         boundaryWords = 1;
-      } else if (IC_DIMENSION == 32) {
+      } else if (NRows == 32) {
         packingFactor = 8;
         boundaryWords = 1;
       }
@@ -429,7 +412,7 @@ SC_MODULE(InputController) {
 
             ac_int<4, false> x_min_offset = fx_bound;
             ac_int<4, false> y_min_offset = fy_bound;
-            if (params.REPLICATION) {
+            if (params.is_replication) {
               // make sure to grab border pixels
               loop_bounds[1][params.inputXLoopIndex[1]] =
                   STRIDE * X0 / packingFactor + 2 * boundaryWords;
@@ -439,15 +422,13 @@ SC_MODULE(InputController) {
               loop_bounds[1][params.inputYLoopIndex[1]] += FY - 1;
             }
 
-// inner memory
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
             for (loop_counters[0][3] = 0;
                  loop_counters[0][3] < loop_bounds[0][3];
                  loop_counters[0][3]++) {
-              // TODO: make this dynamic
               ac_int<32, false> total_writes;
-              if (!params.REPLICATION) {
+              if (!params.is_replication) {
                 total_writes =
                     (loop_bounds[1][0] * loop_bounds[1][1] * loop_bounds[1][2] *
                      loop_bounds[1][3] * loop_bounds[1][4]) *
@@ -461,6 +442,8 @@ SC_MODULE(InputController) {
               }
 
               writeControl[bankSel].Push(total_writes);
+
+              // inner memory
               for (loop_counters[1][0] = 0;
                    loop_counters[1][0] < loop_bounds[1][0];
                    loop_counters[1][0]++) {
@@ -494,7 +477,7 @@ SC_MODULE(InputController) {
                           ac_int<LOOP_WIDTH, true> C1 =
                               loop_bounds[1][params.reductionLoopIndex[1]];
 
-                          if (params.REPLICATION) {
+                          if (params.is_replication) {
                             if (x0 != 0) {
                               x0 = x_min_offset +
                                    (x0 - boundaryWords) * packingFactor;
@@ -526,14 +509,12 @@ SC_MODULE(InputController) {
                           }
 
                           ac_int<32, false> address =
-                              static_cast<ac_int<16, false> >(
-                                  (y0) * (STRIDE * X0 + FX - 1) * C1) +
-                              x0 * C1 + c1;
+                              y0 * (X0 * STRIDE + FX - 1) * C1 + x0 * C1 + c1;
 
-                          if (params.REPLICATION) {
+                          if (params.is_replication) {
                             address =
                                 y0 *
-                                    (STRIDE * X0 / packingFactor +
+                                    (X0 * STRIDE / packingFactor +
                                      2 * boundaryWords) *
                                     C1 +
                                 loop_counters[1][params.inputXLoopIndex[1]] *
@@ -541,13 +522,6 @@ SC_MODULE(InputController) {
                                 c1;
                           }
 
-                          int swapBank =
-                              (loop_counters[1][1] == loop_bounds[1][1] - 1) &&
-                              (loop_counters[1][2] == loop_bounds[1][2] - 1) &&
-                              (loop_counters[1][3] == loop_bounds[1][3] - 1) &&
-                              (loop_counters[1][4] == loop_bounds[1][4] - 1) &&
-                              (loop_counters[1][5] == loop_bounds[1][5] - 1);
-                          // writeControl[bankSel].Push(!swapBank);
                           BufferWriteRequest<Input, NRows> req;
                           req.address = address;
                           req.data = data;
@@ -573,7 +547,6 @@ SC_MODULE(InputController) {
                     break;
                   }
                 }
-                // writeControl[bankSel].Push(0);
                 if (loop_counters[1][0] >= loop_bounds[1][0] - 1) {
                   break;
                 }
@@ -616,16 +589,16 @@ SC_MODULE(InputController) {
       // replication packing factor
       int packingFactor;
       int boundaryWords;
-      if (IC_DIMENSION == 4) {
+      if (NRows == 4) {
         packingFactor = 1;
         boundaryWords = 3;
-      } else if (IC_DIMENSION == 8) {
+      } else if (NRows == 8) {
         packingFactor = 2;
         boundaryWords = 2;
-      } else if (IC_DIMENSION == 16) {
+      } else if (NRows == 16) {
         packingFactor = 4;
         boundaryWords = 1;
-      } else if (IC_DIMENSION == 32) {
+      } else if (NRows == 32) {
         packingFactor = 8;
         boundaryWords = 1;
       }
@@ -647,12 +620,12 @@ SC_MODULE(InputController) {
         }
       }
 
-      if (params.REPLICATION && IC_DIMENSION >= 16) {
+      if (params.is_replication && NRows >= 16) {
         loop_bounds[1][params.inputXLoopIndex[1]] =
             (loop_bounds[1][params.inputXLoopIndex[1]] * STRIDE /
              packingFactor) +
             2;
-      } else if (params.REPLICATION && IC_DIMENSION == 8) {
+      } else if (params.is_replication && NRows == 8) {
         loop_bounds[1][params.inputXLoopIndex[1]] =
             (loop_bounds[1][params.inputXLoopIndex[1]] * STRIDE /
              packingFactor) +
@@ -714,7 +687,7 @@ SC_MODULE(InputController) {
                           ac_int<16, false> x = STRIDE * x0 + fx;
                           ac_int<16, false> y = STRIDE * y0 + fy;
                           ac_int<16, false> address;
-                          if (params.REPLICATION && IC_DIMENSION >= 8) {
+                          if (params.is_replication && NRows >= 8) {
                             address = y *
                                           (((STRIDE * X0) / packingFactor) +
                                            2 * boundaryWords) *
@@ -728,19 +701,8 @@ SC_MODULE(InputController) {
                                   y * (STRIDE * X0 + FX - 1) * C1 + x * C1 + c1;
                             }
                           }
-                          // int swapBank =
-                          //     (loop_counters[1][1] == loop_bounds[1][1] -
-                          //     1)
-                          //     && (loop_counters[1][2] == loop_bounds[1][2]
-                          //     - 1) && (loop_counters[1][3] ==
-                          //     loop_bounds[1][3]
-                          //     - 1) && (loop_counters[1][4] ==
-                          //     loop_bounds[1][4] - 1) &&
-                          //     (loop_counters[1][5]
-                          //     == loop_bounds[1][5] - 1);
-                          // readControl[bankSel].Push(!swapBank);
+
                           readAddress[bankSel].Push(address);
-                          // CCS_LOG("Reading from address " << address);
 
                           if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
                             break;
@@ -815,31 +777,31 @@ SC_MODULE(InputController) {
       int additionalUnrollingFactor;  // additional x values packed in a word
                                       // sent to the systolic array, but are
                                       // unused by the systolic array
-      constexpr int initialReuseFactor = (IC_DIMENSION == 8) ? 1 : 3;
+      constexpr int initialReuseFactor = (NRows == 8) ? 1 : 3;
       int shiftFactor;
 
-      if (IC_DIMENSION == 4) {
+      if (NRows == 4) {
         packingFactor = 1;
         unrollingFactor = 1;
         additionalUnrollingFactor = 0;
-      } else if (IC_DIMENSION == 8) {
+      } else if (NRows == 8) {
         packingFactor = 2;
         unrollingFactor = 2;
         additionalUnrollingFactor = 0;
         shiftFactor = 1;
-      } else if (IC_DIMENSION == 16) {
+      } else if (NRows == 16) {
         packingFactor = 4;
         unrollingFactor = 4;
         additionalUnrollingFactor = 1;
         shiftFactor = 2;
-      } else if (IC_DIMENSION == 32) {
+      } else if (NRows == 32) {
         packingFactor = 8;
         unrollingFactor = 7;
         additionalUnrollingFactor = 0;
         shiftFactor = 2;
       }
 
-      if (params.REPLICATION && (IC_DIMENSION == 16 || IC_DIMENSION == 32)) {
+      if (params.is_replication && (NRows == 16 || NRows == 32)) {
         // #pragma hls_pipeline_init_interval 1
         // #pragma hls_pipeline_stall_mode flush
         for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
@@ -948,7 +910,7 @@ SC_MODULE(InputController) {
             }
           }
         }
-      } else if (params.REPLICATION && IC_DIMENSION == 8) {
+      } else if (params.is_replication && NRows == 8) {
         // no window buffer reuse, but need to combine multiple words together
         for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
              loop_counters[0][0]++) {
@@ -1033,23 +995,23 @@ SC_MODULE(InputController) {
       const MatrixParams params = transposerParams.Pop();
 
       ac_int<4, false> FX = params.loops[1][params.fxIndex];
-      if (params.REPLICATION) {
+      if (params.is_replication) {
         FX = 7;
       }
 
       int packingFactor;  // num x values packed in a word
       int boundaryWords;  // num words needed to store the boundary pixels.
                           // essentially ceil(3/packingFactor)
-      if (IC_DIMENSION == 4) {
+      if (NRows == 4) {
         packingFactor = 1;
         boundaryWords = 3;
-      } else if (IC_DIMENSION == 8) {
+      } else if (NRows == 8) {
         packingFactor = 2;
         boundaryWords = 2;
-      } else if (IC_DIMENSION == 16) {
+      } else if (NRows == 16) {
         packingFactor = 4;
         boundaryWords = 1;
-      } else if (IC_DIMENSION == 32) {
+      } else if (NRows == 32) {
         packingFactor = 8;
         boundaryWords = 1;
       }
@@ -1073,7 +1035,7 @@ SC_MODULE(InputController) {
       loop_bounds[1][params.fxIndex] = 1;
       loop_bounds[1][params.fyIndex] = 1;
 
-      if (params.TRANPOSE_INPUTS && IC_DIMENSION <= 32) {
+      if (params.has_input_transpose && NRows <= 32) {
         Input transposeBuffer[NRows][NRows];
 
 #pragma hls_pipeline_init_interval 1
@@ -1169,7 +1131,7 @@ SC_MODULE(InputController) {
                       params.STRIDE;
                 }
 
-                if (params.REPLICATION) {
+                if (params.is_replication) {
                   loop_bounds[1][params.inputXLoopIndex[1]] /= packingFactor;
                 }
 
@@ -1178,7 +1140,7 @@ SC_MODULE(InputController) {
                 ac_int<4, false> y_min_offset = 0;
                 ac_int<4, false> y_max_offset = 0;
 
-                if (params.REPLICATION) {
+                if (params.is_replication) {
                   if (loop_counters[0][params.inputXLoopIndex[0]] != 0) {
                     x_min_offset = (FX - 1) / 2;
                     loop_bounds[1][params.inputXLoopIndex[1]] += boundaryWords;

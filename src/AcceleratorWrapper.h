@@ -101,12 +101,12 @@ SC_MODULE(AcceleratorWrapper) {
     accelerator.vectorFetch2DataResponse.dat(vectorFetch2DataResponse_dat);
     accelerator.vectorFetch2DataResponse.rdy(vectorFetch2DataResponse_rdy);
     accelerator.vectorFetch2DataResponse.vld(vectorFetch2DataResponse_vld);
-    accelerator.vectorOutput.dat(vectorOutput_dat);
-    accelerator.vectorOutput.rdy(vectorOutput_rdy);
-    accelerator.vectorOutput.vld(vectorOutput_vld);
-    accelerator.vectorOutputAddress.dat(vectorOutputAddress_dat);
-    accelerator.vectorOutputAddress.rdy(vectorOutputAddress_rdy);
-    accelerator.vectorOutputAddress.vld(vectorOutputAddress_vld);
+    accelerator.vector_output.dat(vectorOutput_dat);
+    accelerator.vector_output.rdy(vectorOutput_rdy);
+    accelerator.vector_output.vld(vectorOutput_vld);
+    accelerator.vector_output_address.dat(vectorOutputAddress_dat);
+    accelerator.vector_output_address.rdy(vectorOutputAddress_rdy);
+    accelerator.vector_output_address.vld(vectorOutputAddress_vld);
     accelerator.scalarUnitOutput.dat(scalarUnitOutput_dat);
     accelerator.scalarUnitOutput.rdy(scalarUnitOutput_rdy);
     accelerator.scalarUnitOutput.vld(scalarUnitOutput_vld);

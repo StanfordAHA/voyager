@@ -334,137 +334,147 @@ def main():
     # generate tilings for all matrix operations
     tilings = tiling_pb2.ModelTiling()
     for param in params.ops:
-        if param.HasField("matrix_op"):
-            weights_shape = (
-                param.matrix_op.weight.shape
-                if not param.matrix_op.HasField("mx_weight")
-                else param.matrix_op.mx_weight.input.shape
-            )
-            if len(weights_shape) == 4:
-                # convolution
-                output_channels = weights_shape[0]
-                input_channels = weights_shape[1]
-                kernel_height = weights_shape[2]
-                kernel_width = weights_shape[3]
-            elif len(weights_shape) == 2:
-                # matrix multiplication
-                output_channels = weights_shape[0]
-                input_channels = weights_shape[1]
-                kernel_height = 1
-                kernel_width = 1
-            else:
-                print(f"Unsupported weights shape: {weights_shape}, skipping")
-                continue
+        if param.WhichOneof('op_type') == 'op':
+            matrix_op = param.op
+            param_name = matrix_op.name
+        else:
+            matrix_op = param.fused_op.op_list[0]
+            param_name = param.fused_op.name
 
-            if input_channels == 3:
-                print(f"Skipping input with {input_channels} channels")
-                continue
+        if matrix_op.target not in [
+            "conv2d", "linear", "matmul", "conv2d_mx", "linear_mx", "matmul_mx"
+        ]:
+            continue
 
-            output_shape = param.output.shape
-            if len(output_shape) == 4:
-                if output_shape[0] == 1 and output_shape[1] == 1:
-                    width = output_shape[2]
-                    if output_shape[3] != output_channels:
-                        # the input channels and output channels need to be switched.
-                        # not sure why this the compiler produces this shape.
-                        input_channels = output_channels
-                        output_channels = output_shape[3]
-                else:
-                    height = output_shape[2]
-                    width = output_shape[3]
-            elif len(output_shape) == 3:
-                assert output_shape[0] == 1
-                width = output_shape[1]
+        weight_key = "weight" if "matmul" not in matrix_op.target else "other"
+        weight = matrix_op.kwargs[weight_key].tensor
+        if weight.HasField("reshape"):
+            weights_shape = weight.reshape.kwargs["output_shape"].int_list.values
+        else:
+            weights_shape = weight.shape
 
-                if output_shape[2] != output_channels:
+        output = param.output if param.HasField("output") else param.outputs.tensors[1]
+        output_shape = output.shape
+
+        if "stride" in matrix_op.kwargs:
+            stride = matrix_op.kwargs["stride"].int_list.values[0]
+        else:
+            stride = 1
+
+        if len(weights_shape) == 4:
+            # convolution
+            output_channels = weights_shape[0]
+            input_channels = weights_shape[1]
+            kernel_height = weights_shape[2]
+            kernel_width = weights_shape[3]
+        elif len(weights_shape) == 2:
+            # matrix multiplication
+            output_channels = weights_shape[0]
+            input_channels = weights_shape[1]
+            kernel_height = 1
+            kernel_width = 1
+        else:
+            print(f"Unsupported weights shape: {weights_shape}, skipping")
+            continue
+
+        if input_channels == 3:
+            print(f"Skipping input with {input_channels} channels")
+            continue
+
+        if len(output_shape) == 4:
+            if output_shape[0] == 1 and output_shape[1] == 1:
+                width = output_shape[2]
+                if output_shape[3] != output_channels:
                     # the input channels and output channels need to be switched.
                     # not sure why this the compiler produces this shape.
                     input_channels = output_channels
-                    output_channels = output_shape[2]
-                height = 1
-            elif len(output_shape) == 2:
-                width = output_shape[0]
-                height = 1
-                if width == 1:
-                    print("Fully-connected layer, skipping")
-                    continue
+                    output_channels = output_shape[3]
             else:
-                print(f"Unsupported output shape: {output_shape}, skipping")
+                height = output_shape[2]
+                width = output_shape[3]
+        elif len(output_shape) == 3:
+            assert output_shape[0] == 1
+            width = output_shape[1]
+
+            if output_shape[2] != output_channels:
+                # the input channels and output channels need to be switched.
+                # not sure why this the compiler produces this shape.
+                input_channels = output_channels
+                output_channels = output_shape[2]
+            height = 1
+        elif len(output_shape) == 2:
+            width = output_shape[0]
+            height = 1
+            if width == 1:
+                print("Fully-connected layer, skipping")
+                continue
+        else:
+            print(f"Unsupported output shape: {output_shape}, skipping")
+            continue
+
+        # for operations with reshape, we can look at the input shape to get height and width
+        if output.HasField("reshape"):
+            input_shape = matrix_op.kwargs["input"].tensor.shape
+            if len(input_shape) != 3 or input_shape[0] != 1:
+                print("Unsupported input shape for reshape, skipping")
                 continue
 
-            # for operations with reshape, we can look at the input shape to get height and width
-            if param.output.HasField("reshape"):
-                input_shape = (
-                    param.matrix_op.input.shape
-                    if not param.matrix_op.HasField("mx_input")
-                    else param.matrix_op.mx_input.input.shape
-                )
-                if len(input_shape) == 3:
-                    assert input_shape[0] == 1
-                    width = input_shape[1]
-                    height = 1
-                else:
-                    print("Unsupported input shape for reshape, skipping")
-                    continue
+            width = input_shape[1]
+            height = 1
 
-            if len(param.matrix_op.stride) == 0:
-                stride = 1
-            else:
-                stride = param.matrix_op.stride[0]
+        layer = interstellar.Layer(
+            nifm=input_channels,
+            nofm=output_channels,
+            wofm=width,
+            hofm=height,
+            wfil=kernel_width,
+            hfil=kernel_height,
+            wstd=stride,
+            hstd=stride,
+        )
 
-            layer = interstellar.Layer(
-                nifm=input_channels,
-                nofm=output_channels,
-                wofm=width,
-                hofm=height,
-                wfil=kernel_width,
-                hfil=kernel_height,
-                wstd=stride,
-                hstd=stride,
-            )
+        print(f"Finding tiling for {param_name}")
 
-            print(f"Finding tiling for {param.name}")
+        cost, runtime, mapping, perf = interstellar.optimizer.opt_optimizer(
+            architecture, layer, schedule, calculate_runtime, True
+        )
 
-            cost, runtime, mapping, perf = interstellar.optimizer.opt_optimizer(
-                architecture, layer, schedule, calculate_runtime, True
-            )
+        total_cost, total_access_cost, access_list = (
+            interstellar.cost_model.get_cost(architecture, mapping, layer)
+        )
 
-            total_cost, total_access_cost, access_list = (
-                interstellar.cost_model.get_cost(architecture, mapping, layer)
-            )
+        interstellar.utils.print_tiling(mapping)
+        print(f"Runtime: {runtime}")
 
-            interstellar.utils.print_tiling(mapping)
-            print(f"Runtime: {runtime}")
+        tiling = tiling_pb2.Tiling()
+        tiling.name = param_name
+        for level in range(1, architecture.num_levels):  # skip PE level
+            level_tiling = tiling_pb2.LevelTiling()
+            loop_index = 0
+            while loop_index < interstellar.le.NUM:
+                for loop in range(interstellar.le.NUM):
+                    if mapping.loop_orders[loop][level] == loop_index:
+                        loop_bound = tiling_pb2.LoopBound()
+                        loop_bound.loop = loop
+                        loop_bound.bound = mapping.loop_blockings[loop][level]
+                        loop_index += 1
+                        level_tiling.loop_bounds.append(loop_bound)
+                        break
+                    else:
+                        # if we have reached the last loop, we have no more bounds to add
+                        if loop == interstellar.le.NUM - 1:
+                            loop_index = interstellar.le.NUM
 
-            tiling = tiling_pb2.Tiling()
-            tiling.name = param.name
-            for level in range(1, architecture.num_levels):  # skip PE level
-                level_tiling = tiling_pb2.LevelTiling()
-                loop_index = 0
-                while loop_index < interstellar.le.NUM:
-                    for loop in range(interstellar.le.NUM):
-                        if mapping.loop_orders[loop][level] == loop_index:
-                            loop_bound = tiling_pb2.LoopBound()
-                            loop_bound.loop = loop
-                            loop_bound.bound = mapping.loop_blockings[loop][level]
-                            loop_index += 1
-                            level_tiling.loop_bounds.append(loop_bound)
-                            break
-                        else:
-                            # if we have reached the last loop, we have no more bounds to add
-                            if loop == interstellar.le.NUM - 1:
-                                loop_index = interstellar.le.NUM
+            tiling.level_tilings.append(level_tiling)
 
-                tiling.level_tilings.append(level_tiling)
+            access_count = tiling_pb2.LevelAccessCount()
+            access_count.input_access_count = access_list[level][0]
+            access_count.output_access_count = access_list[level][1]
+            access_count.weight_access_count = access_list[level][2]
 
-                access_count = tiling_pb2.LevelAccessCount()
-                access_count.input_access_count = access_list[level][0]
-                access_count.output_access_count = access_list[level][1]
-                access_count.weight_access_count = access_list[level][2]
+            tiling.level_access_counts.append(access_count)
 
-                tiling.level_access_counts.append(access_count)
-
-            tilings.tilings.append(tiling)
+        tilings.tilings.append(tiling)
 
     # write the tilings to a file
     with open(

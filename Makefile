@@ -80,7 +80,7 @@ else
 endif
 
 ifeq ($(DEBUG), 1)
-	override BASE_FLAGS += -DDEBUG_LOG -g -ggdb
+	override BASE_FLAGS += -DDEBUG -g -ggdb
 else
 	override BASE_FLAGS += -O3
 endif
@@ -88,9 +88,9 @@ endif
 # We need to work with multiple C++ standards, as the SystemC lib is only
 # compatible with C++11 and the Universal Numbers Library requires C++17
 C17FLAGS += $(BASE_FLAGS) -std=c++17 -Wno-deprecated-declarations
-LDFLAGS += -lsystemc -lstdc++fs -labsl_log_internal_message -labsl_log_internal_check_op -lprotobuf -Wl,-rpath=$(CONDA_PREFIX)/lib
+LDFLAGS += -lsystemc -lstdc++fs -labsl_hash -labsl_log_internal_check_op -labsl_log_internal_message -labsl_log_internal_nullguard -lprotobuf -Wl,-rpath=$(CONDA_PREFIX)/lib
 LDLIBS += -L/cad/mentor/2024.2_1/Mgc_home/shared/lib/ -L$(CONDA_PREFIX)/lib
-LDFLAGS_NO_SYSC += -lstdc++fs -labsl_log_internal_message -labsl_log_internal_check_op -lprotobuf -Wl,-rpath=$(CONDA_PREFIX)/lib
+LDFLAGS_NO_SYSC += -lstdc++fs -labsl_hash -labsl_log_internal_check_op -labsl_log_internal_message -labsl_log_internal_nullguard -lprotobuf -Wl,-rpath=$(CONDA_PREFIX)/lib
 LDLIBS_NO_SYSC += -L$(CONDA_PREFIX)/lib
 
 ###########################################################
@@ -111,10 +111,9 @@ WeightController: $(CATAPULT_BUILD_DIR)/WeightController/WeightController.v1/con
 SystolicArray: $(CATAPULT_BUILD_DIR)/SystolicArray/SystolicArray.v1/concat_rtl.v
 MatrixProcessor: $(CATAPULT_BUILD_DIR)/MatrixProcessor/MatrixProcessor.v1/concat_rtl.v
 ProcessingElement: $(CATAPULT_BUILD_DIR)/ProcessingElement/ProcessingElement.v1/concat_rtl.v
-VectorUnit: $(CATAPULT_BUILD_DIR)/VectorUnit/VectorUnit.v1/concat_rtl.v
-MaxpoolUnit: $(CATAPULT_BUILD_DIR)/MaxpoolUnit/MaxpoolUnit.v1/concat_rtl.v
-OutputAddressGenerator: $(CATAPULT_BUILD_DIR)/OutputAddressGenerator/OutputAddressGenerator.v1/concat_rtl.v
 VectorFetchUnit: $(CATAPULT_BUILD_DIR)/VectorFetchUnit/VectorFetchUnit.v1/concat_rtl.v
+VectorUnit: $(CATAPULT_BUILD_DIR)/VectorUnit/VectorUnit.v1/concat_rtl.v
+VectorUnitOutput: $(CATAPULT_BUILD_DIR)/VectorUnitOutput/VectorUnitOutput.v1/concat_rtl.v
 VectorOpUnit: $(CATAPULT_BUILD_DIR)/VectorOpUnit/VectorOpUnit.v1/concat_rtl.v
 Accelerator: $(CATAPULT_BUILD_DIR)/Accelerator/Accelerator.v1/concat_rtl.v
 
@@ -132,25 +131,23 @@ $(CATAPULT_BUILD_DIR)/SystolicArray/SystolicArray.v1/concat_rtl.v: src/SystolicA
 	BLOCK=SystolicArray catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/SystolicArray.log
 $(CATAPULT_BUILD_DIR)/MatrixProcessor/MatrixProcessor.v1/concat_rtl.v: src/MatrixProcessor.h src/SystolicArray.h src/Skewer.h $(CATAPULT_BUILD_DIR)/SystolicArray/SystolicArray.v1/concat_rtl.v
 	BLOCK=MatrixProcessor catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/MatrixProcessor.log
-$(CATAPULT_BUILD_DIR)/VectorUnit/VectorUnit.v1/concat_rtl.v: $(CATAPULT_BUILD_DIR)/MaxpoolUnit/MaxpoolUnit.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/OutputAddressGenerator/OutputAddressGenerator.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/VectorFetchUnit/VectorFetchUnit.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/VectorOpUnit/VectorOpUnit.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/VectorParamsDeserializer/VectorParamsDeserializer.v1/concat_rtl.v
+$(CATAPULT_BUILD_DIR)/VectorUnit/VectorUnit.v1/concat_rtl.v: $(CATAPULT_BUILD_DIR)/VectorFetchUnit/VectorFetchUnit.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/VectorOpUnit/VectorOpUnit.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/VectorUnitOutput/VectorUnitOutput.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/VectorParamsDeserializer/VectorParamsDeserializer.v1/concat_rtl.v
 	BLOCK=VectorUnit catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/VectorUnit.log
-$(CATAPULT_BUILD_DIR)/MaxpoolUnit/MaxpoolUnit.v1/concat_rtl.v: src/MaxpoolUnit.h
-	BLOCK=MaxpoolUnit catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/MaxpoolUnit.log
-$(CATAPULT_BUILD_DIR)/OutputAddressGenerator/OutputAddressGenerator.v1/concat_rtl.v: src/OutputAddressGenerator.h
-	BLOCK=OutputAddressGenerator catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/OutputAddressGenerator.log
 $(CATAPULT_BUILD_DIR)/VectorFetchUnit/VectorFetchUnit.v1/concat_rtl.v: src/VectorFetch.h
 	BLOCK=VectorFetchUnit catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/VectorFetchUnit.log
 $(CATAPULT_BUILD_DIR)/VectorParamsDeserializer/VectorParamsDeserializer.v1/concat_rtl.v: src/VectorUnit.h
 	BLOCK=VectorParamsDeserializer catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/VectorParamsDeserializer.log
 $(CATAPULT_BUILD_DIR)/VectorOpUnit/VectorOpUnit.v1/concat_rtl.v: src/VectorUnit.h
 	BLOCK=VectorOpUnit catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/VectorOpUnit.log
+$(CATAPULT_BUILD_DIR)/VectorUnitOutput/VectorUnitOutput.v1/concat_rtl.v: src/VectorUnitOutput.h
+	BLOCK=VectorUnitOutput catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/VectorUnitOutput.log
 $(CATAPULT_BUILD_DIR)/Accelerator/Accelerator.v1/concat_rtl.v: $(CATAPULT_BUILD_DIR)/InputController/InputController.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/WeightController/WeightController.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/MatrixProcessor/MatrixProcessor.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/VectorUnit/VectorUnit.v1/concat_rtl.v
 	BLOCK=Accelerator catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/Accelerator.log
 
 release/$(DATATYPE)_$(IC_DIMENSION)x$(OC_DIMENSION)_clock_$(CLOCK_PERIOD)_$(TECHNOLOGY).v: Accelerator
 	cp $(CATAPULT_BUILD_DIR)/Accelerator/Accelerator.v1/concat_rtl.v $@
 
-.PHONY: rtl Accelerator InputController WeightController MatrixProcessor ProcessingElement VectorUnit MaxpoolUnit OutputAddressGenerator VectorFetchUnit VectorOpUnit
+.PHONY: rtl Accelerator InputController WeightController MatrixProcessor ProcessingElement VectorUnit VectorFetchUnit VectorOpUnit VectorUnitOutput
 
 ###########################################################
 # Cycle-accurate SystemC Simulations
@@ -253,13 +250,6 @@ $(CC_BUILD_DIR)/TestRunner-checker: $(CC_BUILD_DIR)/Harness-checker.o $(CC_BUILD
 $(CC_BUILD_DIR)/AccuracyTester: $(CC_BUILD_DIR)/AccuracyTester.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/ArrayMemory.o $(CC_BUILD_DIR)/DataLoader.o $(CC_BUILD_DIR)/Network.o $(CC_BUILD_DIR)/param.pb.o $(CC_BUILD_DIR)/tiling.pb.o $(CC_BUILD_DIR)/Tiling.o
 	$(CC) -o $@ $^ $(LDLIBS_NO_SYSC) $(LDFLAGS_NO_SYSC) -pthread
 
-# Unit tests for custom Posit implementation
-.PHONY: PositTest
-PositTest: $(CC_BUILD_DIR)/PositTest
-
-$(CC_BUILD_DIR)/PositTest: test/common/PositTest.cc src/PositTypes.h
-	$(CC) $(C17FLAGS) -fopenmp -DNO_SYSC $< -o $@
-
 $(CC_BUILD_DIR)/Harness.o: test/common/Harness.cc test/common/Harness.h test/common/VerificationTypes.h test/toolchain/MapOperation.h $(wildcard src/*.h)
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
@@ -281,10 +271,10 @@ $(CC_BUILD_DIR)/Utils.o: test/common/Utils.cc test/common/Utils.h src/Architectu
 $(CC_BUILD_DIR)/Simulation.o: test/common/Simulation.cc test/common/Simulation.h src/ArchitectureParams.h src/PositTypes.h src/StdFloatTypes.h src/IntTypes.h test/common/VerificationTypes.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
-$(CC_BUILD_DIR)/ArrayMemory.o: test/common/ArrayMemory.cc test/common/ArrayMemory.h test/common/MemoryInterface.h
+$(CC_BUILD_DIR)/ArrayMemory.o: test/common/ArrayMemory.cc test/common/ArrayMemory.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
-$(CC_BUILD_DIR)/DataLoader.o: test/common/DataLoader.cc test/common/DataLoader.h test/common/MemoryInterface.h
+$(CC_BUILD_DIR)/DataLoader.o: test/common/DataLoader.cc test/common/DataLoader.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 $(CC_BUILD_DIR)/MapOperation.o: test/toolchain/MapOperation.cc $(wildcard test/toolchain/*.h)

@@ -9,10 +9,12 @@
 template <int W, int E>
 class UFloat {
  public:
+  static constexpr unsigned int width = W;
+  static constexpr unsigned int e_width = E;
+
   typedef ac_int<W, false> ac_int_rep;
   typedef ac_std_float<W + 1, E> ac_float_rep;
-
-  static constexpr unsigned int width = W;
+  typedef UFloat<W, E> decoded;
 
   ac_int_rep d;
 
@@ -27,10 +29,15 @@ class UFloat {
 #endif
 
   template <int W2, int E2>
-  UFloat(const ac_std_float<W2, E2> &i) {
-    ac_float_rep tmp = i.abs();
-    d = tmp.data();
+  UFloat(const ac_std_float<W2, E2> &other) {
+    ac_float_rep r(other.abs());
+    d = r.data();
   }
+
+  template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
+            ac_q_mode Q>
+  UFloat(const StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q> &other)
+      : UFloat(other.float_val) {}
 
   ac_float_rep to_ac_float() const {
     ac_float_rep result;
@@ -41,7 +48,7 @@ class UFloat {
   ac_int<W, true> bits_rep() { return d; }
 
   void set_bits(const ac_int<W, true> &rhs) { d = rhs; }
-  void set_zero() { d = 0; }
+  void set_zero() { d = ac_float_rep::zero().data(); }
   void set_one() { d = ac_float_rep::one().data(); }
 
   UFloat operator*(const UFloat &rhs) const {
@@ -56,13 +63,19 @@ class UFloat {
     }
   }
 
+  bool operator<(const UFloat &other) const {
+    return to_ac_float() < other.to_ac_float();
+  }
+
+  bool operator==(const UFloat &other) const { return d == other.d; }
+
 #ifndef __SYNTHESIS__
   operator float() const { return to_ac_float().to_float(); }
 #endif
 
-  template <int mantissa, int exp, bool useDWImpl, bool ieee_compliance,
+  template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
             ac_q_mode Q>
-  operator StdFloat<mantissa, exp, useDWImpl, ieee_compliance, Q>() const {
+  operator StdFloat<mantissa, exp, use_dw_impl, ieee_compliance, Q>() const {
     return to_ac_float();
   }
 

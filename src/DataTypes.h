@@ -4,11 +4,11 @@
 #include <string>
 
 // forward declarations
-template <int mantissa, int exp, bool useDWImpl = false,
+template <int mantissa, int exp, bool use_dw_impl = false,
           bool ieee_compliance = true, ac_q_mode Q = AC_RND_CONV>
 class StdFloat;
 
-template <int wdth, bool sgnd>
+template <int W, bool S>
 class Int;
 
 // #include "FloatTypes.h"
@@ -34,7 +34,11 @@ typedef StdFloat<7, 8, false, true, AC_RND_CONV> bfloat16;
 typedef StdFloat<23, 8, false, true, AC_RND_CONV> fp32;
 
 typedef Posit<8, 1> posit8;
-typedef UFloat<8, 8> e8m0;
+
+typedef NormalFloat4 nf4;
+
+typedef UFloat<8, 8> fp8_e8m0;
+typedef UFloat<8, 5> fp8_e5m3;
 
 template <typename T>
 struct TypeName {
@@ -77,18 +81,28 @@ struct TypeName<bfloat16> {
 };
 
 template <>
-struct TypeName<e8m0> {
-  static std::string name() { return "e8m0"; }
-};
-
-template <>
 struct TypeName<fp32> {
   static std::string name() { return "float32"; }
 };
 
 template <>
+struct TypeName<fp8_e8m0> {
+  static std::string name() { return "fp8_e8m0"; }
+};
+
+template <>
+struct TypeName<fp8_e5m3> {
+  static std::string name() { return "fp8_e5m3"; }
+};
+
+template <>
 struct TypeName<posit8> {
   static std::string name() { return "posit8_1"; }
+};
+
+template <>
+struct TypeName<nf4> {
+  static std::string name() { return "nf4_5"; }
 };
 
 };  // namespace DataTypes

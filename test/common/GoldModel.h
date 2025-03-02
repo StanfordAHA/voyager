@@ -10,4 +10,5 @@
 #include "test/common/Network.h"
 #include "test/compiler/proto/param.pb.h"
 
-void run_gold_model(const Operation &operation, std::vector<std::any> args);
+std::vector<std::any> run_gold_model(const Operation &operation,
+                                     std::map<std::string, std::any> kwargs);

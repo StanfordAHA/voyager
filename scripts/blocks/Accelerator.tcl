@@ -7,7 +7,7 @@ proc pre_compile {} {
     if {$DATATYPE == "HYBRID_FP8"} {
       set MP_IO_DATATYPE "F9"
     }
-    foreach mapped_block [list "InputController<$IO_DATATYPE, $IC_DIMENSION>" "MatrixProcessor<$MP_IO_DATATYPE, $ACCUM_DATATYPE, $ACCUM_BUFFER_DATATYPE, $SCALE_DATATYPE, $SUPPORT_MX, $IC_DIMENSION, $OC_DIMENSION, $ACCUM_BUFFER_SIZE>" "VectorUnit<$IO_DATATYPE, $VECTOR_DATATYPE, $ACCUM_BUFFER_DATATYPE, $SCALE_DATATYPE, $OC_DIMENSION>" "WeightController<$IO_DATATYPE, $ACCUM_BUFFER_DATATYPE, $IC_DIMENSION, $OC_DIMENSION>"] {
+    foreach mapped_block [list "InputController<$IO_DATATYPE, $IC_DIMENSION>" "MatrixProcessor<$MP_IO_DATATYPE, $ACCUM_DATATYPE, $ACCUM_BUFFER_DATATYPE, $SCALE_DATATYPE, $IC_DIMENSION, $OC_DIMENSION, $ACCUM_BUFFER_SIZE>" "VectorUnit<$IO_DATATYPE, $VECTOR_DATATYPE, $ACCUM_BUFFER_DATATYPE, $SCALE_DATATYPE, $OC_DIMENSION>" "WeightController<$IO_DATATYPE, $ACCUM_BUFFER_DATATYPE, $IC_DIMENSION, $OC_DIMENSION>"] {
       solution design set $mapped_block -mapped
     }
 }
@@ -25,7 +25,7 @@ proc pre_assembly {} {
   if {$DATATYPE == "HYBRID_FP8"} {
     set MP_IO_DATATYPE "F9"
   }
-  set MatrixProcessorBlock "MatrixProcessor<$MP_IO_DATATYPE, $ACCUM_DATATYPE, $ACCUM_BUFFER_DATATYPE, $SCALE_DATATYPE, $SUPPORT_MX, $IC_DIMENSION, $OC_DIMENSION, $ACCUM_BUFFER_SIZE>"
+  set MatrixProcessorBlock "MatrixProcessor<$MP_IO_DATATYPE, $ACCUM_DATATYPE, $ACCUM_BUFFER_DATATYPE, $SCALE_DATATYPE, $IC_DIMENSION, $OC_DIMENSION, $ACCUM_BUFFER_SIZE>"
   set MatrixProcessorBlock_stripped [string map {" " ""} $MatrixProcessorBlock]
 
   set InputControllerBlock "InputController<$IO_DATATYPE, $IC_DIMENSION>"
@@ -76,12 +76,8 @@ proc pre_architect {} {
   if {$SUPPORT_MX == true} {
     global SCALE_DATATYPE SCALE_C_DATA_REP_NAME SCALE_DATATYPE_WIDTH
 
-    set weight_scale_controller "WeightScaleController<$SCALE_DATATYPE,$IC_DIMENSION,$OC_DIMENSION>"
-    directive set /Accelerator/$weight_scale_controller/$weight_scale_controller:transposer/transposer/while:if#1:transposeBuffer.$SCALE_C_DATA_REP_NAME:rsc -MAP_TO_MODULE {[Register]}
-
     set weight_scale_double_buffer "DoubleBuffer<$SCALE_DATATYPE,$OC_DIMENSION,$WEIGHT_BUFFER_SIZE>"
     directive set /Accelerator/$weight_scale_double_buffer/$weight_scale_double_buffer:mem0Run/mem0Run/mem0.value.$SCALE_C_DATA_REP_NAME -WORD_WIDTH [expr $SCALE_DATATYPE_WIDTH*$OC_DIMENSION]
     directive set /Accelerator/$weight_scale_double_buffer/$weight_scale_double_buffer:mem1Run/mem1Run/mem1.value.$SCALE_C_DATA_REP_NAME -WORD_WIDTH [expr $SCALE_DATATYPE_WIDTH*$OC_DIMENSION]
   }
-
 }

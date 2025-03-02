@@ -23,7 +23,8 @@ float compare_arrays(std::any matrixA, std::string matrixA_name,
                      std::string filename, bool doublePrecision) {
   std::cout << "Writing comparison between " << matrixA_name << " and "
             << matrixB_name << " to file: " << filename << std::endl;
-  std::ofstream diffFile(filename);
+  // std::ofstream diffFile(filename);
+  std::ostream &diffFile = std::cerr;
   diffFile << matrixA_name << " vs. " << matrixB_name << std::endl;
 
   // Records absolute differences
