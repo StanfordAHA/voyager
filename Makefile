@@ -99,7 +99,7 @@ LDLIBS_NO_SYSC += -L$(CONDA_PREFIX)/lib
 export CATAPULT_BUILD_DIR ?= $(BUILD_DIR)/Catapult/$(TECHNOLOGY)/clock_$(CLOCK_PERIOD)
 
 # Main target to run HLS and build RTL (Verilog)
-rtl: release/$(DATATYPE)_$(IC_DIMENSION)x$(OC_DIMENSION)_clock_$(CLOCK_PERIOD)_$(TECHNOLOGY).v
+rtl: Accelerator
 
 
 # For debugging it might be beneficial to only build sub-components in RTL and
@@ -143,9 +143,6 @@ $(CATAPULT_BUILD_DIR)/VectorUnitOutput/VectorUnitOutput.v1/concat_rtl.v: src/Vec
 	BLOCK=VectorUnitOutput catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/VectorUnitOutput.log
 $(CATAPULT_BUILD_DIR)/Accelerator/Accelerator.v1/concat_rtl.v: $(CATAPULT_BUILD_DIR)/InputController/InputController.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/WeightController/WeightController.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/MatrixProcessor/MatrixProcessor.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/VectorUnit/VectorUnit.v1/concat_rtl.v
 	BLOCK=Accelerator catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/Accelerator.log
-
-release/$(DATATYPE)_$(IC_DIMENSION)x$(OC_DIMENSION)_clock_$(CLOCK_PERIOD)_$(TECHNOLOGY).v: Accelerator
-	cp $(CATAPULT_BUILD_DIR)/Accelerator/Accelerator.v1/concat_rtl.v $@
 
 .PHONY: rtl Accelerator InputController WeightController MatrixProcessor ProcessingElement VectorUnit VectorFetchUnit VectorOpUnit VectorUnitOutput
 
