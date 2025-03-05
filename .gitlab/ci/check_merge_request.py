@@ -13,7 +13,7 @@ import subprocess
 headers = {
     "PRIVATE-TOKEN": os.environ["MERGE_REQUEST_ACCESS_TOKEN"],
 }
-base_url = "https://code.stanford.edu/api/v4/projects/6796/"
+base_url = f"https://code.stanford.edu/api/v4/projects/{os.environ['CI_PROJECT_ID']}/"
 
 
 def get_latest_pipeline_on_branch(branch):
