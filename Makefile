@@ -298,6 +298,11 @@ $(CC_BUILD_DIR)/Tiling.o: test/common/Tiling.cc test/common/Tiling.h
 	$(CC) $(C17FLAGS) -c -o $@ $<
 
 ###########################################################
+# Toolchain
+###########################################################
+toolchain: $(CC_BUILD_DIR)/MapOperation.o $(CC_BUILD_DIR)/Tiling.o $(CC_BUILD_DIR)/Network.o $(CC_BUILD_DIR)/param.pb.o $(CC_BUILD_DIR)/tiling.pb.o
+
+###########################################################
 # Networks
 ###########################################################
 $(CC_BUILD_DIR)/Network.o: test/common/Network.cc test/compiler/proto/param.pb.cc
