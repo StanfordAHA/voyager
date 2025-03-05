@@ -10,7 +10,7 @@ before_script:
   - export LD_LIBRARY_PATH=/cad/mentor/2024.2_1/Mgc_home/lib:/cad/mentor/2024.2_1/Mgc_home/shared/lib:$LD_LIBRARY_PATH
   - export PATH=/home/gitlab-runner/miniforge3/condabin:$PATH
   - source $(conda info --base)/etc/profile.d/conda.sh
-  - conda create -p $(pwd)/.conda-env --clone /sim/gitlab-runner/envs/accelerator-env
+  - conda env create -p $(pwd)/.conda-env -f $(pwd)/environment.yml
   - conda activate $(pwd)/.conda-env
   - pip install -e quantized-training
   - pip install -e interstellar
