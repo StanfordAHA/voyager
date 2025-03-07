@@ -148,8 +148,6 @@ void set_vector_addr_gen2(const codegen::Tensor &tensor,
 
 void set_vector_immediate(const float scalar, const int stage,
                           const std::string opcode, VectorInstructions &inst) {
-  std::cerr << "immediate: " << scalar << std::endl;
-
   VECTOR_DATATYPE immediate = scalar;
 
   if (opcode == "div" || opcode == "div_") {
@@ -197,15 +195,17 @@ void MapVectorOperations(const codegen::Operation &param,
       MEMORY_OPS.find(op_list[0].target()) != MEMORY_OPS.end()) {
     for (const auto dim : input_shape) {
       if (dim > 1024) {
-        std::cerr << "ERROR: input shape dimension is greater than 1024: ";
+        spdlog::error("ERROR: input shape dimension is greater than 1024: ");
+
         print_shape(input_shape);
         throw std::invalid_argument("Invalid input shape dimension!");
       }
     }
 
     if (input_shape.back() % OC_DIMENSION != 0) {
-      std::cerr << "ERROR: input last dimension is not a multiple of "
-                   "OC_DIMENSION: ";
+      spdlog::error(
+          "ERROR: input last dimension is not a multiple of "
+          "OC_DIMENSION: ");
       print_shape(input_shape);
       throw std::invalid_argument("Invalid input shape dimension!");
     }
@@ -492,7 +492,7 @@ void MapVectorOperations(const codegen::Operation &param,
           continue;
         }
 
-        std::cerr << "stage " << stage << " target: " << opcode << std::endl;
+        spdlog::debug("stage {} target: {}\n", stage, opcode);
 
         unsigned int vop = inst_map[opcode];
         if (stage == 0) {

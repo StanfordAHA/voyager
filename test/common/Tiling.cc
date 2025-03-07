@@ -1,5 +1,7 @@
 #include "test/common/Tiling.h"
 
+#include "spdlog/spdlog.h"
+
 std::ostream& operator<<(std::ostream& os, const Tiling& tiling) {
   os << "Loops: " << std::endl;
   for (int i = 0; i < 2; i++) {
@@ -289,7 +291,7 @@ Tiling get_conv2d_tiling(const codegen::OpOverload param) {
       }
 
       if (div_factor > 1) {
-        std::cerr << "OC_DIMENSION is not a multiple of 16" << std::endl;
+        spdlog::error("OC_DIMENSION is not a multiple of 16\n");
         exit(1);
       }
     }
@@ -303,7 +305,7 @@ Tiling get_conv2d_tiling(const codegen::OpOverload param) {
       k0 /= 2;
       k1 *= 2;
     } else {
-      std::cerr << "Weight buffer is too small" << std::endl;
+      spdlog::error("Weight buffer is too small\n");
       exit(1);
     }
   }
@@ -314,7 +316,7 @@ Tiling get_conv2d_tiling(const codegen::OpOverload param) {
       k0 /= 2;
       k1 *= 2;
     } else {
-      std::cerr << "Weight buffer is too small" << std::endl;
+      spdlog::error("Weight buffer is too small\n");
       exit(1);
     }
   }
@@ -333,7 +335,7 @@ Tiling get_conv2d_tiling(const codegen::OpOverload param) {
       y0 /= 2;
       y1 *= 2;
     } else {
-      std::cerr << "Input buffer is too small" << std::endl;
+      spdlog::error("Input buffer is too small\n");
       exit(1);
     }
   }
@@ -357,7 +359,7 @@ Tiling get_conv2d_tiling(const codegen::OpOverload param) {
         k1 /= 2;
       }
     } else {
-      std::cerr << "Accumulation buffer is too small" << std::endl;
+      spdlog::error("Accumulation buffer is too small\n");
       exit(1);
     }
   }
@@ -409,7 +411,7 @@ Tiling get_linear_tiling(const codegen::OpOverload op) {
       c0 /= 2;
       c1 *= 2;
     } else {
-      std::cerr << "Input buffer is too small" << std::endl;
+      spdlog::error("Input buffer is too small\n");
       exit(1);
     }
   }
@@ -422,7 +424,7 @@ Tiling get_linear_tiling(const codegen::OpOverload op) {
       c0 /= 2;
       c1 *= 2;
     } else {
-      std::cerr << "Weight buffer is too small" << std::endl;
+      spdlog::error("Weight buffer is too small\n");
       exit(1);
     }
   }
@@ -435,7 +437,7 @@ Tiling get_linear_tiling(const codegen::OpOverload op) {
       x0 /= 2;
       x1 *= 2;
     } else {
-      std::cerr << "Accumulation buffer is too small" << std::endl;
+      spdlog::error("Accumulation buffer is too small\n");
       exit(1);
     }
   }

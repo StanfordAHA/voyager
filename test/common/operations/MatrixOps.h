@@ -19,7 +19,7 @@ inline Buffer *gemm(std::any input_ptr, std::any input_scale_ptr,
                     std::any weight_ptr, std::any weight_scale_ptr,
                     std::any bias_ptr, const Tiling &tiling,
                     const int block_size) {
-  LOG("Performing GEMM");
+  spdlog::debug("Performing GEMM");
 
   Input *inputs = std::any_cast<Input *>(input_ptr);
   Scale *input_scales = std::any_cast<Scale *>(input_scale_ptr);
@@ -283,7 +283,7 @@ inline Buffer *gemm(std::any input_ptr, std::any input_scale_ptr,
     }
   }
 
-  LOG("GEMM done");
+  spdlog::debug("GEMM done");
 
   delete[] inputs;
   delete[] weights;
@@ -308,7 +308,10 @@ inline Buffer *gemm(std::any input_ptr, std::any input_scale_ptr,
                     std::any weight_ptr, std::any weight_scale_ptr,
                     std::any bias_ptr, const Operation &operation) {
   Tiling tiling = get_tiling(operation);
-  std::cerr << "GEMM tiling: " << tiling << std::endl;
+
+  std::ostringstream oss;
+  oss << "GEMM Tiling: " << tiling << std::endl;
+  spdlog::debug(oss.str());
 
   if (tiling.replication) {
     tiling.loops[1][tiling.fx_index] = tiling.loops[1][tiling.fy_index];

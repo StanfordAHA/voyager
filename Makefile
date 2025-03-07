@@ -40,6 +40,7 @@ INC := \
 	-Ilib/ \
 	-Ilib/xtensor/include \
 	-Ilib/xtl/include \
+	-Ilib/spdlog/include \
 	-Isrc/ \
 	-I$(CONDA_PREFIX)/include \
 	-I.
@@ -57,6 +58,8 @@ override BASE_FLAGS += \
 	-Wno-class-memaccess \
 	-Wall \
 	-Wno-bool-compare \
+	-DSPDLOG_COMPILED_LIB \
+	-DSPDLOG_EOL=\"\" \
 	-D$(DATATYPE) \
 	-DIC_DIMENSION=$(IC_DIMENSION) \
 	-DOC_DIMENSION=$(OC_DIMENSION)
@@ -88,10 +91,18 @@ endif
 # We need to work with multiple C++ standards, as the SystemC lib is only
 # compatible with C++11 and the Universal Numbers Library requires C++17
 C17FLAGS += $(BASE_FLAGS) -std=c++17 -Wno-deprecated-declarations
-LDFLAGS += -lsystemc -lstdc++fs -labsl_hash -labsl_log_internal_check_op -labsl_log_internal_message -labsl_log_internal_nullguard -lprotobuf -Wl,-rpath=$(CONDA_PREFIX)/lib
+LDFLAGS += -lsystemc -lstdc++fs -labsl_hash -labsl_log_internal_check_op -labsl_log_internal_message -labsl_log_internal_nullguard -lprotobuf -lpthread -Wl,-rpath=$(CONDA_PREFIX)/lib
 LDLIBS += -L/cad/mentor/2024.2_1/Mgc_home/shared/lib/ -L$(CONDA_PREFIX)/lib
-LDFLAGS_NO_SYSC += -lstdc++fs -labsl_hash -labsl_log_internal_check_op -labsl_log_internal_message -labsl_log_internal_nullguard -lprotobuf -Wl,-rpath=$(CONDA_PREFIX)/lib
+LDFLAGS_NO_SYSC += -lstdc++fs -labsl_hash -labsl_log_internal_check_op -labsl_log_internal_message -labsl_log_internal_nullguard -lprotobuf -lpthread -Wl,-rpath=$(CONDA_PREFIX)/lib
 LDLIBS_NO_SYSC += -L$(CONDA_PREFIX)/lib
+
+###########################################################
+# spdlog
+###########################################################
+SPDLOG_OBJ_FILES = $(patsubst lib/spdlog/src/%.cpp,$(CC_BUILD_DIR)/spdlog_%.o,$(wildcard lib/spdlog/src/*.cpp))
+
+$(CC_BUILD_DIR)/spdlog_%.o: lib/spdlog/src/%.cpp
+	$(CC) $(C17FLAGS) -c -o $@ $<
 
 ###########################################################
 # Catapult Synthesis
@@ -235,16 +246,16 @@ MobileBertAccuracy: $(CC_BUILD_DIR)/AccuracyTester
 ResNetAccuracy: $(CC_BUILD_DIR)/AccuracyTester
 	./$(CC_BUILD_DIR)/AccuracyTester resnet18 data/imagenet_val 64
 
-$(CC_BUILD_DIR)/TestRunner: $(CC_BUILD_DIR)/Harness.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/ArrayMemory.o $(CC_BUILD_DIR)/DataLoader.o $(CC_BUILD_DIR)/Network.o $(CC_BUILD_DIR)/param.pb.o $(CC_BUILD_DIR)/tiling.pb.o $(CC_BUILD_DIR)/MapOperation.o $(CC_BUILD_DIR)/AccessCounter.o $(CC_BUILD_DIR)/Tiling.o
+$(CC_BUILD_DIR)/TestRunner: $(CC_BUILD_DIR)/Harness.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/ArrayMemory.o $(CC_BUILD_DIR)/DataLoader.o $(CC_BUILD_DIR)/Network.o $(CC_BUILD_DIR)/param.pb.o $(CC_BUILD_DIR)/tiling.pb.o $(CC_BUILD_DIR)/MapOperation.o $(CC_BUILD_DIR)/AccessCounter.o $(CC_BUILD_DIR)/Tiling.o  $(SPDLOG_OBJ_FILES)
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
-$(CC_BUILD_DIR)/TestRunner-fast: $(CC_BUILD_DIR)/Harness-fast.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/ArrayMemory.o $(CC_BUILD_DIR)/DataLoader.o $(CC_BUILD_DIR)/Network.o $(CC_BUILD_DIR)/param.pb.o $(CC_BUILD_DIR)/tiling.pb.o $(CC_BUILD_DIR)/MapOperation.o $(CC_BUILD_DIR)/AccessCounter.o $(CC_BUILD_DIR)/Tiling.o
+$(CC_BUILD_DIR)/TestRunner-fast: $(CC_BUILD_DIR)/Harness-fast.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/ArrayMemory.o $(CC_BUILD_DIR)/DataLoader.o $(CC_BUILD_DIR)/Network.o $(CC_BUILD_DIR)/param.pb.o $(CC_BUILD_DIR)/tiling.pb.o $(CC_BUILD_DIR)/MapOperation.o $(CC_BUILD_DIR)/AccessCounter.o $(CC_BUILD_DIR)/Tiling.o $(SPDLOG_OBJ_FILES)
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
-$(CC_BUILD_DIR)/TestRunner-checker: $(CC_BUILD_DIR)/Harness-checker.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel-checker.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/ArrayMemory.o $(CC_BUILD_DIR)/DataLoader.o $(CC_BUILD_DIR)/Network.o $(CC_BUILD_DIR)/param.pb.o  $(CC_BUILD_DIR)/tiling.pb.o $(CC_BUILD_DIR)/MapOperation.o $(CC_BUILD_DIR)/PEChecker.o $(CC_BUILD_DIR)/AccessCounter.o $(CC_BUILD_DIR)/Tiling.o
+$(CC_BUILD_DIR)/TestRunner-checker: $(CC_BUILD_DIR)/Harness-checker.o $(CC_BUILD_DIR)/TestRunner.o $(CC_BUILD_DIR)/GoldModel-checker.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/Simulation.o $(CC_BUILD_DIR)/ArrayMemory.o $(CC_BUILD_DIR)/DataLoader.o $(CC_BUILD_DIR)/Network.o $(CC_BUILD_DIR)/param.pb.o  $(CC_BUILD_DIR)/tiling.pb.o $(CC_BUILD_DIR)/MapOperation.o $(CC_BUILD_DIR)/PEChecker.o $(CC_BUILD_DIR)/AccessCounter.o $(CC_BUILD_DIR)/Tiling.o $(SPDLOG_OBJ_FILES)
 	$(CC) -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
-$(CC_BUILD_DIR)/AccuracyTester: $(CC_BUILD_DIR)/AccuracyTester.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/ArrayMemory.o $(CC_BUILD_DIR)/DataLoader.o $(CC_BUILD_DIR)/Network.o $(CC_BUILD_DIR)/param.pb.o $(CC_BUILD_DIR)/tiling.pb.o $(CC_BUILD_DIR)/Tiling.o
+$(CC_BUILD_DIR)/AccuracyTester: $(CC_BUILD_DIR)/AccuracyTester.o $(CC_BUILD_DIR)/GoldModel.o $(CC_BUILD_DIR)/Utils.o $(CC_BUILD_DIR)/ArrayMemory.o $(CC_BUILD_DIR)/DataLoader.o $(CC_BUILD_DIR)/Network.o $(CC_BUILD_DIR)/param.pb.o $(CC_BUILD_DIR)/tiling.pb.o $(CC_BUILD_DIR)/Tiling.o $(SPDLOG_OBJ_FILES)
 	$(CC) -o $@ $^ $(LDLIBS_NO_SYSC) $(LDFLAGS_NO_SYSC) -pthread
 
 $(CC_BUILD_DIR)/Harness.o: test/common/Harness.cc test/common/Harness.h test/common/VerificationTypes.h test/toolchain/MapOperation.h $(wildcard src/*.h)

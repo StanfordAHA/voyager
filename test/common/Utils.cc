@@ -31,20 +31,23 @@ int validateMapping(Tiling tiling) {
   // issues with the the last 3 conv layers of the ResNet18 model. Need to
   // investigate...
   if (fx * fy * k0 * (tiling.replication ? 3 : 16) > WEIGHT_BUFFER_SIZE) {
-    std::cerr << "ERROR: Weight buffer tile size violation." << std::endl
-              << "Constraint " << WEIGHT_BUFFER_SIZE << " but is " << fx
-              << " * " << fy << " * " << k0 << " * "
-              << (tiling.replication ? 3 : 16) << " = "
-              << fx * fy * k0 * (tiling.replication ? 3 : 16) << std::endl;
+    std::ostringstream oss;
+    oss << "ERROR: Weight buffer tile size violation." << std::endl
+        << "Constraint " << WEIGHT_BUFFER_SIZE << " but is " << fx << " * "
+        << fy << " * " << k0 << " * " << (tiling.replication ? 3 : 16) << " = "
+        << fx * fy * k0 * (tiling.replication ? 3 : 16) << std::endl;
+    spdlog::error(oss.str());
+
     return -1;
   }
 
   // Accumulation buffer
   if (x0 * y0 * k0 > ACCUM_BUFFER_SIZE) {
-    std::cerr << "ERROR: Accumulation buffer tile size violation." << std::endl
-              << "Constraint " << ACCUM_BUFFER_SIZE << " but is " << x0
-              << " * " << y0 << " * " << k0 << " = " << x0 * y0 * k0
-              << std::endl;
+    std::ostringstream oss;
+    oss << "ERROR: Accumulation buffer tile size violation." << std::endl
+        << "Constraint " << ACCUM_BUFFER_SIZE << " but is " << x0 << " * " << y0
+        << " * " << k0 << " = " << x0 * y0 * k0 << std::endl;
+    spdlog::error(oss.str());
     return -1;
   }
 
@@ -53,19 +56,22 @@ int validateMapping(Tiling tiling) {
   int y_check =
       tiling.y_loop_index[1] >= 4 ? tiling.loops[1][tiling.y_loop_index[1]] : 1;
   if (x_check * y_check < 32) {
-    std::cerr << "ERROR: Innermost X*Y must be >= 32." << std::endl;
-    std::cerr << "X -> tiling.loops[1][" << tiling.x_loop_index[1]
-              << "] = " << tiling.loops[1][tiling.x_loop_index[1]] << std::endl;
-    std::cerr << "Y -> tiling.loops[1][" << tiling.y_loop_index[1]
-              << "] = " << tiling.loops[1][tiling.y_loop_index[1]] << std::endl;
-    std::cerr << "X*Y (with index >= 4) is " << x_check * y_check << std::endl;
+    std::ostringstream oss;
+    oss << "ERROR: Innermost X*Y must be >= 32." << std::endl
+        << "X -> tiling.loops[1][" << tiling.x_loop_index[1]
+        << "] = " << tiling.loops[1][tiling.x_loop_index[1]] << std::endl
+        << "Y -> tiling.loops[1][" << tiling.y_loop_index[1]
+        << "] = " << tiling.loops[1][tiling.y_loop_index[1]] << std::endl
+        << "X*Y (with index >= 4) is " << x_check * y_check << std::endl;
+    spdlog::error(oss.str());
     return -1;
   }
 
   if (tiling.reduction_loop_index[1] != 0) {
-    std::cerr << "ERROR: Input channel needs to be outermost loop of buffer "
-                 "level. But is "
-              << tiling.reduction_loop_index[1] << std::endl;
+    spdlog::error(
+        "ERROR: Input channel needs to be outermost loop of buffer "
+        "level. But is {} \n",
+        tiling.reduction_loop_index[1]);
     return -1;
   }
 

@@ -7,6 +7,8 @@
 using namespace std;
 using namespace google::protobuf;
 
+#include "spdlog/spdlog.h"
+
 Network::Network(std::string& model_name) {
   project_root = std::string(getenv("PROJECT_ROOT"));
   std::string datatype = std::string(getenv("DATATYPE"));
@@ -25,7 +27,7 @@ Network::Network(std::string& model_name) {
   std::string text_str = buffer.str();
 
   if (!TextFormat::ParseFromString(text_str, &model)) {
-    std::cerr << "Failed to parse text file." << std::endl;
+    spdlog::error("Failed to parse text file.\n");
   }
 
   std::map<std::string, voyager::Tiling> tiling_map;
@@ -44,14 +46,14 @@ Network::Network(std::string& model_name) {
                                       std::istreambuf_iterator<char>());
     voyager::ModelTiling model_tiling;
     if (!TextFormat::ParseFromString(content, &model_tiling)) {
-      std::cerr << "Failed to parse text file." << std::endl;
+      spdlog::error("Failed to parse text file.\n");
     }
 
     for (const auto& tiling : model_tiling.tilings()) {
       tiling_map[tiling.name()] = tiling;
     }
   } else {
-    std::cerr << "Tilings file does not exist." << std::endl;
+    spdlog::error("Tilings file does not exist.\n");
   }
 
   for (const auto& op : model.ops()) {
@@ -109,16 +111,16 @@ std::vector<Operation> Network::get_operations(
     }
 
     if (!found_first || !found_second) {
-      std::cerr << "Invalid names provided" << std::endl;
+      spdlog::error("Invalid names provided\n");
       exit(1);
     }
   } else {
-    std::cerr << "Invalid number of names provided" << std::endl;
+    spdlog::error("Invalid number of names provided\n");
     exit(1);
   }
 
   if (filtered_ops.empty()) {
-    std::cerr << "Param not found" << std::endl;
+    spdlog::error("Param not found\n");
     exit(1);
   }
 

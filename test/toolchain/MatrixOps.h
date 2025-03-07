@@ -1,5 +1,6 @@
 #pragma once
 
+#include "spdlog/spdlog.h"
 #include "src/AccelTypes.h"
 #include "src/Params.h"
 #include "test/common/GoldModel.h"
@@ -103,8 +104,6 @@ void set_addr_gen2(const codegen::Tensor &tensor, const Tiling &tiling,
 
 void set_immediate(const float scalar, const int stage,
                    const std::string opcode, VectorInstructions &inst) {
-  std::cerr << "immediate: " << scalar << std::endl;
-
   VECTOR_DATATYPE immediate = scalar;
 
   if (opcode == "div" || opcode == "div_") {
@@ -146,7 +145,9 @@ void MapMatrixOperation(const Operation &operation,
   int FY = tiling.loops[1][tiling.fy_index];
   int STRIDE = tiling.stride;
 
-  std::cout << "Using tiling: " << std::endl << tiling << std::endl;
+  std::ostringstream oss;
+  oss << tiling;
+  spdlog::info("Using tiling: \n{}\n", oss.str());
 
   const auto input = matrix_op.kwargs().at("input").tensor();
 
@@ -449,8 +450,6 @@ void MapMatrixOperation(const Operation &operation,
             vector_unit_stages[stage].end()) {
           continue;
         }
-
-        std::cerr << "stage " << stage << " target: " << opcode << std::endl;
 
         unsigned int vop = inst_map[opcode];
         if (stage == 0) {

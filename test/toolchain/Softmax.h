@@ -128,7 +128,7 @@ void MapSoftmax(const codegen::Operation &param,
 
   if (op_list.size() > 1) {
     const auto quantize_op = op_list[1];
-    std::cerr << quantize_op.target() << std::endl;
+    spdlog::debug("Performing {}\n", quantize_op.target());
 
     if (quantize_op.target() == "quantize") {
       const auto scale = quantize_op.kwargs().at("scale").tensor();

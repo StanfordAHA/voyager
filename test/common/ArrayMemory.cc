@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include "spdlog/spdlog.h"
 #include "src/ArchitectureParams.h"
 #include "test/common/VerificationTypes.h"
 
@@ -54,7 +55,7 @@ std::map<std::string, std::any> ArrayMemory::get_args(
   for (const auto op : op_list) {
     for (const auto [key, value] : op.kwargs()) {
       if (value.has_tensor() && value.tensor().has_memory()) {
-        std::cerr << "Pushing tensor: " << value.tensor().node() << std::endl;
+        spdlog::debug("Pushing tensor: {}", value.tensor().node());
         kwargs[value.tensor().node()] = read_tensor(value.tensor());
       }
     }
@@ -125,8 +126,8 @@ std::any ArrayMemory::read_tensor(const codegen::Tensor& tensor) {
       data[0] = scalar;
       return data;
     } else {
-      std::cerr << "Unsupported data type for scalar tensor: " << tensor.dtype()
-                << std::endl;
+      spdlog::debug("Unsupported data type for scalar tensor: {}",
+                    tensor.dtype());
       std::abort();
     }
   }
