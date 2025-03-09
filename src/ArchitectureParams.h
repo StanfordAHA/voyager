@@ -129,9 +129,6 @@ using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 #define VECTOR_DATATYPE DataTypes::bfloat16
 #define SCALE_DATATYPE DataTypes::fp8_e8m0
 
-#define OUTPUT_DATATYPES \
-  DataTypes::nf4, DataTypes::fp8_e8m0, DataTypes::bfloat16
-
 #define SUPPORT_MX true
 
 #elif defined(MXNF4)
@@ -143,9 +140,6 @@ using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 #define OUTPUT_DATATYPE DataTypes::nf4
 #define VECTOR_DATATYPE DataTypes::bfloat16
 #define SCALE_DATATYPE DataTypes::fp8_e5m3
-
-#define OUTPUT_DATATYPES \
-  DataTypes::nf4, DataTypes::fp8_e5m3, DataTypes::bfloat16
 
 #define SUPPORT_MX true
 
@@ -173,12 +167,16 @@ using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 #define SCALE_DATATYPE DataTypes::fp8_e8m0
 #endif
 
-#ifndef OUTPUT_DATATYPES
-#define OUTPUT_DATATYPES INPUT_DATATYPE, VECTOR_DATATYPE
-#endif
-
 #ifndef SUPPORT_MX
 #define SUPPORT_MX false
+#endif
+
+#if !SUPPORT_MX
+#define OUTPUT_DATATYPES INPUT_DATATYPE, VECTOR_DATATYPE
+#define VECTOR_INPUT_DATATYPES INPUT_DATATYPE, VECTOR_DATATYPE
+#else
+#define OUTPUT_DATATYPES INPUT_DATATYPE, VECTOR_DATATYPE, SCALE_DATATYPE
+#define VECTOR_INPUT_DATATYPES INPUT_DATATYPE, VECTOR_DATATYPE, SCALE_DATATYPE
 #endif
 
 #ifndef IC_DIMENSION

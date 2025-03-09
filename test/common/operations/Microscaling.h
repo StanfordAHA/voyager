@@ -3,9 +3,15 @@
 #include "test/common/operations/Common.h"
 
 template <typename Vector, typename Scale, typename Input>
-Scale* calculate_mx_qparam(std::any input_tensor, const std::vector<int>& shape,
+Scale* calculate_mx_qparam(std::any input_tensor, std::vector<int> shape,
                            int block_size, int axis) {
   Vector* inputs = std::any_cast<Vector*>(input_tensor);
+
+  // Handle the case of convolutional layers
+  if (axis == 1 && shape.size() == 4) {
+    shape = {shape[0], shape[2], shape[3], shape[1]};
+    axis = 3;
+  }
 
   if (axis < 0) {
     axis += shape.size();
@@ -32,7 +38,8 @@ Scale* calculate_mx_qparam(std::any input_tensor, const std::vector<int>& shape,
 
   for (int i = 0; i < result_size; i++) {
     if constexpr (Scale::width == Scale::e_width) {
-      int power_of_two = floor(log2(amax_arr[i])) - floor(log2(Input::max()));
+      static const int emax = floor(log2(Input::max()));
+      int power_of_two = floor(log2(amax_arr[i])) - emax;
       scales[i] = pow(2, power_of_two);
     } else {
       scales[i] = amax_arr[i] / Input::max();

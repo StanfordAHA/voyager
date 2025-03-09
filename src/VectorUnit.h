@@ -463,8 +463,8 @@ SC_MODULE(VectorUnit) {
   Connections::SyncOut CCS_INIT_S1(start);
   Connections::SyncOut CCS_INIT_S1(done);
 
-  VectorFetchUnit<IOType, VectorType, ScaleType, Width> CCS_INIT_S1(
-      vector_fetch);
+  VectorFetchUnit<IOType, VectorType, ScaleType, Width, VECTOR_INPUT_DATATYPES>
+      CCS_INIT_S1(vector_fetch);
   Connections::Combinational<VectorParams> CCS_INIT_S1(vectorFetchParams);
 
   VectorOpUnit<IOType, VectorType, BufferType, ScaleType, Width> CCS_INIT_S1(

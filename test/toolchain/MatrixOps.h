@@ -21,9 +21,10 @@ void set_addr_gen1(const codegen::Tensor &tensor, const Tiling &tiling,
   const auto memory = tensor.memory();
   accelerator_memory_map["vector1"] = get_partition(memory.partition());
   vector_params->ADDRESS_GEN1_OFFSET = memory.address();
-  vector_params->addressGen1Mode = nonzero_dims == 1 ? 3 : 1;
-  vector_params->fetch_vector_type_1 =
-      DataTypes::TypeName<VECTOR_DATATYPE>::name() == tensor.dtype();
+  vector_params->addressGen1Mode = true;
+  vector_params->vec1_broadcast = nonzero_dims == 1 ? 0b011 : 0b000;
+  vector_params->vector_input_1_type =
+      get_index_from_type_name<VECTOR_INPUT_DATATYPES>(tensor.dtype());
 
   // copy loop values and indices
   for (int i = 0; i < 3; i++) {
@@ -67,9 +68,11 @@ void set_addr_gen2(const codegen::Tensor &tensor, const Tiling &tiling,
   const auto memory = tensor.memory();
   accelerator_memory_map["vector2"] = get_partition(memory.partition());
   vector_params->ADDRESS_GEN2_OFFSET = memory.address();
-  vector_params->addressGen2Mode = nonzero_dims == 1 ? 3 : 1;
-  vector_params->fetch_vector_type_2 =
-      DataTypes::TypeName<VECTOR_DATATYPE>::name() == tensor.dtype();
+  vector_params->addressGen2Mode = true;
+  vector_params->vec2_broadcast = nonzero_dims == 1 ? 0b011 : 0b000;
+
+  vector_params->vector_input_2_type =
+      get_index_from_type_name<VECTOR_INPUT_DATATYPES>(tensor.dtype());
 
   // copy loop values and indices
   for (int i = 0; i < 3; i++) {

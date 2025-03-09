@@ -153,7 +153,7 @@ void vquantize(const Pack1D<Input, Width>& op0, Pack1D<Output, Width>& res,
                const Scale scale) {
 #pragma hls_unroll yes
   for (int i = 0; i < Width; i++) {
-    res[i] = op0[i] / static_cast<Input>(scale);
+    res[i] = scale.is_zero() ? op0[i] : op0[i] / static_cast<Input>(scale);
   }
 }
 
@@ -166,7 +166,8 @@ void vdequantize(const Pack1D<Input, Width>& op0, Pack1D<Output, Width>& res,
 
 #pragma hls_unroll yes
   for (int i = 0; i < Width; i++) {
-    res[i] = static_cast<Output>(op0[i]) * scale;
+    Output temp = op0[i];
+    res[i] = scale.is_zero() ? temp : temp * scale;
   }
 }
 
@@ -221,7 +222,7 @@ void vquantize_mx(const Pack1D<InputType, Width>& op0,
     InputType max_value = static_cast<InputType>(OutputType::max());
     scale = amax * max_value.reciprocal();
 
-    if (scale.to_ac_float() == ScaleType::ac_float_rep::zero()) {
+    if (scale.is_zero()) {
       scale.set_one();
     }
   }
@@ -229,12 +230,44 @@ void vquantize_mx(const Pack1D<InputType, Width>& op0,
   vquantize<InputType, InputType, ScaleType, Width>(op0, res, scale);
 }
 
+template <typename T, size_t Width>
+void send_request(ac_int<32, false> address, ac_int<64, false> offset,
+                  Connections::Out<MemoryRequest>& channel) {
+  MemoryRequest request = {offset + address * T::width / 8,
+                           Width * T::width / 8};
+  channel.Push(request);
+}
+
+template <typename VectorType, typename IOType, typename OutputType,
+          size_t Width>
+void feed_response(Connections::In<Pack1D<IOType, Width>>& input_channel,
+                   Pack1D<VectorType, Width>& outputs) {
+  if constexpr (OutputType::width >= IOType::width) {
+    constexpr int num_words = OutputType::width / IOType::width;
+    Pack1D<IOType, Width> response[num_words];
+
+    for (int i = 0; i < num_words; i++) {
+      response[i] = input_channel.Pop();
+    }
+
+    Pack1D<OutputType, Width> full_response;
+    convertPack1D<IOType, OutputType, Width>(response, full_response);
+
+#pragma hls_unroll yes
+    for (int i = 0; i < Width; i++) {
+      outputs[i] = full_response[i];
+    }
+  } else {
+    throw std::runtime_error("Not implemented");
+  }
+}
+
 template <typename VectorType, typename IOType, typename OutputType,
           size_t Width>
 void vwrite_out(Pack1D<VectorType, Width> inputs, ac_int<32, false> address,
+                ac_int<64, false> offset,
                 Connections::Out<Pack1D<IOType, Width>>& output_channel,
-                Connections::Out<ac_int<64, false>>& address_channel,
-                const VectorParams& params) {
+                Connections::Out<ac_int<64, false>>& address_channel) {
   Pack1D<OutputType, Width> outputs;
 #pragma hls_unroll yes
   for (int i = 0; i < Width; i++) {
@@ -249,8 +282,7 @@ void vwrite_out(Pack1D<VectorType, Width> inputs, ac_int<32, false> address,
 
     for (int i = 0; i < num_words; i++) {
       output_channel.Push(converted_outputs[i]);
-      address_channel.Push(params.VECTOR_OUTPUT_OFFSET +
-                           address * OutputType::width / 8 +
+      address_channel.Push(offset + address * OutputType::width / 8 +
                            i * Width * IOType::width / 8);
     }
   } else {

@@ -174,8 +174,9 @@ SC_MODULE(VectorUnitOutput) {
                                 params.output_types
                             ? (vwrite_out<VectorType, IOType, OutputTypes,
                                           Width>(scaled_outputs, address,
+                                                 params.VECTOR_OUTPUT_OFFSET,
                                                  vector_output,
-                                                 vector_output_address, params),
+                                                 vector_output_address),
                                true)
                             : false) ||
                        ...);

@@ -26,8 +26,12 @@ class UFloat {
 
   template <int W2, int E2>
   UFloat(const ac_std_float<W2, E2> &other) {
-    ac_float_rep r(other.abs());
-    d = r.data();
+    if constexpr (width == e_width) {
+      d = other.d.template slc<E2>(W2 - E2 - 1);
+    } else {
+      ac_float_rep r(other.abs());
+      d = r.data();
+    }
   }
 
   template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
@@ -46,6 +50,8 @@ class UFloat {
   void set_bits(const ac_int<W, true> &rhs) { d = rhs; }
   void set_zero() { d = ac_float_rep::zero().data(); }
   void set_one() { d = ac_float_rep::one().data(); }
+
+  bool is_zero() const { return d == ac_float_rep::zero().data(); }
 
   UFloat operator*(const UFloat &rhs) const {
     if constexpr (W == E) {

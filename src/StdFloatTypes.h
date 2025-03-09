@@ -54,6 +54,8 @@ class StdFloat {
 
   void set_zero() { float_val = float_val.zero(); }
 
+  bool is_zero() const { return float_val == float_val.zero(); }
+
   static decoded max() { return ac_float_rep::max(); }
 
   StdFloat abs() const { return float_val.abs(); }

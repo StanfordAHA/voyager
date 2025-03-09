@@ -224,7 +224,6 @@ if { $DATATYPE == "P8_1" } {
   set ACCUM_BUFFER_DATATYPE "DataTypes::bfloat16"
   set VECTOR_DATATYPE "DataTypes::bfloat16"
   set SCALE_DATATYPE "DataTypes::fp8_e8m0"
-  set OUTPUT_DATATYPES "$IO_DATATYPE, $VECTOR_DATATYPE, $SCALE_DATATYPE"
 
   set PE_INPUT_DATATYPE "Int<8, true>::decoded"
   set PE_WEIGHT_DATATYPE "Int<8, true>::decoded"
@@ -244,7 +243,6 @@ if { $DATATYPE == "P8_1" } {
   set ACCUM_BUFFER_DATATYPE "DataTypes::bfloat16"
   set VECTOR_DATATYPE "DataTypes::bfloat16"
   set SCALE_DATATYPE "DataTypes::fp8_e5m3"
-  set OUTPUT_DATATYPES "$IO_DATATYPE, $VECTOR_DATATYPE, $SCALE_DATATYPE"
 
   set PE_INPUT_DATATYPE "NormalFloat4::decoded"
   set PE_WEIGHT_DATATYPE "NormalFloat4::decoded"
@@ -271,8 +269,12 @@ if {![info exists SCALE_DATATYPE]} {
   set SCALE_DATATYPE "DataTypes::fp8_e8m0"
 }
 
-if {![info exists OUTPUT_DATATYPES]} {
+if {!$SUPPORT_MX} {
   set OUTPUT_DATATYPES "$IO_DATATYPE, $VECTOR_DATATYPE"
+  set VECTOR_INPUT_DATATYPES "$IO_DATATYPE, $VECTOR_DATATYPE, $SCALE_DATATYPE"
+} else {
+  set OUTPUT_DATATYPES "$IO_DATATYPE, $VECTOR_DATATYPE"
+  set VECTOR_INPUT_DATATYPES "$IO_DATATYPE, $VECTOR_DATATYPE, $SCALE_DATATYPE"
 }
 
 # if SUPPORT_MX is not defined, set it to 0

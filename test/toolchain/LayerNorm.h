@@ -49,6 +49,8 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->VECTOR_OFFSET = input_memory.address();
   vector_params->addressGen0Mode = 2;
   vector_params->vec0_broadcast = 0b010000;
+  vector_params->vector_input_0_type =
+      get_index_from_type_name<VECTOR_INPUT_DATATYPES>(input.dtype());
 
   // Fetch inputs twice, once for calculating mean and once for subtracting mean
   vector_params->addressGen0Loop[0][0] = non_reduction_loops[0];
@@ -57,9 +59,6 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->addressGen0Loop[1][0] = non_reduction_loops[3];
   vector_params->addressGen0Loop[1][1] = 2;
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
-
-  vector_params->fetch_vector_type_0 =
-      input.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
   // Overwrite inputs
   memory_map["outputs"] = get_partition(input_memory.partition());
@@ -126,6 +125,8 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->VECTOR_OFFSET = input_memory.address();
   vector_params->addressGen0Mode = 2;
   vector_params->vec0_broadcast = 0b010000;
+  vector_params->vector_input_0_type =
+      get_index_from_type_name<VECTOR_INPUT_DATATYPES>(input.dtype());
 
   // Fetch inputs twice, once for calculating variance and once for division
   vector_params->addressGen0Loop[0][0] = non_reduction_loops[0];
@@ -134,9 +135,6 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->addressGen0Loop[1][0] = non_reduction_loops[3];
   vector_params->addressGen0Loop[1][1] = 2;
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
-
-  vector_params->fetch_vector_type_0 =
-      input.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
 
   // Overwrite inputs
   memory_map["outputs"] = get_partition(input_memory.partition());
@@ -206,6 +204,8 @@ void MapLayerNorm(const codegen::Operation &param,
   memory_map["vector0"] = get_partition(input_memory.partition());
   vector_params->VECTOR_OFFSET = input_memory.address();
   vector_params->addressGen0Mode = 2;
+  vector_params->vector_input_0_type =
+      get_index_from_type_name<VECTOR_INPUT_DATATYPES>(input.dtype());
 
   vector_params->addressGen0Loop[0][0] = 1;
   vector_params->addressGen0Loop[0][1] = non_reduction_loops[0];
@@ -214,14 +214,14 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->addressGen0Loop[1][1] = non_reduction_loops[3];
   vector_params->addressGen0Loop[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->fetch_vector_type_0 =
-      input.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
-
   // Fetch weights
   const auto weight_memory = weight.memory();
   memory_map["vector1"] = get_partition(weight_memory.partition());
   vector_params->ADDRESS_GEN1_OFFSET = weight_memory.address();
-  vector_params->addressGen1Mode = 3;
+  vector_params->addressGen1Mode = true;
+  vector_params->vec1_broadcast = 0b011;
+  vector_params->vector_input_1_type =
+      get_index_from_type_name<VECTOR_INPUT_DATATYPES>(weight.dtype());
 
   auto param_loops = squeeze_shape(non_reduction_loops);
   pad_shape_to_ndim(param_loops, 2);
@@ -239,9 +239,6 @@ void MapLayerNorm(const codegen::Operation &param,
   vector_params->addressGen1Loops[1][1] = param_loops[1];
   vector_params->addressGen1Loops[1][2] = outer_dim / OC_DIMENSION;
 
-  vector_params->fetch_vector_type_1 =
-      weight.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
-
   // Fetch bias
   const bool has_bias = layer_norm_op.kwargs().contains("bias");
   if (has_bias) {
@@ -249,7 +246,10 @@ void MapLayerNorm(const codegen::Operation &param,
     const auto bias_memory = bias.memory();
     memory_map["vector2"] = get_partition(bias_memory.partition());
     vector_params->ADDRESS_GEN2_OFFSET = bias_memory.address();
-    vector_params->addressGen2Mode = 3;
+    vector_params->addressGen2Mode = true;
+    vector_params->vec2_broadcast = 0b011;
+    vector_params->vector_input_2_type =
+        get_index_from_type_name<VECTOR_INPUT_DATATYPES>(bias.dtype());
 
     for (int i = 0; i < 2; i++) {
       vector_params->addressGen2InputYLoopIndex[i] = 0;
@@ -263,9 +263,6 @@ void MapLayerNorm(const codegen::Operation &param,
     vector_params->addressGen2Loops[1][0] = param_loops[0];
     vector_params->addressGen2Loops[1][1] = param_loops[1];
     vector_params->addressGen2Loops[1][2] = outer_dim / OC_DIMENSION;
-
-    vector_params->fetch_vector_type_2 =
-        bias.dtype() == DataTypes::TypeName<VECTOR_DATATYPE>::name();
   }
 
   const auto output_memory = output.memory();
