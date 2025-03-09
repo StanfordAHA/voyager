@@ -49,7 +49,7 @@ inline T *perform_unary_operation(T *input, const std::vector<int> shape,
     } else if (opcode == "neg" || opcode == "neg_") {
       result[i] = -input[i];
     } else {
-      std::cerr << "Unsupported vector instruction: " << opcode << std::endl;
+      spdlog::error("Unsupported vector operation: {}\n", opcode);
       std::abort();
     }
   }

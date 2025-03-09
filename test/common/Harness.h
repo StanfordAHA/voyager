@@ -10,6 +10,7 @@
 
 #include "AccelTypes.h"
 #include "ArchitectureParams.h"
+#include "spdlog/spdlog.h"
 #include "test/common/AccessCounter.h"
 #include "test/common/Network.h"
 #include "test/common/VerificationTypes.h"

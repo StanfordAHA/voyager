@@ -11,6 +11,7 @@
 // clang-format off
 #include "src/DataTypes.h"
 // clang-format on
+#include "spdlog/spdlog.h"
 #include "src/ArchitectureParams.h"
 #include "test/compiler/proto/param.pb.h"
 
@@ -70,11 +71,11 @@ inline long get_size(const codegen::Tensor& tensor) {
 }
 
 inline void print_shape(const std::vector<int>& shape) {
-  std::cerr << "(";
+  spdlog::error("(");
   for (size_t i = 0; i < shape.size(); ++i) {
-    std::cerr << shape[i] << (i + 1 < shape.size() ? ", " : ")");
+    spdlog::error("{} {}", shape[i], (i + 1 < shape.size() ? "," : ")"));
   }
-  std::cerr << std::endl;
+  spdlog::error("\n");
 }
 
 inline std::vector<codegen::OpOverload> get_op_list(

@@ -8,6 +8,9 @@
 #include <string>
 #include <vector>
 
+#define SPDLOG_EOL ""
+#include "spdlog/cfg/env.h"
+#include "spdlog/spdlog.h"
 #include "test/common/ArrayMemory.h"
 #include "test/common/DataLoader.h"
 #include "test/common/GoldModel.h"
@@ -63,15 +66,17 @@ Simulation::Simulation() {
   network = new Network(model);
   operations = network->get_operations(tests);
 
-  std::cout << "Starting new simulation with config:";
-  std::cout << "\n> Model: " << model;
-  std::cout << "\n> Tests: ";
-  for (const std::string& t : tests) std::cout << t << ' ';
-  std::cout << "\n> Sims: ";
-  for (const std::string& s : sims) std::cout << s << ' ';
-  std::cout << "\n> Tolerance: " << tolerance;
-  std::cout << "\n> Output dir: " << out_dir << "\n";
-  std::cout << "> SRAM: " << SRAM_MEMORY_SIZE / 1024 << " KB\n";
+  spdlog::cfg::load_env_levels();
+  spdlog::set_pattern("%v");
+  spdlog::info("Starting new simulation with config:");
+  spdlog::info("\n> Model: {}", model);
+  spdlog::info("\n> Tests: ");
+  for (const std::string& t : tests) spdlog::info("{} ", t);
+  spdlog::info("\n> Sims: ");
+  for (const std::string& s : sims) spdlog::info("{} ", s);
+  spdlog::info("\n> Tolerance: {}", tolerance);
+  spdlog::info("\n> Output dir: {}", out_dir);
+  spdlog::info("\n> SRAM: {} KB\n", SRAM_MEMORY_SIZE / 1024);
 }
 
 Simulation::~Simulation() {
@@ -127,7 +132,7 @@ void Simulation::load_data() {
     }
   }
 
-  std::cout << "Data loaded successfully" << std::endl;
+  spdlog::info("Data loaded successfully\n");
 }
 
 void Simulation::print_ideal_runtime(const codegen::Operation& param) {
@@ -137,25 +142,33 @@ void Simulation::print_ideal_runtime(const codegen::Operation& param) {
 
   long cycles;
 
+  char* clock_period = std::getenv("CLOCK_PERIOD");
+  long clock_period_ns = clock_period ? std::stoi(clock_period) : 1;
+
   if (GEMM_OPS.find(first_op.target()) != GEMM_OPS.end()) {
     bool is_matmul = first_op.target().find("matmul") != std::string::npos;
     std::string weight_key = is_matmul ? "other" : "weight";
     const auto weight = first_op.kwargs().at(weight_key).tensor();
     const auto weight_shape = get_shape(weight);
+    const auto output_shape = get_shape(output);
+
+    int K = weight_shape[weight_shape.size() - 1];
+    // sometimes K and C and swapped in the weight tensor
+    if (K != output_shape[output_shape.size() - 1]) {
+      K = weight_shape[weight_shape.size() - 2];
+    }
 
     // the total number of operations is X * Y * C * FX * FY * K.
-    long num_macs = get_size(output) * get_size(weight) / weight_shape[0];
+    long num_macs = get_size(output) * get_size(weight) / K;
     cycles = num_macs / (IC_DIMENSION * OC_DIMENSION);
-    std::cout << get_op_name(param) << ", matrix unit ideal runtime: ";
+    spdlog::info("{}, matrix unit ideal runtime: {} ns\n", get_op_name(param),
+                 cycles * clock_period_ns);
   } else {
     long num_ops = get_size(output);
     cycles = num_ops / OC_DIMENSION;
-    std::cout << get_op_name(param) << ", vector unit ideal runtime: ";
+    spdlog::info("{}, vector unit ideal runtime: {} ns\n", get_op_name(param),
+                 cycles * clock_period_ns);
   }
-
-  char* clock_period = std::getenv("CLOCK_PERIOD");
-  long clock_period_ns = clock_period ? std::stoi(clock_period) : 1;
-  std::cout << cycles * clock_period_ns << " ns" << std::endl;
 }
 
 void Simulation::run() {
@@ -207,8 +220,8 @@ int Simulation::check_outputs() {
   bool has_valid_comp = false;
 
   if (gold_memory && pytorch) {
-    std::cout << "Gold Model vs. PyTorch" << std::endl;
-    std::cout << "(reveals issues in data loading or mapping)" << std::endl;
+    spdlog::info("Gold Model vs. PyTorch\n");
+    spdlog::info("(reveals issues in data loading or mapping)\n");
     filename = prefix + "gold_vs_pytorch";
 
     output_names[0] = "gold_model";
@@ -221,9 +234,8 @@ int Simulation::check_outputs() {
   }
 
   if (accel_memory && pytorch) {
-    std::cout << "Accelerator vs. PyTorch" << std::endl;
-    std::cout << "(reveals bugs in accelerator or memory placement)"
-              << std::endl;
+    spdlog::info("Accelerator vs. PyTorch\n");
+    spdlog::info("(reveals bugs in accelerator or memory placement)\n");
     filename = prefix + "accelerator_vs_pytorch";
 
     output_names[0] = "accelerator";
@@ -236,9 +248,8 @@ int Simulation::check_outputs() {
   }
 
   if (accel_memory && gold_memory) {
-    std::cout << "Accelerator vs. Gold Model" << std::endl;
-    std::cout << "(reveals bugs in accelerator or memory placement)"
-              << std::endl;
+    spdlog::info("Accelerator vs. Gold Model\n");
+    spdlog::info("(reveals bugs in accelerator or memory placement)\n");
     filename = prefix + "accelerator_vs_gold";
 
     output_names[0] = "accelerator";
@@ -251,7 +262,7 @@ int Simulation::check_outputs() {
   }
 
   if (!has_valid_comp) {
-    std::cout << "No valid comparisons specified" << std::endl;
+    spdlog::info("No valid comparisons specified\n");
     std::abort();
   }
 
@@ -294,9 +305,8 @@ int Simulation::check_outputs() {
   if (rel_err > tolerance) {
     error_count += rel_err < 1.0 ? 1 : static_cast<int>(rel_err);
   }
-
-  std::cout << "Rela. error: " << rel_err << std::endl;
-  std::cout << "Error count: " << error_count << std::endl;
+  spdlog::info("Rela. error: {}\n", rel_err);
+  spdlog::info("Error count: {}\n", error_count);
 
   return error_count;
 }
@@ -319,15 +329,16 @@ std::string Simulation::get_env_var(std::string const& name) {
 }
 
 void Simulation::print_help() {
-  std::cout << "\nConfigure simulator by using environment variables."
-            << "\n NETWORK - Type of network to run {mobilebert, resnet}"
-            << "\n TESTS - Layers in network to run. Either single or tuple: "
-               "<first>,<last>."
-            << "\n SIMS - Simulators / models to compare {accelerator, "
-               "customposit, universal, fp32, file}."
-            << "\n TASK - MobileBERT run time (forward, backward, e2e)."
-            << "\n TOLERANCE - Relative normalized error in % we allow "
-               "(default 10)."
-            << "\n DATA_DIR - Path to binary input data."
-            << "\n OUT_DIR - Path to output data." << std::endl;
+  spdlog::info(
+      "\nConfigure simulator by using environment variables."
+      "\n NETWORK - Type of network to run {mobilebert, resnet}"
+      "\n TESTS - Layers in network to run. Either single or tuple: "
+      "<first>,<last>."
+      "\n SIMS - Simulators / models to compare {accelerator, "
+      "customposit, universal, fp32, file}."
+      "\n TASK - MobileBERT run time (forward, backward, e2e)."
+      "\n TOLERANCE - Relative normalized error in % we allow "
+      "(default 10)."
+      "\n DATA_DIR - Path to binary input data."
+      "\n OUT_DIR - Path to output data.\n");
 }

@@ -1,3 +1,4 @@
+#include "spdlog/spdlog.h"
 #include "src/AccelTypes.h"
 #include "src/Params.h"
 #include "test/common/VerificationTypes.h"

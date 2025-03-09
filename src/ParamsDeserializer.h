@@ -6,6 +6,10 @@
 #include "AccelTypes.h"
 #include "TypeToBits.h"
 
+#ifndef __SYNTHESIS__
+#include "spdlog/spdlog.h"
+#endif
+
 // stupid trick to uniquify it
 // otherwise, this module ends up repeated for each subblock in the final top
 // RTL
@@ -54,8 +58,9 @@ SC_MODULE(MatrixParamsDeserializer) {
 #ifndef __SYNTHESIS__
       if (static_cast<std::string>(name()).find("matrixProcessor") !=
           std::string::npos) {
-        CCS_LOG("Matrix Params Received");
-        std::cout << params << std::endl;
+        std::ostringstream oss;
+        oss << "Matrix Params: " << std::endl << params << std::endl;
+        spdlog::debug(oss.str());
       }
 #endif
       paramsOut.Push(params);
@@ -103,16 +108,23 @@ SC_MODULE(VectorParamsDeserializer) {
     while (true) {
       VectorParams vectorParams = getSerializedParams<VectorParams, 32>();
 
-      std::cout << "Vector Params Received" << std::endl;
-      std::cout << vectorParams << std::endl;
+#ifndef __SYNTHESIS__
+      std::ostringstream oss;
+      oss << "Vector Params: " << std::endl << vectorParams << std::endl;
+      spdlog::debug(oss.str());
+      oss.clear();
+#endif
 
       vectorParamsOut.Push(vectorParams);
 
       VectorInstructionConfig vectorInstructionConfig =
           getSerializedParams<VectorInstructionConfig, 32>();
 
-      std::cout << "Vector Instructions Received" << std::endl;
-      std::cout << vectorInstructionConfig << std::endl;
+#ifndef __SYNTHESIS__
+      oss << "Vector Instructions: " << std::endl
+          << vectorInstructionConfig << std::endl;
+      spdlog::debug(oss.str());
+#endif
 
       vectorInstructionsOut.Push(vectorInstructionConfig);
     }

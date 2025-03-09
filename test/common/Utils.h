@@ -2,6 +2,8 @@
 
 #define NO_SYSC
 
+#include <spdlog/spdlog.h>
+
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -21,10 +23,9 @@ template <typename TA, typename TB>
 float compare_arrays(std::any matrixA, std::string matrixA_name,
                      std::any matrixB, std::string matrixB_name, size_t size,
                      std::string filename, bool doublePrecision) {
-  std::cout << "Writing comparison between " << matrixA_name << " and "
-            << matrixB_name << " to file: " << filename << std::endl;
-  // std::ofstream diffFile(filename);
-  std::ostream &diffFile = std::cerr;
+  spdlog::info("Writing comparison between {} and {} to file: {}\n",
+               matrixA_name, matrixB_name, filename);
+  std::ofstream diffFile(filename);
   diffFile << matrixA_name << " vs. " << matrixB_name << std::endl;
 
   // Records absolute differences
@@ -93,33 +94,33 @@ float compare_arrays(std::any matrixA, std::string matrixA_name,
     }
   }
 
-  std::cout << "Difference Count:" << std::endl;
-  std::cout << "< 0.001: " << abs_diff_buckets[0] << "("
-            << (float)abs_diff_buckets[0] / size * 100.0 << "%)" << std::endl;
-  std::cout << "< 0.01: " << abs_diff_buckets[1] << "("
-            << (float)abs_diff_buckets[1] / size * 100.0 << "%)" << std::endl;
-  std::cout << "< 0.1: " << abs_diff_buckets[2] << "("
-            << (float)abs_diff_buckets[2] / size * 100.0 << "%)" << std::endl;
-  std::cout << "< 1: " << abs_diff_buckets[3] << "("
-            << (float)abs_diff_buckets[3] / size * 100.0 << "%)" << std::endl;
-  std::cout << "> 1: " << abs_diff_buckets[4] << "("
-            << (float)abs_diff_buckets[4] / size * 100.0 << "%)" << std::endl;
+  spdlog::info("Difference Count:\n");
+  spdlog::info("< 0.001: {} ({}%)\n", abs_diff_buckets[0],
+               (float)abs_diff_buckets[0] / size * 100.0);
+  spdlog::info("< 0.01: {} ({}%)\n", abs_diff_buckets[1],
+               (float)abs_diff_buckets[1] / size * 100.0);
+  spdlog::info("< 0.1: {} ({}%)\n", abs_diff_buckets[2],
+               (float)abs_diff_buckets[2] / size * 100.0);
+  spdlog::info("< 1: {} ({}%)\n", abs_diff_buckets[3],
+               (float)abs_diff_buckets[3] / size * 100.0);
+  spdlog::info("> 1: {} ({}%)\n", abs_diff_buckets[4],
+               (float)abs_diff_buckets[4] / size * 100.0);
 
-  std::cout << "Percent Difference Count:" << std::endl;
-  std::cout << "< 0.001: " << rel_diff_buckets[0] << "("
-            << (float)rel_diff_buckets[0] / size * 100.0 << "%)" << std::endl;
-  std::cout << "< 0.01: " << rel_diff_buckets[1] << "("
-            << (float)rel_diff_buckets[1] / size * 100.0 << "%)" << std::endl;
-  std::cout << "< 0.1: " << rel_diff_buckets[2] << "("
-            << (float)rel_diff_buckets[2] / size * 100.0 << "%)" << std::endl;
-  std::cout << "< 1: " << rel_diff_buckets[3] << "("
-            << (float)rel_diff_buckets[3] / size * 100.0 << "%)" << std::endl;
-  std::cout << "> 1: " << rel_diff_buckets[4] << "("
-            << (float)rel_diff_buckets[4] / size * 100.0 << "%)" << std::endl;
-  std::cout << std::endl;
+  spdlog::info("Percent Difference Count:\n");
+  spdlog::info("< 0.001: {} ({}%)\n", rel_diff_buckets[0],
+               (float)rel_diff_buckets[0] / size * 100.0);
+  spdlog::info("< 0.01: {} ({}%)\n", rel_diff_buckets[1],
+               (float)rel_diff_buckets[1] / size * 100.0);
+  spdlog::info("< 0.1: {} ({}%)\n", rel_diff_buckets[2],
+               (float)rel_diff_buckets[2] / size * 100.0);
+  spdlog::info("< 1: {} ({}%)\n", rel_diff_buckets[3],
+               (float)rel_diff_buckets[3] / size * 100.0);
+  spdlog::info("> 1: {} ({}%)\n", rel_diff_buckets[4],
+               (float)rel_diff_buckets[4] / size * 100.0);
+  spdlog::info("\n");
 
   if (always_zero == 0.0) {
-    std::cout << "WARNING: All compared values are zero!" << std::endl;
+    spdlog::info("WARNING: All compared values are zero!\n");
   }
 
   // Ideally, these buckets should be non-overlapping...

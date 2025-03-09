@@ -526,10 +526,9 @@ void Harness::sendParams() {
 
 void run_accelerator(std::vector<Operation> operations, char *memory) {
 #ifdef CFLOAT
-  std::cerr
-      << "The SystemC model does not support the CFloat datatype. Only the "
-         "gold model should be used for CFloat."
-      << std::endl;
+  spdlog::error(
+      "The SystemC model does not support the CFloat datatype. Only the gold "
+      "model should be used for CFloat.\n");
   std::abort();
 #else
   Harness harness("harness", operations, memory);

@@ -1,5 +1,6 @@
 #include "test/common/DataLoader.h"
 
+#include "spdlog/spdlog.h"
 #include "xtensor/xadapt.hpp"
 #include "xtensor/xarray.hpp"
 
@@ -12,13 +13,15 @@ void DataLoader::load_tensor(const codegen::Tensor& tensor,
   const auto shape = get_shape(tensor, false);
   const int size = get_size(shape);
 
-  std::cerr << "Loading tensor: " << tensor.node() << std::endl;
-  std::cerr << "Shape: ";
-  print_shape(shape);
-  std::cerr << "Datatype: " << tensor.dtype() << std::endl;
-  std::cerr << "Address: " << tensor.memory().address() << std::endl;
-  std::cerr << "Transposed: " << transpose << std::endl;
-  std::cerr << "Replication: " << replication << std::endl;
+  spdlog::debug("Loading tensor: {}\n", tensor.node());
+  spdlog::debug("Shape: ");
+  for (const auto& dim : shape) {
+    spdlog::debug("{} ", dim);
+  }
+  spdlog::debug("Datatype: {}\n", tensor.dtype());
+  spdlog::debug("Address: {}\n", tensor.memory().address());
+  spdlog::debug("Transposed: {}\n", transpose);
+  spdlog::debug("Replication: {}\n", replication);
 
   // if size is 1, then it is a scalar, so it should not be
   // written to memory
@@ -45,7 +48,7 @@ void DataLoader::load_tensor(const codegen::Tensor& tensor,
   // number of elements packed into a single word for replication
   const int packing_factor = IC_DIMENSION / 4 * 3;
   if (replication) {
-    std::cerr << "packing factor: " << packing_factor << std::endl;
+    spdlog::debug("packing factor: {}", packing_factor);
   }
 
   int address = 0;

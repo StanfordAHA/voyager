@@ -33,7 +33,7 @@ Output* quantize(std::any input, std::any scale, std::vector<int> shape) {
 template <typename Input, typename Output, typename Scale>
 Output* quantize_mx(std::any input, std::any scale,
                     const std::vector<int> input_shape, const int block_size) {
-  LOG("Performing microscaling quantization operation");
+  spdlog::debug("Performing microscaling quantization operation");
 
   Input* inputs = std::any_cast<Input*>(input);
   Scale* scales = std::any_cast<Scale*>(scale);
@@ -140,8 +140,8 @@ Output* dequantize_tensor(std::any input, std::any scale,
     return dequantize<DataTypes::bfloat16, Output>(input, scale,
                                                    get_size(tensor));
   } else {
-    std::cerr << "No dequantization operation for dtype: " << tensor.dtype()
-              << std::endl;
+    spdlog::error("No dequantization operation for dtype: {}\n",
+                  tensor.dtype());
     std::abort();
   }
 }

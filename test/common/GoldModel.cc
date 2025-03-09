@@ -2,12 +2,7 @@
 
 #include <vector>
 
-#ifdef DEBUG
-#define LOG(x) std::cout << x << std::endl
-#else
-#define LOG(x)  // Empty statement, no logging in release mode
-#endif
-
+#include "spdlog/spdlog.h"
 #include "test/common/VerificationTypes.h"
 #include "test/common/operations/LayerNorm.h"
 #include "test/common/operations/MatrixOps.h"
@@ -29,12 +24,12 @@ std::vector<std::any> run_operation(const Operation &operation,
   const auto param = operation.param;
   auto op_list = get_op_list(param);
   const auto first_op = op_list.front();
-  LOG("Running operation: " << first_op.target());
+  spdlog::debug("Running operation: {}\n", first_op.target());
 
   if (GEMM_OPS.find(first_op.target()) != GEMM_OPS.end()) {
     if (first_op.target() == "conv2d" &&
         first_op.kwargs().at("groups").int_value() > 1) {
-      std::cerr << "Grouped convolution is not supported" << std::endl;
+      spdlog::error("Grouped convolution is not supported\n");
       std::abort();
     }
 
@@ -100,9 +95,8 @@ std::vector<std::any> run_operation(const Operation &operation,
 
   if (first_op.target() == "calculate_mx_qparam") {
     if constexpr (std::is_same<Vector, CFloat>::value) {
-      std::cerr
-          << "No calculate_mx_param operation should be emitted for CFloat"
-          << std::endl;
+      spdlog::error(
+          "No calculate_mx_param operation should be emitted for CFloat\n");
       std::abort();
     } else {
       output_ptr = calculate_mx_qparam<Vector, Scale, Input>(kwargs, first_op);
@@ -159,7 +153,7 @@ std::vector<std::any> run_operation(const Operation &operation,
   }
 
   for (const auto &op : op_list) {
-    LOG("Performing fused operation: " << op.target());
+    spdlog::debug("Performing fused operation: {}\n", op.target());
 
     if (unary_ops.find(op.target()) != unary_ops.end()) {
       const auto input = op.kwargs().at("input").tensor();
@@ -199,9 +193,8 @@ std::vector<std::any> run_operation(const Operation &operation,
           other_ptr = std::any_cast<Vector *>(kwargs[operand2.node()]);
         } else {
           if constexpr (std::is_same<Vector, CFloat>::value) {
-            std::cerr
-                << "No quantization operations should be emitted for CFloat"
-                << std::endl;
+            spdlog::error(
+                "No quantization operations should be emitted for CFloat\n");
             std::abort();
           } else {
             Vector *scale = new Vector[1];
@@ -221,8 +214,8 @@ std::vector<std::any> run_operation(const Operation &operation,
                                             other_shape, op.target());
     } else if (op.target() == "quantize") {
       if constexpr (std::is_same<Vector, CFloat>::value) {
-        std::cerr << "No quantization operations should be emitted for CFloat"
-                  << std::endl;
+        spdlog::error(
+            "No quantization operations should be emitted for CFloat\n");
         std::abort();
       } else {
         const auto input = op.kwargs().at("input").tensor();
@@ -243,8 +236,8 @@ std::vector<std::any> run_operation(const Operation &operation,
       }
     } else if (op.target() == "quantize_mx") {
       if constexpr (std::is_same<Vector, CFloat>::value) {
-        std::cerr << "No quantization operations should be emitted for CFloat"
-                  << std::endl;
+        spdlog::error(
+            "No quantization operations should be emitted for CFloat\n");
         std::abort();
       } else {
         const auto input = op.kwargs().at("input").tensor();
@@ -261,8 +254,8 @@ std::vector<std::any> run_operation(const Operation &operation,
       }
     } else if (op.target() == "dequantize") {
       if constexpr (std::is_same<Vector, CFloat>::value) {
-        std::cerr << "No quantization operations should be emitted for CFloat"
-                  << std::endl;
+        spdlog::error(
+            "No quantization operations should be emitted for CFloat\n");
         std::abort();
       } else {
         const auto input = op.kwargs().at("input").tensor();
@@ -289,7 +282,7 @@ std::vector<std::any> run_operation(const Operation &operation,
 
       output_ptr = input_ptr;
     } else {
-      std::cerr << "Unsupported instruction: " << op.target() << std::endl;
+      spdlog::error("Unsupported instruction: {}\n", op.target());
       std::abort();
     }
   }
