@@ -172,7 +172,7 @@ void vdequantize(const Pack1D<Input, Width>& op0, Pack1D<Output, Width>& res,
 }
 
 #pragma hls_design ccore
-template <typename InputType, typename OutputType, typename ScaleType,
+template <typename InputType, typename QuantizedType, typename ScaleType,
           int Width>
 void vquantize_mx(const Pack1D<InputType, Width>& op0,
                   Pack1D<InputType, Width>& res, ScaleType& scale) {
@@ -191,15 +191,11 @@ void vquantize_mx(const Pack1D<InputType, Width>& op0,
     if (max_exp == 0) {
       scaled_exp = 127;
     } else {
-      scaled_exp = max_exp - OutputType::emax;
+      scaled_exp = max_exp - QuantizedType::emax;
     }
 
     scale.set_bits(scaled_exp);
   } else {
-    // TODO: Catapult HLS exhibits an issue where using the treemax function in
-    // both the vector unit reduction and this location causes incorrect outputs
-    // from the vector unit max reduction. The root cause is unclear, but as a
-    // workaround, explicitly implement the logic here instead of using treemax.
     constexpr int num_stage = constexpr_log2(Width);
     Pack1D<InputType, Width> temp[num_stage + 1];
 
@@ -219,15 +215,18 @@ void vquantize_mx(const Pack1D<InputType, Width>& op0,
 
     InputType amax = temp[num_stage][0];
 
-    InputType max_value = static_cast<InputType>(OutputType::max());
+    InputType max_value = static_cast<InputType>(QuantizedType::max());
     scale = amax * max_value.reciprocal();
-
-    if (scale.is_zero()) {
-      scale.set_one();
-    }
   }
 
-  vquantize<InputType, InputType, ScaleType, Width>(op0, res, scale);
+  if (scale.is_zero()) {
+    scale.set_one();
+  }
+
+#pragma hls_unroll yes
+  for (int i = 0; i < Width; i++) {
+    res[i] = op0[i] / static_cast<InputType>(scale);
+  }
 }
 
 template <typename T, size_t Width>
