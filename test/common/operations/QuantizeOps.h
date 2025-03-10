@@ -32,7 +32,7 @@ Output* quantize(std::any input, std::any scale, std::vector<int> shape) {
 
 template <typename Input, typename Output, typename Scale>
 Output* quantize_mx(std::any input, std::any scale,
-                    const std::vector<int> input_shape, const int block_size) {
+                    std::vector<int> input_shape, int block_size, int axis) {
   spdlog::debug("Performing microscaling quantization operation");
 
   // Handle the case of convolutional layers
