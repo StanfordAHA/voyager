@@ -502,19 +502,30 @@ void MapVectorOperations(const codegen::Operation &param,
                                                    : other.int_value();
             set_vector_immediate(scalar, stage, opcode, inst);
           } else if (other.has_tensor()) {
-            const auto tensor = other.tensor();
+            auto tensor = other.tensor();
 
             if (get_size(tensor) == 1) {
               float scalar = read_constant_param(tensor);
               set_vector_immediate(scalar, stage, opcode, inst);
             } else {
-              const auto self = op.kwargs().at("input").tensor();
-              const auto tensor_to_load = tensor.has_memory() ? tensor : self;
+              auto self = op.kwargs().at("input").tensor();
 
-              const auto input_shape = get_shape(self);
-              const auto other_shape = get_shape(tensor);
-              const auto output_shape =
-                  squeeze_shape(broadcast_shape(input_shape, other_shape));
+              auto input_shape = get_shape(self);
+              auto other_shape = get_shape(tensor);
+
+              if (opcode == "quantize") {
+                auto result =
+                    factor_out_non_broadcastable_dim(input_shape, other_shape);
+                input_shape = result.first;
+                other_shape = result.second;
+
+                update_tensor_shape(self, input_shape);
+                update_tensor_shape(tensor, other_shape);
+              }
+
+              auto tensor_to_load = tensor.has_memory() ? tensor : self;
+              auto output_shape = broadcast_shape(input_shape, other_shape);
+              squeeze_front_ones(output_shape);
 
               if (stage == 0) {
                 inst.vector_op0_src1 = VectorInstructions::from_vector_fetch_1;

@@ -191,3 +191,56 @@ bool is_transpose(const std::vector<int> &dims) {
   // Check that the last two axes are swapped.
   return (dims[n - 2] == n - 1 && dims[n - 1] == n - 2);
 }
+
+std::pair<std::vector<int>, std::vector<int>> factor_out_non_broadcastable_dim(
+    std::vector<int> shape1, std::vector<int> shape2) {
+  if (shape1.size() != shape2.size()) {
+    throw std::invalid_argument(
+        "Shapes must have the same number of dimensions");
+  }
+
+  int ndim = shape1.size();
+  int non_broadcast_dim = -1;
+  int min_dim;
+  int max_dim;
+
+  // Find the non-broadcastable dimension where one shape is bs times larger
+  // than the other
+  for (int i = 0; i < ndim; ++i) {
+    min_dim = std::min(shape1[i], shape2[i]);
+    max_dim = std::max(shape1[i], shape2[i]);
+    if (shape1[i] != shape2[i] && max_dim % min_dim == 0) {
+      non_broadcast_dim = i;
+      break;
+    }
+  }
+
+  if (non_broadcast_dim == -1) {
+    throw std::runtime_error("No non-broadcastable dimension found");
+  }
+
+  // Merge the non-broadcastable dimension into the previous dimension
+  int merge_dim = non_broadcast_dim - 1;
+  if (merge_dim < 0) {
+    throw std::runtime_error(
+        "Cannot merge into a non-existent previous dimension");
+  }
+
+  shape1[merge_dim] *= min_dim;
+  shape2[merge_dim] *= min_dim;
+
+  shape1[non_broadcast_dim] /= min_dim;
+  shape2[non_broadcast_dim] /= min_dim;
+
+  return {shape1, shape2};
+}
+
+void update_tensor_shape(codegen::Tensor &tensor, const std::vector<int> &new_shape) {
+  // Clear the existing shape
+  tensor.clear_shape();
+
+  // Add new values from the vector
+  for (int dim : new_shape) {
+    tensor.add_shape(dim);
+  }
+}
