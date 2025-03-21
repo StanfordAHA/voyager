@@ -6,6 +6,8 @@ solution library add lib224_b15_7t_108pp_tttt_0p800v_25c_tttt_ctyp_ccslnt_dc -- 
 catch {
   solution library add intel16_sram_wrapper_1r1w
   solution library add intel16_sram_wrapper_1rw
+  solution library add intel16_2048x8b_rf_wrapper_1r1w
+  solution library add intel16_64x128b_rf_wrapper_1r1w
 } res
 
 puts $res
