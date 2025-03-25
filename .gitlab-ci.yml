@@ -12,8 +12,6 @@ before_script:
   - source $(conda info --base)/etc/profile.d/conda.sh
   - conda env create -p $(pwd)/.conda-env -f $(pwd)/environment.yml
   - conda activate $(pwd)/.conda-env
-  - pip install -e quantized-training
-  - pip install -e interstellar
   - export PROJECT_ROOT=`pwd`
   - export CODEGEN_DIR=test/compiler
 
