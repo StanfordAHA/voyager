@@ -1,0 +1,9 @@
+Clean Up:
+  stage: cleanup
+  tags: 
+    - conda
+  before_script: []
+  script:
+    - rm -rf $HOME/miniforge3/envs/ci-env-$CI_PIPELINE_ID
+  rules:
+    - when: always
