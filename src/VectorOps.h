@@ -218,7 +218,7 @@ void vquantize_mx(const Pack1D<InputType, Width>& op0,
   }
 
   if (scale.is_zero()) {
-    scale.set_one();
+    scale = ScaleType::one();
   }
 
 #pragma hls_unroll yes
@@ -228,61 +228,64 @@ void vquantize_mx(const Pack1D<InputType, Width>& op0,
 }
 
 template <typename T, size_t Width>
-void send_request(ac_int<32, false> address, ac_int<64, false> offset,
+void send_request(ac_int<32, false> address,
+                  ac_int<ADDRESS_WIDTH, false> offset,
                   Connections::Out<MemoryRequest>& channel) {
   MemoryRequest request = {offset + address * T::width / 8,
                            Width * T::width / 8};
   channel.Push(request);
 }
 
-template <typename VectorType, typename IOType, typename OutputType,
-          size_t Width>
-void feed_response(Connections::In<Pack1D<IOType, Width>>& input_channel,
+template <typename FetchType, typename VectorType, size_t Width>
+void feed_response(Connections::In<ac_int<OC_PORT_WIDTH, false>>& input_channel,
                    Pack1D<VectorType, Width>& outputs) {
-  if constexpr (OutputType::width >= IOType::width) {
-    constexpr int num_words = OutputType::width / IOType::width;
-    Pack1D<IOType, Width> response[num_words];
+  constexpr int num_words = FetchType::width * Width / OC_PORT_WIDTH;
 
-    for (int i = 0; i < num_words; i++) {
-      response[i] = input_channel.Pop();
-    }
+  static_assert(
+      num_words > 0,
+      "Width of input type must be greater than or equal to the width "
+      "of the input channel");
 
-    Pack1D<OutputType, Width> full_response;
-    convertPack1D<IOType, OutputType, Width>(response, full_response);
+  ac_int<FetchType::width * Width, false> bits;
+
+  for (int i = 0; i < num_words; i++) {
+    bits.set_slc(i * OC_PORT_WIDTH, input_channel.Pop());
+  }
+
+  Pack1D<FetchType, Width> typed =
+      BitsToType<Pack1D<FetchType, Width>>(TypeToBits(bits));
 
 #pragma hls_unroll yes
-    for (int i = 0; i < Width; i++) {
-      outputs[i] = full_response[i];
-    }
-  } else {
-    throw std::runtime_error("Not implemented");
+  for (int i = 0; i < Width; i++) {
+    outputs[i] = typed[i];
   }
 }
 
-template <typename VectorType, typename IOType, typename OutputType,
-          size_t Width>
-void vwrite_out(Pack1D<VectorType, Width> inputs, ac_int<32, false> address,
-                ac_int<64, false> offset,
-                Connections::Out<Pack1D<IOType, Width>>& output_channel,
-                Connections::Out<ac_int<64, false>>& address_channel) {
+template <typename VectorType, typename OutputType, size_t Width>
+void vwrite_out(
+    Pack1D<VectorType, Width> inputs, ac_int<32, false> address,
+    ac_int<ADDRESS_WIDTH, false> offset,
+    Connections::Out<ac_int<OC_PORT_WIDTH, false>>& output_channel,
+    Connections::Out<ac_int<ADDRESS_WIDTH, false>>& address_channel) {
+  constexpr int num_words = OutputType::width * Width / OC_PORT_WIDTH;
+
+  static_assert(
+      num_words > 0,
+      "Width of output type must be greater than or equal to the width "
+      "of the output channel");
+
   Pack1D<OutputType, Width> outputs;
 #pragma hls_unroll yes
   for (int i = 0; i < Width; i++) {
     outputs[i] = inputs[i];
   }
 
-  if constexpr (OutputType::width >= IOType::width) {
-    constexpr int num_words = OutputType::width / IOType::width;
-    Pack1D<IOType, Width> converted_outputs[num_words];
+  ac_int<OutputType::width * Width, false> bits;
+  bits = BitsToType<decltype(bits)>(TypeToBits(outputs));
 
-    convertPack1D<IOType, OutputType, Width>(outputs, converted_outputs);
-
-    for (int i = 0; i < num_words; i++) {
-      output_channel.Push(converted_outputs[i]);
-      address_channel.Push(offset + address * OutputType::width / 8 +
-                           i * Width * IOType::width / 8);
-    }
-  } else {
-    throw std::runtime_error("Not implemented");
+  for (int i = 0; i < num_words; i++) {
+    output_channel.Push(bits.template slc<OC_PORT_WIDTH>(i * OC_PORT_WIDTH));
+    address_channel.Push(offset + address * OutputType::width / 8 +
+                         i * OC_PORT_WIDTH / 8);
   }
 }

@@ -12,8 +12,7 @@
 #include "VectorFetch.h"
 #include "VectorUnitOutput.h"
 
-template <typename IOType, typename VectorType, typename BufferType,
-          typename ScaleType, int Width>
+template <typename VectorType, typename BufferType, int Width>
 SC_MODULE(VectorOpUnit) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
@@ -28,8 +27,7 @@ SC_MODULE(VectorOpUnit) {
   Connections::In<Pack1D<VectorType, Width>> CCS_INIT_S1(vectorFetch2Output);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch3AddressRequest);
-  Connections::In<Pack1D<IOType, 16 / IOType::width>> CCS_INIT_S1(
-      vectorFetch3DataResponse);
+  Connections::In<ac_int<16, false>> CCS_INIT_S1(vectorFetch3DataResponse);
 
   Connections::Out<Pack1D<VectorType, Width>> CCS_INIT_S1(
       vector_op_unit_output);
@@ -263,17 +261,7 @@ SC_MODULE(VectorOpUnit) {
           MemoryRequest request = {inst.VMAP_OFFSET + address, 2};
           vectorFetch3AddressRequest.Push(request);
 
-          constexpr int num_words = 16 / IOType::width;
-          Pack1D<IOType, num_words> response = vectorFetch3DataResponse.Pop();
-
-          ac_int<16, false> bits = 0;
-#pragma hls_unroll yes
-          for (int j = 0; j < num_words; j++) {
-            ac_int<16, false> bits_rep = response[j].bits_rep();
-            bits = bits | (bits_rep << (IOType::width * j));
-          }
-
-          value.set_bits(bits);
+          value.set_bits(vectorFetch3DataResponse.Pop());
           res1[i] = value;
         }
       } else {
@@ -433,29 +421,33 @@ SC_MODULE(VectorUnit) {
   Connections::In<Pack1D<BufferType, Width>> CCS_INIT_S1(systolicArrayOutput);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch0AddressRequest);
-  Connections::In<Pack1D<IOType, Width>> CCS_INIT_S1(vectorFetch0DataResponse);
+  Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(
+      vectorFetch0DataResponse);
   Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
       vectorFetch0DataResponseConverted);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch1AddressRequest);
-  Connections::In<Pack1D<IOType, Width>> CCS_INIT_S1(vectorFetch1DataResponse);
+  Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(
+      vectorFetch1DataResponse);
   Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
       vectorFetch1DataResponseConverted);
-  Connections::Combinational<ScaleType> CCS_INIT_S1(vectorFetch1Scale);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch2AddressRequest);
-  Connections::In<Pack1D<IOType, Width>> CCS_INIT_S1(vectorFetch2DataResponse);
+  Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(
+      vectorFetch2DataResponse);
   Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
       vectorFetch2DataResponseConverted);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch3AddressRequest);
-  Connections::In<Pack1D<IOType, 16 / IOType::width>> CCS_INIT_S1(
-      vectorFetch3DataResponse);
+  Connections::In<ac_int<16, false>> CCS_INIT_S1(vectorFetch3DataResponse);
 
-  Connections::Out<Pack1D<IOType, Width>> CCS_INIT_S1(vector_output);
-  Connections::Out<ac_int<64, false>> CCS_INIT_S1(vector_output_address);
-  Connections::Out<Pack1D<DataTypes::int8, 1>> CCS_INIT_S1(scalar_output);
-  Connections::Out<ac_int<64, false>> CCS_INIT_S1(scalar_output_address);
+  Connections::Out<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(vector_output);
+  Connections::Out<ac_int<ADDRESS_WIDTH, false>> CCS_INIT_S1(
+      vector_output_address);
+  Connections::Out<ac_int<SCALE_DATATYPE::width, false>> CCS_INIT_S1(
+      scalar_output);
+  Connections::Out<ac_int<ADDRESS_WIDTH, false>> CCS_INIT_S1(
+      scalar_output_address);
 
   Connections::Combinational<Pack1D<VectorType, Width>> CCS_INIT_S1(
       vector_op_unit_output);
@@ -463,12 +455,11 @@ SC_MODULE(VectorUnit) {
   Connections::SyncOut CCS_INIT_S1(start);
   Connections::SyncOut CCS_INIT_S1(done);
 
-  VectorFetchUnit<IOType, VectorType, ScaleType, Width, VECTOR_INPUT_DATATYPES>
-      CCS_INIT_S1(vector_fetch);
+  VectorFetchUnit<VectorType, Width, VECTOR_INPUT_DATATYPES> CCS_INIT_S1(
+      vector_fetch);
   Connections::Combinational<VectorParams> CCS_INIT_S1(vectorFetchParams);
 
-  VectorOpUnit<IOType, VectorType, BufferType, ScaleType, Width> CCS_INIT_S1(
-      vector_op_unit);
+  VectorOpUnit<VectorType, BufferType, Width> CCS_INIT_S1(vector_op_unit);
 
   VectorUnitOutput<VectorType, ScaleType, IOType, Width, OUTPUT_DATATYPES>
       CCS_INIT_S1(vector_unit_output);
