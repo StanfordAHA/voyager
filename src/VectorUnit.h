@@ -89,6 +89,7 @@ SC_MODULE(VectorOpUnit) {
     vectorFetch1Output.Reset();
     vectorFetch2Output.Reset();
     vector_op_unit_output.Reset();
+    mx_scale_output.Reset();
     accumulation_input.ResetWrite();
     accumulation_output.ResetRead();
     reduction_input.ResetWrite();

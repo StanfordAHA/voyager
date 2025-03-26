@@ -27,6 +27,7 @@ SC_MODULE(VectorUnitOutput) {
   void run() {
     params_in.Reset();
     tensor_in.Reset();
+    scale_in.Reset();
     vector_out.Reset();
     vector_address_out.Reset();
     scale_out.Reset();
