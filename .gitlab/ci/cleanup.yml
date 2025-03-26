@@ -1,7 +1,5 @@
 Clean Up:
   stage: cleanup
-  tags:
-    - conda
   before_script: []
   script:
     - rm -rf /sim/gitlab-runner/envs/ci-env-$CI_PIPELINE_ID

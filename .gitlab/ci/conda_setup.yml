@@ -1,7 +1,5 @@
 Setup Conda:
   stage: setup
-  tags:
-    - conda
   before_script:
     - export PATH=$HOME/miniforge3/condabin:$PATH
     - source $(conda info --base)/etc/profile.d/conda.sh
