@@ -6,7 +6,7 @@ Setup Conda:
     - export PATH=$HOME/miniforge3/condabin:$PATH
     - source $(conda info --base)/etc/profile.d/conda.sh
   script:
-    - conda env create -n ci-env-$CI_PIPELINE_ID -f $(pwd)/environment.yml
-    - conda activate ci-env-$CI_PIPELINE_ID
+    - conda env create -p /sim/gitlab-runner/envs/ci-env-$CI_PIPELINE_ID -f $(pwd)/environment.yml
+    - conda activate /sim/gitlab-runner/envs/ci-env-$CI_PIPELINE_ID
   rules:
     - when: always
