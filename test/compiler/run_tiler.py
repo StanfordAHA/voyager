@@ -42,7 +42,7 @@ class RuntimeCalculator:
 
         # assume IC is unrolled vertically
         # does not handle replication
-        weight_loading_time = mapping.loop_partitionings[interstellar.le.IC][0]
+        weight_loading_time = mapping.loop_partitionings[interstellar.le.IC][0] + 2
 
         # assume that IC is the outermost loop, from the schedule hint
         is_accumulating_tile = (
@@ -87,9 +87,44 @@ class RuntimeCalculator:
         # currently assume that each value in the weight buffer is loaded in one cycle
         weight_buffer_loading_time = weight_buffer_loading_size
 
+        # calculate time for vector unit to process values from the accumulation buffer
+        # for now, let's assume that all vector unit operations flow through the vector unit pipeline once.
+        # the only thing that matters then is if the other operand or the outputs are in high precision, which will 2x the time
+        output_relevant_loops = [
+            interstellar.le.OC,
+            interstellar.le.OY,
+            interstellar.le.OX,
+        ]
+        output_size = 1
+        for loop in output_relevant_loops:
+            output_size *= mapping.loop_blockings[loop][1]
+        vector_unit_time = output_size
+        if self.operation.WhichOneof("op_type") == "fused_op":
+            input_precision = (
+                self.operation.fused_op.op_list[0].kwargs["input"].tensor.dtype
+            )
+            requires_high_precision = False
+            # check if any of the operands are in high precision or
+            for i in range(1, len(self.operation.fused_op.op_list)):
+                vector_op = self.operation.fused_op.op_list[i]
+                if "other" in vector_op.kwargs:
+                    if vector_op.kwargs["other"].tensor.dtype != input_precision:
+                        requires_high_precision = True
+                        break
+            if self.operation.output.dtype != input_precision:
+                requires_high_precision = True
+
+            if requires_high_precision:
+                vector_unit_time *= 2
+
+        vector_unit_time = 1
+
         # assume that writing out from accumulation buffer will not stall the system
         l1_time = max(
-            computation_l1_time, input_buffer_loading_time, weight_buffer_loading_time
+            computation_l1_time,
+            input_buffer_loading_time,
+            weight_buffer_loading_time,
+            vector_unit_time,
         )
 
         l2_blocks = 1
@@ -101,6 +136,8 @@ class RuntimeCalculator:
             # initial buffer loading time
             max(input_buffer_loading_time, weight_buffer_loading_time)
             + l2_blocks * l1_time
+            # time for last tile to be processed by vector unit
+            + vector_unit_time
         )
 
         return total_time
