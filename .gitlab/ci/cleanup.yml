@@ -1,0 +1,7 @@
+Clean Up:
+  stage: cleanup
+  before_script: []
+  script:
+    - rm -rf /sim/gitlab-runner/envs/ci-env-$CI_PIPELINE_ID
+  rules:
+    - when: always
