@@ -1,16 +1,18 @@
 #pragma once
 
-// clang-format off
-#include <ac_std_float.h>
-// clang-format on
+#ifndef NO_SYSC
+#include <mc_connections.h>
+#endif
+
 #include <ac_math/ac_inverse_sqrt_pwl.h>
 #include <ac_math/ac_pow_pwl.h>
 #include <ac_math/ac_reciprocal_pwl.h>
 #include <ac_math/ac_sigmoid_pwl.h>
+#include <ac_std_float.h>
 #include <ccs_dw_fp_lib.h>
 
-template <int mantissa, int exp, bool use_dw_impl, bool ieee_compliance,
-          ac_q_mode Q>
+template <int mantissa, int exp, bool use_dw_impl = false,
+          bool ieee_compliance = true, ac_q_mode Q = AC_RND_CONV>
 class StdFloat {
  public:
   static constexpr unsigned int width = mantissa + exp + 1;

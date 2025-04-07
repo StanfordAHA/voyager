@@ -1,5 +1,11 @@
 #pragma once
 
+#include <systemc.h>
+
+#include "AccelTypes.h"
+#include "ArchitectureParams.h"
+#include "VectorOps.h"
+
 template <typename VectorType, typename ScaleType, int Width,
           typename... OutputTypes>
 SC_MODULE(OutputController) {

@@ -6,7 +6,6 @@
 #include "AccelTypes.h"
 #include "ArchitectureParams.h"
 #include "MatrixUnit.h"
-#include "ParamsDeserializer.h"
 #include "VectorUnit.h"
 #include "mc_scverify.h"
 

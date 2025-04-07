@@ -3,7 +3,9 @@
 #include <mc_connections.h>
 #include <systemc.h>
 
+#include "ArchitectureParams.h"
 #include "ParamsDeserializer.h"
+#include "Skewer.h"
 #include "SystolicArray.h"
 
 template <typename Input, typename Weight, typename Psum, typename Buffer,

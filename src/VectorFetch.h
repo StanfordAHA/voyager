@@ -1,5 +1,11 @@
 #pragma once
 
+#include <systemc.h>
+
+#include "AccelTypes.h"
+#include "ArchitectureParams.h"
+#include "VectorOps.h"
+
 template <typename VectorType, typename BufferType, int Width,
           typename... InputTypes>
 SC_MODULE(VectorFetchUnit) {

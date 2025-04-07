@@ -4,6 +4,7 @@
 #include <systemc.h>
 
 #include "AccelTypes.h"
+#include "ArchitectureParams.h"
 #include "ParamsDeserializer.h"
 
 template <typename Input, int NRows>

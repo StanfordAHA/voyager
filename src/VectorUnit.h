@@ -4,13 +4,11 @@
 #include <systemc.h>
 
 #include "AccelTypes.h"
-// clang-format off
-#include "VectorOps.h"
-// clang-format on
 #include "Broadcaster.h"
 #include "OutputController.h"
 #include "ParamsDeserializer.h"
 #include "VectorFetch.h"
+#include "VectorOps.h"
 
 template <typename VectorType, typename BufferType, typename ScaleType,
           int Width>

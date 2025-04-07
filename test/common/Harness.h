@@ -5,12 +5,10 @@
 #include <systemc.h>
 
 #include <deque>
-#include <string>
 #include <vector>
 
 #include "AccelTypes.h"
 #include "ArchitectureParams.h"
-#include "spdlog/spdlog.h"
 #include "test/common/AccessCounter.h"
 #include "test/common/Network.h"
 #include "test/common/VerificationTypes.h"
