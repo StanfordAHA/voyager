@@ -6,5 +6,11 @@ Setup Conda:
   script:
     - conda env create -p /sim/gitlab-runner/envs/ci-env-$CI_PIPELINE_ID -f $(pwd)/environment.yml
     - conda activate /sim/gitlab-runner/envs/ci-env-$CI_PIPELINE_ID
+    # the environment.yml file specifies interstellar and quantized-training as editable installs.
+    # but in our CI environment, we need to install them as non-editable.
+    - pip uninstall -y interstellar
+    - pip uninstall -y quantized-training
+    - pip install ./interstellar
+    - pip install ./quantized-training
   rules:
     - when: always
