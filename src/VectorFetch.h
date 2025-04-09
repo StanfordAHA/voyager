@@ -1,43 +1,46 @@
 #pragma once
 
-template <typename IOType, typename VectorType, typename BufferType,
-          typename Scale, int Width, typename... InputTypes>
+template <typename VectorType, typename BufferType, int Width,
+          typename... InputTypes>
 SC_MODULE(VectorFetchUnit) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
-  Connections::In<VectorParams> CCS_INIT_S1(paramsIn);
-  Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch0AddressRequest);
-  Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch1AddressRequest);
-  Connections::Out<MemoryRequest> CCS_INIT_S1(vectorFetch2AddressRequest);
+  Connections::In<VectorParams> CCS_INIT_S1(params_in);
+  Connections::Out<MemoryRequest> CCS_INIT_S1(vector_fetch_0_request_out);
+  Connections::Out<MemoryRequest> CCS_INIT_S1(vector_fetch_1_request_out);
+  Connections::Out<MemoryRequest> CCS_INIT_S1(vector_fetch_2_request_out);
 
   Connections::Out<ac_int<16, false>> accumulation_buffer_read_address[2];
   Connections::SyncOut accumulation_buffer_done[2];
 
-  Connections::In<Pack1D<IOType, Width>> CCS_INIT_S1(vectorFetch0DataResponse);
+  Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(
+      vector_fetch_0_resp_in);
   Connections::Out<Pack1D<VectorType, Width>> CCS_INIT_S1(
-      vectorFetch0DataResponseConverted);
+      vector_fetch_0_data_out);
 
   Connections::In<Pack1D<BufferType, Width>> accumulation_buffer_read_data[2];
-  Connections::Out<BufferWriteRequest<BufferType, Width>>
+  Connections::Out<BufferWriteRequest<Pack1D<BufferType, Width>>>
       accumulation_buffer_write_request[2];
   Connections::Out<Pack1D<BufferType, Width>> CCS_INIT_S1(
       accumulationBufferOutput);
 
-  Connections::In<Pack1D<IOType, Width>> CCS_INIT_S1(vectorFetch1DataResponse);
+  Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(
+      vector_fetch_1_resp_in);
   Connections::Out<Pack1D<VectorType, Width>> CCS_INIT_S1(
-      vectorFetch1DataResponseConverted);
+      vector_fetch_1_data_out);
 
-  Connections::In<Pack1D<IOType, Width>> CCS_INIT_S1(vectorFetch2DataResponse);
+  Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(
+      vector_fetch_2_resp_in);
   Connections::Out<Pack1D<VectorType, Width>> CCS_INIT_S1(
-      vectorFetch2DataResponseConverted);
+      vector_fetch_2_data_out);
 
-  Connections::Combinational<VectorParams> CCS_INIT_S1(addressGen0Params);
-  Connections::Combinational<VectorParams> CCS_INIT_S1(addressGen1Params);
-  Connections::Combinational<VectorParams> CCS_INIT_S1(addressGen2Params);
-  Connections::Combinational<VectorParams> CCS_INIT_S1(dataResponse0Params);
-  Connections::Combinational<VectorParams> CCS_INIT_S1(dataResponse2Params);
-  Connections::Combinational<VectorParams> CCS_INIT_S1(dataResponse1Params);
+  Connections::Combinational<VectorParams> CCS_INIT_S1(addr_gen0_params);
+  Connections::Combinational<VectorParams> CCS_INIT_S1(addr_gen1_params);
+  Connections::Combinational<VectorParams> CCS_INIT_S1(addr_gen2_params);
+  Connections::Combinational<VectorParams> CCS_INIT_S1(data_resp_0_params);
+  Connections::Combinational<VectorParams> CCS_INIT_S1(data_resp_1_params);
+  Connections::Combinational<VectorParams> CCS_INIT_S1(data_resp_2_params);
 
   static constexpr int BUFSIZE = 1024 / Width < Width ? 1024 / Width : Width;
 
@@ -72,8 +75,8 @@ SC_MODULE(VectorFetchUnit) {
   }
 
   void fetch_address_0() {
-    addressGen0Params.ResetRead();
-    vectorFetch0AddressRequest.Reset();
+    addr_gen0_params.ResetRead();
+    vector_fetch_0_request_out.Reset();
     accumulation_buffer_read_address[0].Reset();
     accumulation_buffer_read_address[1].Reset();
     accumulation_buffer_done[0].Reset();
@@ -84,20 +87,20 @@ SC_MODULE(VectorFetchUnit) {
     wait();
 
     while (true) {
-      VectorParams params = addressGen0Params.Pop();
+      VectorParams params = addr_gen0_params.Pop();
 
       ac_int<11, false> Y1 =
-          params.addressGen0Loop[0][params.addressGen0InputYLoopIndex[0]];
+          params.addr_gen0_loops[0][params.addr_gen0_y_loop_idx[0]];
       ac_int<11, false> X1 =
-          params.addressGen0Loop[0][params.addressGen0InputXLoopIndex[0]];
+          params.addr_gen0_loops[0][params.addr_gen0_x_loop_idx[0]];
       ac_int<11, false> K1 =
-          params.addressGen0Loop[0][params.addressGen0WeightLoopIndex[0]];
+          params.addr_gen0_loops[0][params.addr_gen0_k_loop_idx[0]];
       ac_int<11, false> Y0 =
-          params.addressGen0Loop[1][params.addressGen0InputYLoopIndex[1]];
+          params.addr_gen0_loops[1][params.addr_gen0_y_loop_idx[1]];
       ac_int<11, false> X0 =
-          params.addressGen0Loop[1][params.addressGen0InputXLoopIndex[1]];
+          params.addr_gen0_loops[1][params.addr_gen0_x_loop_idx[1]];
       ac_int<11, false> K0 =
-          params.addressGen0Loop[1][params.addressGen0WeightLoopIndex[1]];
+          params.addr_gen0_loops[1][params.addr_gen0_k_loop_idx[1]];
 
       if (params.has_transpose && BUFSIZE != Width) {
         X1 = X1 * BUFSIZE / Width;
@@ -113,27 +116,27 @@ SC_MODULE(VectorFetchUnit) {
 #pragma hls_unroll yes
         for (int j = 0; j < 3; j++) {
           loop_starts[i][j] = 0;
-          loop_ends[i][j] = params.addressGen0Loop[i][j];
+          loop_ends[i][j] = params.addr_gen0_loops[i][j];
           loop_steps[i][j] = 1;
         }
       }
 
       if (params.has_slicing) {
-        int slice_dim = params.vec0_dim;
+        int slice_dim = params.addr_gen0_dim;
         int i = slice_dim >= 3 ? 1 : 0;
         int j = slice_dim >= 3 ? slice_dim - 3 : slice_dim;
-        loop_starts[i][j] = params.vec0_start;
-        loop_ends[i][j] = params.vec0_end;
-        loop_steps[i][j] = params.vec0_step;
+        loop_starts[i][j] = params.addr_gen0_start;
+        loop_ends[i][j] = params.addr_gen0_end;
+        loop_steps[i][j] = params.addr_gen0_step;
       } else if (params.has_permute) {
 #pragma hls_unroll yes
         for (int dim = 0; dim < 6; dim++) {
           int i = dim >= 3 ? 1 : 0;
           int j = dim >= 3 ? dim - 3 : dim;
-          int new_dim = params.vec0_dim_order[dim];
+          int new_dim = params.addr_gen0_dims[dim];
           int new_i = new_dim >= 3 ? 1 : 0;
           int new_j = new_dim >= 3 ? new_dim - 3 : new_dim;
-          loop_ends[i][j] = params.addressGen0Loop[new_i][new_j];
+          loop_ends[i][j] = params.addr_gen0_loops[new_i][new_j];
         }
       }
 
@@ -158,19 +161,19 @@ SC_MODULE(VectorFetchUnit) {
                      loop_counters[1][2] += loop_steps[1][2]) {
                   ac_int<32, false> address;
                   bool switch_accumulation_buffer_bank = false;
-                  if (params.addressGen0Mode == 1) {
+                  if (params.addr_gen0_mode == 1) {
                     ac_int<11, false> x0 =
-                        loop_counters[1][params.addressGen0InputXLoopIndex[1]];
+                        loop_counters[1][params.addr_gen0_x_loop_idx[1]];
                     ac_int<11, false> x1 =
-                        loop_counters[0][params.addressGen0InputXLoopIndex[0]];
+                        loop_counters[0][params.addr_gen0_x_loop_idx[0]];
                     ac_int<11, false> y0 =
-                        loop_counters[1][params.addressGen0InputYLoopIndex[1]];
+                        loop_counters[1][params.addr_gen0_y_loop_idx[1]];
                     ac_int<11, false> y1 =
-                        loop_counters[0][params.addressGen0InputYLoopIndex[0]];
+                        loop_counters[0][params.addr_gen0_y_loop_idx[0]];
                     ac_int<11, false> k0 =
-                        loop_counters[1][params.addressGen0WeightLoopIndex[1]];
+                        loop_counters[1][params.addr_gen0_k_loop_idx[1]];
                     ac_int<11, false> k1 =
-                        loop_counters[0][params.addressGen0WeightLoopIndex[0]];
+                        loop_counters[0][params.addr_gen0_k_loop_idx[0]];
 
                     ac_int<16, false> k = k1 * K0 * Width + k0 * Width;
                     ac_int<16, false> K = K1 * K0 * Width;
@@ -186,23 +189,23 @@ SC_MODULE(VectorFetchUnit) {
                     } else {
                       address = y * X * K + x * K + k;
                     }
-                  } else if (params.addressGen0Mode == 2) {
+                  } else if (params.addr_gen0_mode == 2) {
                     ac_int<11, false> indices[6] = {
                         loop_counters[0][0], loop_counters[0][1],
                         loop_counters[0][2], loop_counters[1][0],
                         loop_counters[1][1], loop_counters[1][2]};
 
                     ac_int<11, false> loop_bounds[6] = {
-                        params.addressGen0Loop[0][0],
-                        params.addressGen0Loop[0][1],
-                        params.addressGen0Loop[0][2],
-                        params.addressGen0Loop[1][0],
-                        params.addressGen0Loop[1][1],
-                        params.addressGen0Loop[1][2]};
+                        params.addr_gen0_loops[0][0],
+                        params.addr_gen0_loops[0][1],
+                        params.addr_gen0_loops[0][2],
+                        params.addr_gen0_loops[1][0],
+                        params.addr_gen0_loops[1][1],
+                        params.addr_gen0_loops[1][2]};
 
 #pragma hls_unroll yes
                     for (int i = 0; i < 6; i++) {
-                      if (params.vec0_broadcast[i]) {
+                      if (params.addr_gen0_broadcast[i]) {
                         indices[i] = 0;
                         loop_bounds[i] = 1;
                       }
@@ -212,7 +215,7 @@ SC_MODULE(VectorFetchUnit) {
                       ac_int<11, false> permuted_indices[6];
 #pragma hls_unroll yes
                       for (int i = 0; i < 6; i++) {
-                        permuted_indices[params.vec0_dim_order[i]] = indices[i];
+                        permuted_indices[params.addr_gen0_dims[i]] = indices[i];
                       }
 
 #pragma hls_unroll yes
@@ -231,20 +234,20 @@ SC_MODULE(VectorFetchUnit) {
                          indices[3] * loop_bounds[4] * loop_bounds[5] +
                          indices[4] * loop_bounds[5] + indices[5]) *
                         Width;
-                  } else if (params.addressGen0Mode == 3) {
+                  } else if (params.addr_gen0_mode == 3) {
                     // read from accumulation buffer
                     ac_int<11, false> x0 =
-                        loop_counters[1][params.addressGen0InputXLoopIndex[1]];
+                        loop_counters[1][params.addr_gen0_x_loop_idx[1]];
                     ac_int<11, false> x1 =
-                        loop_counters[0][params.addressGen0InputXLoopIndex[0]];
+                        loop_counters[0][params.addr_gen0_x_loop_idx[0]];
                     ac_int<11, false> y0 =
-                        loop_counters[1][params.addressGen0InputYLoopIndex[1]];
+                        loop_counters[1][params.addr_gen0_y_loop_idx[1]];
                     ac_int<11, false> y1 =
-                        loop_counters[0][params.addressGen0InputYLoopIndex[0]];
+                        loop_counters[0][params.addr_gen0_y_loop_idx[0]];
                     ac_int<11, false> k0 =
-                        loop_counters[1][params.addressGen0WeightLoopIndex[1]];
+                        loop_counters[1][params.addr_gen0_k_loop_idx[1]];
                     ac_int<11, false> k1 =
-                        loop_counters[0][params.addressGen0WeightLoopIndex[0]];
+                        loop_counters[0][params.addr_gen0_k_loop_idx[0]];
 
                     address = k0 * Y0 * X0 + y0 * X0 + x0;
 
@@ -253,14 +256,14 @@ SC_MODULE(VectorFetchUnit) {
                     }
                   }
 
-                  if (params.addressGen0Mode == 1 ||
-                      params.addressGen0Mode == 2) {
+                  if (params.addr_gen0_mode == 1 ||
+                      params.addr_gen0_mode == 2) {
                     bool found =
                         ((get_type_index<InputTypes, InputTypes...>() ==
-                                  params.vector_input_0_type
+                                  params.addr_gen0_dtype
                               ? (send_request<InputTypes, Width>(
                                      address, params.VECTOR_OFFSET,
-                                     vectorFetch0AddressRequest),
+                                     vector_fetch_0_request_out),
                                  true)
                               : false) ||
                          ...);
@@ -268,7 +271,7 @@ SC_MODULE(VectorFetchUnit) {
 #ifndef __SYNTHESIS__
                     if (!found) {
                       std::cerr << "Error: vector input 0 type index '"
-                                << params.vector_input_0_type
+                                << params.addr_gen0_dtype
                                 << "' is not valid.\n";
                     }
 #endif
@@ -311,9 +314,9 @@ SC_MODULE(VectorFetchUnit) {
   }
 
   void feed_data_response_0() {
-    vectorFetch0DataResponse.Reset();
-    vectorFetch0DataResponseConverted.Reset();
-    dataResponse0Params.ResetRead();
+    vector_fetch_0_resp_in.Reset();
+    vector_fetch_0_data_out.Reset();
+    data_resp_0_params.ResetRead();
 
     accumulation_buffer_read_data[0].Reset();
     accumulation_buffer_read_data[1].Reset();
@@ -325,7 +328,7 @@ SC_MODULE(VectorFetchUnit) {
     wait();
 
     while (true) {
-      VectorParams params = dataResponse0Params.Pop();
+      VectorParams params = data_resp_0_params.Pop();
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_starts[2][3];
@@ -337,18 +340,18 @@ SC_MODULE(VectorFetchUnit) {
 #pragma hls_unroll yes
         for (int j = 0; j < 3; j++) {
           loop_starts[i][j] = 0;
-          loop_ends[i][j] = params.addressGen0Loop[i][j];
+          loop_ends[i][j] = params.addr_gen0_loops[i][j];
           loop_steps[i][j] = 1;
         }
       }
 
       if (params.has_slicing) {
-        int slice_dim = params.vec0_dim;
+        int slice_dim = params.addr_gen0_dim;
         int i = slice_dim >= 3 ? 1 : 0;
         int j = slice_dim >= 3 ? slice_dim - 3 : slice_dim;
-        loop_starts[i][j] = params.vec0_start;
-        loop_ends[i][j] = params.vec0_end;
-        loop_steps[i][j] = params.vec0_step;
+        loop_starts[i][j] = params.addr_gen0_start;
+        loop_ends[i][j] = params.addr_gen0_end;
+        loop_steps[i][j] = params.addr_gen0_step;
       }
 
       if (params.has_transpose) {
@@ -375,10 +378,9 @@ SC_MODULE(VectorFetchUnit) {
 
                     bool found =
                         ((get_type_index<InputTypes, InputTypes...>() ==
-                                  params.vector_input_0_type
-                              ? (feed_response<VectorType, IOType, InputTypes,
-                                               Width>(vectorFetch0DataResponse,
-                                                      full_response),
+                                  params.addr_gen0_dtype
+                              ? (feed_response<InputTypes, VectorType, Width>(
+                                     vector_fetch_0_resp_in, full_response),
                                  true)
                               : false) ||
                          ...);
@@ -386,14 +388,14 @@ SC_MODULE(VectorFetchUnit) {
 #ifndef __SYNTHESIS__
                     if (!found) {
                       std::cerr << "Error: vector input 0 type index '"
-                                << params.vector_input_0_type
+                                << params.addr_gen0_dtype
                                 << "' is not valid.\n";
                     }
 #endif
 
                     Pack1D<VectorType, Width> dequantized;
                     vdequantize<VectorType, VectorType, Width>(
-                        full_response, dequantized, params.vec0_dq_scale);
+                        full_response, dequantized, params.addr_gen0_dq_scale);
 
                     // We may not use all the data in the response
 #pragma hls_unroll yes
@@ -410,26 +412,26 @@ SC_MODULE(VectorFetchUnit) {
                       transposed[col] = buffer[row][col];
                     }
 
-                    vectorFetch0DataResponseConverted.Push(transposed);
+                    vector_fetch_0_data_out.Push(transposed);
                   }
                 }
               }
             }
           }
         }
-      } else if (params.addressGen0Mode == 3) {
+      } else if (params.addr_gen0_mode == 3) {
         ac_int<11, false> Y1 =
-            params.addressGen0Loop[0][params.addressGen0InputYLoopIndex[0]];
+            params.addr_gen0_loops[0][params.addr_gen0_y_loop_idx[0]];
         ac_int<11, false> X1 =
-            params.addressGen0Loop[0][params.addressGen0InputXLoopIndex[0]];
+            params.addr_gen0_loops[0][params.addr_gen0_x_loop_idx[0]];
         ac_int<11, false> K1 =
-            params.addressGen0Loop[0][params.addressGen0WeightLoopIndex[0]];
+            params.addr_gen0_loops[0][params.addr_gen0_k_loop_idx[0]];
         ac_int<11, false> Y0 =
-            params.addressGen0Loop[1][params.addressGen0InputYLoopIndex[1]];
+            params.addr_gen0_loops[1][params.addr_gen0_y_loop_idx[1]];
         ac_int<11, false> X0 =
-            params.addressGen0Loop[1][params.addressGen0InputXLoopIndex[1]];
+            params.addr_gen0_loops[1][params.addr_gen0_x_loop_idx[1]];
         ac_int<11, false> K0 =
-            params.addressGen0Loop[1][params.addressGen0WeightLoopIndex[1]];
+            params.addr_gen0_loops[1][params.addr_gen0_k_loop_idx[1]];
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
@@ -457,17 +459,17 @@ SC_MODULE(VectorFetchUnit) {
                     accumulationBufferOutput.Push(read_data);
 
                     ac_int<11, false> x0 =
-                        loop_counters[1][params.addressGen0InputXLoopIndex[1]];
+                        loop_counters[1][params.addr_gen0_x_loop_idx[1]];
                     ac_int<11, false> x1 =
-                        loop_counters[0][params.addressGen0InputXLoopIndex[0]];
+                        loop_counters[0][params.addr_gen0_x_loop_idx[0]];
                     ac_int<11, false> y0 =
-                        loop_counters[1][params.addressGen0InputYLoopIndex[1]];
+                        loop_counters[1][params.addr_gen0_y_loop_idx[1]];
                     ac_int<11, false> y1 =
-                        loop_counters[0][params.addressGen0InputYLoopIndex[0]];
+                        loop_counters[0][params.addr_gen0_y_loop_idx[0]];
                     ac_int<11, false> k0 =
-                        loop_counters[1][params.addressGen0WeightLoopIndex[1]];
+                        loop_counters[1][params.addr_gen0_k_loop_idx[1]];
                     ac_int<11, false> k1 =
-                        loop_counters[0][params.addressGen0WeightLoopIndex[0]];
+                        loop_counters[0][params.addr_gen0_k_loop_idx[0]];
 
                     if (k0 == K0 - 1 && y0 == Y0 - 1 && x0 == X0 - 1) {
                       accumulation_buffer_bank = !accumulation_buffer_bank;
@@ -509,53 +511,52 @@ SC_MODULE(VectorFetchUnit) {
         for (int i = 0; i < num_writes; i++) {
           Pack1D<VectorType, Width> full_response;
 
-          bool found =
-              ((get_type_index<InputTypes, InputTypes...>() ==
-                        params.vector_input_0_type
-                    ? (feed_response<VectorType, IOType, InputTypes, Width>(
-                           vectorFetch0DataResponse, full_response),
-                       true)
-                    : false) ||
-               ...);
+          bool found = ((get_type_index<InputTypes, InputTypes...>() ==
+                                 params.addr_gen0_dtype
+                             ? (feed_response<InputTypes, VectorType, Width>(
+                                    vector_fetch_0_resp_in, full_response),
+                                true)
+                             : false) ||
+                        ...);
 
 #ifndef __SYNTHESIS__
           if (!found) {
             std::cerr << "Error: vector input 0 type index '"
-                      << params.vector_input_0_type << "' is not valid.\n";
+                      << params.addr_gen0_dtype << "' is not valid.\n";
           }
 #endif
 
           Pack1D<VectorType, Width> dequantized;
           vdequantize<VectorType, VectorType, Width>(full_response, dequantized,
-                                                     params.vec0_dq_scale);
+                                                     params.addr_gen0_dq_scale);
 
-          vectorFetch0DataResponseConverted.Push(dequantized);
+          vector_fetch_0_data_out.Push(dequantized);
         }
       }
     }
   }
 
   void fetch_address_1() {
-    addressGen1Params.ResetRead();
-    vectorFetch1AddressRequest.Reset();
+    addr_gen1_params.ResetRead();
+    vector_fetch_1_request_out.Reset();
 
     wait();
 
     while (true) {
-      VectorParams params = addressGen1Params.Pop();
+      VectorParams params = addr_gen1_params.Pop();
 
       ac_int<11, false> Y1 =
-          params.addressGen1Loops[0][params.addressGen1InputYLoopIndex[0]];
+          params.addr_gen1_loops[0][params.addr_gen1_y_loop_idx[0]];
       ac_int<11, false> X1 =
-          params.addressGen1Loops[0][params.addressGen1InputXLoopIndex[0]];
+          params.addr_gen1_loops[0][params.addr_gen1_x_loop_idx[0]];
       ac_int<11, false> K1 =
-          params.addressGen1Loops[0][params.addressGen1WeightLoopIndex[0]];
+          params.addr_gen1_loops[0][params.addr_gen1_k_loop_idx[0]];
       ac_int<11, false> Y0 =
-          params.addressGen1Loops[1][params.addressGen1InputYLoopIndex[1]];
+          params.addr_gen1_loops[1][params.addr_gen1_y_loop_idx[1]];
       ac_int<11, false> X0 =
-          params.addressGen1Loops[1][params.addressGen1InputXLoopIndex[1]];
+          params.addr_gen1_loops[1][params.addr_gen1_x_loop_idx[1]];
       ac_int<11, false> K0 =
-          params.addressGen1Loops[1][params.addressGen1WeightLoopIndex[1]];
+          params.addr_gen1_loops[1][params.addr_gen1_k_loop_idx[1]];
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_starts[2][3];
@@ -567,7 +568,7 @@ SC_MODULE(VectorFetchUnit) {
 #pragma hls_unroll yes
         for (int j = 0; j < 3; j++) {
           loop_starts[i][j] = 0;
-          loop_ends[i][j] = params.addressGen1Loops[i][j];
+          loop_ends[i][j] = params.addr_gen1_loops[i][j];
           loop_steps[i][j] = 1;
         }
       }
@@ -592,17 +593,17 @@ SC_MODULE(VectorFetchUnit) {
                      loop_counters[1][2] < loop_ends[1][2];
                      loop_counters[1][2] += loop_steps[1][2]) {
                   ac_int<11, false> x0 =
-                      loop_counters[1][params.addressGen1InputXLoopIndex[1]];
+                      loop_counters[1][params.addr_gen1_x_loop_idx[1]];
                   ac_int<11, false> x1 =
-                      loop_counters[0][params.addressGen1InputXLoopIndex[0]];
+                      loop_counters[0][params.addr_gen1_x_loop_idx[0]];
                   ac_int<11, false> y0 =
-                      loop_counters[1][params.addressGen1InputYLoopIndex[1]];
+                      loop_counters[1][params.addr_gen1_y_loop_idx[1]];
                   ac_int<11, false> y1 =
-                      loop_counters[0][params.addressGen1InputYLoopIndex[0]];
+                      loop_counters[0][params.addr_gen1_y_loop_idx[0]];
                   ac_int<11, false> k0 =
-                      loop_counters[1][params.addressGen1WeightLoopIndex[1]];
+                      loop_counters[1][params.addr_gen1_k_loop_idx[1]];
                   ac_int<11, false> k1 =
-                      loop_counters[0][params.addressGen1WeightLoopIndex[0]];
+                      loop_counters[0][params.addr_gen1_k_loop_idx[0]];
 
                   ac_int<16, false> k = k1 * K0 * Width + k0 * Width;
                   ac_int<16, false> K = K1 * K0 * Width;
@@ -613,16 +614,16 @@ SC_MODULE(VectorFetchUnit) {
                   ac_int<16, false> y = y1 * Y0 + y0;
                   ac_int<16, false> Y = Y1 * Y0;
 
-                  if (params.vec1_broadcast[0]) {
+                  if (params.addr_gen1_broadcast[0]) {
                     y = 0;
                   }
 
-                  if (params.vec1_broadcast[1]) {
+                  if (params.addr_gen1_broadcast[1]) {
                     x = 0;
                     X = 1;
                   }
 
-                  if (params.vec1_broadcast[2]) {
+                  if (params.addr_gen1_broadcast[2]) {
                     k = 0;
                     K = 1;
                   }
@@ -630,10 +631,10 @@ SC_MODULE(VectorFetchUnit) {
                   ac_int<32, false> address = y * X * K + x * K + k;
 
                   bool found = ((get_type_index<InputTypes, InputTypes...>() ==
-                                         params.vector_input_1_type
+                                         params.addr_gen1_dtype
                                      ? (send_request<InputTypes, Width>(
                                             address, params.ADDRESS_GEN1_OFFSET,
-                                            vectorFetch1AddressRequest),
+                                            vector_fetch_1_request_out),
                                         true)
                                      : false) ||
                                 ...);
@@ -641,8 +642,7 @@ SC_MODULE(VectorFetchUnit) {
 #ifndef __SYNTHESIS__
                   if (!found) {
                     std::cerr << "Error: vector input 1 type index '"
-                              << params.vector_input_1_type
-                              << "' is not valid.\n";
+                              << params.addr_gen1_dtype << "' is not valid.\n";
                   }
 #endif
 
@@ -675,14 +675,14 @@ SC_MODULE(VectorFetchUnit) {
   }
 
   void feed_data_response_1() {
-    dataResponse1Params.ResetRead();
-    vectorFetch1DataResponse.Reset();
-    vectorFetch1DataResponseConverted.Reset();
+    data_resp_1_params.ResetRead();
+    vector_fetch_1_resp_in.Reset();
+    vector_fetch_1_data_out.Reset();
 
     wait();
 
     while (true) {
-      VectorParams params = dataResponse1Params.Pop();
+      VectorParams params = data_resp_1_params.Pop();
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_starts[2][3];
@@ -694,7 +694,7 @@ SC_MODULE(VectorFetchUnit) {
 #pragma hls_unroll yes
         for (int j = 0; j < 3; j++) {
           loop_starts[i][j] = 0;
-          loop_ends[i][j] = params.addressGen1Loops[i][j];
+          loop_ends[i][j] = params.addr_gen1_loops[i][j];
           loop_steps[i][j] = 1;
         }
       }
@@ -722,10 +722,9 @@ SC_MODULE(VectorFetchUnit) {
 
                   bool found =
                       ((get_type_index<InputTypes, InputTypes...>() ==
-                                params.vector_input_1_type
-                            ? (feed_response<VectorType, IOType, InputTypes,
-                                             Width>(vectorFetch1DataResponse,
-                                                    full_response),
+                                params.addr_gen1_dtype
+                            ? (feed_response<InputTypes, VectorType, Width>(
+                                   vector_fetch_1_resp_in, full_response),
                                true)
                             : false) ||
                        ...);
@@ -733,16 +732,15 @@ SC_MODULE(VectorFetchUnit) {
 #ifndef __SYNTHESIS__
                   if (!found) {
                     std::cerr << "Error: vector input 1 type index '"
-                              << params.vector_input_1_type
-                              << "' is not valid.\n";
+                              << params.addr_gen1_dtype << "' is not valid.\n";
                   }
 #endif
 
                   Pack1D<VectorType, Width> dequantized;
                   vdequantize<VectorType, VectorType, Width>(
-                      full_response, dequantized, params.vec1_dq_scale);
+                      full_response, dequantized, params.addr_gen1_dq_scale);
 
-                  vectorFetch1DataResponseConverted.Push(dequantized);
+                  vector_fetch_1_data_out.Push(dequantized);
 
                   if (loop_counters[1][2] >=
                       loop_ends[1][2] - loop_steps[1][2]) {
@@ -773,26 +771,26 @@ SC_MODULE(VectorFetchUnit) {
   }
 
   void fetch_address_2() {
-    addressGen2Params.ResetRead();
-    vectorFetch2AddressRequest.Reset();
+    addr_gen2_params.ResetRead();
+    vector_fetch_2_request_out.Reset();
 
     wait();
 
     while (true) {
-      VectorParams params = addressGen2Params.Pop();
+      VectorParams params = addr_gen2_params.Pop();
 
       ac_int<11, false> Y1 =
-          params.addressGen2Loops[0][params.addressGen2InputYLoopIndex[0]];
+          params.addr_gen2_loops[0][params.addr_gen2_y_loop_idx[0]];
       ac_int<11, false> X1 =
-          params.addressGen2Loops[0][params.addressGen2InputXLoopIndex[0]];
+          params.addr_gen2_loops[0][params.addr_gen2_x_loop_idx[0]];
       ac_int<11, false> K1 =
-          params.addressGen2Loops[0][params.addressGen2WeightLoopIndex[0]];
+          params.addr_gen2_loops[0][params.addr_gen2_k_loop_idx[0]];
       ac_int<11, false> Y0 =
-          params.addressGen2Loops[1][params.addressGen2InputYLoopIndex[1]];
+          params.addr_gen2_loops[1][params.addr_gen2_y_loop_idx[1]];
       ac_int<11, false> X0 =
-          params.addressGen2Loops[1][params.addressGen2InputXLoopIndex[1]];
+          params.addr_gen2_loops[1][params.addr_gen2_x_loop_idx[1]];
       ac_int<11, false> K0 =
-          params.addressGen2Loops[1][params.addressGen2WeightLoopIndex[1]];
+          params.addr_gen2_loops[1][params.addr_gen2_k_loop_idx[1]];
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_starts[2][3];
@@ -804,7 +802,7 @@ SC_MODULE(VectorFetchUnit) {
 #pragma hls_unroll yes
         for (int j = 0; j < 3; j++) {
           loop_starts[i][j] = 0;
-          loop_ends[i][j] = params.addressGen2Loops[i][j];
+          loop_ends[i][j] = params.addr_gen2_loops[i][j];
           loop_steps[i][j] = 1;
         }
       }
@@ -829,17 +827,17 @@ SC_MODULE(VectorFetchUnit) {
                      loop_counters[1][2] < loop_ends[1][2];
                      loop_counters[1][2] += loop_steps[1][2]) {
                   ac_int<11, false> x0 =
-                      loop_counters[1][params.addressGen2InputXLoopIndex[1]];
+                      loop_counters[1][params.addr_gen2_x_loop_idx[1]];
                   ac_int<11, false> x1 =
-                      loop_counters[0][params.addressGen2InputXLoopIndex[0]];
+                      loop_counters[0][params.addr_gen2_x_loop_idx[0]];
                   ac_int<11, false> y0 =
-                      loop_counters[1][params.addressGen2InputYLoopIndex[1]];
+                      loop_counters[1][params.addr_gen2_y_loop_idx[1]];
                   ac_int<11, false> y1 =
-                      loop_counters[0][params.addressGen2InputYLoopIndex[0]];
+                      loop_counters[0][params.addr_gen2_y_loop_idx[0]];
                   ac_int<11, false> k0 =
-                      loop_counters[1][params.addressGen2WeightLoopIndex[1]];
+                      loop_counters[1][params.addr_gen2_k_loop_idx[1]];
                   ac_int<11, false> k1 =
-                      loop_counters[0][params.addressGen2WeightLoopIndex[0]];
+                      loop_counters[0][params.addr_gen2_k_loop_idx[0]];
 
                   ac_int<16, false> k = k1 * K0 * Width + k0 * Width;
                   ac_int<16, false> K = K1 * K0 * Width;
@@ -850,16 +848,16 @@ SC_MODULE(VectorFetchUnit) {
                   ac_int<16, false> y = y1 * Y0 + y0;
                   ac_int<16, false> Y = Y1 * Y0;
 
-                  if (params.vec2_broadcast[0]) {
+                  if (params.addr_gen2_broadcast[0]) {
                     y = 0;
                   }
 
-                  if (params.vec2_broadcast[1]) {
+                  if (params.addr_gen2_broadcast[1]) {
                     x = 0;
                     X = 1;
                   }
 
-                  if (params.vec2_broadcast[2]) {
+                  if (params.addr_gen2_broadcast[2]) {
                     k = 0;
                     K = 1;
                   }
@@ -867,10 +865,10 @@ SC_MODULE(VectorFetchUnit) {
                   ac_int<32, false> address = y * X * K + x * K + k;
 
                   bool found = ((get_type_index<InputTypes, InputTypes...>() ==
-                                         params.vector_input_2_type
+                                         params.addr_gen2_dtype
                                      ? (send_request<InputTypes, Width>(
                                             address, params.ADDRESS_GEN2_OFFSET,
-                                            vectorFetch2AddressRequest),
+                                            vector_fetch_2_request_out),
                                         true)
                                      : false) ||
                                 ...);
@@ -878,8 +876,7 @@ SC_MODULE(VectorFetchUnit) {
 #ifndef __SYNTHESIS__
                   if (!found) {
                     std::cerr << "Error: vector input 2 type index '"
-                              << params.vector_input_2_type
-                              << "' is not valid.\n";
+                              << params.addr_gen2_dtype << "' is not valid.\n";
                   }
 #endif
 
@@ -912,14 +909,14 @@ SC_MODULE(VectorFetchUnit) {
   }
 
   void feed_data_response_2() {
-    dataResponse2Params.ResetRead();
-    vectorFetch2DataResponse.Reset();
-    vectorFetch2DataResponseConverted.Reset();
+    data_resp_2_params.ResetRead();
+    vector_fetch_2_resp_in.Reset();
+    vector_fetch_2_data_out.Reset();
 
     wait();
 
     while (true) {
-      VectorParams params = dataResponse2Params.Pop();
+      VectorParams params = data_resp_2_params.Pop();
 
       ac_int<11, false> loop_counters[2][3];
       ac_int<11, false> loop_starts[2][3];
@@ -931,7 +928,7 @@ SC_MODULE(VectorFetchUnit) {
 #pragma hls_unroll yes
         for (int j = 0; j < 3; j++) {
           loop_starts[i][j] = 0;
-          loop_ends[i][j] = params.addressGen2Loops[i][j];
+          loop_ends[i][j] = params.addr_gen2_loops[i][j];
           loop_steps[i][j] = 1;
         }
       }
@@ -959,10 +956,9 @@ SC_MODULE(VectorFetchUnit) {
 
                   bool found =
                       ((get_type_index<InputTypes, InputTypes...>() ==
-                                params.vector_input_2_type
-                            ? (feed_response<VectorType, IOType, InputTypes,
-                                             Width>(vectorFetch2DataResponse,
-                                                    full_response),
+                                params.addr_gen2_dtype
+                            ? (feed_response<InputTypes, VectorType, Width>(
+                                   vector_fetch_2_resp_in, full_response),
                                true)
                             : false) ||
                        ...);
@@ -970,16 +966,15 @@ SC_MODULE(VectorFetchUnit) {
 #ifndef __SYNTHESIS__
                   if (!found) {
                     std::cerr << "Error: vector input 2 type index '"
-                              << params.vector_input_2_type
-                              << "' is not valid.\n";
+                              << params.addr_gen2_dtype << "' is not valid.\n";
                   }
 #endif
 
                   Pack1D<VectorType, Width> dequantized;
                   vdequantize<VectorType, VectorType, Width>(
-                      full_response, dequantized, params.vec2_dq_scale);
+                      full_response, dequantized, params.addr_gen2_dq_scale);
 
-                  vectorFetch2DataResponseConverted.Push(dequantized);
+                  vector_fetch_2_data_out.Push(dequantized);
 
                   if (loop_counters[1][2] >=
                       loop_ends[1][2] - loop_steps[1][2]) {
@@ -1010,34 +1005,34 @@ SC_MODULE(VectorFetchUnit) {
   }
 
   void read_params() {
-    paramsIn.Reset();
+    params_in.Reset();
 
-    addressGen0Params.ResetWrite();
-    addressGen1Params.ResetWrite();
-    addressGen2Params.ResetWrite();
+    addr_gen0_params.ResetWrite();
+    addr_gen1_params.ResetWrite();
+    addr_gen2_params.ResetWrite();
 
-    dataResponse0Params.ResetWrite();
-    dataResponse1Params.ResetWrite();
-    dataResponse2Params.ResetWrite();
+    data_resp_0_params.ResetWrite();
+    data_resp_1_params.ResetWrite();
+    data_resp_2_params.ResetWrite();
 
     wait();
 
     while (true) {
-      VectorParams params = paramsIn.Pop();
+      VectorParams params = params_in.Pop();
 
-      if (params.addressGen0Mode != 0) {
-        addressGen0Params.Push(params);
-        dataResponse0Params.Push(params);
+      if (params.addr_gen0_mode != 0) {
+        addr_gen0_params.Push(params);
+        data_resp_0_params.Push(params);
       }
 
-      if (params.addressGen1Mode != 0) {
-        addressGen1Params.Push(params);
-        dataResponse1Params.Push(params);
+      if (params.addr_gen1_mode != 0) {
+        addr_gen1_params.Push(params);
+        data_resp_1_params.Push(params);
       }
 
-      if (params.addressGen2Mode != 0) {
-        addressGen2Params.Push(params);
-        dataResponse2Params.Push(params);
+      if (params.addr_gen2_mode != 0) {
+        addr_gen2_params.Push(params);
+        data_resp_2_params.Push(params);
       }
     }
   }

@@ -3,14 +3,14 @@
 #include <mc_connections.h>
 #include <systemc.h>
 
-template <typename Buffer, int Width, int BufferSize>
+template <typename T, int BufferSize>
 SC_MODULE(DualPortDoubleBuffer) {
  private:
   static const unsigned int NUM_BANKS = 2;
   static const unsigned int NUM_PORTS_PER_BANK = 2;
 
-  Pack1D<Buffer, Width> bank0[BufferSize];
-  Pack1D<Buffer, Width> bank1[BufferSize];
+  T bank0[BufferSize];
+  T bank1[BufferSize];
 
  public:
   sc_in<bool> CCS_INIT_S1(clk);
@@ -18,9 +18,8 @@ SC_MODULE(DualPortDoubleBuffer) {
 
   Connections::In<ac_int<16, false>>
       read_address[NUM_BANKS * NUM_PORTS_PER_BANK];
-  Connections::Out<Pack1D<Buffer, Width>>
-      read_data[NUM_BANKS * NUM_PORTS_PER_BANK];
-  Connections::In<BufferWriteRequest<Buffer, Width>>
+  Connections::Out<T> read_data[NUM_BANKS * NUM_PORTS_PER_BANK];
+  Connections::In<BufferWriteRequest<T>>
       write_request[NUM_BANKS * NUM_PORTS_PER_BANK];
   Connections::SyncIn done[NUM_BANKS * NUM_PORTS_PER_BANK];
 
@@ -57,7 +56,7 @@ SC_MODULE(DualPortDoubleBuffer) {
         for (int i = 0; i < 100; i++)
 #endif
         {
-          BufferWriteRequest<Buffer, Width> req;
+          BufferWriteRequest<T> req;
 
           if (write_request[port_sel].PopNB(req)) {
 #ifndef __SYNTHESIS__
@@ -79,7 +78,7 @@ SC_MODULE(DualPortDoubleBuffer) {
             }
 #endif
 
-            Pack1D<Buffer, Width> r_data;
+            T r_data;
           READ_BANK_0:
             r_data = bank0[r_addr];
             read_data[port_sel].Push(r_data);
@@ -122,7 +121,7 @@ SC_MODULE(DualPortDoubleBuffer) {
         for (int i = 0; i < 100; i++)
 #endif
         {
-          BufferWriteRequest<Buffer, Width> req;
+          BufferWriteRequest<T> req;
 
           if (write_request[port_idx].PopNB(req)) {
 #ifndef __SYNTHESIS__
@@ -145,7 +144,7 @@ SC_MODULE(DualPortDoubleBuffer) {
             }
 #endif
 
-            Pack1D<Buffer, Width> r_data;
+            T r_data;
           READ_BANK_1:
             r_data = bank1[r_addr];
             read_data[port_idx].Push(r_data);

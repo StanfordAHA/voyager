@@ -7,20 +7,21 @@
 #include "test/common/AccessCounter.h"
 #endif
 
-template <typename DTYPE, int WIDTH, int BUFFER_SIZE>
+template <int Width, int Depth>
 SC_MODULE(DoubleBuffer) {
  private:
-  Pack1D<DTYPE, WIDTH> mem0[BUFFER_SIZE];
-  Pack1D<DTYPE, WIDTH> mem1[BUFFER_SIZE];
+  ac_int<Width, false> mem0[Depth];
+  ac_int<Width, false> mem1[Depth];
 
  public:
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
-  Connections::In<BufferWriteRequest<DTYPE, WIDTH> > writeRequest[2];
+  Connections::In<BufferWriteRequest<ac_int<Width, false>>> writeRequest[2];
   Connections::In<BufferReadRequest> readAddress[2];
-  Connections::Combinational<BufferReadResponse<DTYPE, WIDTH> > readData[2];
-  Connections::Out<Pack1D<DTYPE, WIDTH> > CCS_INIT_S1(output);
+  Connections::Combinational<BufferReadResponse<ac_int<Width, false>>>
+      readData[2];
+  Connections::Out<ac_int<Width, false>> CCS_INIT_S1(output);
 
 #ifndef __SYNTHESIS__
   AccessCounter *accessCounter;
@@ -57,7 +58,7 @@ SC_MODULE(DoubleBuffer) {
     while (true) {
       bool done = false;
       while (!done) {
-        BufferWriteRequest<DTYPE, WIDTH> req = writeRequest[port].Pop();
+        BufferWriteRequest<ac_int<Width, false>> req = writeRequest[port].Pop();
         if (req.last) {
           done = true;
         }
@@ -65,13 +66,13 @@ SC_MODULE(DoubleBuffer) {
         ac_int<16, false> address = req.address;
 
 #ifndef __SYNTHESIS__
-        if (address > BUFFER_SIZE) {
+        if (address > Depth) {
           CCS_LOG("Address " << address << " is out of bounds!");
           throw std::runtime_error("Address out of bounds");
         }
 #endif
 
-        Pack1D<DTYPE, WIDTH> data = req.data;
+        ac_int<Width, false> data = req.data;
 
         if constexpr (port == 0) {
           mem0[address] = data;
@@ -89,10 +90,10 @@ SC_MODULE(DoubleBuffer) {
         }
 
 #ifndef __SYNTHESIS__
-        accessCounter->increment(name(), WIDTH);
+        accessCounter->increment(name(), Width);
 #endif
 
-        BufferReadResponse<DTYPE, WIDTH> response;
+        BufferReadResponse<ac_int<Width, false>> response;
         response.last = req.last;
 
         if (address != 0xFFFF) {
@@ -102,10 +103,7 @@ SC_MODULE(DoubleBuffer) {
             response.data = mem1[address];
           }
         } else {
-#pragma hls_unroll yes
-          for (int j = 0; j < WIDTH; j++) {
-            response.data[j].set_zero();
-          }
+          response.data = 0;
         }
         readData[port].Push(response);
       }
@@ -130,7 +128,8 @@ SC_MODULE(DoubleBuffer) {
     while (true) {
       bool done = false;
       while (!done) {
-        BufferReadResponse<DTYPE, WIDTH> response = readData[bankSel].Pop();
+        BufferReadResponse<ac_int<Width, false>> response =
+            readData[bankSel].Pop();
         if (response.last) {
           done = true;
         }
