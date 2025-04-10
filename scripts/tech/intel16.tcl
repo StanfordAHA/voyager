@@ -7,7 +7,7 @@ catch {
   solution library add intel16_sram_wrapper_1r1w
   solution library add intel16_sram_wrapper_1rw
   solution library add intel16_2048x8b_rf_wrapper_1r1w
-  solution library add intel16_32x256b_rf_wrapper_1r1w
+  solution library add intel16_64x256b_rf_wrapper_1r1w
 } res
 
 puts $res

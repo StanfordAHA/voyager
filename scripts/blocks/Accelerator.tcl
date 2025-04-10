@@ -69,7 +69,7 @@ proc pre_architect {} {
     global SCALE_DATATYPE SCALE_DATATYPE_WIDTH
 
     # Weight scale buffer 
-    set WEIGHT_SCALE_BUFFER_SIZE [expr {$WEIGHT_BUFFER_SIZE / 32}] 
+    set WEIGHT_SCALE_BUFFER_SIZE [expr {$WEIGHT_BUFFER_SIZE / 16}] 
     set weight_scale_width [expr $SCALE_DATATYPE_WIDTH*$OC_DIMENSION]
 
     set weight_scale_double_buffer "DoubleBuffer<$weight_scale_width,$WEIGHT_SCALE_BUFFER_SIZE>"
@@ -77,12 +77,13 @@ proc pre_architect {} {
     directive set /Accelerator/$weight_scale_double_buffer/$weight_scale_double_buffer:mem1Run/mem1Run/mem1 -WORD_WIDTH $weight_scale_width
 
     if {$TECHNOLOGY == "intel16"} {
-      directive set /Accelerator/$weight_scale_double_buffer/$weight_scale_double_buffer:mem0Run/mem0Run/mem0:rsc -MAP_TO_MODULE "intel16_32x256b_rf_wrapper_1r1w.intel16_32x256b_rf_wrapper_1r1w"
-      directive set /Accelerator/$weight_scale_double_buffer/$weight_scale_double_buffer:mem1Run/mem1Run/mem1:rsc -MAP_TO_MODULE "intel16_32x256b_rf_wrapper_1r1w.intel16_32x256b_rf_wrapper_1r1w"
+      directive set /Accelerator/$weight_scale_double_buffer/$weight_scale_double_buffer:mem0Run/mem0Run/mem0:rsc -MAP_TO_MODULE "intel16_64x256b_rf_wrapper_1r1w.intel16_64x256b_rf_wrapper_1r1w"
+      directive set /Accelerator/$weight_scale_double_buffer/$weight_scale_double_buffer:mem1Run/mem1Run/mem1:rsc -MAP_TO_MODULE "intel16_64x256b_rf_wrapper_1r1w.intel16_64x256b_rf_wrapper_1r1w"
     }
 
     # Input scale buffer
-    set INPUT_SCALE_BUFFER_SIZE [expr {$INPUT_BUFFER_SIZE / 32}]
+    # set INPUT_SCALE_BUFFER_SIZE [expr {$INPUT_BUFFER_SIZE / 32}]
+    set INPUT_SCALE_BUFFER_SIZE 2048
     set input_scale_width [expr $SCALE_DATATYPE_WIDTH]
 
     set input_scale_double_buffer "DoubleBuffer<$input_scale_width,$INPUT_SCALE_BUFFER_SIZE>"

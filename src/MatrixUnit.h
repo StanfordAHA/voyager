@@ -50,8 +50,8 @@ SC_MODULE(MatrixUnit) {
 #if SUPPORT_MX
   InputScaleController<SCALE_DATATYPE, IC_DIMENSION> CCS_INIT_S1(
       inputScaleController);
-  DoubleBuffer<SCALE_DATATYPE::width, INPUT_BUFFER_SIZE/32> CCS_INIT_S1(
-      inputScaleBuffer);
+  DoubleBuffer<SCALE_DATATYPE::width, 2048> CCS_INIT_S1(
+        inputScaleBuffer);    
   Connections::Out<MemoryRequest> CCS_INIT_S1(inputScaleAddressRequest);
   Connections::In<ac_int<SCALE_DATATYPE::width, false>> CCS_INIT_S1(
       inputScaleDataResponse);
@@ -90,7 +90,7 @@ SC_MODULE(MatrixUnit) {
 #if SUPPORT_MX
   WeightScaleController<SCALE_DATATYPE, IC_DIMENSION, OC_DIMENSION> CCS_INIT_S1(
       weightScaleController);
-  DoubleBuffer<SCALE_DATATYPE::width * OC_DIMENSION, WEIGHT_BUFFER_SIZE/32>
+  DoubleBuffer<SCALE_DATATYPE::width * OC_DIMENSION, WEIGHT_BUFFER_SIZE/16>
       CCS_INIT_S1(weightScaleBuffer);
   Connections::Out<MemoryRequest> CCS_INIT_S1(weightScaleAddressRequest);
   Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(
