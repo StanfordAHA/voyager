@@ -153,21 +153,21 @@ class Pack1D {
 // TODO: is there a way to make this more generic?
 
 template <size_t Width, int nbits, int es>
-class Pack1D<PEInput<Posit<nbits, es> >, Width> {
+class Pack1D<PEInput<Posit<nbits, es>>, Width> {
  public:
-  PEInput<Posit<nbits, es> > value[Width];
+  PEInput<Posit<nbits, es>> value[Width];
 
-  static const unsigned int width = PEInput<Posit<nbits, es> >::width * Width;
+  static const unsigned int width = PEInput<Posit<nbits, es>>::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
-  operator int() const { return Pack1D<PEInput<Posit<nbits, es> >, Width>(); }
+  operator int() const { return Pack1D<PEInput<Posit<nbits, es>>, Width>(); }
 
-  PEInput<Posit<nbits, es> > &operator[](unsigned int i) {
+  PEInput<Posit<nbits, es>> &operator[](unsigned int i) {
     return this->value[i];
   }
-  const PEInput<Posit<nbits, es> > &operator[](unsigned int i) const {
+  const PEInput<Posit<nbits, es>> &operator[](unsigned int i) const {
     return this->value[i];
   }
   template <unsigned int Size>
@@ -194,21 +194,21 @@ class Pack1D<PEInput<Posit<nbits, es> >, Width> {
 };
 
 template <size_t Width, int nbits, int es>
-class Pack1D<PEWeight<Posit<nbits, es> >, Width> {
+class Pack1D<PEWeight<Posit<nbits, es>>, Width> {
  public:
-  PEWeight<Posit<nbits, es> > value[Width];
+  PEWeight<Posit<nbits, es>> value[Width];
 
-  static const unsigned int width = PEWeight<Posit<nbits, es> >::width * Width;
+  static const unsigned int width = PEWeight<Posit<nbits, es>>::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
-  operator int() const { return Pack1D<PEWeight<Posit<nbits, es> >, Width>(); }
+  operator int() const { return Pack1D<PEWeight<Posit<nbits, es>>, Width>(); }
 
-  PEWeight<Posit<nbits, es> > &operator[](unsigned int i) {
+  PEWeight<Posit<nbits, es>> &operator[](unsigned int i) {
     return this->value[i];
   }
-  const PEWeight<Posit<nbits, es> > &operator[](unsigned int i) const {
+  const PEWeight<Posit<nbits, es>> &operator[](unsigned int i) const {
     return this->value[i];
   }
   template <unsigned int Size>
@@ -268,24 +268,24 @@ class Pack1D<StdFloat<mantissa, exp>, Width> {
 };
 
 template <size_t Width, int mantissa, int exp>
-class Pack1D<PEInput<StdFloat<mantissa, exp> >, Width> {
+class Pack1D<PEInput<StdFloat<mantissa, exp>>, Width> {
  public:
-  PEInput<StdFloat<mantissa, exp> > value[Width];
+  PEInput<StdFloat<mantissa, exp>> value[Width];
 
   static const unsigned int width =
-      PEInput<StdFloat<mantissa, exp> >::width * Width;
+      PEInput<StdFloat<mantissa, exp>>::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
   operator int() const {
-    return Pack1D<PEInput<StdFloat<mantissa, exp> >, Width>();
+    return Pack1D<PEInput<StdFloat<mantissa, exp>>, Width>();
   }
 
-  PEInput<StdFloat<mantissa, exp> > &operator[](unsigned int i) {
+  PEInput<StdFloat<mantissa, exp>> &operator[](unsigned int i) {
     return this->value[i];
   }
-  const PEInput<StdFloat<mantissa, exp> > &operator[](unsigned int i) const {
+  const PEInput<StdFloat<mantissa, exp>> &operator[](unsigned int i) const {
     return this->value[i];
   }
   template <unsigned int Size>
@@ -312,24 +312,24 @@ class Pack1D<PEInput<StdFloat<mantissa, exp> >, Width> {
 };
 
 template <size_t Width, int mantissa, int exp>
-class Pack1D<PEWeight<StdFloat<mantissa, exp> >, Width> {
+class Pack1D<PEWeight<StdFloat<mantissa, exp>>, Width> {
  public:
-  PEWeight<StdFloat<mantissa, exp> > value[Width];
+  PEWeight<StdFloat<mantissa, exp>> value[Width];
 
   static const unsigned int width =
-      PEWeight<StdFloat<mantissa, exp> >::width * Width;
+      PEWeight<StdFloat<mantissa, exp>>::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
   operator int() const {
-    return Pack1D<PEWeight<StdFloat<mantissa, exp> >, Width>();
+    return Pack1D<PEWeight<StdFloat<mantissa, exp>>, Width>();
   }
 
-  PEWeight<StdFloat<mantissa, exp> > &operator[](unsigned int i) {
+  PEWeight<StdFloat<mantissa, exp>> &operator[](unsigned int i) {
     return this->value[i];
   }
-  const PEWeight<StdFloat<mantissa, exp> > &operator[](unsigned int i) const {
+  const PEWeight<StdFloat<mantissa, exp>> &operator[](unsigned int i) const {
     return this->value[i];
   }
   template <unsigned int Size>
@@ -389,24 +389,24 @@ class Pack1D<Int<i_width, i_signed>, Width> {
 };
 
 template <size_t Width, int i_width, bool i_signed>
-class Pack1D<PEInput<Int<i_width, i_signed> >, Width> {
+class Pack1D<PEInput<Int<i_width, i_signed>>, Width> {
  public:
-  PEInput<Int<i_width, i_signed> > value[Width];
+  PEInput<Int<i_width, i_signed>> value[Width];
 
   static const unsigned int width =
-      PEInput<Int<i_width, i_signed> >::width * Width;
+      PEInput<Int<i_width, i_signed>>::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
   operator int() const {
-    return Pack1D<PEInput<Int<i_width, i_signed> >, Width>();
+    return Pack1D<PEInput<Int<i_width, i_signed>>, Width>();
   }
 
-  PEInput<Int<i_width, i_signed> > &operator[](unsigned int i) {
+  PEInput<Int<i_width, i_signed>> &operator[](unsigned int i) {
     return this->value[i];
   }
-  const PEInput<Int<i_width, i_signed> > &operator[](unsigned int i) const {
+  const PEInput<Int<i_width, i_signed>> &operator[](unsigned int i) const {
     return this->value[i];
   }
   template <unsigned int Size>
@@ -433,24 +433,24 @@ class Pack1D<PEInput<Int<i_width, i_signed> >, Width> {
 };
 
 template <size_t Width, int i_width, bool i_signed>
-class Pack1D<PEWeight<Int<i_width, i_signed> >, Width> {
+class Pack1D<PEWeight<Int<i_width, i_signed>>, Width> {
  public:
-  PEWeight<Int<i_width, i_signed> > value[Width];
+  PEWeight<Int<i_width, i_signed>> value[Width];
 
   static const unsigned int width =
-      PEWeight<Int<i_width, i_signed> >::width * Width;
+      PEWeight<Int<i_width, i_signed>>::width * Width;
 
   Pack1D() {}
   Pack1D(const int a) {}
 
   operator int() const {
-    return Pack1D<PEWeight<Int<i_width, i_signed> >, Width>();
+    return Pack1D<PEWeight<Int<i_width, i_signed>>, Width>();
   }
 
-  PEWeight<Int<i_width, i_signed> > &operator[](unsigned int i) {
+  PEWeight<Int<i_width, i_signed>> &operator[](unsigned int i) {
     return this->value[i];
   }
-  const PEWeight<Int<i_width, i_signed> > &operator[](unsigned int i) const {
+  const PEWeight<Int<i_width, i_signed>> &operator[](unsigned int i) const {
     return this->value[i];
   }
   template <unsigned int Size>
@@ -622,17 +622,19 @@ class Pack1D<UFloat<W, E>, Width> {
   }
 };
 
-template <size_t Width>
+template <typename T>
 struct BufferWriteRequest {
   ac_int<16, false> address;
-  ac_int<Width, false> data;
+  T data;
+  bool last;
 
-  static const unsigned int width = 16 + Width;
+  static const unsigned int width = 16 + T::width + 1;
 
   template <unsigned int Size>
   void Marshall(Marshaller<Size> &m) {
     m & address;
     m & data;
+    m & last;
   }
 
   inline friend void sc_trace(sc_trace_file *tf,
@@ -640,19 +642,89 @@ struct BufferWriteRequest {
                               const std::string &name) {
     sc_trace(tf, bufWrite.address, name + ".address");
     sc_trace(tf, bufWrite.data, name + ".data");
+    sc_trace(tf, bufWrite.last, name + ".last");
   }
 
   inline friend std::ostream &operator<<(ostream &os,
                                          const BufferWriteRequest &bufWrite) {
     os << bufWrite.address << " ";
     os << bufWrite.data << " ";
+    os << bufWrite.last << " ";
 
     return os;
   }
 
   inline friend bool operator==(const BufferWriteRequest &lhs,
                                 const BufferWriteRequest &rhs) {
-    return lhs.address == rhs.address && lhs.data == rhs.data;
+    return lhs.address == rhs.address && lhs.data == rhs.data &&
+           lhs.last == rhs.last;
+  }
+};
+
+struct BufferReadRequest {
+  ac_int<16, false> address;
+  bool last;
+
+  static const unsigned int width = 16 + 1;
+
+  template <unsigned int Size>
+  void Marshall(Marshaller<Size> &m) {
+    m & address;
+    m & last;
+  }
+
+  inline friend void sc_trace(sc_trace_file *tf,
+                              const BufferReadRequest &bufRead,
+                              const std::string &name) {
+    sc_trace(tf, bufRead.address, name + ".address");
+    sc_trace(tf, bufRead.last, name + ".last");
+  }
+
+  inline friend std::ostream &operator<<(ostream &os,
+                                         const BufferReadRequest &bufRead) {
+    os << bufRead.address << " ";
+    os << bufRead.last << " ";
+
+    return os;
+  }
+
+  inline friend bool operator==(const BufferReadRequest &lhs,
+                                const BufferReadRequest &rhs) {
+    return lhs.address == rhs.address && lhs.last == rhs.last;
+  }
+};
+
+template <typename T>
+struct BufferReadResponse {
+  T data;
+  bool last;
+
+  static const unsigned int width = T::width + 1;
+
+  template <unsigned int Size>
+  void Marshall(Marshaller<Size> &m) {
+    m & data;
+    m & last;
+  }
+
+  inline friend void sc_trace(sc_trace_file *tf,
+                              const BufferReadResponse &bufWrite,
+                              const std::string &name) {
+    sc_trace(tf, bufWrite.data, name + ".data");
+    sc_trace(tf, bufWrite.last, name + ".last");
+  }
+
+  inline friend std::ostream &operator<<(ostream &os,
+                                         const BufferReadResponse &bufWrite) {
+    os << bufWrite.data << " ";
+    os << bufWrite.last << " ";
+
+    return os;
+  }
+
+  inline friend bool operator==(const BufferReadResponse &lhs,
+                                const BufferReadResponse &rhs) {
+    return lhs.data == rhs.data && lhs.last == rhs.last;
   }
 };
 

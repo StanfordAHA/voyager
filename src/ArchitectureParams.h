@@ -186,5 +186,7 @@ using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 #endif
 
 #define IC_PORT_WIDTH (IC_DIMENSION * INPUT_DATATYPE::width)
+#define IC_PORT_TYPE ac_int<IC_PORT_WIDTH, false>
 #define OC_PORT_WIDTH (OC_DIMENSION * INPUT_DATATYPE::width)
+#define OC_PORT_TYPE ac_int<OC_PORT_WIDTH, false>
 #define ADDRESS_WIDTH 64

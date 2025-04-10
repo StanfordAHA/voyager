@@ -151,53 +151,19 @@ $(CATAPULT_BUILD_DIR)/VectorOpUnit/VectorOpUnit.v1/concat_rtl.v: src/VectorUnit.
 	BLOCK=VectorOpUnit catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/VectorOpUnit.log
 $(CATAPULT_BUILD_DIR)/OutputController/OutputController.v1/concat_rtl.v: src/OutputController.h $(PROTOS_DEPENDENCY)
 	BLOCK=OutputController catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/OutputController.log
-$(CATAPULT_BUILD_DIR)/Accelerator/Accelerator.v1/concat_rtl.v: $(CATAPULT_BUILD_DIR)/InputController/InputController.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/WeightController/WeightController.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/MatrixProcessor/MatrixProcessor.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/VectorUnit/VectorUnit.v1/concat_rtl.v $(PROTOS_DEPENDENCY)
+$(CATAPULT_BUILD_DIR)/Accelerator/Accelerator.v1/concat_rtl.v: src/Accelerator.h src/DoubleBuffer.h $(CATAPULT_BUILD_DIR)/InputController/InputController.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/WeightController/WeightController.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/MatrixProcessor/MatrixProcessor.v1/concat_rtl.v $(CATAPULT_BUILD_DIR)/VectorUnit/VectorUnit.v1/concat_rtl.v $(PROTOS_DEPENDENCY)
 	BLOCK=Accelerator catapult -shell -file scripts/main.tcl -logfile $(CATAPULT_BUILD_DIR)/Accelerator.log
 
 .PHONY: rtl Accelerator InputController WeightController MatrixProcessor ProcessingElement VectorUnit VectorFetchUnit VectorOpUnit OutputController
 
-###########################################################
-# Cycle-accurate SystemC Simulations
-###########################################################
-build_folder := build/simv
+# Run RTL simulation
+.PHONY: rtl-sim
+rtl-sim: rtl network-proto
+	cd $(CATAPULT_BUILD_DIR)/Accelerator/Accelerator.v1 && LD_PRELOAD=$(CONDA_PREFIX)/lib/libstdc++.so.6 make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs sim
 
-simv_name := simv
-ifeq ($(DEBUG), 1)
-	simv_name := simv-debug
-	build_folder := build/simv-debug
-endif
-
-sim_sysc:
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) src/Accelerator.h
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/Harness.cc
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/GoldModel.cc
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/Utils.cc
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/DataLoader.cc
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/TestRunner.cc
-	vcs -full64 -sysc sc_main -kdb -debug_access+all -Mdir=$(build_folder) -o $(build_folder)/$(simv_name)
-	./$(build_folder)/$(simv_name) -ucli -i dump_fsdb.tcl
-
-sim_sysc_gui:
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) src/Accelerator.h
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/Harness.cc
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/GoldModel.cc
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/Utils.cc
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/DataLoader.cc
-	syscan -kdb -cflags "$(C17FLAGS) -g" -Mdir=$(build_folder) test/common/TestRunner.cc
-	vcs -full64 -sysc sc_main -kdb -debug_access+all -Mdir=$(build_folder) -o $(build_folder)/$(simv_name)
-	./$(build_folder)/$(simv_name) -verdi
-
-rtl_sim: rtl
-	cd build/Catapult_Accelerator/Accelerator.v1 && make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs sim
-
-rtl_sim_debug: rtl
-	rm -rf build/inter.fsdb*
-	cd build/Catapult_Accelerator/Accelerator.v1 && make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs simgui
-
-gui:
-	catapult build/Catapult_debug
-
-.PHONY: sim_sysc sim_sysc_gui rtl_sim rtl_sim_debug gui
+.PHONY: rtl-sim-debug
+rtl-sim-debug: rtl network-proto
+	cd $(CATAPULT_BUILD_DIR)/Accelerator/Accelerator.v1 && LD_PRELOAD=$(CONDA_PREFIX)/lib/libstdc++.so.6 SIM_DUMP_FSDB=1 make -f ./scverify/Verify_concat_sim_rtl_v_vcs.mk SIMTOOL=vcs sim
 
 ###########################################################
 # Standard Event-based SystemC Simulations

@@ -17,10 +17,8 @@ SC_MODULE(WeightController) {
   Connections::Out<MemoryRequest> CCS_INIT_S1(addressRequest);
   Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(dataResponse);
 
-  Connections::Out<BufferWriteRequest<OC_PORT_WIDTH>> writeRequest[2];
-  Connections::Out<ac_int<32, false>> writeControl[2];
-  Connections::Out<ac_int<16, false>> readAddress[2];
-  Connections::Out<ac_int<32, false>> readControl[2];
+  Connections::Out<BufferWriteRequest<OC_PORT_TYPE>> writeRequest[2];
+  Connections::Out<BufferReadRequest> readAddress[2];
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(biasAddressRequest);
   Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(biasDataResponse);
@@ -212,8 +210,6 @@ SC_MODULE(WeightController) {
     writerParams.ResetRead();
     transposeOut.ResetRead();
 
-    writeControl[0].Reset();
-    writeControl[1].Reset();
     writeRequest[0].Reset();
     writeRequest[1].Reset();
 
@@ -258,10 +254,6 @@ SC_MODULE(WeightController) {
             for (loop_counters[0][3] = 0;
                  loop_counters[0][3] < loop_bounds[0][3];
                  loop_counters[0][3]++) {
-              // inner memory
-              writeControl[bankSel].Push(loop_bounds[1][0] * loop_bounds[1][1] *
-                                         loop_bounds[1][2] * loop_bounds[1][3] *
-                                         loop_bounds[1][4]);
               for (loop_counters[1][0] = 0;
                    loop_counters[1][0] < loop_bounds[1][0];
                    loop_counters[1][0]++) {
@@ -299,9 +291,15 @@ SC_MODULE(WeightController) {
                         int address = (fy * FX * C * K1) + (fx * C * K1) +
                                       ((c0 + c1 * C0) * K1) + k1;
 
-                        BufferWriteRequest<OC_PORT_WIDTH> req;
+                        BufferWriteRequest<OC_PORT_TYPE> req;
                         req.address = address;
                         req.data = data;
+                        req.last =
+                            loop_counters[1][4] == loop_bounds[1][4] - 1 &&
+                            loop_counters[1][3] == loop_bounds[1][3] - 1 &&
+                            loop_counters[1][2] == loop_bounds[1][2] - 1 &&
+                            loop_counters[1][1] == loop_bounds[1][1] - 1 &&
+                            loop_counters[1][0] == loop_bounds[1][0] - 1;
                         writeRequest[bankSel].Push(req);
 
                         if (loop_counters[1][4] >= loop_bounds[1][4] - 1) {
@@ -347,8 +345,6 @@ SC_MODULE(WeightController) {
   void reader() {
     readerParams.ResetRead();
 
-    readControl[0].Reset();
-    readControl[1].Reset();
     readAddress[0].Reset();
     readAddress[1].Reset();
 
@@ -420,10 +416,6 @@ SC_MODULE(WeightController) {
             for (loop_counters[0][3] = 0;
                  loop_counters[0][3] < loop_bounds[0][3];
                  loop_counters[0][3]++) {
-              readControl[bankSel].Push(loop_bounds[1][0] * loop_bounds[1][1] *
-                                        loop_bounds[1][2] * loop_bounds[1][3] *
-                                        loop_bounds[1][4] * loop_bounds[1][5] *
-                                        NRows * rep_bound * buffer_reuse);
               for (int reuse = 0; reuse < buffer_reuse; reuse++) {
                 for (int rep = 0; rep < rep_bound; rep++) {
                   for (loop_counters[1][0] = 0;
@@ -523,9 +515,45 @@ SC_MODULE(WeightController) {
                                     ac_int<16, false> address =
                                         fy * FX * C * K1 + fx * C * K1 +
                                         c * K1 + k1;
-                                    readAddress[bankSel].Push(address);
+                                    BufferReadRequest req;
+                                    req.address = address;
+                                    req.last = row == NRows - 1 &&
+                                               loop_counters[1][5] ==
+                                                   loop_bounds[1][5] - 1 &&
+                                               loop_counters[1][4] ==
+                                                   loop_bounds[1][4] - 1 &&
+                                               loop_counters[1][3] ==
+                                                   loop_bounds[1][3] - 1 &&
+                                               loop_counters[1][2] ==
+                                                   loop_bounds[1][2] - 1 &&
+                                               loop_counters[1][1] ==
+                                                   loop_bounds[1][1] - 1 &&
+                                               loop_counters[1][0] ==
+                                                   loop_bounds[1][0] - 1 &&
+                                               reuse == buffer_reuse - 1 &&
+                                               rep == rep_bound - 1;
+
+                                    readAddress[bankSel].Push(req);
                                   } else {
-                                    readAddress[bankSel].Push(0xFFFF);
+                                    BufferReadRequest req;
+                                    req.address = 0xFFFF;
+                                    req.last = row == NRows - 1 &&
+                                               loop_counters[1][5] ==
+                                                   loop_bounds[1][5] - 1 &&
+                                               loop_counters[1][4] ==
+                                                   loop_bounds[1][4] - 1 &&
+                                               loop_counters[1][3] ==
+                                                   loop_bounds[1][3] - 1 &&
+                                               loop_counters[1][2] ==
+                                                   loop_bounds[1][2] - 1 &&
+                                               loop_counters[1][1] ==
+                                                   loop_bounds[1][1] - 1 &&
+                                               loop_counters[1][0] ==
+                                                   loop_bounds[1][0] - 1 &&
+                                               reuse == buffer_reuse - 1 &&
+                                               rep == rep_bound - 1;
+
+                                    readAddress[bankSel].Push(req);
                                   }
 
                                   // keep track of which C and FX we are on
@@ -551,7 +579,26 @@ SC_MODULE(WeightController) {
                                                   K1 +
                                               k1;
                                   }
-                                  readAddress[bankSel].Push(address);
+
+                                  BufferReadRequest req;
+                                  req.address = address;
+                                  req.last = row == NRows - 1 &&
+                                             loop_counters[1][5] ==
+                                                 loop_bounds[1][5] - 1 &&
+                                             loop_counters[1][4] ==
+                                                 loop_bounds[1][4] - 1 &&
+                                             loop_counters[1][3] ==
+                                                 loop_bounds[1][3] - 1 &&
+                                             loop_counters[1][2] ==
+                                                 loop_bounds[1][2] - 1 &&
+                                             loop_counters[1][1] ==
+                                                 loop_bounds[1][1] - 1 &&
+                                             loop_counters[1][0] ==
+                                                 loop_bounds[1][0] - 1 &&
+                                             reuse == buffer_reuse - 1 &&
+                                             rep == rep_bound - 1;
+
+                                  readAddress[bankSel].Push(req);
                                 }
                               }
 
