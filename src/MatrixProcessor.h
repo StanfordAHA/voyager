@@ -245,7 +245,6 @@ SC_MODULE(MatrixProcessor) {
 #pragma hls_pipeline_stall_mode flush
       while (step < totalOps) {
         Pack1D<PEInput<Input>, NRows> inputs = inputsToSkewer_delayed.Pop();
-        //.read();
 
         Pack1D<Psum, NCols> psum;
 #pragma hls_unroll yes
@@ -375,7 +374,6 @@ SC_MODULE(MatrixProcessor) {
       startSignal.SyncPush();
 
       ac_int<LOOP_WIDTH, false> loop_counters[2][6];
-      ac_int<LOOP_WIDTH, false> loop_counters_accum[2][6];
       ac_int<LOOP_WIDTH, false> loop_counters_out[2][6];
       ac_int<LOOP_WIDTH, false> loop_bounds[2][6];
 
@@ -384,7 +382,6 @@ SC_MODULE(MatrixProcessor) {
 #pragma hls_unroll yes
         for (int j = 0; j < 6; j++) {
           loop_counters[i][j] = 0;
-          loop_counters_accum[i][j] = 0;
           loop_counters_out[i][j] = 0;
           loop_bounds[i][j] = params.loops[i][j];
         }
@@ -398,35 +395,9 @@ SC_MODULE(MatrixProcessor) {
 
       // TODO: Replace oldOutputStep2 with outputStep - 2
       ac_int<32, false> step = 0;
-      ac_int<32, false> accum_step = 0;
       ac_int<32, false> outputStep = 0;
       ac_int<32, false> oldOutputStep = 0;
       ac_int<32, false> oldOutputStep2 = 0;
-
-      // accumulation buffer takes 3 cycles to access, so we need to send the
-      // read request 3 cycles in advance. to do this, we create another set
-      // of loop counters and step counter, but start them at 3.
-      constexpr int accumulation_buffer_read_delay = 0;
-      for (int i = 0; i < accumulation_buffer_read_delay; i++) {
-        accum_step++;
-        loop_counters_accum[1][5]++;
-#pragma hls_unroll yes
-        for (int i = 1; i >= 0; i--) {
-#pragma hls_unroll yes
-          for (int j = 5; j >= 0; j--) {
-            if (loop_counters_accum[i][j] == params.loops[i][j]) {
-              loop_counters_accum[i][j] = 0;
-              if (j > 0) {
-                loop_counters_accum[i][j - 1]++;
-              } else {
-                if (i > 0) {
-                  loop_counters_accum[i - 1][5]++;
-                }
-              }
-            }
-          }
-        }
-      }
 
       // nonAccumulatingTileSize is the number of inputs to send before we
       // start accumulating. For example, for a loop order of (C, K, FX, FY,
@@ -463,17 +434,16 @@ SC_MODULE(MatrixProcessor) {
         bool stallInputs = false;
 
         bool isAccumulation =
-            loop_counters_accum[0][params.reductionLoopIndex[0]] != 0 ||
-            loop_counters_accum[1][params.reductionLoopIndex[1]] != 0 ||
-            loop_counters_accum[1][params.fxIndex] != 0 ||
-            loop_counters_accum[1][params.fyIndex] != 0;
-        if (isAccumulation && accum_step < totalOps) {
+            loop_counters[0][params.reductionLoopIndex[0]] != 0 ||
+            loop_counters[1][params.reductionLoopIndex[1]] != 0 ||
+            loop_counters[1][params.fxIndex] != 0 ||
+            loop_counters[1][params.fyIndex] != 0;
+        if (isAccumulation && step < totalOps) {
           // if accumulating, make sure that the output loop counter has
           // received the accumulated value
           // TODO: Replace oldOutputStep2 with oldOutputStep - 2. Define a
           // constant and avoid magic number.
-          stallInputs =
-              !(oldOutputStep2 > accum_step - nonAccumulatingTileSize + 1);
+          stallInputs = !(oldOutputStep2 > step - nonAccumulatingTileSize + 1);
         }
 
         bool sendWeights;
@@ -509,7 +479,6 @@ SC_MODULE(MatrixProcessor) {
 #if !SUPPORT_MX
         if (!stallInputs) {
           inputsToSkewer.Push(inputs);
-          //.write(inputs);
         }
 #else
         inputSkewerDin.Push(inputs);
@@ -522,22 +491,14 @@ SC_MODULE(MatrixProcessor) {
 #endif
 
 #if !SUPPORT_MX
-        // TODO: duplicate variable with isAccumulation
-        bool firstAccumulation =
-            loop_counters_accum[0][params.reductionLoopIndex[0]] == 0 &&
-            loop_counters_accum[1][params.reductionLoopIndex[1]] == 0 &&
-            loop_counters_accum[1][params.fxIndex] == 0 &&
-            loop_counters_accum[1][params.fyIndex] == 0;
-
-        // TODO: do we need firstAccumulation?
-        if (!firstAccumulation && accum_step < totalOps && !stallInputs) {
+        if (isAccumulation && step < totalOps && !stallInputs) {
           ac_int<int_log2(BufferSize), false> readAddress =
-              loop_counters_accum[1][params.weightLoopIndex[1]] *
+              loop_counters[1][params.weightLoopIndex[1]] *
                   params.loops[1][params.inputXLoopIndex[1]] *
                   params.loops[1][params.inputYLoopIndex[1]] +
-              loop_counters_accum[1][params.inputYLoopIndex[1]] *
+              loop_counters[1][params.inputYLoopIndex[1]] *
                   params.loops[1][params.inputXLoopIndex[1]] +
-              loop_counters_accum[1][params.inputXLoopIndex[1]];
+              loop_counters[1][params.inputXLoopIndex[1]];
 
           accumulation_buffer_read_address[accumulation_buffer_bank].Push(
               readAddress);
@@ -566,13 +527,7 @@ SC_MODULE(MatrixProcessor) {
                params.loops[1][params.inputYLoopIndex[1]] - 1);
 
 #if SUPPORT_MX
-
-          bool firstAccumulation =
-              loop_counters_out[0][params.reductionLoopIndex[0]] == 0 &&
-              loop_counters_out[1][params.reductionLoopIndex[1]] == 0 &&
-              loop_counters_out[1][params.fxIndex] == 0 &&
-              loop_counters_out[1][params.fyIndex] == 0;
-          if (!firstAccumulation) {
+          if (isAccumulation) {
             ac_int<int_log2(BufferSize), false> readAddress =
                 loop_counters_out[1][params.weightLoopIndex[1]] *
                     params.loops[1][params.inputXLoopIndex[1]] *
@@ -644,25 +599,6 @@ SC_MODULE(MatrixProcessor) {
                 } else {
                   if (i > 0) {
                     loop_counters[i - 1][5]++;
-                  }
-                }
-              }
-            }
-          }
-
-          accum_step++;
-          loop_counters_accum[1][5]++;
-#pragma hls_unroll yes
-          for (int i = 1; i >= 0; i--) {
-#pragma hls_unroll yes
-            for (int j = 5; j >= 0; j--) {
-              if (loop_counters_accum[i][j] == params.loops[i][j]) {
-                loop_counters_accum[i][j] = 0;
-                if (j > 0) {
-                  loop_counters_accum[i][j - 1]++;
-                } else {
-                  if (i > 0) {
-                    loop_counters_accum[i - 1][5]++;
                   }
                 }
               }
