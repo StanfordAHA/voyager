@@ -1,0 +1,36 @@
+Lint (E4M3, 16x16):
+  stage: lint
+  before_script:
+    - eval `modulecmd bash load base catapult/2024.2_2`
+    - export PATH=$HOME/miniforge3/condabin:$PATH
+    - source $(conda info --base)/etc/profile.d/conda.sh
+    - conda activate /sim/gitlab-runner/envs/ci-env-$CI_PIPELINE_ID
+    - export PROJECT_ROOT=`pwd`
+    - export CODEGEN_DIR=test/compiler
+  rules:
+    - when: always
+  script:
+    # Build the HLS checks library
+    - cd utils/hls-tidy-plugin
+    - mkdir build
+    - cd build
+    - CC=clang CXX=clang++ cmake .. -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    - make -j4
+    - cd $PROJECT_ROOT
+    # Generate the protobuf C++ files
+    - make test/compiler/proto/param.pb.cc
+    - make test/compiler/proto/tiling.pb.cc
+    # Generate the compile_commands.json file
+    - NETWORK=resnet18 DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 CLOCK_PERIOD=5 TECHNOLOGY=generic compiledb make -n TestRunner-fast
+    - cat compile_commands.json
+    # Run clang-tidy with the HLS checks
+    - clang-tidy "-checks=hls-*,-clang-*" -load=utils/hls-tidy-plugin/build/libCatapultHlsChecks.so -p=$PROJECT_ROOT -header-filter="src/" test/common/Harness.cc > clang_tidy_output.txt 2>&1 || true
+    # Generate the GitLab code quality report
+    - python .gitlab/ci/clang_tidy_to_gitlab.py clang_tidy_output.txt gitlab_code_quality_report.json
+  artifacts:
+    reports:
+      codequality: gitlab_code_quality_report.json
+    paths:
+      - clang_tidy_output.txt
+    expire_in: 1 week
+    when: always

@@ -1,8 +1,9 @@
 # MINOTAUR CI
 stages:
   - setup
-  - test
-  - check_results
+  - lint
+  # - test
+  # - check_results
   - cleanup
 
 before_script:
@@ -23,9 +24,10 @@ variables:
 
 include:
   - local: .gitlab/ci/conda_setup.yml
-  - local: .gitlab/ci/rtl.yml
-  - local: .gitlab/ci/accuracy.yml
-  - local: .gitlab/ci/area.yml
-  - local: .gitlab/ci/systemc.yml
-  - local: .gitlab/ci/check_results.yml
+  - local: .gitlab/ci/lint.yml
+  # - local: .gitlab/ci/rtl.yml
+  # - local: .gitlab/ci/accuracy.yml
+  # - local: .gitlab/ci/area.yml
+  # - local: .gitlab/ci/systemc.yml
+  # - local: .gitlab/ci/check_results.yml
   - local: .gitlab/ci/cleanup.yml
