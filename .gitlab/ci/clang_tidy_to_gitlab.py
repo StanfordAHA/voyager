@@ -55,8 +55,7 @@ def parse_clang_tidy_output(input_file):
                                 "end": line_num,  #  clang-tidy doesn't give end line.
                             },
                         },
-                        # "fingerprint": f"{filepath}:{line_num}:{col_num}:{message}" # removed fingerprint
-                        "fingerprint": f"{filepath}:{line_num}:{message}",  # added fingerprint
+                        "fingerprint": f"{filepath}:{line_num}:{message}",
                     }
                     issues.append(issue)
     except FileNotFoundError:
@@ -89,26 +88,33 @@ def write_gitlab_code_quality_report(issues, output_file):
 def main():
     """
     Main function to parse clang-tidy output and generate a GitLab Code Quality report.
+    Now handles multiple input files.
     """
     parser = argparse.ArgumentParser(
         description="Convert clang-tidy output to GitLab Code Quality report format."
     )
-    parser.add_argument("input_file", help="Path to the clang-tidy output file.")
+    parser.add_argument(
+        "input_files", nargs="+", help="Path(s) to the clang-tidy output file(s)."
+    )
     parser.add_argument(
         "output_file", help="Path to the output GitLab Code Quality JSON file."
     )
 
     args = parser.parse_args()
-
-    input_file = args.input_file
+    input_files = args.input_files  # Now a list
     output_file = args.output_file
 
-    issues = parse_clang_tidy_output(input_file)
-    if issues:  # Only write if there are issues.  Important for CI pipelines.
-        write_gitlab_code_quality_report(issues, output_file)
+    all_issues = []
+    for input_file in input_files:
+        issues = parse_clang_tidy_output(input_file)
+        if issues:
+            all_issues.extend(issues)  # Extend the list, don't append the list.
+
+    if all_issues:
+        write_gitlab_code_quality_report(all_issues, output_file)
     else:
         print("No clang-tidy issues found, or error occurred.  No report generated.")
-        sys.exit(0)  # Exit cleanly, even with no issues.
+        sys.exit(0)
 
 
 if __name__ == "__main__":

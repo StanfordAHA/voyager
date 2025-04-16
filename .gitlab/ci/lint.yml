@@ -20,17 +20,24 @@ Lint (E4M3, 16x16):
     # Generate the protobuf C++ files
     - make test/compiler/proto/param.pb.cc
     - make test/compiler/proto/tiling.pb.cc
-    # Generate the compile_commands.json file
+    # Generate the compile_commands.json file for E4M3
     - NETWORK=resnet18 DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 CLOCK_PERIOD=5 TECHNOLOGY=generic compiledb make -n TestRunner-fast
     - cat compile_commands.json
     # Run clang-tidy with the HLS checks
-    - clang-tidy "-checks=hls-*,-clang-*" -load=utils/hls-tidy-plugin/build/libCatapultHlsChecks.so -p=$PROJECT_ROOT -header-filter="src/" test/common/Harness.cc > clang_tidy_output.txt 2>&1 || true
+    - clang-tidy "-checks=hls-*,-clang-*" -load=utils/hls-tidy-plugin/build/libCatapultHlsChecks.so -p=$PROJECT_ROOT -header-filter="src/" test/common/Harness.cc > clang_tidy_output_E4M3.txt 2>&1 || true
+    # Generate the compile_commands.json file for MXINT8
+    - NETWORK=resnet18 DATATYPE=MXINT8 IC_DIMENSION=16 OC_DIMENSION=16 CLOCK_PERIOD=5 TECHNOLOGY=generic compiledb make -n TestRunner-fast
+    - cat compile_commands.json
+    # Run clang-tidy with the HLS checks
+    - clang-tidy "-checks=hls-*,-clang-*" -load=utils/hls-tidy-plugin/build/libCatapultHlsChecks.so -p=$PROJECT_ROOT -header-filter="src/" test/common/Harness.cc > clang_tidy_output_MXINT8.txt 2>&1 || true
     # Generate the GitLab code quality report
-    - python .gitlab/ci/clang_tidy_to_gitlab.py clang_tidy_output.txt gitlab_code_quality_report.json
+    - python .gitlab/ci/clang_tidy_to_gitlab.py clang_tidy_output_E4M3.txt clang_tidy_output_MXINT8.txt gitlab_code_quality_report.json
   artifacts:
     reports:
       codequality: gitlab_code_quality_report.json
     paths:
-      - clang_tidy_output.txt
+      - clang_tidy_output_E4M3.txt
+      - clang_tidy_output_MXINT8.txt
+
     expire_in: 1 week
     when: always
