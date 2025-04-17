@@ -12,14 +12,10 @@ template <typename Input, typename Weight, typename Psum, typename Buffer,
           typename Scale, int NRows, int NCols, int BufferSize>
 SC_MODULE(MatrixProcessor) {
  private:
-  Connections::SyncChannel CCS_INIT_S1(weightLoadDone);
-  Connections::SyncChannel CCS_INIT_S1(weightSwapDone);
-
   MultiInputSerializedSkewer<Input, typename Input::decoded, NRows> CCS_INIT_S1(
       inputSkewer);
   Connections::Combinational<Pack1D<PEInput<Input>, NRows>> CCS_INIT_S1(
       inputSkewerDin);
-  // sc_fifo<Pack1D<PEInput<Input>, NRows>> CCS_INIT_S1(inputsToSkewer);
   Connections::Combinational<Pack1D<PEInput<Input>, NRows>> CCS_INIT_S1(
       inputsToSkewer);
   Connections::Combinational<Pack1D<PEInput<Input>, NRows>> CCS_INIT_S1(
@@ -91,7 +87,7 @@ SC_MODULE(MatrixProcessor) {
   Connections::SyncOut CCS_INIT_S1(startSignal);
   Connections::SyncOut CCS_INIT_S1(doneSignal);
 
-  SC_CTOR(MatrixProcessor) /*: inputsToSkewer(4)*/ {
+  SC_CTOR(MatrixProcessor) {
     paramsDeserializer.clk(clk);
     paramsDeserializer.rstn(rstn);
     paramsDeserializer.serialParamsIn(serialParamsIn);
@@ -358,10 +354,10 @@ SC_MODULE(MatrixProcessor) {
 
     accumulation_buffer_read_address[0].Reset();
     accumulation_buffer_read_address[1].Reset();
-    accumulation_buffer_write_request[0].Reset();
-    accumulation_buffer_write_request[1].Reset();
 
 #if !SUPPORT_MX
+    accumulation_buffer_write_request[0].Reset();
+    accumulation_buffer_write_request[1].Reset();
     accumulation_buffer_done[0].Reset();
     accumulation_buffer_done[1].Reset();
 #endif
@@ -435,6 +431,7 @@ SC_MODULE(MatrixProcessor) {
         Pack1D<PEInput<Input>, NRows> inputs;
         bool stallInputs = false;
 
+#if !SUPPORT_MX
         bool isAccumulation =
             loop_counters[0][params.reductionLoopIndex[0]] != 0 ||
             loop_counters[1][params.reductionLoopIndex[1]] != 0 ||
@@ -447,6 +444,7 @@ SC_MODULE(MatrixProcessor) {
           // constant and avoid magic number.
           stallInputs = !(oldOutputStep2 > step - nonAccumulatingTileSize + 1);
         }
+#endif
 
         bool sendWeights;
         if (params.weightReuseIndex[0] != params.weightReuseIndex[1]) {
@@ -529,6 +527,12 @@ SC_MODULE(MatrixProcessor) {
                params.loops[1][params.inputYLoopIndex[1]] - 1);
 
 #if SUPPORT_MX
+          bool isAccumulation =
+              loop_counters_out[0][params.reductionLoopIndex[0]] != 0 ||
+              loop_counters_out[1][params.reductionLoopIndex[1]] != 0 ||
+              loop_counters_out[1][params.fxIndex] != 0 ||
+              loop_counters_out[1][params.fyIndex] != 0;
+
           if (isAccumulation) {
             ac_int<int_log2(BufferSize), false> readAddress =
                 loop_counters_out[1][params.weightLoopIndex[1]] *
