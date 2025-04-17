@@ -202,7 +202,7 @@ if { $DATATYPE == "P8_1" } {
   set ACCUM_DATATYPE_WIDTH 32
 } elseif {$DATATYPE == "MXINT8"} {
   set IO_DATATYPE "DataTypes::int8"
-  set ACCUM_DATATYPE "DataTypes::int32"
+  set ACCUM_DATATYPE "DataTypes::int22"
   set ACCUM_BUFFER_DATATYPE "DataTypes::bfloat16"
   set VECTOR_DATATYPE "DataTypes::bfloat16"
   set SCALE_DATATYPE "DataTypes::fp8_e8m0"
