@@ -226,7 +226,7 @@ SC_MODULE(WeightScaleController) {
                  loop_counters[0][3]++) {
               writeControl[bankSel].Push(loop_bounds[1][0] * loop_bounds[1][1] *
                                          loop_bounds[1][2] * loop_bounds[1][3] *
-                                         loop_bounds[1][4] / NCols);
+                                         loop_bounds[1][4] / NRows);  // TODO: Try changing this to NRows
               // inner memory
               for (loop_counters[1][0] = 0;
                    loop_counters[1][0] < loop_bounds[1][0];
