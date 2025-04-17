@@ -4,6 +4,7 @@
 #include <systemc.h>
 
 #include <cassert>
+#include <cstdint>  // for uint32_t
 
 #include "AccelTypes.h"
 #include "sysc/kernel/sc_time.h"
@@ -377,7 +378,7 @@ void Harness::reset() {
 
 template <typename T, unsigned int interfaceWidth>
 void sendSerializedParams(T params,
-                          CombinationalInterface<int> *serialParamsIn) {
+                          CombinationalInterface<int> *serialParamsIn, bool dump_params) {
   ac_int<T::width, false> serializedParam;
   vector_to_type(TypeToBits<T>(params), false, &serializedParam);
 
@@ -389,6 +390,22 @@ void sendSerializedParams(T params,
   for (int i = 0; i < serializedParamsPadded.width / interfaceWidth; i++) {
     serialParamsIn->Push(serializedParamsPadded.template slc<interfaceWidth>(
         i * interfaceWidth));
+  }
+
+  if (dump_params) {
+    std::ofstream params_file("serialized_matrix_params.txt", std::ios::app);
+    if (!params_file.is_open()) {
+      spdlog::error("Failed to open params_dump.txt for writing.");
+      return;
+    }
+
+    for (int i = 0; i < serializedParamsPadded.width / interfaceWidth; i++) {
+      uint32_t param_slice = (serializedParamsPadded.template slc<interfaceWidth>(
+        i * interfaceWidth));
+      params_file << std::hex << std::setw(8) << std::setfill('0') << param_slice << std::endl;
+    }
+
+    params_file.close();
   }
 }
 
@@ -439,7 +456,7 @@ void Harness::sendParams() {
 
       if (matrixParamsValid) {
         sendSerializedParams<MatrixParams, 32>(*matrixParams,
-                                               &serialMatrixParamsIn);
+                                               &serialMatrixParamsIn, true);
         matrixUnitStartSignal.SyncPop();
       }
 
@@ -449,9 +466,9 @@ void Harness::sendParams() {
 
       if (vectorParamsValid) {
         sendSerializedParams<VectorParams, 32>(*vectorParams,
-                                               &serialVectorParamsIn);
+                                               &serialVectorParamsIn, false);
         sendSerializedParams<VectorInstructionConfig, 32>(
-            *vectorInstructionConfig, &serialVectorParamsIn);
+            *vectorInstructionConfig, &serialVectorParamsIn, false);
         vectorUnitStartSignal.SyncPop();
       }
 
