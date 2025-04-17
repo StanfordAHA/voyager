@@ -155,8 +155,10 @@ def main():
     # note down configurations where the runtime difference is negative
     comment = ""
     if not negative_diff.empty:
-        comment += "⚠️⚠️ The following configurations have a longer runtime on the merge request branch:\n"
-        comment += negative_diff.to_string() + "\n"
+        comment += "⚠️⚠️ The following configurations have a longer runtime on the merge request branch:\n\n"
+        comment += "```\n"
+        comment += negative_diff.to_string(index=False) + "\n"
+        comment += "```\n"
         approve = False
     else:
         comment += "✅ The runtime of all configurations is the same or shorter on the merge request branch.\n"

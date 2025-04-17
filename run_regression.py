@@ -6,6 +6,8 @@ import subprocess
 from collections import defaultdict
 import pandas as pd
 import re
+import signal
+import sys
 
 
 def print_test_results(test_results, layers, output_folder):
@@ -123,6 +125,15 @@ def run_gold_model_tests(layers, num_processes, results_folder):
 
     pool = mp.Pool(num_processes)
 
+    def signal_handler(signum, frame):
+        print(f"Receive signal {signum}, terminating pool...")
+        pool.terminate()
+        pool.join()
+        sys.exit(1)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     test_results = []
 
     for model, tests in layers.items():
@@ -184,6 +195,15 @@ def run_systemc_tests(layers, num_processes, results_folder, fast):
         )
 
     pool = mp.Pool(num_processes)
+
+    def signal_handler(signum, frame):
+        print(f"Receive signal {signum}, terminating pool...")
+        pool.terminate()
+        pool.join()
+        sys.exit(1)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
     test_results = []
 
@@ -344,6 +364,15 @@ def run_rtl_tests(layers, num_processes, results_folder, keep_build=False):
         )
 
     pool = mp.Pool(num_processes)
+
+    def signal_handler(signum, frame):
+        print(f"Receive signal {signum}, terminating pool...")
+        pool.terminate()
+        pool.join()
+        sys.exit(1)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
     test_results = []
 

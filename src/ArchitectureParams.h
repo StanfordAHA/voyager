@@ -1,5 +1,9 @@
 #pragma once
 
+// This header depends on `DataTypes.h`, but only through macros. As a result,
+// IWYU thinks that this header is not used, even though it is.
+#include "DataTypes.h"  // IWYU pragma: keep
+
 #if defined(P8_1)
 
 using P8 = Posit<8, 1>;

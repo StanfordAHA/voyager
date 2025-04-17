@@ -9,7 +9,7 @@
 #include <mc_connections.h>
 
 #include "DataTypes.h"
-#include "Params.h"
+#include "Params.h"  // IWYU pragma: export
 
 #ifdef DEBUG
 #define DLOG(x) CCS_LOG(x)

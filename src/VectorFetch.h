@@ -1,5 +1,11 @@
 #pragma once
 
+#include <systemc.h>
+
+#include "AccelTypes.h"
+#include "ArchitectureParams.h"
+#include "VectorOps.h"
+
 template <typename VectorType, typename BufferType, int Width,
           typename... InputTypes>
 SC_MODULE(VectorFetchUnit) {
@@ -322,6 +328,7 @@ SC_MODULE(VectorFetchUnit) {
     accumulation_buffer_read_data[1].Reset();
     accumulation_buffer_write_request[0].Reset();
     accumulation_buffer_write_request[1].Reset();
+    accumulationBufferOutput.Reset();
 
     bool accumulation_buffer_bank = 0;
 
