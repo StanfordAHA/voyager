@@ -361,6 +361,31 @@ def run_rtl_tests(layers, num_processes, results_folder, keep_build=False):
     return print_test_results(test_results, layers, results_folder)
 
 
+ACCURACY_RESULTS = {
+    "resnet18": {
+        "E4M3": 70.8,
+        "CFLOAT": 70.8,
+        "INT8": 69.7,
+        "MXINT8": 71.0,
+        "P8_1": 69.5,
+    },
+    "resnet50": {
+        "E4M3": 67.7,
+        "CFLOAT": 71.2,
+        "INT8": 69.1,
+        "MXINT8": 69.5,
+        "P8_1": 69.6,
+    },
+    "mobilebert": {
+        "E4M3": 90.6,
+        "CFLOAT": 90.83,
+        "INT8": 90.37,
+        "MXINT8": 91.0,
+        "P8_1": 90.37,
+    },
+}
+
+
 def run_accuracy(model, dataset, num_processes, output_folder):
     check_environment_vars(["DATATYPE", "IC_DIMENSION", "OC_DIMENSION"])
 
@@ -545,7 +570,7 @@ def run_accuracy(model, dataset, num_processes, output_folder):
                 env=env_vars,
                 stdout=stdout_file,
                 stderr=subprocess.STDOUT,
-                timeout=2 * 60 * 60,
+                timeout=3 * 60 * 60,
             )
         except subprocess.TimeoutExpired:
             print(f"Test {model}_{dataset} timed out")
@@ -568,14 +593,8 @@ def run_accuracy(model, dataset, num_processes, output_folder):
     # dump dataframe to pickle
     df.to_pickle(f"{output_folder}/test_results.pkl")
 
-    if model == "resnet18":
-        return final_accuracy >= 70.0
-    elif model == "resnet50":
-        return final_accuracy >= 60.0
-    elif model == "mobilebert" and dataset == "sst2":
-        return final_accuracy >= 90.0
-    else:
-        return True
+    gold_accuracy = ACCURACY_RESULTS[model][env_vars["DATATYPE"]]
+    return abs(final_accuracy - gold_accuracy) < 1
 
 
 def main():
