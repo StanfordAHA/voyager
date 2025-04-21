@@ -57,9 +57,9 @@ def print_test_results(test_results, layers, output_folder):
         if "Runtime" in model_df.columns:
             print("Runtime:")
             print(
-                model_df[["Layer", "Runtime", "Ideal", "RuntimeType"]].to_string(
-                    index=False
-                ),
+                model_df[
+                    ["Layer", "Runtime", "Ideal", "RuntimeType", "Count"]
+                ].to_string(index=False),
                 flush=True,
             )
             utilization = model_df["Ideal"].sum() / model_df["Runtime"].sum()
