@@ -378,7 +378,7 @@ void Harness::reset() {
 
 template <typename T, unsigned int interfaceWidth>
 void sendSerializedParams(T params,
-                          CombinationalInterface<int> *serialParamsIn, bool dump_params) {
+                          CombinationalInterface<int> *serialParamsIn) {
   ac_int<T::width, false> serializedParam;
   vector_to_type(TypeToBits<T>(params), false, &serializedParam);
 
@@ -391,23 +391,38 @@ void sendSerializedParams(T params,
     serialParamsIn->Push(serializedParamsPadded.template slc<interfaceWidth>(
         i * interfaceWidth));
   }
+}
 
-  if (dump_params) {
-    std::ofstream params_file("serialized_matrix_params.txt", std::ios::app);
+template <typename T, unsigned int interfaceWidth>
+void dumpSerializedParams(T params) {
+    ac_int<T::width, false> serializedParam;
+    vector_to_type(TypeToBits<T>(params), false, &serializedParam);
+
+    // round up to the nearest multiple of interfaceWidth
+    ac_int<((T::width + interfaceWidth - 1) / interfaceWidth) * interfaceWidth,
+          false>
+        serializedParamsPadded = serializedParam;
+
+    std::ofstream params_file;
+    // Delete the file if it exists
+    std::remove("serialized_matrix_params.txt");
+    params_file.open("serialized_matrix_params.txt", std::ios::app);
     if (!params_file.is_open()) {
-      spdlog::error("Failed to open params_dump.txt for writing.");
+      spdlog::error("Failed to open serialized_matrix_params.txt for writing.");
       return;
     }
 
     for (int i = 0; i < serializedParamsPadded.width / interfaceWidth; i++) {
       uint32_t param_slice = (serializedParamsPadded.template slc<interfaceWidth>(
         i * interfaceWidth));
-      params_file << std::hex << std::setw(8) << std::setfill('0') << param_slice << std::endl;
+      params_file << std::hex << std::setw(8) << std::setfill('0') << param_slice;
+      if (i < (serializedParamsPadded.width / interfaceWidth) - 1) {
+        params_file << std::endl;
+      }
     }
-
     params_file.close();
-  }
 }
+
 
 void Harness::sendParams() {
   matrixUnitStartSignal.ResetRead();
@@ -456,7 +471,22 @@ void Harness::sendParams() {
 
       if (matrixParamsValid) {
         sendSerializedParams<MatrixParams, 32>(*matrixParams,
-                                               &serialMatrixParamsIn, true);
+                                               &serialMatrixParamsIn);
+
+        uint64_t glb_base_addr = 1310720;
+        uint64_t input_offset = glb_base_addr;
+        uint64_t input_scale_offset = input_offset + (1 * 64 * 56 * 56);
+        uint64_t weight_offset = input_scale_offset + (1 * 1 * 56 * 56);
+        uint64_t weight_scale_offset = weight_offset + (64 * 64 * 3 * 3);
+        uint64_t bias_offset = weight_scale_offset + (64 * 1 * 3 * 3);
+
+        matrixParams->INPUT_OFFSET = input_offset;
+        matrixParams->INPUT_SCALE_OFFSET = input_scale_offset;
+        matrixParams->WEIGHT_OFFSET = weight_offset;
+        matrixParams->WEIGHT_SCALE_OFFSET = weight_scale_offset;
+        matrixParams->BIAS_OFFSET = bias_offset;
+
+        dumpSerializedParams<MatrixParams, 32>(*matrixParams);
         matrixUnitStartSignal.SyncPop();
       }
 
@@ -466,9 +496,9 @@ void Harness::sendParams() {
 
       if (vectorParamsValid) {
         sendSerializedParams<VectorParams, 32>(*vectorParams,
-                                               &serialVectorParamsIn, false);
+                                               &serialVectorParamsIn);
         sendSerializedParams<VectorInstructionConfig, 32>(
-            *vectorInstructionConfig, &serialVectorParamsIn, false);
+            *vectorInstructionConfig, &serialVectorParamsIn);
         vectorUnitStartSignal.SyncPop();
       }
 
