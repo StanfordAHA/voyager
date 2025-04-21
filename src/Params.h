@@ -336,15 +336,16 @@ struct VectorInstructions {
   ac_int<4, false> vector_op3_src1;
 
   static const unsigned int from_matrix_unit = 1;
-  static const unsigned int from_vector_fetch_0 = 2;
-  static const unsigned int from_vector_fetch_1 = 3;
-  static const unsigned int from_vector_fetch_2 = 4;
-  static const unsigned int from_accumulation = 5;
-  static const unsigned int from_reduction_0 = 6;
-  static const unsigned int from_reduction_1 = 7;
-  static const unsigned int from_immediate_0 = 8;
-  static const unsigned int from_immediate_1 = 9;
-  static const unsigned int from_immediate_2 = 10;
+  static const unsigned int from_accumulation_buffer = 2;
+  static const unsigned int from_vector_fetch_0 = 3;
+  static const unsigned int from_vector_fetch_1 = 4;
+  static const unsigned int from_vector_fetch_2 = 5;
+  static const unsigned int from_accumulation = 6;
+  static const unsigned int from_reduction_0 = 7;
+  static const unsigned int from_reduction_1 = 8;
+  static const unsigned int from_immediate_0 = 9;
+  static const unsigned int from_immediate_1 = 10;
+  static const unsigned int from_immediate_2 = 11;
 
   ac_int<1, false> vdequantize;
   ac_int<16, false> vector_dq_scale;

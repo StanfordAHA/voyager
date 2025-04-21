@@ -235,6 +235,8 @@ def run_rtl_test(model, layer, output_folder):
         env_vars["WEIGHT_BUFFER_SIZE"] = "1024"
     if "ACCUM_BUFFER_SIZE" not in env_vars:
         env_vars["ACCUM_BUFFER_SIZE"] = "1024"
+    if "DOUBLE_BUFFERED_ACCUM_BUFFER" not in env_vars:
+        env_vars["DOUBLE_BUFFERED_ACCUM_BUFFER"] = "false"
 
     # we occasionally see the test fail due to filesystem issues ("no rule to make target", but the target exists), so we retry up to 3 times
     for attempt in range(3):
@@ -242,7 +244,7 @@ def run_rtl_test(model, layer, output_folder):
             try:
                 subprocess.run(
                     ["make", "-f", "scverify/Verify_concat_sim_rtl_v_vcs.mk", "sim"],
-                    cwd=f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
+                    cwd=f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}_{env_vars['INPUT_BUFFER_SIZE']}x{env_vars['WEIGHT_BUFFER_SIZE']}x{env_vars['ACCUM_BUFFER_SIZE']}_{env_vars['DOUBLE_BUFFERED_ACCUM_BUFFER']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
                     env=env_vars,
                     stdout=stdout_file,
                     stderr=subprocess.STDOUT,
@@ -354,10 +356,12 @@ def run_rtl_tests(layers, num_processes, results_folder, keep_build=False):
             env_vars["WEIGHT_BUFFER_SIZE"] = "1024"
         if "ACCUM_BUFFER_SIZE" not in env_vars:
             env_vars["ACCUM_BUFFER_SIZE"] = "1024"
+        if "DOUBLE_BUFFERED_ACCUM_BUFFER" not in env_vars:
+            env_vars["DOUBLE_BUFFERED_ACCUM_BUFFER"] = "false"
 
         subprocess.run(
             ["make", "-f", "scverify/Verify_concat_sim_rtl_v_vcs.mk", "build"],
-            cwd=f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
+            cwd=f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}_{env_vars['INPUT_BUFFER_SIZE']}x{env_vars['WEIGHT_BUFFER_SIZE']}x{env_vars['ACCUM_BUFFER_SIZE']}_{env_vars['DOUBLE_BUFFERED_ACCUM_BUFFER']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
             env=env_vars,
             stdout=stdout_file,
             stderr=subprocess.STDOUT,
@@ -431,6 +435,8 @@ def run_accuracy(model, dataset, num_processes, output_folder):
         env_vars["WEIGHT_BUFFER_SIZE"] = "1024"
     if "ACCUM_BUFFER_SIZE" not in env_vars:
         env_vars["ACCUM_BUFFER_SIZE"] = "1024"
+    if "DOUBLE_BUFFERED_ACCUM_BUFFER" not in env_vars:
+        env_vars["DOUBLE_BUFFERED_ACCUM_BUFFER"] = "false"
 
     # Build AccuracyTester binary
     subprocess.run(["make", "clean"], env=env_vars)
@@ -502,7 +508,7 @@ def run_accuracy(model, dataset, num_processes, output_folder):
     else:
         raise ValueError("Invalid model")
 
-    block_size = max(os.environ['OC_DIMENSION'], os.environ['IC_DIMENSION'])
+    block_size = max(os.environ["OC_DIMENSION"], os.environ["IC_DIMENSION"])
 
     if env_vars["DATATYPE"] == "E4M3":
         quantization_args = [
@@ -590,7 +596,7 @@ def run_accuracy(model, dataset, num_processes, output_folder):
         try:
             subprocess.run(
                 [
-                    f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}/cc/AccuracyTester",
+                    f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}_{env_vars['INPUT_BUFFER_SIZE']}x{env_vars['WEIGHT_BUFFER_SIZE']}x{env_vars['ACCUM_BUFFER_SIZE']}_{env_vars['DOUBLE_BUFFERED_ACCUM_BUFFER']}/cc/AccuracyTester",
                     model,
                     output_data_dir,
                     str(num_processes),
@@ -702,7 +708,9 @@ def main():
     elif args.sims == "gold_model":
         success = run_gold_model_tests(layers, args.num_processes, results_folder)
     elif args.sims == "accuracy":
-        success = run_accuracy(args.models, args.dataset, args.num_processes, results_folder)
+        success = run_accuracy(
+            args.models, args.dataset, args.num_processes, results_folder
+        )
     else:
         raise ValueError("Invalid simulation type")
 

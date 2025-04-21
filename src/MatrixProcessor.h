@@ -42,6 +42,12 @@ SC_MODULE(MatrixProcessor) {
 
   static constexpr int LOOP_WIDTH = 10;
 
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
+  static constexpr int ACCUM_BUFFER_BANKS = 2;
+#else
+  static constexpr int ACCUM_BUFFER_BANKS = 1;
+#endif
+
  public:
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
@@ -50,11 +56,18 @@ SC_MODULE(MatrixProcessor) {
   Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(weightsChannel);
   Connections::In<Pack1D<Buffer, NCols>> CCS_INIT_S1(biasChannel);
 
-  Connections::Out<ac_int<16, false>> accumulation_buffer_read_address[2];
-  Connections::In<Pack1D<Buffer, NCols>> accumulation_buffer_read_data[2];
+  Connections::Out<Pack1D<Buffer, NCols>> CCS_INIT_S1(matrixUnitOutputChannel);
+
+  Connections::Out<ac_int<16, false>>
+      accumulation_buffer_read_address[ACCUM_BUFFER_BANKS];
+  Connections::In<Pack1D<Buffer, NCols>>
+      accumulation_buffer_read_data[ACCUM_BUFFER_BANKS];
   Connections::Out<BufferWriteRequest<Pack1D<Buffer, NCols>>>
-      accumulation_buffer_write_request[2];
-  Connections::SyncOut accumulation_buffer_done[2];
+      accumulation_buffer_write_request[ACCUM_BUFFER_BANKS];
+
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
+  Connections::SyncOut accumulation_buffer_done[ACCUM_BUFFER_BANKS];
+#endif
 
   Connections::In<ac_int<64, false>> CCS_INIT_S1(serialParamsIn);
 
@@ -296,14 +309,19 @@ SC_MODULE(MatrixProcessor) {
     inputScaleChannel.Reset();
     weightScaleChannel.Reset();
 #endif
+
+    accumulation_buffer_read_data[0].Reset();
+    accumulation_buffer_read_address[0].Reset();
+    accumulation_buffer_write_request[0].Reset();
+
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
+    accumulation_buffer_read_data[1].Reset();
+    accumulation_buffer_read_address[1].Reset();
+    accumulation_buffer_write_request[1].Reset();
+
     accumulation_buffer_done[0].Reset();
     accumulation_buffer_done[1].Reset();
-    accumulation_buffer_read_data[0].Reset();
-    accumulation_buffer_read_data[1].Reset();
-    accumulation_buffer_read_address[0].Reset();
-    accumulation_buffer_read_address[1].Reset();
-    accumulation_buffer_write_request[0].Reset();
-    accumulation_buffer_write_request[1].Reset();
+#endif
     doneSignal.Reset();
 
     bool accumulation_buffer_bank = 0;
@@ -430,20 +448,35 @@ SC_MODULE(MatrixProcessor) {
           previous_accumulation.value[i] += scaled_outputs[i];
         }
 
-        int writeAddress = static_cast<ac_int<10, false>>(
-                               loop_counters[1][params.weightLoopIndex[1]] *
-                               params.loops[1][params.inputXLoopIndex[1]] *
-                               params.loops[1][params.inputYLoopIndex[1]]) +
-                           static_cast<ac_int<10, false>>(
-                               loop_counters[1][params.inputYLoopIndex[1]] *
-                               params.loops[1][params.inputXLoopIndex[1]]) +
-                           loop_counters[1][params.inputXLoopIndex[1]];
+        bool accumulation_finished =
+            (loop_counters[0][params.reductionLoopIndex[0]] ==
+             params.loops[0][params.reductionLoopIndex[0]] - 1) &&
+            (loop_counters[1][params.reductionLoopIndex[1]] ==
+             params.loops[1][params.reductionLoopIndex[1]] - 1) &&
+            (loop_counters[1][params.fxIndex] ==
+             params.loops[1][params.fxIndex] - 1) &&
+            (loop_counters[1][params.fyIndex] ==
+             params.loops[1][params.fyIndex] - 1);
+        if (accumulation_finished && !DOUBLE_BUFFERED_ACCUM_BUFFER) {
+          // write out to vector unit directly
+          matrixUnitOutputChannel.Push(previous_accumulation);
+        } else {
+          int writeAddress = static_cast<ac_int<10, false>>(
+                                 loop_counters[1][params.weightLoopIndex[1]] *
+                                 params.loops[1][params.inputXLoopIndex[1]] *
+                                 params.loops[1][params.inputYLoopIndex[1]]) +
+                             static_cast<ac_int<10, false>>(
+                                 loop_counters[1][params.inputYLoopIndex[1]] *
+                                 params.loops[1][params.inputXLoopIndex[1]]) +
+                             loop_counters[1][params.inputXLoopIndex[1]];
 
-        BufferWriteRequest<Pack1D<Buffer, NCols>> req;
-        req.address = writeAddress;
-        req.data = previous_accumulation;
-        accumulation_buffer_write_request[accumulation_buffer_bank].Push(req);
+          BufferWriteRequest<Pack1D<Buffer, NCols>> req;
+          req.address = writeAddress;
+          req.data = previous_accumulation;
+          accumulation_buffer_write_request[accumulation_buffer_bank].Push(req);
+        }
 
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
         bool output_tile_completed =
             (loop_counters[0][params.reductionLoopIndex[0]] ==
              params.loops[0][params.reductionLoopIndex[0]] - 1) &&
@@ -464,6 +497,7 @@ SC_MODULE(MatrixProcessor) {
           accumulation_buffer_done[accumulation_buffer_bank].SyncPush();
           accumulation_buffer_bank = !accumulation_buffer_bank;
         }
+#endif
 
         step++;
         loop_counters[1][5]++;

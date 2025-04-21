@@ -353,7 +353,11 @@ void MapMatrixOperation(const Operation &operation,
 
   // vector instructions
   VectorParams *vector_params = new VectorParams;
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
   vector_params->addr_gen0_mode = 3;  // read from accumulation buffer
+#else
+  vector_params->addr_gen0_mode = 0;  // read from matrix unit
+#endif
   // Set outer loops
   for (int i = 0; i < 3; i++) {
     vector_params->addr_gen0_loops[0][i] = tiling.loops[0][i];
@@ -441,7 +445,11 @@ void MapMatrixOperation(const Operation &operation,
   VectorInstructions inst;
   memset(&inst, 0, sizeof(inst));
   inst.op_type = VectorInstructions::vector;
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
+  inst.vector_op0_src0 = VectorInstructions::from_accumulation_buffer;
+#else
   inst.vector_op0_src0 = VectorInstructions::from_matrix_unit;
+#endif
   inst.vdest = VectorInstructions::to_output;
 
   auto inst_map = get_vector_instruction_mapping();

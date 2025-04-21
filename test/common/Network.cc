@@ -39,7 +39,9 @@ Network::Network(std::string& model_name) {
              std::string(getenv("OC_DIMENSION")) + "_" +
              std::string(getenv("INPUT_BUFFER_SIZE")) + "x" +
              std::string(getenv("WEIGHT_BUFFER_SIZE")) + "x" +
-             std::string(getenv("ACCUM_BUFFER_SIZE")) + "/" + "/tilings.txtpb";
+             std::string(getenv("ACCUM_BUFFER_SIZE")) + "_" +
+             std::string(getenv("DOUBLE_BUFFERED_ACCUM_BUFFER")) + "/" +
+             "tilings.txtpb";
 
   bool tilings_exist = std::filesystem::exists(filename);
   if (tilings_exist) {
@@ -55,7 +57,7 @@ Network::Network(std::string& model_name) {
       tiling_map[tiling.name()] = tiling;
     }
   } else {
-    spdlog::error("Tilings file does not exist.\n");
+    spdlog::error("Tilings file does not exist: {} \n", filename);
   }
 
   for (const auto& op : model.ops()) {

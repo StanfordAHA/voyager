@@ -194,6 +194,11 @@ def main():
         required=True,
         help="Size of output buffer (in # elements)",
     )
+    parser.add_argument(
+        "--double_buffered_accum_buffer",
+        action="store_true",
+        help="Use double buffered accumulation buffer",
+    )
     args = parser.parse_args()
 
     # Create an accelerator configuration
@@ -400,7 +405,7 @@ def main():
 
     # write the tilings to a file
     with open(
-        f"{args.codegen_dir}/{args.IC_dimension}x{args.OC_dimension}_{args.input_buffer_size}x{args.weight_buffer_size}x{args.accum_buffer_size}/tilings.txtpb",
+        f"{args.codegen_dir}/{args.IC_dimension}x{args.OC_dimension}_{args.input_buffer_size}x{args.weight_buffer_size}x{args.accum_buffer_size}_{str(args.double_buffered_accum_buffer).lower()}/tilings.txtpb",
         "w",
     ) as f:
         f.write(text_format.MessageToString(tilings))
