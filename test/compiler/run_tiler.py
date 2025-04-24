@@ -90,11 +90,11 @@ class RuntimeCalculator:
         for loop in output_relevant_loops:
             output_size *= mapping.loop_blockings[loop][1]
         vector_unit_time = output_size
+        requires_high_precision = False
         if self.operation.WhichOneof("op_type") == "fused_op":
             input_precision = (
                 self.operation.fused_op.op_list[0].kwargs["input"].tensor.dtype
             )
-            requires_high_precision = False
             # check if any of the operands are in high precision or
             for i in range(1, len(self.operation.fused_op.op_list)):
                 vector_op = self.operation.fused_op.op_list[i]
