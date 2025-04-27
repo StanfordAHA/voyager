@@ -11,15 +11,14 @@ SC_MODULE(InputScaleController) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
-  Connections::In<int> CCS_INIT_S1(serialParamsIn);
+  Connections::In<ac_int<64, false>> CCS_INIT_S1(serialParamsIn);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(addressRequest);
-  Connections::In<ac_int<Scale::width, false> > CCS_INIT_S1(dataResponse);
+  Connections::In<ac_int<Scale::width, false>> CCS_INIT_S1(dataResponse);
 
-  Connections::Out<BufferWriteRequest<Scale::width> > writeRequest[2];
-  Connections::Out<ac_int<32, false> > writeControl[2];
-  Connections::Out<ac_int<16, false> > readAddress[2];
-  Connections::Out<ac_int<32, false> > readControl[2];
+  Connections::Out<BufferWriteRequest<ac_int<Scale::width, false>>>
+      writeRequest[2];
+  Connections::Out<BufferReadRequest> readAddress[2];
 
   Connections::Combinational<MatrixParams> CCS_INIT_S1(paramsIn);
   Connections::Combinational<MatrixParams> CCS_INIT_S1(fetcherParams);
@@ -84,6 +83,7 @@ SC_MODULE(InputScaleController) {
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
+#pragma hls_unroll yes
         for (int j = 0; j < 6; j++) {
           loop_bounds[i][j] = params.loops[i][j];
         }
@@ -94,6 +94,8 @@ SC_MODULE(InputScaleController) {
       loop_bounds[1][params.fxIndex] = 1;
       loop_bounds[1][params.fyIndex] = 1;
 
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
            loop_counters[0][0]++) {
         for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
@@ -164,9 +166,6 @@ SC_MODULE(InputScaleController) {
                 loop_bounds[1][params.inputYLoopIndex[1]] += (FY - 1) / 2;
               }
 
-// inner memory
-#pragma hls_pipeline_init_interval 1
-#pragma hls_pipeline_stall_mode flush
               for (loop_counters[1][0] = 0;
                    loop_counters[1][0] < loop_bounds[1][0];
                    loop_counters[1][0]++) {
@@ -295,8 +294,6 @@ SC_MODULE(InputScaleController) {
   void writer() {
     writerParams.ResetRead();
     dataResponse.Reset();
-    writeControl[0].Reset();
-    writeControl[1].Reset();
     writeRequest[0].Reset();
     writeRequest[1].Reset();
 
@@ -333,6 +330,7 @@ SC_MODULE(InputScaleController) {
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
+#pragma hls_unroll yes
         for (int j = 0; j < 6; j++) {
           loop_bounds[i][j] = params.loops[i][j];
         }
@@ -349,6 +347,8 @@ SC_MODULE(InputScaleController) {
       ac_int<LOOP_WIDTH, false> Y0 = params.loops[1][params.inputYLoopIndex[1]];
       ac_int<LOOP_WIDTH, false> Y1 = params.loops[0][params.inputYLoopIndex[0]];
 
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
            loop_counters[0][0]++) {
         for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
@@ -381,27 +381,6 @@ SC_MODULE(InputScaleController) {
                 loop_bounds[1][params.inputYLoopIndex[1]] += FY - 1;
               }
 
-              // TODO: make this dynamic
-              ac_int<32, false> total_writes;
-              if (!params.is_replication) {
-                total_writes =
-                    (loop_bounds[1][0] * loop_bounds[1][1] * loop_bounds[1][2] *
-                     loop_bounds[1][3] * loop_bounds[1][4]) *
-                    loop_bounds[1][5];
-              } else {
-                // 2 extra writes for padding
-                total_writes = loop_bounds[1][0] * loop_bounds[1][1] *
-                                   loop_bounds[1][2] * loop_bounds[1][3] *
-                                   loop_bounds[1][4] * STRIDE * X0 /
-                                   packingFactor +
-                               2;
-              }
-              // CCS_LOG("total_writes: " << total_writes);
-              writeControl[bankSel].Push(total_writes);
-
-              // inner memory
-#pragma hls_pipeline_init_interval 1
-#pragma hls_pipeline_stall_mode flush
               for (loop_counters[1][0] = 0;
                    loop_counters[1][0] < loop_bounds[1][0];
                    loop_counters[1][0]++) {
@@ -473,9 +452,16 @@ SC_MODULE(InputScaleController) {
                                 c1;
                           }
 
-                          BufferWriteRequest<Scale::width> req;
+                          BufferWriteRequest<ac_int<Scale::width, false>> req;
                           req.address = address;
                           req.data = data;
+                          req.last =
+                              loop_counters[1][5] == loop_bounds[1][5] - 1 &&
+                              loop_counters[1][4] == loop_bounds[1][4] - 1 &&
+                              loop_counters[1][3] == loop_bounds[1][3] - 1 &&
+                              loop_counters[1][2] == loop_bounds[1][2] - 1 &&
+                              loop_counters[1][1] == loop_bounds[1][1] - 1 &&
+                              loop_counters[1][0] == loop_bounds[1][0] - 1;
                           writeRequest[bankSel].Push(req);
 
                           if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
@@ -525,8 +511,6 @@ SC_MODULE(InputScaleController) {
   void reader() {
     readerParams.ResetRead();
 
-    readControl[0].Reset();
-    readControl[1].Reset();
     readAddress[0].Reset();
     readAddress[1].Reset();
 
@@ -557,6 +541,7 @@ SC_MODULE(InputScaleController) {
 
 #pragma hls_unroll yes
       for (int i = 0; i < 2; i++) {
+#pragma hls_unroll yes
         for (int j = 0; j < 6; j++) {
           loop_bounds[i][j] = params.loops[i][j];
         }
@@ -580,11 +565,6 @@ SC_MODULE(InputScaleController) {
             for (loop_counters[0][3] = 0;
                  loop_counters[0][3] < loop_bounds[0][3];
                  loop_counters[0][3]++) {
-              int total_reads = loop_bounds[1][0] * loop_bounds[1][1] *
-                                loop_bounds[1][2] * loop_bounds[1][3] *
-                                loop_bounds[1][4] * loop_bounds[1][5];
-              readControl[bankSel].Push(total_reads);
-              // inner memory
               for (loop_counters[1][0] = 0;
                    loop_counters[1][0] < loop_bounds[1][0];
                    loop_counters[1][0]++) {
@@ -636,7 +616,16 @@ SC_MODULE(InputScaleController) {
                             }
                           }
 
-                          readAddress[bankSel].Push(address);
+                          BufferReadRequest req;
+                          req.address = address;
+                          req.last =
+                              loop_counters[1][5] == loop_bounds[1][5] - 1 &&
+                              loop_counters[1][4] == loop_bounds[1][4] - 1 &&
+                              loop_counters[1][3] == loop_bounds[1][3] - 1 &&
+                              loop_counters[1][2] == loop_bounds[1][2] - 1 &&
+                              loop_counters[1][1] == loop_bounds[1][1] - 1 &&
+                              loop_counters[1][0] == loop_bounds[1][0] - 1;
+                          readAddress[bankSel].Push(req);
 
                           if (loop_counters[1][5] >= loop_bounds[1][5] - 1) {
                             break;

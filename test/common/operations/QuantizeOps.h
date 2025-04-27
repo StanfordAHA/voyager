@@ -1,15 +1,7 @@
 #pragma once
 #define NO_SYSC
 
-#include <vector>
-
-// clang-format off
-#include "src/DataTypes.h"
-// clang-format on
-
-#include "src/ArchitectureParams.h"
-#include "test/common/VerificationTypes.h"
-#include "test/compiler/proto/param.pb.h"
+#include "test/common/operations/Common.h"
 
 template <typename Input, typename Output, typename Scale>
 Output* quantize(std::any input, std::any scale, std::vector<int> shape) {

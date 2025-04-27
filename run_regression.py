@@ -6,10 +6,17 @@ import subprocess
 from collections import defaultdict
 import pandas as pd
 import re
+import signal
+import sys
+from deepdiff import DeepDiff
+
+from google.protobuf import text_format
+from google.protobuf.json_format import MessageToDict
+from quantized_training.codegen import param_pb2
 
 
 def print_test_results(test_results, layers, output_folder):
-    columns = ["Model", "Layer", "Status", "Runtime", "Ideal", "RuntimeType"]
+    columns = ["Model", "Layer", "Status", "Runtime", "Ideal", "RuntimeType", "Count"]
     if len(test_results[0]) == 3:
         columns = columns[:3]
 
@@ -50,9 +57,9 @@ def print_test_results(test_results, layers, output_folder):
         if "Runtime" in model_df.columns:
             print("Runtime:")
             print(
-                model_df[["Layer", "Runtime", "Ideal", "RuntimeType"]].to_string(
-                    index=False
-                ),
+                model_df[
+                    ["Layer", "Runtime", "Ideal", "RuntimeType", "Count"]
+                ].to_string(index=False),
                 flush=True,
             )
             utilization = model_df["Ideal"].sum() / model_df["Runtime"].sum()
@@ -123,6 +130,15 @@ def run_gold_model_tests(layers, num_processes, results_folder):
 
     pool = mp.Pool(num_processes)
 
+    def signal_handler(signum, frame):
+        print(f"Receive signal {signum}, terminating pool...")
+        pool.terminate()
+        pool.join()
+        sys.exit(1)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     test_results = []
 
     for model, tests in layers.items():
@@ -139,12 +155,15 @@ def run_gold_model_tests(layers, num_processes, results_folder):
     return print_test_results(test_results, layers, results_folder)
 
 
-def run_systemc_unit_test(model, layer, output_folder, fast):
+def run_systemc_unit_test(model, layer, output_folder, fast, scale_down_operation):
     env_vars = os.environ.copy()
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
     env_vars["CLOCK_PERIOD"] = "1"
     env_vars["SIMS"] = "gold,accelerator"
+
+    if scale_down_operation:
+        env_vars["SCALE_DOWN_OPERATION"] = "1"
 
     with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
         try:
@@ -169,7 +188,7 @@ def run_systemc_unit_test(model, layer, output_folder, fast):
     return (model, layer, p.returncode == 0)
 
 
-def run_systemc_tests(layers, num_processes, results_folder, fast):
+def run_systemc_tests(layers, condensed_models, num_processes, results_folder, fast):
     check_environment_vars(["DATATYPE", "IC_DIMENSION", "OC_DIMENSION"])
 
     # Build TestRunner binary
@@ -185,13 +204,28 @@ def run_systemc_tests(layers, num_processes, results_folder, fast):
 
     pool = mp.Pool(num_processes)
 
+    def signal_handler(signum, frame):
+        print(f"Receive signal {signum}, terminating pool...")
+        pool.terminate()
+        pool.join()
+        sys.exit(1)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     test_results = []
 
     for model, tests in layers.items():
         for test in tests:
             pool.apply_async(
                 run_systemc_unit_test,
-                args=(model, test, results_folder, fast),
+                args=(
+                    model,
+                    test,
+                    results_folder,
+                    fast,
+                    model in condensed_models if condensed_models else False,
+                ),
                 callback=test_results.append,
             )
 
@@ -201,11 +235,15 @@ def run_systemc_tests(layers, num_processes, results_folder, fast):
     return print_test_results(test_results, layers, results_folder)
 
 
-def run_rtl_test(model, layer, output_folder):
+def run_rtl_test(model, layer, layer_count, output_folder, scale_down_operation):
     env_vars = os.environ.copy()
     env_vars["NETWORK"] = model
     env_vars["TESTS"] = layer
     env_vars["SIMS"] = "gold,accelerator"
+
+    if scale_down_operation:
+        env_vars["SCALE_DOWN_OPERATION"] = "1"
+
     # Workaround: vcs/catapult don't support GLIBCXX_3.4.30 in their libstdc++, and the tools hardcode the linker libraries in such an
     # order that their libs are used over the user specified ones. We need the newer version in order to run dependencies installed from conda.
     env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
@@ -215,6 +253,8 @@ def run_rtl_test(model, layer, output_folder):
         env_vars["WEIGHT_BUFFER_SIZE"] = "1024"
     if "ACCUM_BUFFER_SIZE" not in env_vars:
         env_vars["ACCUM_BUFFER_SIZE"] = "1024"
+    if "DOUBLE_BUFFERED_ACCUM_BUFFER" not in env_vars:
+        env_vars["DOUBLE_BUFFERED_ACCUM_BUFFER"] = "false"
 
     # we occasionally see the test fail due to filesystem issues ("no rule to make target", but the target exists), so we retry up to 3 times
     for attempt in range(3):
@@ -222,7 +262,7 @@ def run_rtl_test(model, layer, output_folder):
             try:
                 subprocess.run(
                     ["make", "-f", "scverify/Verify_concat_sim_rtl_v_vcs.mk", "sim"],
-                    cwd=f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
+                    cwd=f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}_{env_vars['INPUT_BUFFER_SIZE']}x{env_vars['WEIGHT_BUFFER_SIZE']}x{env_vars['ACCUM_BUFFER_SIZE']}_{env_vars['DOUBLE_BUFFERED_ACCUM_BUFFER']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
                     env=env_vars,
                     stdout=stdout_file,
                     stderr=subprocess.STDOUT,
@@ -296,10 +336,17 @@ def run_rtl_test(model, layer, output_folder):
         ideal = 0
         runtime_type = ""
 
-    return (model, layer, success, runtime, ideal, runtime_type)
+    return (model, layer, success, runtime, ideal, runtime_type, layer_count)
 
 
-def run_rtl_tests(layers, num_processes, results_folder, keep_build=False):
+def run_rtl_tests(
+    layers,
+    layer_counts,
+    condensed_models,
+    num_processes,
+    results_folder,
+    keep_build=False,
+):
     check_environment_vars(
         ["DATATYPE", "IC_DIMENSION", "OC_DIMENSION", "TECHNOLOGY", "CLOCK_PERIOD"]
     )
@@ -334,10 +381,12 @@ def run_rtl_tests(layers, num_processes, results_folder, keep_build=False):
             env_vars["WEIGHT_BUFFER_SIZE"] = "1024"
         if "ACCUM_BUFFER_SIZE" not in env_vars:
             env_vars["ACCUM_BUFFER_SIZE"] = "1024"
+        if "DOUBLE_BUFFERED_ACCUM_BUFFER" not in env_vars:
+            env_vars["DOUBLE_BUFFERED_ACCUM_BUFFER"] = "false"
 
         subprocess.run(
             ["make", "-f", "scverify/Verify_concat_sim_rtl_v_vcs.mk", "build"],
-            cwd=f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
+            cwd=f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}_{env_vars['INPUT_BUFFER_SIZE']}x{env_vars['WEIGHT_BUFFER_SIZE']}x{env_vars['ACCUM_BUFFER_SIZE']}_{env_vars['DOUBLE_BUFFERED_ACCUM_BUFFER']}/Catapult/{env_vars['TECHNOLOGY']}/clock_{env_vars['CLOCK_PERIOD']}/Accelerator/Accelerator.v1",
             env=env_vars,
             stdout=stdout_file,
             stderr=subprocess.STDOUT,
@@ -345,13 +394,28 @@ def run_rtl_tests(layers, num_processes, results_folder, keep_build=False):
 
     pool = mp.Pool(num_processes)
 
+    def signal_handler(signum, frame):
+        print(f"Receive signal {signum}, terminating pool...")
+        pool.terminate()
+        pool.join()
+        sys.exit(1)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     test_results = []
 
     for model, tests in layers.items():
         for test in tests:
             pool.apply_async(
                 run_rtl_test,
-                args=(model, test, results_folder),
+                args=(
+                    model,
+                    test,
+                    layer_counts[model][test],
+                    results_folder,
+                    model in condensed_models if condensed_models else False,
+                ),
                 callback=test_results.append,
             )
 
@@ -359,6 +423,31 @@ def run_rtl_tests(layers, num_processes, results_folder, keep_build=False):
     pool.join()
 
     return print_test_results(test_results, layers, results_folder)
+
+
+ACCURACY_RESULTS = {
+    "resnet18": {
+        "E4M3": 70.8,
+        "CFLOAT": 70.8,
+        "INT8": 69.7,
+        "MXINT8": 71.0,
+        "P8_1": 69.5,
+    },
+    "resnet50": {
+        "E4M3": 67.7,
+        "CFLOAT": 71.2,
+        "INT8": 69.1,
+        "MXINT8": 69.5,
+        "P8_1": 69.6,
+    },
+    "mobilebert": {
+        "E4M3": 90.6,
+        "CFLOAT": 90.83,
+        "INT8": 90.37,
+        "MXINT8": 91.0,
+        "P8_1": 90.37,
+    },
+}
 
 
 def run_accuracy(model, dataset, num_processes, output_folder):
@@ -377,6 +466,8 @@ def run_accuracy(model, dataset, num_processes, output_folder):
         env_vars["WEIGHT_BUFFER_SIZE"] = "1024"
     if "ACCUM_BUFFER_SIZE" not in env_vars:
         env_vars["ACCUM_BUFFER_SIZE"] = "1024"
+    if "DOUBLE_BUFFERED_ACCUM_BUFFER" not in env_vars:
+        env_vars["DOUBLE_BUFFERED_ACCUM_BUFFER"] = "false"
 
     # Build AccuracyTester binary
     subprocess.run(["make", "clean"], env=env_vars)
@@ -448,7 +539,7 @@ def run_accuracy(model, dataset, num_processes, output_folder):
     else:
         raise ValueError("Invalid model")
 
-    block_size = max(os.environ['OC_DIMENSION'], os.environ['IC_DIMENSION'])
+    block_size = max(os.environ["OC_DIMENSION"], os.environ["IC_DIMENSION"])
 
     if env_vars["DATATYPE"] == "E4M3":
         quantization_args = [
@@ -536,7 +627,7 @@ def run_accuracy(model, dataset, num_processes, output_folder):
         try:
             subprocess.run(
                 [
-                    f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}/cc/AccuracyTester",
+                    f"build/{env_vars['DATATYPE']}_{env_vars['IC_DIMENSION']}x{env_vars['OC_DIMENSION']}_{env_vars['INPUT_BUFFER_SIZE']}x{env_vars['WEIGHT_BUFFER_SIZE']}x{env_vars['ACCUM_BUFFER_SIZE']}_{env_vars['DOUBLE_BUFFERED_ACCUM_BUFFER']}/cc/AccuracyTester",
                     model,
                     output_data_dir,
                     str(num_processes),
@@ -545,7 +636,7 @@ def run_accuracy(model, dataset, num_processes, output_folder):
                 env=env_vars,
                 stdout=stdout_file,
                 stderr=subprocess.STDOUT,
-                timeout=2 * 60 * 60,
+                timeout=3 * 60 * 60,
             )
         except subprocess.TimeoutExpired:
             print(f"Test {model}_{dataset} timed out")
@@ -568,14 +659,76 @@ def run_accuracy(model, dataset, num_processes, output_folder):
     # dump dataframe to pickle
     df.to_pickle(f"{output_folder}/test_results.pkl")
 
-    if model == "resnet18":
-        return final_accuracy >= 70.0
-    elif model == "resnet50":
-        return final_accuracy >= 60.0
-    elif model == "mobilebert" and dataset == "sst2":
-        return final_accuracy >= 90.0
+    gold_accuracy = ACCURACY_RESULTS[model][env_vars["DATATYPE"]]
+    return abs(final_accuracy - gold_accuracy) < 1
+
+
+def add_layers(network, layers, layer_counts, uniquify):
+    all_layers = []
+
+    layers[network] = []
+    layer_counts[network] = {}
+
+    if not uniquify:
+        with open(
+            f"test/compiler/networks/{network}/{os.environ['DATATYPE']}/layers.txt",
+            "r",
+        ) as f:
+            layers[network] = f.read().splitlines()
+            layer_counts[network] = {layer: 1 for layer in layers[network]}
     else:
-        return True
+        # open the proto file
+        with open(
+            f"test/compiler/networks/{network}/{os.environ['DATATYPE']}/model.txt",
+            "r",
+        ) as f:
+            contents = f.read()
+        params = param_pb2.Model()
+        text_format.Parse(contents, params)
+
+        # convert to json
+        params_dict = MessageToDict(params, preserving_proto_field_name=True)
+
+        def delete_nested_keys(data, key):
+            # if the current element is a dict
+            if isinstance(data, dict):
+                # use list() to create a copy, avoiding modifying the dictionary while iterating
+                for k in list(data.keys()):
+                    if k == key:
+                        del data[k]
+                    else:
+                        # recursively check the value of the current key
+                        delete_nested_keys(data[k], key)
+
+            # if the current element is a list
+            elif isinstance(data, list):
+                for item in data:
+                    delete_nested_keys(item, key)
+
+        unique_layers = {}
+        for op in params_dict["ops"]:
+            # skip nop layers
+            if "op" in op and op["op"]["op"] == "nop":
+                continue
+
+            name = op["op"]["name"] if "op" in op else op["fused_op"]["name"]
+
+            # remove the name, memory, and node fields from the op
+            delete_nested_keys(op, "name")
+            delete_nested_keys(op, "memory")
+            delete_nested_keys(op, "node")
+
+            is_unique_layer = True
+            for op_name, op_val in unique_layers.items():
+                if not DeepDiff(op, op_val, ignore_order=True):
+                    layer_counts[network][op_name] += 1
+                    is_unique_layer = False
+                    break
+
+            if is_unique_layer:
+                unique_layers[name] = op
+                layers[network].append(name)
+                layer_counts[network][name] = 1
 
 
 def main():
@@ -584,6 +737,16 @@ def main():
         "--models",
         required=True,
         help="Model(s) to test for regression (resnet18, mobilebert)",
+    )
+    parser.add_argument(
+        "--condensed_models",
+        required=False,
+        help="Model(s) to test for regression, but are first condensed by shrinking larger layers",
+    )
+    parser.add_argument(
+        "--uniquify_layers",
+        action="store_true",
+        help="Remove duplicated layers in the model",
     )
     parser.add_argument(
         "--dataset",
@@ -625,18 +788,23 @@ def main():
     os.system("rm -f regression_results/latest")
     os.system(f"cd regression_results && ln -sf {current_time} latest")
 
+    layers = {}
+    layer_counts = {}
+
     # Add codegen layers
     layers = {}
     if args.tests is None:
-        for network in args.models:
+        all_models = []
+        if args.models is not None:
+            all_models.extend(args.models)
+        if args.condensed_models is not None:
+            all_models.extend(args.condensed_models)
+
+        for network in all_models:
             env_vars = os.environ.copy()
             env_vars["NETWORK"] = network
             subprocess.run(["make", "network-proto"], env=env_vars)
-            with open(
-                f"test/compiler/networks/{network}/{os.environ['DATATYPE']}/layers.txt",
-                "r",
-            ) as f:
-                layers[network] = f.read().splitlines()
+            add_layers(network, layers, layer_counts, args.uniquify_layers)
     else:
         assert (
             len(args.models) == 1
@@ -645,16 +813,27 @@ def main():
 
     if args.sims == "systemc" or args.sims == "fast-systemc":
         success = run_systemc_tests(
-            layers, args.num_processes, results_folder, args.sims == "fast-systemc"
+            layers,
+            args.condensed_models,
+            args.num_processes,
+            results_folder,
+            args.sims == "fast-systemc",
         )
     elif args.sims == "rtl":
         success = run_rtl_tests(
-            layers, args.num_processes, results_folder, args.keep_build
+            layers,
+            layer_counts,
+            args.condensed_models,
+            args.num_processes,
+            results_folder,
+            args.keep_build,
         )
     elif args.sims == "gold_model":
         success = run_gold_model_tests(layers, args.num_processes, results_folder)
     elif args.sims == "accuracy":
-        success = run_accuracy(args.models, args.dataset, args.num_processes, results_folder)
+        success = run_accuracy(
+            args.models, args.dataset, args.num_processes, results_folder
+        )
     else:
         raise ValueError("Invalid simulation type")
 

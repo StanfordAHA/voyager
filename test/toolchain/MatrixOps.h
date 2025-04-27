@@ -353,7 +353,39 @@ void MapMatrixOperation(const Operation &operation,
 
   // vector instructions
   VectorParams *vector_params = new VectorParams;
-  vector_params->addr_gen0_mode = 0;  // use matrix unit outputs
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
+  vector_params->addr_gen0_mode = 3;  // read from accumulation buffer
+#else
+  vector_params->addr_gen0_mode = 0;  // read from matrix unit
+#endif
+  // Set outer loops
+  for (int i = 0; i < 3; i++) {
+    vector_params->addr_gen0_loops[0][i] = tiling.loops[0][i];
+  }
+  vector_params->addr_gen0_y_loop_idx[0] = tiling.y_loop_index[0];
+  vector_params->addr_gen0_x_loop_idx[0] = tiling.x_loop_index[0];
+  vector_params->addr_gen0_k_loop_idx[0] = tiling.weight_loop_index[0];
+
+  // Set inner loops
+  int addressGen0LoopIndex = 0;
+  for (int i = 0; i < 6; i++) {
+    // ignore the loops not present in outputs (reduction, fx, fy)
+    if (i == tiling.weight_loop_index[1] || i == tiling.x_loop_index[1] ||
+        i == tiling.y_loop_index[1]) {
+      vector_params->addr_gen0_loops[1][addressGen0LoopIndex] =
+          tiling.loops[1][i];
+      if (i == tiling.y_loop_index[1]) {
+        vector_params->addr_gen0_y_loop_idx[1] = addressGen0LoopIndex;
+      }
+      if (i == tiling.x_loop_index[1]) {
+        vector_params->addr_gen0_x_loop_idx[1] = addressGen0LoopIndex;
+      }
+      if (i == tiling.weight_loop_index[1]) {
+        vector_params->addr_gen0_k_loop_idx[1] = addressGen0LoopIndex;
+      }
+      addressGen0LoopIndex++;
+    }
+  }
 
   codegen::Tensor output;
   if (param.has_output()) {
@@ -413,7 +445,12 @@ void MapMatrixOperation(const Operation &operation,
   VectorInstructions inst;
   memset(&inst, 0, sizeof(inst));
   inst.op_type = VectorInstructions::vector;
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
+  inst.vector_op0_src0 = VectorInstructions::from_accumulation_buffer;
+  matrix_params->write_output_to_accum_buffer = true;
+#else
   inst.vector_op0_src0 = VectorInstructions::from_matrix_unit;
+#endif
   inst.vdest = VectorInstructions::to_output;
 
   auto inst_map = get_vector_instruction_mapping();
@@ -529,6 +566,19 @@ void MapMatrixOperation(const Operation &operation,
       }
     }
   }
+
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
+  // the double buffered accum buffer doesn't need to be used if there's no
+  // vector operation or if the vector operation does not use high precision
+  if ((vector_params->addr_gen1_mode == 0 ||
+       vector_params->addr_gen1_dtype == 0) &&
+      (vector_params->addr_gen2_mode == 0 ||
+       vector_params->addr_gen2_dtype == 0)) {
+    inst.vector_op0_src0 = VectorInstructions::from_matrix_unit;
+    vector_params->addr_gen0_mode = 0;
+    matrix_params->write_output_to_accum_buffer = false;
+  }
+#endif
 
   // total output count
   VectorInstructionConfig *vector_instruction_config =

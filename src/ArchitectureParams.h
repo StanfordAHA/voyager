@@ -1,5 +1,9 @@
 #pragma once
 
+// This header depends on `DataTypes.h`, but only through macros. As a result,
+// IWYU thinks that this header is not used, even though it is.
+#include "DataTypes.h"  // IWYU pragma: keep
+
 #if defined(P8_1)
 
 using P8 = Posit<8, 1>;
@@ -157,6 +161,10 @@ using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 #define SUPPORT_MX false
 #endif
 
+#ifndef DOUBLE_BUFFERED_ACCUM_BUFFER
+#define DOUBLE_BUFFERED_ACCUM_BUFFER false
+#endif
+
 #if !SUPPORT_MX
 #define OUTPUT_DATATYPES INPUT_DATATYPE, VECTOR_DATATYPE
 #define VECTOR_INPUT_DATATYPES INPUT_DATATYPE, VECTOR_DATATYPE
@@ -186,5 +194,7 @@ using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 #endif
 
 #define IC_PORT_WIDTH (IC_DIMENSION * INPUT_DATATYPE::width)
+#define IC_PORT_TYPE ac_int<IC_PORT_WIDTH, false>
 #define OC_PORT_WIDTH (OC_DIMENSION * INPUT_DATATYPE::width)
+#define OC_PORT_TYPE ac_int<OC_PORT_WIDTH, false>
 #define ADDRESS_WIDTH 64

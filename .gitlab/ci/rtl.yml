@@ -3,54 +3,59 @@ include: .gitlab/ci/template.yml
 RTL Simulation (E4M3, 32x64):
   extends: .on_merge_request
   script:
-    - DATATYPE=E4M3 IC_DIMENSION=32 OC_DIMENSION=64 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50 --sims rtl --num_processes 32
+    - DATATYPE=E4M3 IC_DIMENSION=32 OC_DIMENSION=64 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50 --sims rtl --num_processes 32 --uniquify_layers
 
 RTL Simulation (E4M3, 32x32):
   extends: .on_merge_request
   script:
-    - DATATYPE=E4M3 IC_DIMENSION=32 OC_DIMENSION=32 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32
+    - DATATYPE=E4M3 IC_DIMENSION=32 OC_DIMENSION=32 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32 --uniquify_layers
 
 RTL Simulation (E4M3, 16x32):
   extends: .on_merge_request
   script:
-    - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=32 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32
+    - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=32 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32 --uniquify_layers
 
 RTL Simulation (E4M3, 16x16):
   extends: .on_merge_request
   script:
-    - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32
+    - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32 --uniquify_layers
+
+RTL Simulation (E4M3, 16x16, 1024x1024x1024, true):
+  extends: .on_merge_request
+  script:
+    - DATATYPE=E4M3 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 DOUBLE_BUFFERED_ACCUM_BUFFER=true python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32 --uniquify_layers
 
 RTL Simulation (Posit8, 16x16):
   extends: .on_merge_request
   script:
-    - DATATYPE=P8_1 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32
+    - DATATYPE=P8_1 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32 --uniquify_layers
 
 RTL Simulation (INT8, 16x16):
   extends: .on_merge_request
   script:
-    - DATATYPE=INT8 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32
+    - DATATYPE=INT8 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32 --uniquify_layers
 
 RTL Simulation (INT8, 16x16, 2048x2048x2048):
   extends: .on_merge_request
   script:
-    - DATATYPE=INT8_32 IC_DIMENSION=16 OC_DIMENSION=16 INPUT_BUFFER_SIZE=2048 WEIGHT_BUFFER_SIZE=2048 ACCUM_BUFFER_SIZE=2048 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32
+    - DATATYPE=INT8_32 IC_DIMENSION=16 OC_DIMENSION=16 INPUT_BUFFER_SIZE=2048 WEIGHT_BUFFER_SIZE=2048 ACCUM_BUFFER_SIZE=2048 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32 --uniquify_layers
 
 RTL Simulation (MXINT8, 16x16):
   extends: .on_merge_request
   script:
-    - DATATYPE=MXINT8 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32
+    - DATATYPE=MXINT8 IC_DIMENSION=16 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32 --uniquify_layers
 
 RTL Simulation (E4M3, 8x16):
   extends: .on_merge_request
   script:
-    - DATATYPE=E4M3 IC_DIMENSION=8 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32
+    - DATATYPE=E4M3 IC_DIMENSION=8 OC_DIMENSION=16 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32 --uniquify_layers
 
 RTL Simulation (E4M3, 8x8):
   extends: .on_merge_request
   script:
-    - DATATYPE=E4M3 IC_DIMENSION=8 OC_DIMENSION=8 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32
+    - DATATYPE=E4M3 IC_DIMENSION=8 OC_DIMENSION=8 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32 --uniquify_layers
 
 RTL Simulation (E4M3, 4x8):
   extends: .on_merge_request
   script:
-    - DATATYPE=E4M3 IC_DIMENSION=4 OC_DIMENSION=8 INPUT_BUFFER_SIZE=2048 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32
+    - DATATYPE=E4M3 IC_DIMENSION=4 OC_DIMENSION=8 INPUT_BUFFER_SIZE=2048 TECHNOLOGY=generic CLOCK_PERIOD=5 python3 run_regression.py --models resnet18,resnet50,mobilebert_encoder --sims rtl --num_processes 32 --uniquify_layers

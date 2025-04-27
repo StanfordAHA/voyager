@@ -18,10 +18,8 @@
     expire_in: 1 month
 
 
-.on_merge_request:
+.on_master:
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"'
-      when: always
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: always
     - when: never
@@ -29,7 +27,7 @@
 Area (Accelerator, E4M3, TSMC40, 5):
   extends:
     - .Accelerator
-    - .on_merge_request
+    - .on_master
   script:
     - *pd_setup
     - cd physical-design/Accelerator
@@ -39,7 +37,7 @@ Area (Accelerator, E4M3, TSMC40, 5):
 Area (ProcessingElement, FP32, TSMC40, 5):
   extends:
     - .PE
-    - .on_merge_request
+    - .on_master
   script:
     - *pd_setup
     - cd physical-design/ProcessingElement
@@ -49,8 +47,7 @@ Area (ProcessingElement, FP32, TSMC40, 5):
 Area (ProcessingElement, E4M3, TSMC40, 5):
   extends:
     - .PE
-    - .on_merge_request
-
+    - .on_master
   script:
     - *pd_setup
     - cd physical-design/ProcessingElement
@@ -60,7 +57,7 @@ Area (ProcessingElement, E4M3, TSMC40, 5):
 Area (ProcessingElement, P8_1, TSMC40, 5):
   extends:
     - .PE
-    - .on_merge_request
+    - .on_master
   script:
     - *pd_setup
     - cd physical-design/ProcessingElement
@@ -70,7 +67,7 @@ Area (ProcessingElement, P8_1, TSMC40, 5):
 Area (ProcessingElement, INT8, TSMC40, 5):
   extends:
     - .PE
-    - .on_merge_request
+    - .on_master
   script:
     - *pd_setup
     - cd physical-design/ProcessingElement

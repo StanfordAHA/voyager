@@ -6,7 +6,6 @@
 #include "AccelTypes.h"
 #include "ArchitectureParams.h"
 #include "MatrixUnit.h"
-#include "ParamsDeserializer.h"
 #include "VectorUnit.h"
 #include "mc_scverify.h"
 
@@ -15,12 +14,12 @@ SC_MODULE(Accelerator) {
   sc_in<bool> CCS_INIT_S1(rstn);
 
   MatrixUnit CCS_INIT_S1(matrixUnit);
-  Connections::In<int> CCS_INIT_S1(serialMatrixParamsIn);
+  Connections::In<ac_int<64, false>> CCS_INIT_S1(serialMatrixParamsIn);
   Connections::Out<MemoryRequest> CCS_INIT_S1(inputAddressRequest);
   Connections::Out<MemoryRequest> CCS_INIT_S1(weightAddressRequest);
   Connections::Out<MemoryRequest> CCS_INIT_S1(biasAddressRequest);
 
-  Connections::In<ac_int<IC_PORT_WIDTH, false>> CCS_INIT_S1(inputDataResponse);
+  Connections::In<IC_PORT_TYPE> CCS_INIT_S1(inputDataResponse);
   Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(weightDataResponse);
   Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(biasDataResponse);
 
@@ -34,10 +33,22 @@ SC_MODULE(Accelerator) {
       weightScaleDataResponse);
 #endif
 
-  Connections::Combinational<Pack1D<ACCUM_BUFFER_DATATYPE, OC_DIMENSION>>
-      CCS_INIT_S1(outputsFromSystolicArray);
   Connections::SyncOut CCS_INIT_S1(matrixUnitStartSignal);
   Connections::SyncOut CCS_INIT_S1(matrixUnitDoneSignal);
+
+  Connections::Combinational<Pack1D<ACCUM_BUFFER_DATATYPE, OC_DIMENSION>>
+      CCS_INIT_S1(matrixUnitOutput);
+
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
+  Connections::Combinational<ac_int<16, false>>
+      accumulation_buffer_vu_read_address[2];
+  Connections::Combinational<Pack1D<ACCUM_BUFFER_DATATYPE, OC_DIMENSION>>
+      accumulation_buffer_vu_read_data[2];
+  Connections::Combinational<
+      BufferWriteRequest<Pack1D<ACCUM_BUFFER_DATATYPE, OC_DIMENSION>>>
+      accumulation_buffer_vu_write_request[2];
+  Connections::SyncChannel accumulation_buffer_vu_done[2];
+#endif
 
 #ifdef SIM_VectorUnit
   // clang-format off
@@ -49,7 +60,7 @@ SC_MODULE(Accelerator) {
       CCS_INIT_S1(vector_unit);
 #endif
 
-  Connections::In<int> CCS_INIT_S1(serialVectorParamsIn);
+  Connections::In<ac_int<64, false>> CCS_INIT_S1(serialVectorParamsIn);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vector_fetch_0_request_out);
   Connections::Out<MemoryRequest> CCS_INIT_S1(vector_fetch_1_request_out);
@@ -86,9 +97,21 @@ SC_MODULE(Accelerator) {
     matrixUnit.weightDataResponse(weightDataResponse);
     matrixUnit.biasAddressRequest(biasAddressRequest);
     matrixUnit.biasDataResponse(biasDataResponse);
-    matrixUnit.outputsFromSystolicArray(outputsFromSystolicArray);
     matrixUnit.startSignal(matrixUnitStartSignal);
     matrixUnit.doneSignal(matrixUnitDoneSignal);
+    matrixUnit.matrixUnitOutputChannel(matrixUnitOutput);
+
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
+    for (int i = 0; i < 2; i++) {
+      matrixUnit.accumulation_buffer_vu_read_address[i](
+          accumulation_buffer_vu_read_address[i]);
+      matrixUnit.accumulation_buffer_vu_read_data[i](
+          accumulation_buffer_vu_read_data[i]);
+      matrixUnit.accumulation_buffer_vu_write_request[i](
+          accumulation_buffer_vu_write_request[i]);
+      matrixUnit.accumulation_buffer_vu_done[i](accumulation_buffer_vu_done[i]);
+    }
+#endif
 
 #if SUPPORT_MX
     matrixUnit.inputScaleAddressRequest(inputScaleAddressRequest);
@@ -100,7 +123,6 @@ SC_MODULE(Accelerator) {
     vector_unit.clk(clk);
     vector_unit.rstn(rstn);
     vector_unit.serial_params_in(serialVectorParamsIn);
-    vector_unit.matrix_unit_in(outputsFromSystolicArray);
     vector_unit.vector_fetch_0_request_out(vector_fetch_0_request_out);
     vector_unit.vector_fetch_0_response_in(vector_fetch_0_resp_in);
     vector_unit.vector_fetch_1_request_out(vector_fetch_1_request_out);
@@ -115,6 +137,19 @@ SC_MODULE(Accelerator) {
     vector_unit.scale_address_out(scalar_output_address);
     vector_unit.start(vectorUnitStartSignal);
     vector_unit.done(vectorUnitDoneSignal);
+    vector_unit.matrixUnitOutput(matrixUnitOutput);
+
+#if DOUBLE_BUFFERED_ACCUM_BUFFER
+    for (int i = 0; i < 2; i++) {
+      vector_unit.accumulation_buffer_read_address[i](
+          accumulation_buffer_vu_read_address[i]);
+      vector_unit.accumulation_buffer_read_data[i](
+          accumulation_buffer_vu_read_data[i]);
+      vector_unit.accumulation_buffer_write_request[i](
+          accumulation_buffer_vu_write_request[i]);
+      vector_unit.accumulation_buffer_done[i](accumulation_buffer_vu_done[i]);
+    }
+#endif
 
     SC_THREAD(run);
     sensitive << clk.pos();
