@@ -809,7 +809,11 @@ def main():
         assert (
             len(args.models) == 1
         ), "Only one model can be specified when using --tests"
+        env_vars = os.environ.copy()
+        env_vars["NETWORK"] = args.models[0]
+        subprocess.run(["make", "network-proto"], env=env_vars)
         layers[args.models[0]] = args.tests.split(",")
+        layer_counts[args.models[0]] = {layer: 1 for layer in layers[args.models[0]]}
 
     if args.sims == "systemc" or args.sims == "fast-systemc":
         success = run_systemc_tests(

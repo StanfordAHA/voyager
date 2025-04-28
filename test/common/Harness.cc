@@ -161,7 +161,7 @@ Harness::Harness(sc_module_name name, std::vector<Operation> operations,
 template <int Width>
 void Harness::readMemoryRequest(
     Connections::Combinational<MemoryRequest> *request_out,
-    sc_fifo<ac_int<Width, false>> *data_fifo) {
+    sc_fifo<ac_int<Width, false>> *data_fifo, int channel) {
   request_out->ResetRead();
 
   constexpr int num_bytes = Width / 8;
@@ -184,6 +184,23 @@ void Harness::readMemoryRequest(
         uint64_t address = base_address + i * num_bytes + j;
         DLOG("read addr: " << address << " data: " << memory[address]
                            << std::endl);
+                           unsigned char result_byte = memory[address];
+        uint32_t result = result_byte;
+        CCS_LOG("read addr: " << address << " byte num: " << j << " channel: " << channel << " data: " << std::hex << std::setw(2) << result
+            << std::setfill('0') << std::endl);
+
+        if (channel == 0) {
+          input_data_file << std::hex << std::setw(2) << result << std::setfill('0') << std::endl;
+        } else if (channel == 3) {
+          inputScale_data_file << std::hex << std::setw(2) << result << std::setfill('0') << std::endl;
+        } else if (channel == 1) {
+          weight_data_file << std::hex << std::setw(2) << result << std::setfill('0') << std::endl;
+        } else if (channel == 4) {
+          weightScale_data_file << std::hex << std::setw(2) << result << std::setfill('0') << std::endl;
+        } else if (channel == 2) {
+          bias_data_file << std::hex << std::setw(2) << result << std::setfill('0') << std::endl;
+        }
+
         bits.set_slc(j * 8, static_cast<ac_int<8, false>>(memory[address]));
       }
 
@@ -230,7 +247,7 @@ void Harness::storeMemoryResponse(
 }
 
 void Harness::readRequestInputs() {
-  readMemoryRequest(&inputAddressRequest, &inputDataResponse_fifo);
+  readMemoryRequest(&inputAddressRequest, &inputDataResponse_fifo, 0);
 }
 void Harness::sendResponseInputs() {
   sendMemoryResponse(&inputDataResponse_fifo, &inputDataResponse);
@@ -238,7 +255,7 @@ void Harness::sendResponseInputs() {
 
 void Harness::readRequestInputScale() {
 #if SUPPORT_MX
-  readMemoryRequest(&inputScaleAddressRequest, &inputScaleDataResponse_fifo);
+  readMemoryRequest(&inputScaleAddressRequest, &inputScaleDataResponse_fifo, 3);
 #endif
 }
 void Harness::sendResponseInputScale() {
@@ -248,7 +265,7 @@ void Harness::sendResponseInputScale() {
 }
 
 void Harness::readRequestWeights() {
-  readMemoryRequest(&weightAddressRequest, &weightDataResponse_fifo);
+  readMemoryRequest(&weightAddressRequest, &weightDataResponse_fifo, 1);
 }
 void Harness::sendResponseWeights() {
   sendMemoryResponse(&weightDataResponse_fifo, &weightDataResponse);
@@ -256,7 +273,7 @@ void Harness::sendResponseWeights() {
 
 void Harness::readRequestWeightScale() {
 #if SUPPORT_MX
-  readMemoryRequest(&weightScaleAddressRequest, &weightScaleDataResponse_fifo);
+  readMemoryRequest(&weightScaleAddressRequest, &weightScaleDataResponse_fifo, 4);
 #endif
 }
 void Harness::sendResponseWeightScale() {
@@ -267,7 +284,7 @@ void Harness::sendResponseWeightScale() {
 
 void Harness::readRequestVector0() {
   readMemoryRequest(&vector_fetch_0_request_out,
-                    &vectorFetch0DataResponse_fifo);
+                    &vectorFetch0DataResponse_fifo, -1);
 }
 void Harness::sendResponseVector0() {
   sendMemoryResponse(&vectorFetch0DataResponse_fifo, &vector_fetch_0_resp_in);
@@ -275,7 +292,7 @@ void Harness::sendResponseVector0() {
 
 void Harness::readRequestVector1() {
   readMemoryRequest(&vector_fetch_1_request_out,
-                    &vectorFetch1DataResponse_fifo);
+                    &vectorFetch1DataResponse_fifo, -1);
 }
 void Harness::sendResponseVector1() {
   sendMemoryResponse(&vectorFetch1DataResponse_fifo, &vector_fetch_1_resp_in);
@@ -283,7 +300,7 @@ void Harness::sendResponseVector1() {
 
 void Harness::readRequestVector2() {
   readMemoryRequest(&vector_fetch_2_request_out,
-                    &vectorFetch2DataResponse_fifo);
+                    &vectorFetch2DataResponse_fifo, -1);
 }
 void Harness::sendResponseVector2() {
   sendMemoryResponse(&vectorFetch2DataResponse_fifo, &vector_fetch_2_resp_in);
@@ -291,14 +308,14 @@ void Harness::sendResponseVector2() {
 
 void Harness::readRequestVector3() {
   readMemoryRequest(&vector_fetch_3_request_out,
-                    &vectorFetch3DataResponse_fifo);
+                    &vectorFetch3DataResponse_fifo, -1);
 }
 void Harness::sendResponseVector3() {
   sendMemoryResponse(&vectorFetch3DataResponse_fifo, &vector_fetch_3_resp_in);
 }
 
 void Harness::readRequestBias() {
-  readMemoryRequest(&biasAddressRequest, &biasDataResponse_fifo);
+  readMemoryRequest(&biasAddressRequest, &biasDataResponse_fifo, 2);
 }
 void Harness::sendResponseBias() {
   sendMemoryResponse(&biasDataResponse_fifo, &biasDataResponse);
@@ -357,9 +374,9 @@ void dumpSerializedParams(T params) {
     }
 
     for (int i = 0; i < serializedParamsPadded.width / interfaceWidth; i++) {
-      uint32_t param_slice = (serializedParamsPadded.template slc<interfaceWidth>(
+      uint64_t param_slice = (serializedParamsPadded.template slc<interfaceWidth>(
         i * interfaceWidth));
-      params_file << std::hex << std::setw(8) << std::setfill('0') << param_slice;
+      params_file << std::hex << std::setw(16) << std::setfill('0') << param_slice;
       if (i < (serializedParamsPadded.width / interfaceWidth) - 1) {
         params_file << std::endl;
       }
@@ -381,6 +398,46 @@ void Harness::sendParams() {
 
   // Iterate through all params, ie all layers
   for (int i = 0; i < operations.size(); i++) {
+    // Delete the file if it exists
+    std::remove("input_data_systemC.txt");
+    (this->input_data_file).open("input_data_systemC.txt", std::ios::app);
+    if (!(this->input_data_file).is_open()) {
+      spdlog::error("Failed to open input_data_systemC.txt for writing.");
+      return;
+    }
+
+    // Delete the file if it exists
+    std::remove("inputScale_data_systemC.txt");
+    (this->inputScale_data_file).open("inputScale_data_systemC.txt", std::ios::app);
+    if (!(this->inputScale_data_file).is_open()) {
+      spdlog::error("Failed to open inputScale_data_systemC.txt for writing.");
+      return;
+    }
+
+    // Delete the file if it exists
+    std::remove("weight_data_systemC.txt");
+    (this->weight_data_file).open("weight_data_systemC.txt", std::ios::app);
+    if (!(this->weight_data_file).is_open()) {
+      spdlog::error("Failed to open weight_data_systemC.txt for writing.");
+      return;
+    }
+
+    // Delete the file if it exists
+    std::remove("weightScale_data_systemC.txt");
+    (this->weightScale_data_file).open("weightScale_data_systemC.txt", std::ios::app);
+    if (!(this->weightScale_data_file).is_open()) {
+      spdlog::error("Failed to open weightScale_data_systemC.txt for writing.");
+      return;
+    }
+
+    // Delete the file if it exists
+    std::remove("bias_data_systemC.txt");
+    (this->bias_data_file).open("bias_data_systemC.txt", std::ios::app);
+    if (!(this->bias_data_file).is_open()) {
+      spdlog::error("Failed to open bias_data_systemC.txt for writing.");
+      return;
+    }
+
     currentOperation = operations.at(i);
 
     std::deque<AcceleratorMemoryMap> accelerator_memory_maps;
@@ -437,7 +494,7 @@ void Harness::sendParams() {
         matrixParams->WEIGHT_SCALE_OFFSET = weight_scale_offset;
         matrixParams->BIAS_OFFSET = bias_offset;
 
-        dumpSerializedParams<MatrixParams, 32>(*matrixParams);
+        dumpSerializedParams<MatrixParams, 64>(*matrixParams);
         matrixUnitStartSignal.SyncPop();
       }
 

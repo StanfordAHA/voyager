@@ -145,10 +145,17 @@ SC_MODULE(Harness) {
   Accelerator CCS_INIT_S1(accelerator);
 #endif
 
+ // Write the data to a text file
+ std::ofstream input_data_file;
+ std::ofstream inputScale_data_file;
+ std::ofstream weight_data_file;
+ std::ofstream weightScale_data_file;
+ std::ofstream bias_data_file;
+
   template <int Width>
   void readMemoryRequest(
       Connections::Combinational<MemoryRequest> * request_out,
-      sc_fifo<ac_int<Width, false>> * data_fifo);
+      sc_fifo<ac_int<Width, false>> * data_fifo, int channel);
 
   template <int Width>
   void sendMemoryResponse(

@@ -116,7 +116,7 @@ using F16 = StdFloat<7, 8, false, true, AC_RND_CONV>;
 
 #define INPUT_DATATYPE DataTypes::int8
 #define WEIGHT_DATATYPE DataTypes::int8
-#define ACCUM_DATATYPE DataTypes::int22
+#define ACCUM_DATATYPE DataTypes::int24
 #define ACCUM_BUFFER_DATATYPE DataTypes::bfloat16
 #define VECTOR_DATATYPE DataTypes::bfloat16
 #define SCALE_DATATYPE DataTypes::fp8_e8m0

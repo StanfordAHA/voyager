@@ -277,28 +277,29 @@ int Simulation::check_outputs() {
     const auto tensor = output_tensors[i];
     const int size = get_size(tensor);
 
-    std::string suffix = ".txt";
+    std::string suffix = ".";
     if (outputs1.size() > 1) {
-      suffix = "_" + std::to_string(i) + ".txt";
+      suffix = "_" + std::to_string(i);
     }
 
     if (tensor.dtype() == "bfloat16") {
       rel_err += compare_arrays<DataTypes::bfloat16, DataTypes::bfloat16>(
           output1, output_names[0], output2, output_names[1], size,
-          filename + suffix, false);
+          filename, suffix, false, 2);
     } else if (tensor.dtype() == "fp8_e8m0") {
       rel_err += compare_arrays<DataTypes::fp8_e8m0, DataTypes::fp8_e8m0>(
           output1, output_names[0], output2, output_names[1], size,
-          filename + suffix, false);
+          filename, suffix, false, 1);
     } else if (tensor.dtype() == "fp8_e5m3") {
       rel_err += compare_arrays<DataTypes::fp8_e5m3, DataTypes::fp8_e5m3>(
           output1, output_names[0], output2, output_names[1], size,
-          filename + suffix, false);
+          filename, suffix, false, 1);
     } else {
       // if unspecified, we will assume it's INPUT_DATATYPE
+      // Furthermore assuming the INPUT DATATYPE has 8 bits for now 
       rel_err += compare_arrays<INPUT_DATATYPE, INPUT_DATATYPE>(
           output1, output_names[0], output2, output_names[1], size,
-          filename + suffix, false);
+          filename, suffix, false, 1);
     }
   }
 
