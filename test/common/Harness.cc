@@ -481,8 +481,8 @@ void Harness::sendParams() {
         sendSerializedParams<MatrixParams, 64>(*matrixParams,
                                                &serialMatrixParamsIn);
 
-        uint64_t glb_base_addr = 1310720;
-        uint64_t input_offset = glb_base_addr;
+        uint64_t glb_base_addr = 1310720; // send this through a text file or as an input
+        uint64_t input_offset = glb_base_addr; // read the rest from model.txt using keyword args (OR could store in json file to read in)
         uint64_t input_scale_offset = input_offset + (1 * 64 * 56 * 56);
         uint64_t weight_offset = input_scale_offset + (1 * 1 * 56 * 56);
         uint64_t weight_scale_offset = weight_offset + (64 * 64 * 3 * 3);

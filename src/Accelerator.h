@@ -37,7 +37,7 @@ SC_MODULE(Accelerator) {
   Connections::SyncOut CCS_INIT_S1(matrixUnitDoneSignal);
 
   Connections::Combinational<Pack1D<ACCUM_BUFFER_DATATYPE, OC_DIMENSION>>
-      CCS_INIT_S1(matrixUnitOutput);
+      CCS_INIT_S1(outputsFromSystolicArray);
 
 #if DOUBLE_BUFFERED_ACCUM_BUFFER
   Connections::Combinational<ac_int<16, false>>
@@ -99,7 +99,7 @@ SC_MODULE(Accelerator) {
     matrixUnit.biasDataResponse(biasDataResponse);
     matrixUnit.startSignal(matrixUnitStartSignal);
     matrixUnit.doneSignal(matrixUnitDoneSignal);
-    matrixUnit.matrixUnitOutputChannel(matrixUnitOutput);
+    matrixUnit.outputsFromSystolicArray(outputsFromSystolicArray);
 
 #if DOUBLE_BUFFERED_ACCUM_BUFFER
     for (int i = 0; i < 2; i++) {
@@ -137,7 +137,7 @@ SC_MODULE(Accelerator) {
     vector_unit.scale_address_out(scalar_output_address);
     vector_unit.start(vectorUnitStartSignal);
     vector_unit.done(vectorUnitDoneSignal);
-    vector_unit.matrixUnitOutput(matrixUnitOutput);
+    vector_unit.matrixUnitOutput(outputsFromSystolicArray);
 
 #if DOUBLE_BUFFERED_ACCUM_BUFFER
     for (int i = 0; i < 2; i++) {

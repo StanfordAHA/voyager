@@ -94,8 +94,6 @@ SC_MODULE(InputScaleController) {
       loop_bounds[1][params.fxIndex] = 1;
       loop_bounds[1][params.fyIndex] = 1;
 
-#pragma hls_pipeline_init_interval 1
-#pragma hls_pipeline_stall_mode flush
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
            loop_counters[0][0]++) {
         for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
@@ -165,7 +163,8 @@ SC_MODULE(InputScaleController) {
                 y_max_offset = (FY - 1) / 2;
                 loop_bounds[1][params.inputYLoopIndex[1]] += (FY - 1) / 2;
               }
-
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
               for (loop_counters[1][0] = 0;
                    loop_counters[1][0] < loop_bounds[1][0];
                    loop_counters[1][0]++) {
@@ -347,8 +346,6 @@ SC_MODULE(InputScaleController) {
       ac_int<LOOP_WIDTH, false> Y0 = params.loops[1][params.inputYLoopIndex[1]];
       ac_int<LOOP_WIDTH, false> Y1 = params.loops[0][params.inputYLoopIndex[0]];
 
-#pragma hls_pipeline_init_interval 1
-#pragma hls_pipeline_stall_mode flush
       for (loop_counters[0][0] = 0; loop_counters[0][0] < loop_bounds[0][0];
            loop_counters[0][0]++) {
         for (loop_counters[0][1] = 0; loop_counters[0][1] < loop_bounds[0][1];
@@ -380,7 +377,8 @@ SC_MODULE(InputScaleController) {
                 loop_bounds[1][params.inputXLoopIndex[1]] += FX - 1;
                 loop_bounds[1][params.inputYLoopIndex[1]] += FY - 1;
               }
-
+#pragma hls_pipeline_init_interval 1
+#pragma hls_pipeline_stall_mode flush
               for (loop_counters[1][0] = 0;
                    loop_counters[1][0] < loop_bounds[1][0];
                    loop_counters[1][0]++) {

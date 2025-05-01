@@ -56,7 +56,7 @@ SC_MODULE(MatrixUnit) {
   InputScaleController<SCALE_DATATYPE, IC_DIMENSION> CCS_INIT_S1(
       inputScaleController);
   DoubleBuffer<SCALE_DATATYPE::width, 2048> CCS_INIT_S1(
-        inputScaleBuffer);    
+        inputScaleBuffer);
   Connections::Out<MemoryRequest> CCS_INIT_S1(inputScaleAddressRequest);
   Connections::In<ac_int<SCALE_DATATYPE::width, false>> CCS_INIT_S1(
       inputScaleDataResponse);
@@ -141,7 +141,7 @@ SC_MODULE(MatrixUnit) {
 #endif
 
   Connections::Out<Pack1D<ACCUM_BUFFER_DATATYPE, OC_DIMENSION>>
-      matrixUnitOutputChannel;
+        outputsFromSystolicArray;
 
   Connections::SyncOut CCS_INIT_S1(startSignal);
   Connections::SyncOut CCS_INIT_S1(doneSignal);
@@ -253,7 +253,7 @@ SC_MODULE(MatrixUnit) {
 #endif
     }
 
-    matrixProcessor.matrixUnitOutputChannel(matrixUnitOutputChannel);
+    matrixProcessor.matrixUnitOutputChannel(outputsFromSystolicArray);
 
     accumulation_buffer.clk(clk);
     accumulation_buffer.rstn(rstn);
