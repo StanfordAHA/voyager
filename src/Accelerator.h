@@ -14,7 +14,7 @@ SC_MODULE(Accelerator) {
   sc_in<bool> CCS_INIT_S1(rstn);
 
   MatrixUnit CCS_INIT_S1(matrixUnit);
-  Connections::In<ac_int<64, false>> CCS_INIT_S1(serialMatrixParamsIn);
+  Connections::In<ac_int<32, false>> CCS_INIT_S1(serialMatrixParamsIn);
   Connections::Out<MemoryRequest> CCS_INIT_S1(inputAddressRequest);
   Connections::Out<MemoryRequest> CCS_INIT_S1(weightAddressRequest);
   Connections::Out<MemoryRequest> CCS_INIT_S1(biasAddressRequest);
@@ -60,7 +60,7 @@ SC_MODULE(Accelerator) {
       CCS_INIT_S1(vector_unit);
 #endif
 
-  Connections::In<ac_int<64, false>> CCS_INIT_S1(serialVectorParamsIn);
+  Connections::In<ac_int<32, false>> CCS_INIT_S1(serialVectorParamsIn);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(vector_fetch_0_request_out);
   Connections::Out<MemoryRequest> CCS_INIT_S1(vector_fetch_1_request_out);

@@ -58,9 +58,9 @@ SC_MODULE(Harness) {
   sc_clock CCS_INIT_S1(clk);
   sc_signal<bool> CCS_INIT_S1(rstn);
 
-  Connections::Combinational<ac_int<64, false>> CCS_INIT_S1(
+  Connections::Combinational<ac_int<32, false>> CCS_INIT_S1(
       serialMatrixParamsIn);
-  Connections::Combinational<ac_int<64, false>> CCS_INIT_S1(
+  Connections::Combinational<ac_int<32, false>> CCS_INIT_S1(
       serialVectorParamsIn);
 
   Connections::Combinational<MemoryRequest> CCS_INIT_S1(inputAddressRequest);

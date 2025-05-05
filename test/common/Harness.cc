@@ -373,10 +373,12 @@ void dumpSerializedParams(T params) {
       return;
     }
 
+    int hex_width = interfaceWidth / 4;
+
     for (int i = 0; i < serializedParamsPadded.width / interfaceWidth; i++) {
       uint64_t param_slice = (serializedParamsPadded.template slc<interfaceWidth>(
         i * interfaceWidth));
-      params_file << std::hex << std::setw(16) << std::setfill('0') << param_slice;
+      params_file << std::hex << std::setw(hex_width) << std::setfill('0') << param_slice;
       if (i < (serializedParamsPadded.width / interfaceWidth) - 1) {
         params_file << std::endl;
       }
@@ -478,7 +480,7 @@ void Harness::sendParams() {
       }
 
       if (matrixParamsValid) {
-        sendSerializedParams<MatrixParams, 64>(*matrixParams,
+        sendSerializedParams<MatrixParams, 32>(*matrixParams,
                                                &serialMatrixParamsIn);
 
         uint64_t glb_base_addr = 1310720; // send this through a text file or as an input
@@ -494,7 +496,7 @@ void Harness::sendParams() {
         matrixParams->WEIGHT_SCALE_OFFSET = weight_scale_offset;
         matrixParams->BIAS_OFFSET = bias_offset;
 
-        dumpSerializedParams<MatrixParams, 64>(*matrixParams);
+        dumpSerializedParams<MatrixParams, 32>(*matrixParams);
         matrixUnitStartSignal.SyncPop();
       }
 
@@ -503,9 +505,9 @@ void Harness::sendParams() {
                                           << "' Started. -----");
 
       if (vectorParamsValid) {
-        sendSerializedParams<VectorParams, 64>(*vectorParams,
+        sendSerializedParams<VectorParams, 32>(*vectorParams,
                                                &serialVectorParamsIn);
-        sendSerializedParams<VectorInstructionConfig, 64>(
+        sendSerializedParams<VectorInstructionConfig, 32>(
             *vectorInstructionConfig, &serialVectorParamsIn);
         vectorUnitStartSignal.SyncPop();
       }

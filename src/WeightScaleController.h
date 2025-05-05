@@ -12,7 +12,7 @@ SC_MODULE(WeightScaleController) {
   sc_in<bool> CCS_INIT_S1(clk);
   sc_in<bool> CCS_INIT_S1(rstn);
 
-  Connections::In<ac_int<64, false>> CCS_INIT_S1(serialParamsIn);
+  Connections::In<ac_int<32, false>> CCS_INIT_S1(serialParamsIn);
 
   Connections::Out<MemoryRequest> CCS_INIT_S1(addressRequest);
   Connections::In<ac_int<OC_PORT_WIDTH, false>> CCS_INIT_S1(dataResponse);
@@ -225,7 +225,7 @@ SC_MODULE(WeightScaleController) {
                  loop_counters[0][3]++) {
               int num_total_writes = loop_bounds[1][0] * loop_bounds[1][1] *
                                      loop_bounds[1][2] * loop_bounds[1][3] *
-                                     loop_bounds[1][4] / NRows; // TODO: Try changing this to NRows 
+                                     loop_bounds[1][4] / NRows; // TODO: Try changing this to NRows
               int num_writes = 0;
               // inner memory
               for (loop_counters[1][0] = 0;

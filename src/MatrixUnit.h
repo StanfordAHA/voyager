@@ -31,8 +31,8 @@ SC_MODULE(MatrixUnit) {
 #endif
 
   MatrixParamsRouter<PARAMS_MODULE_COUNT> CCS_INIT_S1(paramsRouter);
-  Connections::In<ac_int<64, false>> CCS_INIT_S1(serialMatrixParamsIn);
-  Connections::Combinational<ac_int<64, false>>
+  Connections::In<ac_int<32, false>> CCS_INIT_S1(serialMatrixParamsIn);
+  Connections::Combinational<ac_int<32, false>>
       serialMatrixParams[PARAMS_MODULE_COUNT];
 
   // clang-format off

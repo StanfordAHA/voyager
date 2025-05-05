@@ -69,7 +69,7 @@ SC_MODULE(MatrixProcessor) {
   Connections::SyncOut accumulation_buffer_done[ACCUM_BUFFER_BANKS];
 #endif
 
-  Connections::In<ac_int<64, false>> CCS_INIT_S1(serialParamsIn);
+  Connections::In<ac_int<32, false>> CCS_INIT_S1(serialParamsIn);
 
   Connections::Combinational<MatrixParams> CCS_INIT_S1(
       accumulationBufferParams);
