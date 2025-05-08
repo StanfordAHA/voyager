@@ -62,9 +62,9 @@ SC_MODULE(InputScaleController) {
       const MatrixParams params = fetcherParams.Pop();
 
       ac_int<4, false> FX = params.loops[1][params.fxIndex];
-      if (params.is_replication) {
-        FX = 7;
-      }
+      // if (params.is_replication) {
+      //   FX = 7;
+      // }
       ac_int<4, false> FY = params.loops[1][params.fyIndex];
       ac_int<2, false> STRIDE = params.STRIDE;
 
@@ -121,26 +121,26 @@ SC_MODULE(InputScaleController) {
                     params.loops[1][params.inputYLoopIndex[1]] * STRIDE;
               }
 
-              if (params.is_replication) {
-                loop_bounds[1][params.inputXLoopIndex[1]] /= packingFactor;
-              }
+              // if (params.is_replication) {
+              //   loop_bounds[1][params.inputXLoopIndex[1]] /= packingFactor;
+              // }
 
               ac_int<4, false> x_min_offset = 0;
               ac_int<4, false> x_max_offset = 0;
               ac_int<4, false> y_min_offset = 0;
               ac_int<4, false> y_max_offset = 0;
 
-              if (params.is_replication) {
-                if (loop_counters[0][params.inputXLoopIndex[0]] != 0) {
-                  x_min_offset = (FX - 1) / 2;
-                  loop_bounds[1][params.inputXLoopIndex[1]] += 1;
-                }
-                if (loop_counters[0][params.inputXLoopIndex[0]] !=
-                    loop_bounds[0][params.inputXLoopIndex[0]] - 1) {
-                  x_max_offset = (FX - 1) / 2;
-                  loop_bounds[1][params.inputXLoopIndex[1]] += 1;
-                }
-              } else {
+              // if (params.is_replication) {
+              //   if (loop_counters[0][params.inputXLoopIndex[0]] != 0) {
+              //     x_min_offset = (FX - 1) / 2;
+              //     loop_bounds[1][params.inputXLoopIndex[1]] += 1;
+              //   }
+              //   if (loop_counters[0][params.inputXLoopIndex[0]] !=
+              //       loop_bounds[0][params.inputXLoopIndex[0]] - 1) {
+              //     x_max_offset = (FX - 1) / 2;
+              //     loop_bounds[1][params.inputXLoopIndex[1]] += 1;
+              //   }
+              // } else {
                 if (loop_counters[0][params.inputXLoopIndex[0]] != 0) {
                   x_min_offset = (FX - 1) / 2;
                   loop_bounds[1][params.inputXLoopIndex[1]] += (FX - 1) / 2;
@@ -151,7 +151,7 @@ SC_MODULE(InputScaleController) {
                   x_max_offset = (FX - 1) / 2;
                   loop_bounds[1][params.inputXLoopIndex[1]] += (FX - 1) / 2;
                 }
-              }
+              // }
 
               if (loop_counters[0][params.inputYLoopIndex[0]] != 0) {
                 y_min_offset = (FY - 1) / 2;
@@ -219,13 +219,13 @@ SC_MODULE(InputScaleController) {
                             y0 = y0 * STRIDE;
                           }
 
-                          if (params.is_replication) {
-                            if (x0 != 0 && x_min_offset == 3) {
-                              x0 = x_min_offset + (x0 - 1) * packingFactor;
-                            } else {
-                              x0 = x0 * packingFactor;
-                            }
-                          }
+                          // if (params.is_replication) {
+                          //   if (x0 != 0 && x_min_offset == 3) {
+                          //     x0 = x_min_offset + (x0 - 1) * packingFactor;
+                          //   } else {
+                          //     x0 = x0 * packingFactor;
+                          //   }
+                          // }
 
                           ac_int<16, false> x = (x0 - x_min_offset) + x1 * X0;
                           ac_int<16, false> X = X0 * X1;
@@ -235,10 +235,10 @@ SC_MODULE(InputScaleController) {
 
                           ac_int<32, false> address = y * X * C + x * C + c;
 
-                          if (params.is_replication) {
-                            address = y * (X / packingFactor) * NRows +
-                                      (x / packingFactor) * NRows + c;
-                          }
+                          // if (params.is_replication) {
+                          //   address = y * (X / packingFactor) * NRows +
+                          //             (x / packingFactor) * NRows + c;
+                          // }
 
                           MemoryRequest request = {
                               params.INPUT_SCALE_OFFSET +
@@ -304,9 +304,9 @@ SC_MODULE(InputScaleController) {
       const MatrixParams params = writerParams.Pop();
 
       ac_int<4, false> FX = params.loops[1][params.fxIndex];
-      if (params.is_replication) {
-        FX = 7;
-      }
+      // if (params.is_replication) {
+      //   FX = 7;
+      // }
 
       // replication packing factor
       int packingFactor;
@@ -368,15 +368,15 @@ SC_MODULE(InputScaleController) {
 
               ac_int<4, false> x_min_offset = fx_bound;
               ac_int<4, false> y_min_offset = fy_bound;
-              if (params.is_replication) {
-                // make sure to grab border pixels
-                loop_bounds[1][params.inputXLoopIndex[1]] =
-                    STRIDE * X0 / packingFactor + 2;
-                loop_bounds[1][params.inputYLoopIndex[1]] += FY - 1;
-              } else {
+              // if (params.is_replication) {
+              //   // make sure to grab border pixels
+              //   loop_bounds[1][params.inputXLoopIndex[1]] =
+              //       STRIDE * X0 / packingFactor + 2;
+              //   loop_bounds[1][params.inputYLoopIndex[1]] += FY - 1;
+              // } else {
                 loop_bounds[1][params.inputXLoopIndex[1]] += FX - 1;
                 loop_bounds[1][params.inputYLoopIndex[1]] += FY - 1;
-              }
+              // }
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
               for (loop_counters[1][0] = 0;
@@ -412,11 +412,11 @@ SC_MODULE(InputScaleController) {
                           ac_int<LOOP_WIDTH, true> C1 =
                               loop_bounds[1][params.reductionLoopIndex[1]];
 
-                          if (params.is_replication) {
-                            if (x0 != 0) {
-                              x0 = x_min_offset + (x0 - 1) * packingFactor;
-                            }
-                          }
+                          // if (params.is_replication) {
+                          //   if (x0 != 0) {
+                          //     x0 = x_min_offset + (x0 - 1) * packingFactor;
+                          //   }
+                          // }
 
                           ac_int<16, true> full_x, full_y;
                           if (isDownsample) {
@@ -442,13 +442,13 @@ SC_MODULE(InputScaleController) {
                           ac_int<32, false> address =
                               y0 * (X0 * STRIDE + FX - 1) * C1 + x0 * C1 + c1;
 
-                          if (params.is_replication) {
-                            address =
-                                y0 * (X0 * STRIDE / packingFactor + 2) * C1 +
-                                loop_counters[1][params.inputXLoopIndex[1]] *
-                                    C1 +
-                                c1;
-                          }
+                          // if (params.is_replication) {
+                          //   address =
+                          //       y0 * (X0 * STRIDE / packingFactor + 2) * C1 +
+                          //       loop_counters[1][params.inputXLoopIndex[1]] *
+                          //           C1 +
+                          //       c1;
+                          // }
 
                           BufferWriteRequest<ac_int<Scale::width, false>> req;
                           req.address = address;
@@ -545,12 +545,12 @@ SC_MODULE(InputScaleController) {
         }
       }
 
-      if (params.is_replication) {
-        loop_bounds[1][params.inputXLoopIndex[1]] =
-            (loop_bounds[1][params.inputXLoopIndex[1]] * STRIDE /
-             packingFactor) +
-            2;
-      }
+      // if (params.is_replication) {
+      //   loop_bounds[1][params.inputXLoopIndex[1]] =
+      //       (loop_bounds[1][params.inputXLoopIndex[1]] * STRIDE /
+      //        packingFactor) +
+      //       2;
+      // }
 
 #pragma hls_pipeline_init_interval 1
 #pragma hls_pipeline_stall_mode flush
@@ -601,18 +601,18 @@ SC_MODULE(InputScaleController) {
                           ac_int<16, false> x = STRIDE * x0 + fx;
                           ac_int<16, false> y = STRIDE * y0 + fy;
                           ac_int<32, false> address;
-                          if (params.is_replication) {
-                            address =
-                                y * (((STRIDE * X0) / packingFactor) + 2) + x0 +
-                                fx;
-                          } else {
+                          // if (params.is_replication) {
+                          //   address =
+                          //       y * (((STRIDE * X0) / packingFactor) + 2) + x0 +
+                          //       fx;
+                          // } else {
                             if (isDownsample) {
                               address = y0 * X0 * C1 + x0 * C1 + c1;
                             } else {
                               address =
                                   y * (STRIDE * X0 + FX - 1) * C1 + x * C1 + c1;
                             }
-                          }
+                          // }
 
                           BufferReadRequest req;
                           req.address = address;

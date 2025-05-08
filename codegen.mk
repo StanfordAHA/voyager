@@ -5,8 +5,8 @@ E4M3_FLAGS := --activation fp8_e4m3 --weight fp8_e4m3 --bf16
 P8_1_FLAGS := --activation posit8_1 --weight posit8_1 --bf16
 INT8_FLAGS := --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --bias int24 --bf16
 INT8_32_FLAGS := --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --bias int32 --bf16
-# BLOCK_SIZE := $(shell [ $(IC_DIMENSION) -gt $(OC_DIMENSION) ] && echo $(IC_DIMENSION) || echo $(OC_DIMENSION))
-BLOCK_SIZE := 64
+BLOCK_SIZE := $(shell [ $(IC_DIMENSION) -gt $(OC_DIMENSION) ] && echo $(IC_DIMENSION) || echo $(OC_DIMENSION))
+# BLOCK_SIZE := 64
 MXINT8_FLAGS := --activation int8,qs=microscaling,bs=$(BLOCK_SIZE) --weight int8,qs=microscaling,bs=$(BLOCK_SIZE) --force_scale_power_of_two --bf16
 MXNF4_FLAGS := --activation nf4_5,qs=microscaling,bs=$(BLOCK_SIZE),scale=fp8_e5m3 --weight nf4_5,qs=microscaling,bs=$(BLOCK_SIZE),scale=fp8_e5m3 --bf16
 EXTRA_COMPILER_FLAGS ?=
@@ -43,6 +43,11 @@ $(CODEGEN_DIR)networks/vit/%/model.txt: quantized-training/test/test_codegen.py
 $(CODEGEN_DIR)/networks/segformer/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
 	python -u quantized-training/test/test_codegen.py segformer $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --output_dir $(dir $@) &> $(dir $@)codegen.log
+
+$(CODEGEN_DIR)/networks/myconv2d/%/model.txt: quantized-training/test/test_codegen.py
+	mkdir -p $(dir $@)
+	python -u quantized-training/test/test_codegen.py myconv2d $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --output_dir $(dir $@) &> $(dir $@)codegen.log
+
 
 ################################################################################
 # Gesture
