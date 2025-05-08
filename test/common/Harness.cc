@@ -186,8 +186,8 @@ void Harness::readMemoryRequest(
                            << std::endl);
                            unsigned char result_byte = memory[address];
         uint32_t result = result_byte;
-        CCS_LOG("read addr: " << address << " byte num: " << j << " channel: " << channel << " data: " << std::hex << std::setw(2) << result
-            << std::setfill('0') << std::endl);
+        // CCS_LOG("read addr: " <<std::hex <<  address << " byte num: " << j << " channel: " << channel << " data: " << std::hex << std::setw(2) << std::setfill('0') << result << std::endl);
+        CCS_LOG("read addr: " <<std::hex <<  address << " byte num: " << j << " channel: " << channel << " data: " << result << std::endl);
 
         if (channel == 0) {
           input_data_file << std::hex << std::setw(2) << result << std::setfill('0') << std::endl;
@@ -483,12 +483,21 @@ void Harness::sendParams() {
         sendSerializedParams<MatrixParams, 32>(*matrixParams,
                                                &serialMatrixParamsIn);
 
+        // LAYER PARAMS (in the future, read this in from elsewhere...)
+        int layer_X = 16;
+        int layer_Y = 16;
+        int layer_IC = 128;
+        int layer_OC = 64;
+        int layer_FX = 3;
+        int layer_FY = 3;
+        int layer_BLOCK_SIZE = 64;
+
         uint64_t glb_base_addr = 1310720; // send this through a text file or as an input
         uint64_t input_offset = glb_base_addr; // read the rest from model.txt using keyword args (OR could store in json file to read in)
-        uint64_t input_scale_offset = input_offset + (1 * 64 * 56 * 56);
-        uint64_t weight_offset = input_scale_offset + (1 * 1 * 56 * 56);
-        uint64_t weight_scale_offset = weight_offset + (64 * 64 * 3 * 3);
-        uint64_t bias_offset = weight_scale_offset + (64 * 1 * 3 * 3);
+        uint64_t input_scale_offset = input_offset + (1 * layer_IC * layer_X * layer_Y);
+        uint64_t weight_offset = input_scale_offset + (1 * layer_IC/layer_BLOCK_SIZE * layer_X * layer_Y);
+        uint64_t weight_scale_offset = weight_offset + (layer_OC * layer_IC * layer_FX * layer_FY);
+        uint64_t bias_offset = weight_scale_offset + (layer_OC * layer_IC/layer_BLOCK_SIZE * layer_FX * layer_FY);
 
         matrixParams->INPUT_OFFSET = input_offset;
         matrixParams->INPUT_SCALE_OFFSET = input_scale_offset;
