@@ -187,7 +187,7 @@ void Harness::readMemoryRequest(
                            unsigned char result_byte = memory[address];
         uint32_t result = result_byte;
         // CCS_LOG("read addr: " <<std::hex <<  address << " byte num: " << j << " channel: " << channel << " data: " << std::hex << std::setw(2) << std::setfill('0') << result << std::endl);
-        CCS_LOG("read addr: " <<std::hex <<  address << " byte num: " << j << " channel: " << channel << " data: " << result << std::endl);
+        CCS_LOG("read addr: " <<  address << " byte num: " << j << " channel: " << channel << " data: " << std::hex  << result << std::endl);
 
         if (channel == 0) {
           input_data_file << std::hex << std::setw(2) << result << std::setfill('0') << std::endl;
@@ -199,6 +199,8 @@ void Harness::readMemoryRequest(
           weightScale_data_file << std::hex << std::setw(2) << result << std::setfill('0') << std::endl;
         } else if (channel == 2) {
           bias_data_file << std::hex << std::setw(2) << result << std::setfill('0') << std::endl;
+        } else if (channel == 6){
+          vectorFetch1_data_file << std::hex << std::setw(2) << result << std::setfill('0') << std::endl;
         }
 
         bits.set_slc(j * 8, static_cast<ac_int<8, false>>(memory[address]));
@@ -284,7 +286,7 @@ void Harness::sendResponseWeightScale() {
 
 void Harness::readRequestVector0() {
   readMemoryRequest(&vector_fetch_0_request_out,
-                    &vectorFetch0DataResponse_fifo, -1);
+                    &vectorFetch0DataResponse_fifo, 5);
 }
 void Harness::sendResponseVector0() {
   sendMemoryResponse(&vectorFetch0DataResponse_fifo, &vector_fetch_0_resp_in);
@@ -292,7 +294,7 @@ void Harness::sendResponseVector0() {
 
 void Harness::readRequestVector1() {
   readMemoryRequest(&vector_fetch_1_request_out,
-                    &vectorFetch1DataResponse_fifo, -1);
+                    &vectorFetch1DataResponse_fifo, 6);
 }
 void Harness::sendResponseVector1() {
   sendMemoryResponse(&vectorFetch1DataResponse_fifo, &vector_fetch_1_resp_in);
@@ -300,7 +302,7 @@ void Harness::sendResponseVector1() {
 
 void Harness::readRequestVector2() {
   readMemoryRequest(&vector_fetch_2_request_out,
-                    &vectorFetch2DataResponse_fifo, -1);
+                    &vectorFetch2DataResponse_fifo, 7);
 }
 void Harness::sendResponseVector2() {
   sendMemoryResponse(&vectorFetch2DataResponse_fifo, &vector_fetch_2_resp_in);
@@ -308,7 +310,7 @@ void Harness::sendResponseVector2() {
 
 void Harness::readRequestVector3() {
   readMemoryRequest(&vector_fetch_3_request_out,
-                    &vectorFetch3DataResponse_fifo, -1);
+                    &vectorFetch3DataResponse_fifo, 8);
 }
 void Harness::sendResponseVector3() {
   sendMemoryResponse(&vectorFetch3DataResponse_fifo, &vector_fetch_3_resp_in);
@@ -440,6 +442,16 @@ void Harness::sendParams() {
       return;
     }
 
+    // Delete the file if it exists
+    std::remove("vectorFetch1_data_systemC.txt");
+    (this->vectorFetch1_data_file).open("vectorFetch1_data_systemC.txt", std::ios::app);
+    if (!(this->vectorFetch1_data_file).is_open()) {
+      spdlog::error("Failed to open bias_data_systemC.txt for writing.");
+      return;
+    }
+
+
+
     currentOperation = operations.at(i);
 
     std::deque<AcceleratorMemoryMap> accelerator_memory_maps;
@@ -484,20 +496,37 @@ void Harness::sendParams() {
                                                &serialMatrixParamsIn);
 
         // LAYER PARAMS (in the future, read this in from elsewhere...)
-        int layer_X = 16;
-        int layer_Y = 16;
-        int layer_IC = 128;
+        int layer_X = 56;
+        int layer_Y = 56;
+        int layer_IC = 64;
         int layer_OC = 64;
         int layer_FX = 3;
         int layer_FY = 3;
         int layer_BLOCK_SIZE = 64;
 
-        uint64_t glb_base_addr = 1310720; // send this through a text file or as an input
+        int input_size = 1 * layer_IC * layer_X * layer_Y;
+        int input_scale_size = 1 * layer_IC / layer_BLOCK_SIZE * layer_X * layer_Y;
+        int weight_size = layer_OC * layer_IC * layer_FX * layer_FY;
+        int weight_scale_size = layer_OC * layer_IC / layer_BLOCK_SIZE * layer_FX * layer_FY;
+
+        // Must be 32B aligned b/c 32 is the OC unrolling
+        double input_size_aligned = std::ceil(((double)input_size) / 32.0) * 32.0;
+        double input_scale_size_aligned = std::ceil(((double)input_scale_size) / 32.0) * 32.0;
+        double weight_size_aligned = std::ceil(((double)weight_size) / 32.0) * 32.0;
+        double weight_scale_size_aligned = std::ceil(((double)weight_scale_size) / 32.0) * 32.0;
+
+        // Print all the aligned sizes
+        std::cout << "Input size aligned: " << input_size_aligned << std::endl;
+        std::cout << "Input scale size aligned: " << input_scale_size_aligned << std::endl;
+        std::cout << "Weight size aligned: " << weight_size_aligned << std::endl;
+        std::cout << "Weight scale size aligned: " << weight_scale_size_aligned << std::endl;
+
+        uint64_t glb_base_addr = 0; // send this through a text file or as an input
         uint64_t input_offset = glb_base_addr; // read the rest from model.txt using keyword args (OR could store in json file to read in)
-        uint64_t input_scale_offset = input_offset + (1 * layer_IC * layer_X * layer_Y);
-        uint64_t weight_offset = input_scale_offset + (1 * layer_IC/layer_BLOCK_SIZE * layer_X * layer_Y);
-        uint64_t weight_scale_offset = weight_offset + (layer_OC * layer_IC * layer_FX * layer_FY);
-        uint64_t bias_offset = weight_scale_offset + (layer_OC * layer_IC/layer_BLOCK_SIZE * layer_FX * layer_FY);
+        uint64_t input_scale_offset = input_offset + (uint64_t)input_size_aligned;
+        uint64_t weight_offset = input_scale_offset + (uint64_t)input_scale_size_aligned;
+        uint64_t weight_scale_offset = weight_offset + (uint64_t)weight_size_aligned;
+        uint64_t bias_offset = weight_scale_offset + (uint64_t)weight_scale_size_aligned;
 
         matrixParams->INPUT_OFFSET = input_offset;
         matrixParams->INPUT_SCALE_OFFSET = input_scale_offset;

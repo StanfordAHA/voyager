@@ -82,7 +82,7 @@ Simulation::~Simulation() {
 void Simulation::load_data() {
   std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE, REFERENCE_MEMORY_SIZE};
 
-  bool is_cnn = model == "resnet18" || model == "resnet50";
+  bool is_cnn = model == "resnet18" || model == "resnet50" || model == "myconv2d";
 
   if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
     memories["gold"] = new ArrayMemory(memory_sizes);
@@ -296,7 +296,7 @@ int Simulation::check_outputs() {
           filename, suffix, false, 1);
     } else {
       // if unspecified, we will assume it's INPUT_DATATYPE
-      // Furthermore assuming the INPUT DATATYPE has 8 bits for now 
+      // Furthermore assuming the INPUT DATATYPE has 8 bits for now
       rel_err += compare_arrays<INPUT_DATATYPE, INPUT_DATATYPE>(
           output1, output_names[0], output2, output_names[1], size,
           filename, suffix, false, 1);

@@ -26,6 +26,12 @@ solution options set Flows/VCS/COMP_FLAGS "-O3 -Wall -Wno-unknown-pragmas -I$ROO
 solution options set Flows/VCS/VCSELAB_OPTS "-timescale=1ns/1ps -sysc=blocksync -lstdc++fs -L$::env(CONDA_PREFIX)/lib -LDFLAGS \"-Wl,--enable-new-dtags -Wl,-R,$::env(CONDA_PREFIX)/lib\" -labsl_hash -labsl_log_internal_check_op -labsl_log_internal_message -labsl_log_internal_nullguard -lprotobuf -lpthread"
 solution options set Cache/UserCacheHome "$ROOT/$CATAPULT_BUILD_DIR/cache"
 solution options set Cache/DefaultCacheHomeEnabled false
+#  Shorten names
+options set Output/MaxNameLength 100
+options set Output/MaxNameLengthModule 100
+options set Output/MaxNameLengthInstance 100
+options set Output/MaxNameLengthPort 100
+options set Output/MaxNameLengthRegWire 100
 
 flow package require /SCVerify
 flow package option set /SCVerify/USE_VCS true

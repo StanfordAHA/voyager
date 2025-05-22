@@ -151,6 +151,7 @@ SC_MODULE(Harness) {
  std::ofstream weight_data_file;
  std::ofstream weightScale_data_file;
  std::ofstream bias_data_file;
+ std::ofstream vectorFetch1_data_file;
 
   template <int Width>
   void readMemoryRequest(
