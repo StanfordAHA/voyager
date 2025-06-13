@@ -1,4 +1,5 @@
 #eval `modulecmd bash load base catapult/2024.2_2 vcs/T-2022.06-SP2 verdi/T-2022.06-SP2`
+module load catapult/2024.2_2
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 export VG_GNU_PACKAGE=/cad/synopsys/vcs_gnu_package/S-2021.09/gnu_9/linux
 source /cad/synopsys/vcs_gnu_package/S-2021.09/gnu_9/linux/source_me.sh
