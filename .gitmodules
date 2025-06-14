@@ -1,6 +1,6 @@
 [submodule "quantized-training"]
 	path = quantized-training
-	url = https://github.com/jeffreyyu0602/quantized-training.git
+	url = https://github.com/mcoduoza/quantized-training.git
 [submodule "lib/xtensor"]
 	path = lib/xtensor
 	url = https://github.com/xtensor-stack/xtensor.git
