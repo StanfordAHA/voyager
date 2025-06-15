@@ -187,7 +187,7 @@ void Harness::readMemoryRequest(
                            unsigned char result_byte = memory[address];
         uint32_t result = result_byte;
         // CCS_LOG("read addr: " <<std::hex <<  address << " byte num: " << j << " channel: " << channel << " data: " << std::hex << std::setw(2) << std::setfill('0') << result << std::endl);
-        CCS_LOG("read addr: " <<  address << " byte num: " << j << " channel: " << channel << " data: " << std::hex  << result << std::endl);
+        //CCS_LOG("read addr: " <<  address << " byte num: " << j << " channel: " << channel << " data: " << std::hex  << result << std::endl);
 
         if (channel == 0) {
           input_data_file << std::hex << std::setw(2) << result << std::setfill('0') << std::endl;

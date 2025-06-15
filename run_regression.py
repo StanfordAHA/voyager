@@ -161,6 +161,7 @@ def run_systemc_unit_test(model, layer, output_folder, fast, scale_down_operatio
     env_vars["TESTS"] = layer
     env_vars["CLOCK_PERIOD"] = "1"
     env_vars["SIMS"] = "gold,accelerator"
+    env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
 
     if scale_down_operation:
         env_vars["SCALE_DOWN_OPERATION"] = "1"
@@ -190,6 +191,8 @@ def run_systemc_unit_test(model, layer, output_folder, fast, scale_down_operatio
 
 def run_systemc_tests(layers, condensed_models, num_processes, results_folder, fast):
     check_environment_vars(["DATATYPE", "IC_DIMENSION", "OC_DIMENSION"])
+    env_vars = os.environ.copy()
+    env_vars["LD_PRELOAD"] = env_vars["CONDA_PREFIX"] + "/lib/libstdc++.so.6"
 
     # Build TestRunner binary
     subprocess.run(["make", "clean"], env=os.environ)
@@ -197,7 +200,7 @@ def run_systemc_tests(layers, condensed_models, num_processes, results_folder, f
     with open(f"{results_folder}/build.log", "w") as stdout_file:
         subprocess.run(
             ["make", "-j", "TestRunner-fast" if fast else "TestRunner"],
-            env=os.environ,
+            env=env_vars,
             stdout=stdout_file,
             stderr=subprocess.STDOUT,
         )
