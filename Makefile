@@ -307,6 +307,31 @@ network-proto: $(CODEGEN_DIR)/networks/$(NETWORK)/$(DATATYPE)/model.txt test/com
 
 include codegen.mk
 
+
+###########################################################
+# Creating the conda environment
+###########################################################
+.PHONY: create-env
+create-env: .conda-env
+
+test_env:
+	export MY_VAR="Hello, World!"
+
+.conda-env:
+	@echo "Creating voyager conda environment..."
+	@bash -c '\
+		conda env create -p .conda-env -f environment.yml; \
+		ORIGINAL_PATH=$$PATH; \
+		echo "Saving ORIGINAL_PATH: $$ORIGINAL_PATH"; \
+		conda init && eval "$$(conda shell.bash hook)"; \
+		conda activate ./.conda-env; \
+		cd quantized-training && pip install -r requirements.txt && pip install -e .; \
+		cd .. && pip install quantized-training; \
+		conda deactivate && export PATH=$$ORIGINAL_PATH; \
+		echo "PATH restored to: $$PATH"; \
+	'
+	@echo "Voyager conda environment created successfully. Activate it with conda activate .conda-env"
+
 ###########################################################
 # Cleanup Targets
 ###########################################################
