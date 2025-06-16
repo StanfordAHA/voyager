@@ -16,6 +16,7 @@ venv
 .env
 .swp
 .gitlab-ci-local
+VOYAGER_PATH.txt
 # Simulation output files
 test_outputs/
 test_outputs_e2e/

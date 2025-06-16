@@ -314,21 +314,20 @@ include codegen.mk
 .PHONY: create-env
 create-env: .conda-env
 
-test_env:
-	export MY_VAR="Hello, World!"
-
 .conda-env:
 	@echo "Creating voyager conda environment..."
 	@bash -c '\
 		conda env create -p .conda-env -f environment.yml; \
-		ORIGINAL_PATH=$$PATH; \
-		echo "Saving ORIGINAL_PATH: $$ORIGINAL_PATH"; \
 		conda init && eval "$$(conda shell.bash hook)"; \
 		conda activate ./.conda-env; \
+		TCLSH=$$(which tclsh); \
+		module() { eval "$$($$TCLSH /cad/modules/tcl/modulecmd.tcl sh $$@)"; }; \
+		module load catapult; \
 		cd quantized-training && pip install -r requirements.txt && pip install -e .; \
 		cd .. && pip install quantized-training; \
-		conda deactivate && export PATH=$$ORIGINAL_PATH; \
-		echo "PATH restored to: $$PATH"; \
+        echo $$PATH > VOYAGER_PATH.txt; \
+		echo "Saving voyager path to VOYAGER_PATH.txt: $$PATH"; \
+		conda deactivate; \
 	'
 	@echo "Voyager conda environment created successfully. Activate it with conda activate .conda-env"
 
