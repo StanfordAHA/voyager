@@ -53,6 +53,10 @@ def print_test_results(test_results, layers, output_folder):
             flush=True,
         )
 
+        if not failed.empty:
+            print(f"\033[91mERROR: Some voyager tests failed in SystemC. Please see above. Check the regression_results folder for the log. \033[0m")
+            sys.exit(1)
+
         # if runtime column exists, print runtime of each layer
         if "Runtime" in model_df.columns:
             print("Runtime:")
@@ -734,6 +738,76 @@ def add_layers(network, layers, layer_counts, uniquify):
                 layer_counts[network][name] = 1
 
 
+def create_tensor_metadata_json(layer, params_dict):
+    # create tensor_metadata.json file, needed by aha flow
+    tensor_metadata = {
+        "layer_name": layer,
+        "has_residual": False,
+        "mu_glb_base_address": 0,
+        "ops": [],
+        "outputs": [],
+    }
+
+    # All tensors (input, weight, bias, inputScale, weightScale) are stored in the GLB memory contiguously from this base address.
+    mu_glb_base_address = 0
+    if "MU_GLB_BASE_ADDR" in os.environ:
+        mu_glb_base_address = int(os.environ["MU_GLB_BASE_ADDR"])
+
+    tensor_metadata["mu_glb_base_address"] = mu_glb_base_address
+
+    match = False
+    for op in params_dict["ops"]:
+        if 'op' in op and op["op"]["name"] == layer:
+            match = True
+            op_dict = {}
+            op_dict["name"] = op["op"]["name"]
+            op_dict["kwargs"] = op["op"]["kwargs"]
+            for arg_key in op_dict["kwargs"]:
+                arg = op_dict["kwargs"][arg_key]
+                tensor = arg.get("tensor")
+                # Remove memory field from voyager compiler (mapping to GLB memory is different and handled in the aha flow)
+                if isinstance(tensor, dict):
+                    tensor.pop("memory", None)
+            tensor_metadata["ops"].append(op_dict)
+
+        elif 'fused_op' in op and op["fused_op"]["name"] == layer:
+            match = True
+            for fused_op in op["fused_op"]["op_list"]:
+                fused_op_dict = {}
+                fused_op_name = fused_op["name"]
+                fused_op_dict["name"] = fused_op_name
+                if "add" in fused_op_name:
+                    tensor_metadata["has_residual"] = True
+                fused_op_dict["kwargs"] = fused_op["kwargs"]
+                for arg_key in fused_op_dict["kwargs"]:
+                    arg = fused_op_dict["kwargs"][arg_key]
+                    tensor = arg.get("tensor")
+                    # Remove memory field from voyager compiler (mapping to GLB memory is different and handled in the aha flow)
+                    if isinstance(tensor, dict):
+                        tensor.pop("memory", None)
+                tensor_metadata["ops"].append(fused_op_dict)
+
+        if match:
+            if 'outputs' in op:
+                tensor_metadata["outputs"].append(op["outputs"])
+            elif 'output' in op:
+                tensor_metadata["outputs"].append(op["output"])
+
+            for output in tensor_metadata["outputs"]:
+                # Remove memory field from voyager compiler (mapping to GLB memory is different and handled in the aha flow
+                if isinstance(output, dict):
+                    output.pop("memory", None)
+            # if we found the layer, we can stop searching
+            break
+
+
+
+    with open(f"tensor_metadata.json", "w") as f:
+        import json
+
+        json.dump(tensor_metadata, f, indent=4)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -817,6 +891,21 @@ def main():
         subprocess.run(["make", "network-proto"], env=env_vars)
         layers[args.models[0]] = args.tests.split(",")
         layer_counts[args.models[0]] = {layer: 1 for layer in layers[args.models[0]]}
+
+        # Create tensor_metadata.json file, needed by aha flow
+        # open the proto file
+        with open(
+            f"test/compiler/networks/{args.models[0]}/{os.environ['DATATYPE']}/model.txt",
+            "r",
+        ) as f:
+            contents = f.read()
+        params = param_pb2.Model()
+        text_format.Parse(contents, params)
+
+        # convert to json
+        params_dict = MessageToDict(params, preserving_proto_field_name=True)
+        for layer in layers[args.models[0]]:
+            create_tensor_metadata_json(layer, params_dict)
 
     if args.sims == "systemc" or args.sims == "fast-systemc":
         success = run_systemc_tests(

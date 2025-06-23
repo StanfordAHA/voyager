@@ -23,3 +23,4 @@ test_outputs_e2e/
 logs/
 regression_results/
 .conda-env/
+compiled_collateral

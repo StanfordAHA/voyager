@@ -1,0 +1,160 @@
+# This code is used to generate the GLB affine controller config for a specific tiling pattern in a neural network layer.
+
+arg_indices_dict = {
+        "X0": 0,
+        "Y0": 1,
+        "X1": 2,
+        "Y1": 3,
+        "K1": 4,
+        "K2": 5
+    }
+
+def get_address(x0, y0, x1, y1, k1, k2, X0, Y0, X1, Y1, K1, K2, K0=32):
+    y = y1 * Y0 + y0
+    x = x1 * X0 + x0
+    k = k2 * K1 * K0 + k1 * K0
+
+    addr = y * (X1 * X0 * K2 * K1 * K0) + x * (K2 * K1 * K0) + k
+    return addr
+
+
+def get_address_wrapper(addr_args: list, loop_bounds: list):
+    """
+    Returns the address based on the provided arguments.
+    The order of the arguments should be [x0, y0, x1, y1, k1, k2].
+    """
+    if len(addr_args) != 6:
+        raise ValueError("addr_args must contain exactly 6 elements: [x0, y0, x1, y1, k1, k2]")
+    if len(loop_bounds) != 6:
+        raise ValueError("loop_bounds must contain exactly 6 elements: [X0, Y0, X1, Y1, K1, K2]")
+
+    x0, y0, x1, y1, k1, k2 = addr_args
+    X0, Y0, X1, Y1, K1, K2 = loop_bounds
+    return get_address(x0, y0, x1, y1, k1, k2, X0, Y0, X1, Y1, K1, K2)
+
+
+def print_addr_map(X0, Y0, X1, Y1, K1, K2):
+    for k2 in range(0, K2):
+        for k1 in range(0, K1):
+            for y1 in range(0, Y1):
+                for x1 in range(0, X1):
+                    for y0 in range(0, Y0):
+                        for x0 in range(0, X0):
+                            addr = get_address(x0, y0, x1, y1, k1, k2, X0, Y0, X1, Y1, K1, K2)
+                            print(f"addr: {addr}, bank index: {int(addr/32)}, y1: {y1}, x1: {x1}, k1: {k1}, y0: {y0}, x0: {x0}")
+
+
+def get_dimensionality(X0, Y0, X1, Y1, K1, K2):
+    """
+    Returns the dimensionality of the address space based on the loop bounds.
+    """
+    return sum(1 for dim in [X0, Y0, X1, Y1, K1, K2] if dim > 1)
+
+
+def trim_dimensionality(strides, loop_bounds, loop_order, arg_indices_dict):
+    """
+    Trims the strides to only include dimensions that are greater than 1.
+    """
+    trimmed_strides = []
+    trimmed_extents = []
+
+    for idx, loop in enumerate(loop_order):
+        if loop_bounds[arg_indices_dict[loop]] > 1:
+            trimmed_strides.append(strides[idx])
+            trimmed_extents.append(loop_bounds[arg_indices_dict[loop]])
+
+    return trimmed_strides, trimmed_extents
+
+
+def compute_strides(loop_order, loop_bounds, arg_indices_dict):
+    """
+    Computes the data addresss strides for the given loop order and loop bounds.
+    Does so by calculating the derivative of the address function with respect to each loop variable. E.g.,
+    # dX0 = (K1 * K0)/32
+    # dY0 = (get_address(0, 0, 0, 0, 1, 0) - get_address(0, 0, 0, 0, 0, X0 - 1))/32
+    # dX1 = (get_address(0, 0, 1, 0, 0, 0) - get_address(0, 0, 0, 0, Y0 - 1, X0 - 1))/32
+    # dY1 = (get_address(0, 1, 0, 0, 0, 0) - get_address(0, 0, X1 - 1, 0, Y0 - 1, X0 - 1))/32
+    # dK1 = (get_address(0, 0, 0, 1, 0, 0) - get_address(0, Y1 - 1, X1 - 1, 0, Y0 - 1, X0 - 1))/32
+
+    # The addresss function is defined as: addr = y * (X1 * X0 * K2 * K1 * K0) + x * (K2 * K1 * K0) + k
+    """
+    strides = [0] * len(loop_order)
+    for idx, loop in enumerate(loop_order):
+        addr_args_1 = [0] * len(arg_indices_dict)
+        addr_args_1[arg_indices_dict[loop]] = 1
+
+        addr_args_0 = [0] * len(arg_indices_dict)
+        # Now loop over everything beneath and set it to its max value in args_0
+        for inner_idx in range(idx):
+            addr_args_0[arg_indices_dict[loop_order[inner_idx]]] = loop_bounds[arg_indices_dict[loop_order[inner_idx]]] - 1
+
+        addr_1 = get_address_wrapper(addr_args_1, loop_bounds)
+        addr_0 = get_address_wrapper(addr_args_0, loop_bounds)
+
+        # Divide by 32 to account for each "word" being 32 bytes in our MU address space. Dividing by 32 yields the index into the bank
+        # This implies that a stride of 1 here means that the next address is 32 bytes away in the MU address space, as intended.
+        # This effect is acheieved because in map.c, the data stride is first multiplied by 2 (to account for CGRA word being 2 bytes), then in E64 mode, all strides are multiplied by 4. So overall
+        # the stride is +8 in the GLB bank address space, which translates to +32 in the MU address space.
+        strides[idx] = (addr_1 - addr_0) // 32
+
+    return strides
+
+
+
+def get_glb_dma_config_helper(loop_order, loop_bounds):
+    strides = compute_strides(loop_order, loop_bounds, arg_indices_dict)
+
+    trimmed_strides, trimmed_extents = trim_dimensionality(strides, loop_bounds, loop_order, arg_indices_dict)
+    dimensionality = get_dimensionality(*loop_bounds)
+    assert len(trimmed_strides) == dimensionality
+    assert len(trimmed_extents) == dimensionality
+
+    # Adjust innermost extent to account for aha flow (*= 4, so full data is loaded into GLB. Extent that is programmed in HW (in map.c) will again be divided by 4)
+    trimmed_extents[0] *= 4
+    return dimensionality, trimmed_strides, trimmed_extents
+
+
+def get_glb_dma_config(output_tiling_filepath: str):
+    """
+    Reads the tiling file and returns the GLB DMA config.
+    The tiling file should contain the loop order and loop bounds in a specific format.
+    """
+
+    loop_order = []
+    loop_bounds = [0] * 6  # X0, Y0, X1, Y1, K1, K2
+
+    with open(output_tiling_filepath, 'r') as f:
+        lines = f.readlines()
+        outer_loops = list(map(int, lines[1].strip().split('0: ')[1].split(' ')))
+        inner_loops = list(map(int, lines[2].strip().split('1: ')[1].split(' ')))
+
+        x_loop_indices = list(map(int, lines[3].strip().split('X Loop Index: ')[1].split(' ')))
+        y_loop_indices = list(map(int, lines[4].strip().split('Y Loop Index: ')[1].split(' ')))
+        k_loop_indices = list(map(int, lines[6].strip().split('Weight Loop Index: ')[1].split(' ')))
+
+        loop_bounds[0] = inner_loops[x_loop_indices[1]]  # X0
+        loop_bounds[1] = inner_loops[y_loop_indices[1]]  # Y0
+        loop_bounds[2] = outer_loops[x_loop_indices[0]]  # X1
+        loop_bounds[3] = outer_loops[y_loop_indices[0]]  # Y1
+        loop_bounds[4] = inner_loops[k_loop_indices[1]]  # K1
+        loop_bounds[5] = outer_loops[k_loop_indices[0]]  # K2
+
+        # Construct loop order based on the indices
+        # Map variable names to their values
+        outer_vars_dict = {"X1": x_loop_indices[0], "Y1": y_loop_indices[0], "K2": k_loop_indices[0]}
+        inner_vars_dict = {"X0": x_loop_indices[1], "Y0": y_loop_indices[1], "K1": k_loop_indices[1]}
+
+        # Sort by values (descending), extract keys
+        outer_loop_order = [k for k, v in sorted(outer_vars_dict.items(), key=lambda item: item[1], reverse=True)]
+        inner_loop_order = [k for k, v in sorted(inner_vars_dict.items(), key=lambda item: item[1], reverse=True)]
+
+        # Combine the loop orders
+        loop_order = inner_loop_order + outer_loop_order
+
+    return get_glb_dma_config_helper(loop_order, loop_bounds)
+
+if __name__ == "__main__":
+    dimensionality, strides, extents = get_glb_dma_config("/aha/voyager/compiled_collateral/resnet18-conv2d_mx_default_11/output_tiling.txt")
+    print(f"Dimensionality: {dimensionality}")
+    print(f"Strides: {strides}")
+    print(f"Extents: {extents}")

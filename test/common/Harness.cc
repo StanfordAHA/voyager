@@ -8,6 +8,7 @@
 
 #include "AccelTypes.h"
 #include "sysc/kernel/sc_time.h"
+#include <nlohmann/json.hpp>
 
 #ifndef CFLOAT
 #include "test/toolchain/MapOperation.h"
@@ -356,6 +357,7 @@ void sendSerializedParams(
   }
 }
 
+// Dumping for AHA flow
 template <typename T, unsigned int interfaceWidth>
 void dumpSerializedParams(T params) {
     ac_int<T::width, false> serializedParam;
@@ -376,6 +378,8 @@ void dumpSerializedParams(T params) {
     }
 
     int hex_width = interfaceWidth / 4;
+    int num_params = serializedParamsPadded.width / interfaceWidth;
+    params_file << "SIZE: " << num_params << std::endl;
 
     for (int i = 0; i < serializedParamsPadded.width / interfaceWidth; i++) {
       uint64_t param_slice = (serializedParamsPadded.template slc<interfaceWidth>(
@@ -402,6 +406,7 @@ void Harness::sendParams() {
 
   // Iterate through all params, ie all layers
   for (int i = 0; i < operations.size(); i++) {
+    // Dumping for AHA flow
     // Delete the file if it exists
     std::remove("input_data_systemC.txt");
     (this->input_data_file).open("input_data_systemC.txt", std::ios::app);
@@ -495,21 +500,27 @@ void Harness::sendParams() {
         sendSerializedParams<MatrixParams, 32>(*matrixParams,
                                                &serialMatrixParamsIn);
 
-        // LAYER PARAMS (in the future, read this in from elsewhere...)
-        int layer_X = 56;
-        int layer_Y = 56;
-        int layer_IC = 64;
-        int layer_OC = 64;
-        int layer_FX = 3;
-        int layer_FY = 3;
-        int layer_BLOCK_SIZE = 64;
+        // LAYER PARAMS
+        std::ifstream tensor_metadata_file("tensor_metadata.json");
+        if (!tensor_metadata_file.is_open()) {
+          spdlog::error("Failed to open tensor_metadata.json for reading.");
+          return;
+        }
 
-        int input_size = 1 * layer_IC * layer_X * layer_Y;
-        int input_scale_size = 1 * layer_IC / layer_BLOCK_SIZE * layer_X * layer_Y;
-        int weight_size = layer_OC * layer_IC * layer_FX * layer_FY;
-        int weight_scale_size = layer_OC * layer_IC / layer_BLOCK_SIZE * layer_FX * layer_FY;
+        nlohmann::json tensor_metadata;
+        tensor_metadata_file >> tensor_metadata;
 
-        // Must be 32B aligned b/c 32 is the OC unrolling
+        auto& input_shape = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]["shape"];
+        auto& weight_shape = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]["shape"];
+        auto& input_scale_shape = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]["shape"];
+        auto& weight_scale_shape = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]["shape"];
+
+        int input_size = input_shape[0].get<int>() * input_shape[1].get<int>() * input_shape[2].get<int>() * input_shape[3].get<int>();
+        int weight_size = weight_shape[0].get<int>() * weight_shape[1].get<int>() * weight_shape[2].get<int>() * weight_shape[3].get<int>();
+        int input_scale_size = input_scale_shape[0].get<int>() * input_scale_shape[1].get<int>() * input_scale_shape[2].get<int>() * input_scale_shape[3].get<int>();
+        int weight_scale_size = weight_scale_shape[0].get<int>() * weight_scale_shape[1].get<int>() * weight_scale_shape[2].get<int>() * weight_scale_shape[3].get<int>();
+
+        // Must be 32B aligned b/c 32 is the OC unrolling. Word width in GLB is 32B.
         double input_size_aligned = std::ceil(((double)input_size) / 32.0) * 32.0;
         double input_scale_size_aligned = std::ceil(((double)input_scale_size) / 32.0) * 32.0;
         double weight_size_aligned = std::ceil(((double)weight_size) / 32.0) * 32.0;
@@ -521,7 +532,8 @@ void Harness::sendParams() {
         std::cout << "Weight size aligned: " << weight_size_aligned << std::endl;
         std::cout << "Weight scale size aligned: " << weight_scale_size_aligned << std::endl;
 
-        uint64_t glb_base_addr = 0; // send this through a text file or as an input
+        uint64_t glb_base_addr = tensor_metadata["mu_glb_base_address"].get<uint64_t>();
+        printf("\nMU-GLB base address: %d\n", glb_base_addr);
         uint64_t input_offset = glb_base_addr; // read the rest from model.txt using keyword args (OR could store in json file to read in)
         uint64_t input_scale_offset = input_offset + (uint64_t)input_size_aligned;
         uint64_t weight_offset = input_scale_offset + (uint64_t)input_scale_size_aligned;
