@@ -82,7 +82,7 @@ Simulation::~Simulation() {
 void Simulation::load_data() {
   std::vector<long long> memory_sizes{SRAM_MEMORY_SIZE, REFERENCE_MEMORY_SIZE};
 
-  bool is_cnn = model == "resnet18" || model == "resnet50" || model == "myconv2d";
+  bool is_cnn = model == "resnet18" || model == "resnet50" || model == "fakeconv2d";
 
   if (std::find(sims.begin(), sims.end(), "gold") != sims.end()) {
     memories["gold"] = new ArrayMemory(memory_sizes);
