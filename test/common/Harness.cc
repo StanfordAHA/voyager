@@ -8,7 +8,7 @@
 
 #include "AccelTypes.h"
 #include "sysc/kernel/sc_time.h"
-#include <nlohmann/json.hpp>
+#include "lib/nlohmann/json.hpp"
 
 #ifndef CFLOAT
 #include "test/toolchain/MapOperation.h"
