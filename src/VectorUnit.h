@@ -129,6 +129,16 @@ SC_MODULE(VectorOpUnit) {
           inst.vector_op0_src1 == VectorInstructions::from_matrix_unit) {
         Pack1D<BufferType, Width> sa_output = matrixUnitOutput.Pop();
 
+        // --------------DATA DUMPING FOR AHA FLOW-------------------//
+        std::ofstream SA_output_file;
+        SA_output_file.open("SA_output_systemC.txt", std::ios::app);
+        if (!SA_output_file.is_open()) {
+          spdlog::error("Failed to open SA_output_systemC.txt for writing.");
+          return;
+        }
+        SA_output_file << sa_output << std::endl;
+        // --------------DATA DUMPING FOR AHA FLOW-------------------//
+
         Pack1D<VectorType, Width> temp;
         if (inst.vdequantize) {
           vdequantize<BufferType, VectorType, Width>(sa_output, temp,

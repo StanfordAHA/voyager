@@ -117,10 +117,19 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     weightScale_tensor_data = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]
 
     if has_residual:
+        all_op_names = []
+        for op in tensor_metadata["ops"]:
+            all_op_names.append(op["name"])
+
         for op in tensor_metadata["ops"]:
             if "add" in op["name"]:
-                residual_tensor_data = op["kwargs"]["other"]["tensor"]
-                break
+                for key in op["kwargs"]:
+                    if "tensor" in op["kwargs"][key]:
+                        # Slightly fragile, but we assume the residual tensor is the one that is not in the list of all op names
+                        # May need to revisit this in the future...
+                        if op["kwargs"][key]["tensor"]["node"] not in all_op_names:
+                            residual_tensor_data = op["kwargs"][key]["tensor"]
+                            break
 
     mu_glb_base_addr = tensor_metadata["mu_glb_base_address"]
 
@@ -170,16 +179,12 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     if has_residual:
         residual = read_tensor(base_path + residual_tensor_data["node"] + ".bin",
                                (residual_tensor_data["shape"][0], residual_tensor_data["shape"][1], residual_tensor_data["shape"][2], residual_tensor_data["shape"][3]))
-        # TEMPORARY HACK. Need to use GLB LD DMA controller to read things out in the correct order
-        # residual = residual.reshape(2, 32, 4, 14, 8, 7)
-        # residual_reordered = residual.permute(0, 2, 4, 3, 5, 1)
 
         # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
         residual_reordered = residual.permute(2, 3, 0, 1)
         residual_bf16 = float32_to_bfloat16_bits(residual_reordered)
         residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
 
-        # FIXME: Need to fix this path!
         residual_bf16_be.tofile(f'{h2h_dir}/hw_residual_input_stencil.raw')
         # Flatten residual_bf16 and convert to a python list
         residual_bf16 = residual_bf16.flatten().tolist()

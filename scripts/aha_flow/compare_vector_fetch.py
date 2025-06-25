@@ -40,4 +40,4 @@ def compare_formats(format1_file, format2_file):
 
 # Example usage:
 if __name__ == "__main__":
-    compare_formats('compiled_collateral/resnet18-submodule_2/tensor_files/residual_hex.txt', 'compiled_collateral/resnet18-submodule_2/compare/vectorFetch1_data_systemC.txt')
+    compare_formats('/aha/voyager/compiled_collateral/resnet18-submodule_6/tensor_files/residual_hex.txt', '/aha/voyager/compiled_collateral/resnet18-submodule_6/compare/vectorFetch1_data_systemC.txt')
