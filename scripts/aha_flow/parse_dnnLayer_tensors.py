@@ -228,7 +228,11 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
         residual_bf16 = float32_to_bfloat16_bits(residual_reordered)
         residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
 
-        residual_bf16_be.tofile(f'{h2h_dir}/hw_residual_input_stencil.raw')
+        # FIXME: Temporary HACK
+        if hack_kernel0:
+            residual_bf16_be.tofile(f'{h2h_dir}/hw_partial_sum_input_stencil.raw')
+        else:
+            residual_bf16_be.tofile(f'{h2h_dir}/hw_residual_input_stencil.raw')
         # Flatten residual_bf16 and convert to a python list
         residual_bf16 = residual_bf16.flatten().tolist()
 
@@ -237,8 +241,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     # FIXME: Temporary HACK
     # PARTIAL SUM (MU reduction workaround)
     if hack_kernel1:
-        hw_output_txt_path = f'/aha/garnet/tests/hw_output_pass0.txt'
-        hw_output_raw_path = f'{h2h_dir}/hw_partial_sum_input_stencil.raw'
+        hw_output_txt_path = f'/aha/garnet/tests/hw_output_kernel0.txt'
+        hw_output_raw_path = f'{h2h_dir}/hw_residual_input_stencil.raw'
         hw_output_txt_to_raw(hw_output_txt_path, hw_output_raw_path)
 
     if debug_mode:
