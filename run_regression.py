@@ -9,6 +9,10 @@ import re
 import signal
 import sys
 from deepdiff import DeepDiff
+import math
+
+import functools
+import operator
 
 from google.protobuf import text_format
 from google.protobuf.json_format import MessageToDict
@@ -738,6 +742,42 @@ def add_layers(network, layers, layer_counts, uniquify):
                 layer_counts[network][name] = 1
 
 
+def append_glb_base_addresses(kwargs, mu_glb_base_address):
+
+    # FIXME: Temporary HACK
+    reduction_kernel_hack = True
+
+    # Append GLB base addresses to the kwargs for input, weight, bias, inputScale, and weightScale tensors
+    input_base_address = mu_glb_base_address
+
+    # multiply all element in kwargs['input']['tensor']['shape'] together and add to input_base_address
+    input_num_elements = functools.reduce(operator.mul, kwargs['input']['tensor']['shape'], 1)
+    if reduction_kernel_hack:
+        input_num_elements /= 2
+    inputScale_base_address = input_base_address + math.ceil(input_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+
+    inputScale_num_elements = functools.reduce(operator.mul, kwargs['input_scale']['tensor']['shape'], 1)
+    if reduction_kernel_hack:
+        inputScale_num_elements /= 2
+    weight_base_address = inputScale_base_address + math.ceil(inputScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+
+    weight_num_elements = functools.reduce(operator.mul, kwargs['weight']['tensor']['shape'], 1)
+    if reduction_kernel_hack:
+        weight_num_elements /= 2
+    weightScale_base_address = weight_base_address + math.ceil(weight_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+
+    weightScale_num_elements = functools.reduce(operator.mul, kwargs['weight_scale']['tensor']['shape'], 1)
+    if reduction_kernel_hack:
+        weightScale_num_elements /= 2
+    bias_base_address = weightScale_base_address + math.ceil(weightScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+
+    kwargs['input']['tensor']['glb_base_address'] = input_base_address
+    kwargs['input_scale']['tensor']['glb_base_address'] = inputScale_base_address
+    kwargs['weight']['tensor']['glb_base_address'] = weight_base_address
+    kwargs['weight_scale']['tensor']['glb_base_address'] = weightScale_base_address
+    kwargs['bias']['tensor']['glb_base_address'] = bias_base_address
+
+
 def create_tensor_metadata_json(layer, params_dict):
     # create tensor_metadata.json file, needed by aha flow
     tensor_metadata = {
@@ -762,12 +802,15 @@ def create_tensor_metadata_json(layer, params_dict):
             op_dict = {}
             op_dict["name"] = op["op"]["name"]
             op_dict["kwargs"] = op["op"]["kwargs"]
+            # Should be if "conv2d" or if "matmul", etc. Generalize this in the future
+            if "conv2d" in op_dict["name"]:
+                append_glb_base_addresses(op_dict["kwargs"], mu_glb_base_address)
             for arg_key in op_dict["kwargs"]:
-                arg = op_dict["kwargs"][arg_key]
-                tensor = arg.get("tensor")
-                # Remove memory field from voyager compiler (mapping to GLB memory is different and handled in the aha flow)
-                if isinstance(tensor, dict):
-                    tensor.pop("memory", None)
+                    arg = op_dict["kwargs"][arg_key]
+                    tensor = arg.get("tensor")
+                    if isinstance(tensor, dict):
+                        if "memory" in tensor:
+                            del tensor["memory"]  # Remove memory field from voyager compiler (mapping to GLB memory is different and handled in the aha flow)
             tensor_metadata["ops"].append(op_dict)
 
         elif 'fused_op' in op and op["fused_op"]["name"] == layer:
@@ -779,12 +822,16 @@ def create_tensor_metadata_json(layer, params_dict):
                 if "add" in fused_op_name:
                     tensor_metadata["has_residual"] = True
                 fused_op_dict["kwargs"] = fused_op["kwargs"]
+                # Should be if "conv2d" or if "matmul", etc. Generalize this in the future
+                if "conv2d" in fused_op_dict["name"]:
+                    append_glb_base_addresses(fused_op_dict["kwargs"], mu_glb_base_address)
                 for arg_key in fused_op_dict["kwargs"]:
                     arg = fused_op_dict["kwargs"][arg_key]
                     tensor = arg.get("tensor")
-                    # Remove memory field from voyager compiler (mapping to GLB memory is different and handled in the aha flow)
                     if isinstance(tensor, dict):
-                        tensor.pop("memory", None)
+                        if "memory" in tensor:
+                            del tensor["memory"]  # Remove memory field from voyager compiler (mapping to GLB memory is different and handled in the aha flow)
+
                 tensor_metadata["ops"].append(fused_op_dict)
 
         if match:

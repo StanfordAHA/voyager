@@ -279,7 +279,7 @@ int Simulation::check_outputs() {
 
     std::string suffix = ".";
     if (outputs1.size() > 1) {
-      suffix = "_" + std::to_string(i);
+      suffix = "_" + std::to_string(i)  + ".";
     }
 
     if (tensor.dtype() == "bfloat16") {

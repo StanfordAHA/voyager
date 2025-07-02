@@ -101,6 +101,22 @@ def write_all_tensors_to_hex(
             write_list_to_hex(residual_bf16, output_dir + 'residual_hex.txt', residual_start_addr)
 
 
+# For writing partial sum output from a prior kernel to raw binary file
+def hw_output_txt_to_raw(input_txt_path, output_raw_path):
+    # Read the file content
+    with open(input_txt_path, 'r') as f:
+        hex_values = f.read().split()
+
+    # Convert hex strings to unsigned 16-bit integers
+    uint16_array = np.array([int(h, 16) for h in hex_values], dtype=np.uint16)
+
+    # Swap byte order
+    uint16_array_be = uint16_array.byteswap().newbyteorder('>')
+
+    # Save to raw binary file
+    uint16_array_be.tofile(output_raw_path)
+
+
 def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     # Base path for the binary files
     base_path = f'/aha/voyager/test/compiler/networks/{model}/{datatype}/tensor_files/'
@@ -133,14 +149,27 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
 
     mu_glb_base_addr = tensor_metadata["mu_glb_base_address"]
 
+    # FIXME: Temporary HACK
+    hack_kernel0 = False
+    hack_kernel1 = True
+
+    hack_index = 0
+    if hack_kernel1:
+        hack_index = 1
+
+
     # INPUT
     # Shape is in format: (OC, IC, Y, X)
     input = read_tensor(base_path + input_tensor_data["node"] + ".bin",
                         (input_tensor_data["shape"][0], input_tensor_data["shape"][1], input_tensor_data["shape"][2], input_tensor_data["shape"][3]))
     # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
     input_reordered = input.permute(2, 3, 0, 1)
+    if hack_kernel0 or hack_kernel1:
+        input_reordered = input_reordered.reshape((input_tensor_data["shape"][2], input_tensor_data["shape"][3], input_tensor_data["shape"][0], input_tensor_data["shape"][1] // 64, 64))
+        input_reordered = input_reordered.permute(3, 0, 1, 2, 4)
+        input_reordered = input_reordered[hack_index]
     input_int8 = input_reordered.to(torch.int8)
-    input_start_addr = mu_glb_base_addr # starting address in the GLB for input tensor. Rest of tensors are stored contiguously in the GLB memory
+    input_start_addr = input_tensor_data["glb_base_address"]
 
     # INPUT SCALE
     # Shape is in format: (OC, IC / BLOCK_SIZE, Y, X)
@@ -148,8 +177,11 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
                              (inputScale_tensor_data["shape"][0], inputScale_tensor_data["shape"][1], inputScale_tensor_data["shape"][2], inputScale_tensor_data["shape"][3]))
     # Re-order it so IC is the innermost dimension (Y, X, OC, IC / BLOCK_SIZE)
     inputScale_reordered = inputScale.permute(2, 3, 0, 1)
+    if hack_kernel0 or hack_kernel1:
+        inputScale_reordered = inputScale_reordered.permute(3, 0, 1, 2)
+        inputScale_reordered = inputScale_reordered[hack_index]
     inputScale_e8m0 = float_to_e8m0(inputScale_reordered)
-    inputScale_start_addr = input_start_addr + math.ceil(input_int8.numel()/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+    inputScale_start_addr = inputScale_tensor_data["glb_base_address"]
 
     # WEIGHT
     # Shape is in format: (OC, IC, FY, FX)
@@ -157,8 +189,12 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
                          (weight_tensor_data["shape"][0], weight_tensor_data["shape"][1], weight_tensor_data["shape"][2], weight_tensor_data["shape"][3]))
     # Re-order it so OC is the innermost dimension (FY, FX, IC, OC)
     weight_reordered = weight.permute(2, 3, 1, 0)
+    if hack_kernel0 or hack_kernel1:
+        weight_reordered = weight_reordered.reshape((weight_tensor_data["shape"][2], weight_tensor_data["shape"][3], weight_tensor_data["shape"][1] // 64, 64, weight_tensor_data["shape"][0]))
+        weight_reordered = weight_reordered.permute(2, 0, 1, 3, 4)
+        weight_reordered = weight_reordered[hack_index]
     weight_int8 = weight_reordered.to(torch.int8)
-    weight_start_addr = inputScale_start_addr + math.ceil(inputScale_e8m0.size/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+    weight_start_addr = weight_tensor_data["glb_base_address"]
 
     # WEIGHT SCALE
     # Shape is in format: (OC, IC / BLOCK_SIZE, FY, FX)
@@ -166,13 +202,20 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
                               (weightScale_tensor_data["shape"][0], weightScale_tensor_data["shape"][1], weightScale_tensor_data["shape"][2], weightScale_tensor_data["shape"][3]))
     # Re-order it so OC is the innermost dimension (FY, FX, IC / BLOCK_SIZE, OC)
     weightScale_reordered = weightScale.permute(2, 3, 1, 0)
+    if hack_kernel0 or hack_kernel1:
+        weightScale_reordered = weightScale_reordered.permute(2, 0, 1, 3)
+        weightScale_reordered = weightScale_reordered[hack_index]
     weightScale_e8m0 = float_to_e8m0(weightScale_reordered)
-    weightScale_start_addr = weight_start_addr + math.ceil(weight.numel()/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+    weightScale_start_addr = weightScale_tensor_data["glb_base_address"]
 
     # BIAS
     bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", (bias_tensor_data["shape"][0]))
+    if hack_kernel1:
+        # Set bias to all 0s
+        bias = torch.zeros((bias_tensor_data["shape"][0],), dtype=torch.float32)
     bias_bf16 = float32_to_bfloat16_bits(bias)
-    bias_start_addr = weightScale_start_addr + math.ceil(weightScale_e8m0.size/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+    bias_start_addr = bias_tensor_data["glb_base_address"]
+
 
     # RESIDUAL
     # Shape is in format: (OC, IC, Y, X)
@@ -190,6 +233,13 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
         residual_bf16 = residual_bf16.flatten().tolist()
 
     torch.set_printoptions(precision=10)
+
+    # FIXME: Temporary HACK
+    # PARTIAL SUM (MU reduction workaround)
+    if hack_kernel1:
+        hw_output_txt_path = f'/aha/garnet/tests/hw_output_pass0.txt'
+        hw_output_raw_path = f'{h2h_dir}/hw_partial_sum_input_stencil.raw'
+        hw_output_txt_to_raw(hw_output_txt_path, hw_output_raw_path)
 
     if debug_mode:
         debug_print_tensors(

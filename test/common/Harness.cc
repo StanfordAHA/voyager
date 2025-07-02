@@ -461,7 +461,13 @@ void Harness::sendParams() {
 
     std::deque<AcceleratorMemoryMap> accelerator_memory_maps;
     std::deque<BaseParams *> accelerator_params;
-    MapOperation(currentOperation, accelerator_params, accelerator_memory_maps);
+    MapOperation(currentOperation, accelerator_params, accelerator_memory_maps, false, false);
+
+    std::deque<AcceleratorMemoryMap> dump_accelerator_memory_maps;
+    std::deque<BaseParams *> dump_accelerator_params;
+    // Last two args are dump tiling and hack tiling for the AHA flow
+    // TODO: The hack tiling needs to be refined. Only hack if the operation or layer is in the hack list
+    MapOperation(currentOperation, dump_accelerator_params, dump_accelerator_memory_maps, true, true);
 
     int runtime_scale_factor = 1;
     std::cout << "Operation: " << currentOperation.name << std::endl;
@@ -474,13 +480,18 @@ void Harness::sendParams() {
       bool matrixParamsValid, vectorParamsValid;
 
       BaseParams *baseParam = accelerator_params.front();
+      BaseParams *dumpBaseParam = dump_accelerator_params.front();
 
       MatrixParams *matrixParams = dynamic_cast<MatrixParams *>(baseParam);
+      MatrixParams *dumpMatrixParams = dynamic_cast<MatrixParams *>(dumpBaseParam);
       matrixParamsValid = matrixParams != NULL;
 
       if (matrixParamsValid) {
         accelerator_params.pop_front();
         baseParam = accelerator_params.front();
+        
+        dump_accelerator_params.pop_front();
+        dumpBaseParam = dump_accelerator_params.front();
       }
 
       VectorParams *vectorParams = dynamic_cast<VectorParams *>(baseParam);
@@ -510,43 +521,28 @@ void Harness::sendParams() {
         nlohmann::json tensor_metadata;
         tensor_metadata_file >> tensor_metadata;
 
-        auto& input_shape = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]["shape"];
-        auto& weight_shape = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]["shape"];
-        auto& input_scale_shape = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]["shape"];
-        auto& weight_scale_shape = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]["shape"];
-
-        int input_size = input_shape[0].get<int>() * input_shape[1].get<int>() * input_shape[2].get<int>() * input_shape[3].get<int>();
-        int weight_size = weight_shape[0].get<int>() * weight_shape[1].get<int>() * weight_shape[2].get<int>() * weight_shape[3].get<int>();
-        int input_scale_size = input_scale_shape[0].get<int>() * input_scale_shape[1].get<int>() * input_scale_shape[2].get<int>() * input_scale_shape[3].get<int>();
-        int weight_scale_size = weight_scale_shape[0].get<int>() * weight_scale_shape[1].get<int>() * weight_scale_shape[2].get<int>() * weight_scale_shape[3].get<int>();
-
-        // Must be 32B aligned b/c 32 is the OC unrolling. Word width in GLB is 32B.
-        double input_size_aligned = std::ceil(((double)input_size) / 32.0) * 32.0;
-        double input_scale_size_aligned = std::ceil(((double)input_scale_size) / 32.0) * 32.0;
-        double weight_size_aligned = std::ceil(((double)weight_size) / 32.0) * 32.0;
-        double weight_scale_size_aligned = std::ceil(((double)weight_scale_size) / 32.0) * 32.0;
-
-        // Print all the aligned sizes
-        std::cout << "Input size aligned: " << input_size_aligned << std::endl;
-        std::cout << "Input scale size aligned: " << input_scale_size_aligned << std::endl;
-        std::cout << "Weight size aligned: " << weight_size_aligned << std::endl;
-        std::cout << "Weight scale size aligned: " << weight_scale_size_aligned << std::endl;
-
         uint64_t glb_base_addr = tensor_metadata["mu_glb_base_address"].get<uint64_t>();
         printf("\nMU-GLB base address: %d\n", glb_base_addr);
-        uint64_t input_offset = glb_base_addr; // read the rest from model.txt using keyword args (OR could store in json file to read in)
-        uint64_t input_scale_offset = input_offset + (uint64_t)input_size_aligned;
-        uint64_t weight_offset = input_scale_offset + (uint64_t)input_scale_size_aligned;
-        uint64_t weight_scale_offset = weight_offset + (uint64_t)weight_size_aligned;
-        uint64_t bias_offset = weight_scale_offset + (uint64_t)weight_scale_size_aligned;
+        uint64_t input_offset = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]["glb_base_address"];
+        uint64_t input_scale_offset = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]["glb_base_address"];
+        uint64_t weight_offset = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]["glb_base_address"];
+        uint64_t weight_scale_offset = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]["glb_base_address"];
+        uint64_t bias_offset = tensor_metadata["ops"][0]["kwargs"]["bias"]["tensor"]["glb_base_address"];
 
-        matrixParams->INPUT_OFFSET = input_offset;
-        matrixParams->INPUT_SCALE_OFFSET = input_scale_offset;
-        matrixParams->WEIGHT_OFFSET = weight_offset;
-        matrixParams->WEIGHT_SCALE_OFFSET = weight_scale_offset;
-        matrixParams->BIAS_OFFSET = bias_offset;
+        // Print all the offsets
+        std::cout << "Input offset: " << input_offset << std::endl;
+        std::cout << "Input scale offset: " << input_scale_offset << std::endl;
+        std::cout << "Weight offset: " << weight_offset << std::endl;
+        std::cout << "Weight scale offset: " << weight_scale_offset << std::endl;
+        std::cout << "Bias offset: " << bias_offset << std::endl;
 
-        dumpSerializedParams<MatrixParams, 32>(*matrixParams);
+        dumpMatrixParams->INPUT_OFFSET = input_offset;
+        dumpMatrixParams->INPUT_SCALE_OFFSET = input_scale_offset;
+        dumpMatrixParams->WEIGHT_OFFSET = weight_offset;
+        dumpMatrixParams->WEIGHT_SCALE_OFFSET = weight_scale_offset;
+        dumpMatrixParams->BIAS_OFFSET = bias_offset;
+
+        dumpSerializedParams<MatrixParams, 32>(*dumpMatrixParams);
         matrixUnitStartSignal.SyncPop();
       }
 
