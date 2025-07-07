@@ -151,7 +151,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
 
     # FIXME: Temporary HACK
     hack_kernel0 = False
-    hack_kernel1 = True
+    hack_kernel1 = False
+
+    # FIXME: Temporary HACK
+    kernel_and_stride_hack = "KERNEL_AND_STRIDE_HACK" in os.environ and os.environ["KERNEL_AND_STRIDE_HACK"] == "1"
 
     hack_index = 0
     if hack_kernel1:
@@ -187,6 +190,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     # Shape is in format: (OC, IC, FY, FX)
     weight = read_tensor(base_path + weight_tensor_data["node"] + ".bin",
                          (weight_tensor_data["shape"][0], weight_tensor_data["shape"][1], weight_tensor_data["shape"][2], weight_tensor_data["shape"][3]))
+    if kernel_and_stride_hack:
+        weight = F.pad(weight, pad=(0, 2, 0, 2))
     # Re-order it so OC is the innermost dimension (FY, FX, IC, OC)
     weight_reordered = weight.permute(2, 3, 1, 0)
     if hack_kernel0 or hack_kernel1:
@@ -200,6 +205,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     # Shape is in format: (OC, IC / BLOCK_SIZE, FY, FX)
     weightScale = read_tensor(base_path + weightScale_tensor_data["node"] + ".bin",
                               (weightScale_tensor_data["shape"][0], weightScale_tensor_data["shape"][1], weightScale_tensor_data["shape"][2], weightScale_tensor_data["shape"][3]))
+    if kernel_and_stride_hack:
+        weightScale = F.pad(weightScale, pad=(0, 2, 0, 2))
     # Re-order it so OC is the innermost dimension (FY, FX, IC / BLOCK_SIZE, OC)
     weightScale_reordered = weightScale.permute(2, 3, 1, 0)
     if hack_kernel0 or hack_kernel1:
@@ -222,6 +229,12 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     if has_residual:
         residual = read_tensor(base_path + residual_tensor_data["node"] + ".bin",
                                (residual_tensor_data["shape"][0], residual_tensor_data["shape"][1], residual_tensor_data["shape"][2], residual_tensor_data["shape"][3]))
+
+        if kernel_and_stride_hack:
+            residual_tmp = torch.zeros(residual.size(0), residual.size(1), 2*residual.size(2), 2*residual.size(3), device=residual.device, dtype=residual.dtype)
+            # Place original values at odd indices (1, 3, 5, ...) using slicing
+            residual_tmp[:, :, 1::2, 1::2] = residual
+            residual = residual_tmp
 
         # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
         residual_reordered = residual.permute(2, 3, 0, 1)
@@ -265,3 +278,16 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
         has_residual=has_residual,
         residual_bf16=residual_bf16 if has_residual else None
     )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Parse DNN layer tensors from binary files and convert them to hex files.')
+    parser.add_argument('--model', type=str, required=True, help='Model name (e.g., resnet18)')
+    parser.add_argument('--layer', type=str, required=True, help='Layer name (e.g., conv2d_mx_default_11)')
+    parser.add_argument('--datatype', type=str, default='MXINT8', help='Data type of the tensors')
+    parser.add_argument('--h2h_dir', type=str, required=True, default='/aha/Halide-to-Hardware/', help='Path to Halide-to-Hardware directory')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode to print tensor values')
+
+    args = parser.parse_args()
+
+    parse_tensors(args.model, args.layer, args.datatype, args.h2h_dir, args.debug)

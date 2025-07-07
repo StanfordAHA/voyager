@@ -322,7 +322,8 @@ template <typename Input, typename Psum, typename Buffer, typename Scale>
 inline Buffer *gemm(std::any input_ptr, std::any input_scale_ptr,
                     std::any weight_ptr, std::any weight_scale_ptr,
                     std::any bias_ptr, const Operation &operation) {
-  Tiling tiling = get_tiling(operation);
+  bool hack_tiling = false;
+  Tiling tiling = get_tiling(operation, hack_tiling);
 
   std::ostringstream oss;
   oss << "GEMM Tiling: " << tiling << std::endl;

@@ -128,15 +128,15 @@ if __name__ == "__main__":
     # inputScale_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_6/compare/inputScale_data_systemC.txt")
     # weightScale_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_6/compare/weightScale_data_systemC.txt")
 
-    SA_output_systemC = read_SA_output_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_10/compare/SA_output_systemC.txt")
+    SA_output_systemC = read_SA_output_from_systemC("/aha/SA_output_systemC.txt")
 
 
 
     glb_hw_output = read_bytes_from_hw_output_txt("/aha/garnet/tests/test_app/hw_output.txt")
 
     # Reshape it to (Y1, Y0, X1, X0, K2, K1, K0=32)
-    glb_hw_output = glb_hw_output.reshape((2, 7, 1, 14, 8, 1, 32))
-    glb_hw_output = glb_hw_output.transpose(2, 4, 0, 5, 1, 3, 6)  # (X0, K2, Y1, K1, Y0, X0, K0=32)
+    glb_hw_output = glb_hw_output.reshape((1, 14, 1, 14, 8, 1, 32))
+    glb_hw_output = glb_hw_output.transpose(0, 2, 4, 5, 1, 3, 6)  # (Y1, X1, K2, K1, Y0, X0, K0=32)
     glb_hw_output = glb_hw_output.flatten()  # Flatten to 1D array
 
 

@@ -465,9 +465,13 @@ void Harness::sendParams() {
 
     std::deque<AcceleratorMemoryMap> dump_accelerator_memory_maps;
     std::deque<BaseParams *> dump_accelerator_params;
+
+
+    const char* kernel_and_stride_hack_env = std::getenv("KERNEL_AND_STRIDE_HACK");
+    bool dump_tiling = true;
+    bool hack_tiling = kernel_and_stride_hack_env && std::stoi(kernel_and_stride_hack_env) == 1;
     // Last two args are dump tiling and hack tiling for the AHA flow
-    // TODO: The hack tiling needs to be refined. Only hack if the operation or layer is in the hack list
-    MapOperation(currentOperation, dump_accelerator_params, dump_accelerator_memory_maps, true, true);
+    MapOperation(currentOperation, dump_accelerator_params, dump_accelerator_memory_maps, dump_tiling, hack_tiling);
 
     int runtime_scale_factor = 1;
     std::cout << "Operation: " << currentOperation.name << std::endl;
@@ -489,7 +493,7 @@ void Harness::sendParams() {
       if (matrixParamsValid) {
         accelerator_params.pop_front();
         baseParam = accelerator_params.front();
-        
+
         dump_accelerator_params.pop_front();
         dumpBaseParam = dump_accelerator_params.front();
       }

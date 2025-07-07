@@ -135,25 +135,7 @@ void MapMatrixOperation(const Operation &operation,
   const auto op_list = get_op_list(param);
   const auto matrix_op = op_list[0];
 
-  Tiling tiling = get_tiling(operation);
-
-  // TEMPORARY HACK
-  if (hack_tiling) {
-      // Temporary hack to use reduction loop of 1 for downsample layers for testing
-    tiling = {
-          .loops = {{1, 8, 2, 1, 1, 1}, {1, 1, 1, 1, 7, 14}},
-          .x_loop_index = {0, 5},
-          .y_loop_index = {2, 4},
-          .reduction_loop_index = {3, 0},
-          .weight_loop_index = {1, 1},
-          .fx_index = 3,
-          .fy_index = 2,
-          .weight_reuse_index = {4, 5},
-          .stride = 2,
-          .replication = false,
-      };
-  }
-// TEMPORARY HACK
+  Tiling tiling = get_tiling(operation, hack_tiling);
 
   // --------------DATA DUMPING FOR AHA FLOW-------------------//
   if (dump_tiling) {

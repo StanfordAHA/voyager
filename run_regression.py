@@ -745,7 +745,8 @@ def add_layers(network, layers, layer_counts, uniquify):
 def append_glb_base_addresses(kwargs, mu_glb_base_address):
 
     # FIXME: Temporary HACK
-    reduction_kernel_hack = True
+    reduction_kernel_hack = False
+    kernel_and_stride_hack = "KERNEL_AND_STRIDE_HACK" in os.environ and os.environ["KERNEL_AND_STRIDE_HACK"] == "1"
 
     # Append GLB base addresses to the kwargs for input, weight, bias, inputScale, and weightScale tensors
     input_base_address = mu_glb_base_address
@@ -764,11 +765,16 @@ def append_glb_base_addresses(kwargs, mu_glb_base_address):
     weight_num_elements = functools.reduce(operator.mul, kwargs['weight']['tensor']['shape'], 1)
     if reduction_kernel_hack:
         weight_num_elements /= 2
+    if kernel_and_stride_hack:
+        weight_num_elements *= 3 * 3
     weightScale_base_address = weight_base_address + math.ceil(weight_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     weightScale_num_elements = functools.reduce(operator.mul, kwargs['weight_scale']['tensor']['shape'], 1)
     if reduction_kernel_hack:
         weightScale_num_elements /= 2
+    if kernel_and_stride_hack:
+        weightScale_num_elements *= 3 * 3
+
     bias_base_address = weightScale_base_address + math.ceil(weightScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     kwargs['input']['tensor']['glb_base_address'] = input_base_address
