@@ -150,16 +150,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     mu_glb_base_addr = tensor_metadata["mu_glb_base_address"]
 
     # FIXME: Temporary HACK
-    hack_kernel0 = False
-    hack_kernel1 = False
-
-    # FIXME: Temporary HACK
     kernel_and_stride_hack = "KERNEL_AND_STRIDE_HACK" in os.environ and os.environ["KERNEL_AND_STRIDE_HACK"] == "1"
-
-    hack_index = 0
-    if hack_kernel1:
-        hack_index = 1
-
+    zircon_cgra_psum_workaround = "ZIRCON_CGRA_PSUM_WORKAROUND" in os.environ and os.environ["ZIRCON_CGRA_PSUM_WORKAROUND"] == "1"
+    psum_idx = "PSUM_IDX" in os.environ and int(os.environ["PSUM_IDX"]) if zircon_cgra_psum_workaround else 1
+    num_psums = "NUM_PSUMS" in os.environ and int(os.environ["NUM_PSUMS"]) if zircon_cgra_psum_workaround else 1
 
     # INPUT
     # Shape is in format: (OC, IC, Y, X)
@@ -167,10 +161,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
                         (input_tensor_data["shape"][0], input_tensor_data["shape"][1], input_tensor_data["shape"][2], input_tensor_data["shape"][3]))
     # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
     input_reordered = input.permute(2, 3, 0, 1)
-    if hack_kernel0 or hack_kernel1:
+    if zircon_cgra_psum_workaround:
         input_reordered = input_reordered.reshape((input_tensor_data["shape"][2], input_tensor_data["shape"][3], input_tensor_data["shape"][0], input_tensor_data["shape"][1] // 64, 64))
         input_reordered = input_reordered.permute(3, 0, 1, 2, 4)
-        input_reordered = input_reordered[hack_index]
+        input_reordered = input_reordered[psum_idx]
     input_int8 = input_reordered.to(torch.int8)
     input_start_addr = input_tensor_data["glb_base_address"]
 
@@ -180,9 +174,9 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
                              (inputScale_tensor_data["shape"][0], inputScale_tensor_data["shape"][1], inputScale_tensor_data["shape"][2], inputScale_tensor_data["shape"][3]))
     # Re-order it so IC is the innermost dimension (Y, X, OC, IC / BLOCK_SIZE)
     inputScale_reordered = inputScale.permute(2, 3, 0, 1)
-    if hack_kernel0 or hack_kernel1:
+    if zircon_cgra_psum_workaround:
         inputScale_reordered = inputScale_reordered.permute(3, 0, 1, 2)
-        inputScale_reordered = inputScale_reordered[hack_index]
+        inputScale_reordered = inputScale_reordered[psum_idx]
     inputScale_e8m0 = float_to_e8m0(inputScale_reordered)
     inputScale_start_addr = inputScale_tensor_data["glb_base_address"]
 
@@ -194,10 +188,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
         weight = F.pad(weight, pad=(0, 2, 0, 2))
     # Re-order it so OC is the innermost dimension (FY, FX, IC, OC)
     weight_reordered = weight.permute(2, 3, 1, 0)
-    if hack_kernel0 or hack_kernel1:
+    if zircon_cgra_psum_workaround:
         weight_reordered = weight_reordered.reshape((weight_tensor_data["shape"][2], weight_tensor_data["shape"][3], weight_tensor_data["shape"][1] // 64, 64, weight_tensor_data["shape"][0]))
         weight_reordered = weight_reordered.permute(2, 0, 1, 3, 4)
-        weight_reordered = weight_reordered[hack_index]
+        weight_reordered = weight_reordered[psum_idx]
     weight_int8 = weight_reordered.to(torch.int8)
     weight_start_addr = weight_tensor_data["glb_base_address"]
 
@@ -209,16 +203,16 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
         weightScale = F.pad(weightScale, pad=(0, 2, 0, 2))
     # Re-order it so OC is the innermost dimension (FY, FX, IC / BLOCK_SIZE, OC)
     weightScale_reordered = weightScale.permute(2, 3, 1, 0)
-    if hack_kernel0 or hack_kernel1:
+    if zircon_cgra_psum_workaround:
         weightScale_reordered = weightScale_reordered.permute(2, 0, 1, 3)
-        weightScale_reordered = weightScale_reordered[hack_index]
+        weightScale_reordered = weightScale_reordered[psum_idx]
     weightScale_e8m0 = float_to_e8m0(weightScale_reordered)
     weightScale_start_addr = weightScale_tensor_data["glb_base_address"]
 
     # BIAS
     bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", (bias_tensor_data["shape"][0]))
-    if hack_kernel1:
-        # Set bias to all 0s
+    if zircon_cgra_psum_workaround and psum_idx != 0:
+        # If doing psum workaround, bias is zero for all but the 0th kernel
         bias = torch.zeros((bias_tensor_data["shape"][0],), dtype=torch.float32)
     bias_bf16 = float32_to_bfloat16_bits(bias)
     bias_start_addr = bias_tensor_data["glb_base_address"]
@@ -242,9 +236,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
         residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
 
         # FIXME: Temporary HACK
-        if hack_kernel0:
+        if zircon_cgra_psum_workaround and (psum_idx == 0):
             residual_bf16_be.tofile(f'{h2h_dir}/hw_partial_sum_input_stencil.raw')
-        else:
+        # Write the residual_bf16_be to a raw file except for psum workaround middle kernels
+        elif not(zircon_cgra_psum_workaround and psum_idx != (num_psums - 1)):
             residual_bf16_be.tofile(f'{h2h_dir}/hw_residual_input_stencil.raw')
         # Flatten residual_bf16 and convert to a python list
         residual_bf16 = residual_bf16.flatten().tolist()
@@ -252,9 +247,9 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     torch.set_printoptions(precision=10)
 
     # FIXME: Temporary HACK
-    # PARTIAL SUM (MU reduction workaround)
-    if hack_kernel1:
-        hw_output_txt_path = f'/aha/garnet/tests/hw_output_kernel0.txt'
+    # For psum_workoround, if not kernel 0, read prior kernel output from text file and convert to raw binary file
+    if zircon_cgra_psum_workaround and (psum_idx != 0):
+        hw_output_txt_path = f'/aha/garnet/tests/test_app/hw_output.txt'
         hw_output_raw_path = f'{h2h_dir}/hw_residual_input_stencil.raw'
         hw_output_txt_to_raw(hw_output_txt_path, hw_output_raw_path)
 

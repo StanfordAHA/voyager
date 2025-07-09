@@ -43,6 +43,9 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
   const char* kernel_and_stride_hack_env = std::getenv("KERNEL_AND_STRIDE_HACK");
   bool kernel_and_stride_hack = kernel_and_stride_hack_env && std::stoi(kernel_and_stride_hack_env) == 1;
 
+  const char* zircon_cgra_psum_workaround_env = std::getenv("ZIRCON_CGRA_PSUM_WORKAROUND");
+  bool zircon_cgra_psum_workaround = zircon_cgra_psum_workaround_env && std::stoi(zircon_cgra_psum_workaround_env) == 1;
+
   Tiling tiling;
   if (manual_tiling || !operation.has_valid_tiling) {
     if (first_op.target() == "conv2d" || first_op.target() == "conv2d_mx") {
@@ -59,6 +62,12 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
       tiling.stride = stride[0];
     } else {
       tiling.stride = 1;
+    }
+
+    // PSUM workaround for Zircon. MU reduction loop bounds must be 1 for MU to work.
+    if (zircon_cgra_psum_workaround && hack_tiling) {
+      tiling.loops[0][tiling.reduction_loop_index[0]] = 1;
+      tiling.loops[1][tiling.reduction_loop_index[1]] = 1;
     }
   }
 

@@ -745,7 +745,8 @@ def add_layers(network, layers, layer_counts, uniquify):
 def append_glb_base_addresses(kwargs, mu_glb_base_address):
 
     # FIXME: Temporary HACK
-    reduction_kernel_hack = False
+    zircon_cgra_psum_workaround = "ZIRCON_CGRA_PSUM_WORKAROUND" in os.environ and os.environ["ZIRCON_CGRA_PSUM_WORKAROUND"] == "1"
+    num_psums = "NUM_PSUMS" in os.environ and int(os.environ["NUM_PSUMS"]) if zircon_cgra_psum_workaround else 1
     kernel_and_stride_hack = "KERNEL_AND_STRIDE_HACK" in os.environ and os.environ["KERNEL_AND_STRIDE_HACK"] == "1"
 
     # Append GLB base addresses to the kwargs for input, weight, bias, inputScale, and weightScale tensors
@@ -753,25 +754,25 @@ def append_glb_base_addresses(kwargs, mu_glb_base_address):
 
     # multiply all element in kwargs['input']['tensor']['shape'] together and add to input_base_address
     input_num_elements = functools.reduce(operator.mul, kwargs['input']['tensor']['shape'], 1)
-    if reduction_kernel_hack:
-        input_num_elements /= 2
+    if zircon_cgra_psum_workaround:
+        input_num_elements /= num_psums
     inputScale_base_address = input_base_address + math.ceil(input_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     inputScale_num_elements = functools.reduce(operator.mul, kwargs['input_scale']['tensor']['shape'], 1)
-    if reduction_kernel_hack:
-        inputScale_num_elements /= 2
+    if zircon_cgra_psum_workaround:
+        inputScale_num_elements /= num_psums
     weight_base_address = inputScale_base_address + math.ceil(inputScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     weight_num_elements = functools.reduce(operator.mul, kwargs['weight']['tensor']['shape'], 1)
-    if reduction_kernel_hack:
-        weight_num_elements /= 2
+    if zircon_cgra_psum_workaround:
+        weight_num_elements /= num_psums
     if kernel_and_stride_hack:
         weight_num_elements *= 3 * 3
     weightScale_base_address = weight_base_address + math.ceil(weight_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     weightScale_num_elements = functools.reduce(operator.mul, kwargs['weight_scale']['tensor']['shape'], 1)
-    if reduction_kernel_hack:
-        weightScale_num_elements /= 2
+    if zircon_cgra_psum_workaround:
+        weightScale_num_elements /= num_psums
     if kernel_and_stride_hack:
         weightScale_num_elements *= 3 * 3
 

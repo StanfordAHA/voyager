@@ -468,8 +468,11 @@ void Harness::sendParams() {
 
 
     const char* kernel_and_stride_hack_env = std::getenv("KERNEL_AND_STRIDE_HACK");
+    const char* zircon_cgra_psum_workaround_env = std::getenv("ZIRCON_CGRA_PSUM_WORKAROUND");
     bool dump_tiling = true;
-    bool hack_tiling = kernel_and_stride_hack_env && std::stoi(kernel_and_stride_hack_env) == 1;
+    bool kernel_and_stride_hack = kernel_and_stride_hack_env && std::stoi(kernel_and_stride_hack_env) == 1;
+    bool zircon_cgra_psum_workaround = zircon_cgra_psum_workaround_env && std::stoi(zircon_cgra_psum_workaround_env) == 1;
+    bool hack_tiling = kernel_and_stride_hack || zircon_cgra_psum_workaround;
     // Last two args are dump tiling and hack tiling for the AHA flow
     MapOperation(currentOperation, dump_accelerator_params, dump_accelerator_memory_maps, dump_tiling, hack_tiling);
 
