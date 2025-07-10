@@ -40,8 +40,8 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
   const char* env_var = std::getenv("MANUAL_TILING");
   bool manual_tiling = env_var ? std::stoi(env_var) : false;
 
-  const char* kernel_and_stride_hack_env = std::getenv("KERNEL_AND_STRIDE_HACK");
-  bool kernel_and_stride_hack = kernel_and_stride_hack_env && std::stoi(kernel_and_stride_hack_env) == 1;
+  const char* zircon_fx_fy_stride_workaround_env = std::getenv("ZIRCON_FX_FY_STRIDE_WORKAROUND");
+  bool zircon_fx_fy_stride_workaround = zircon_fx_fy_stride_workaround_env && std::stoi(zircon_fx_fy_stride_workaround_env) == 1;
 
   const char* zircon_cgra_psum_workaround_env = std::getenv("ZIRCON_CGRA_PSUM_WORKAROUND");
   bool zircon_cgra_psum_workaround = zircon_cgra_psum_workaround_env && std::stoi(zircon_cgra_psum_workaround_env) == 1;
@@ -53,8 +53,8 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
     } else {
       tiling = get_linear_tiling(first_op);
     }
-  } else if (kernel_and_stride_hack && hack_tiling) {
-        tiling = get_kernel_and_stride_hack_tiling(first_op);
+  } else if (zircon_fx_fy_stride_workaround && hack_tiling) {
+        tiling = get_zircon_fx_fy_stride_workaround_tiling(first_op);
   } else {
     tiling = get_interstellar_tiling(operation.tiling);
     if (first_op.kwargs().contains("stride")) {
@@ -75,7 +75,7 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
 }
 
 
-Tiling get_kernel_and_stride_hack_tiling(const codegen::OpOverload param) {
+Tiling get_zircon_fx_fy_stride_workaround_tiling(const codegen::OpOverload param) {
   Tiling tiling;
 
   printf("Using kernel and stride hack for %s\n", param.name().c_str());
@@ -121,7 +121,7 @@ Tiling get_kernel_and_stride_hack_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
   } else {
-     throw std::runtime_error("Zircon kernel and stride hack not implemented for this layer!");
+     throw std::runtime_error("Zircon fx, fy, stride workaround not implemented for this layer!");
   }
 
   return tiling;

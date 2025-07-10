@@ -115,7 +115,7 @@ def get_glb_dma_config_helper(loop_order, loop_bounds):
     return dimensionality, trimmed_strides, trimmed_extents
 
 
-def get_glb_dma_config(output_tiling_filepath: str, kernel_and_stride_hack: bool = False):
+def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workaround: bool = False):
     """
     Reads the tiling file and returns the GLB DMA config.
     The tiling file should contain the loop order and loop bounds in a specific format.
@@ -140,7 +140,7 @@ def get_glb_dma_config(output_tiling_filepath: str, kernel_and_stride_hack: bool
         loop_bounds[4] = inner_loops[k_loop_indices[1]]  # K1
         loop_bounds[5] = outer_loops[k_loop_indices[0]]  # K2
 
-        if kernel_and_stride_hack:
+        if zircon_fx_fy_stride_workaround:
             loop_bounds[0] = loop_bounds[0] // 2 # divide X0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
             loop_bounds[1] = loop_bounds[1] // 2 # divide Y0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
 

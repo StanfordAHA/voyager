@@ -5,10 +5,12 @@
 
 #include <cassert>
 #include <cstdint>  // for uint32_t
+#include <string>
 
 #include "AccelTypes.h"
 #include "sysc/kernel/sc_time.h"
 #include "lib/nlohmann/json.hpp"
+
 
 #ifndef CFLOAT
 #include "test/toolchain/MapOperation.h"
@@ -467,12 +469,12 @@ void Harness::sendParams() {
     std::deque<BaseParams *> dump_accelerator_params;
 
 
-    const char* kernel_and_stride_hack_env = std::getenv("KERNEL_AND_STRIDE_HACK");
+    const char* zircon_fx_fy_stride_workaround_env = std::getenv("ZIRCON_FX_FY_STRIDE_WORKAROUND");
     const char* zircon_cgra_psum_workaround_env = std::getenv("ZIRCON_CGRA_PSUM_WORKAROUND");
     bool dump_tiling = true;
-    bool kernel_and_stride_hack = kernel_and_stride_hack_env && std::stoi(kernel_and_stride_hack_env) == 1;
+    bool zircon_fx_fy_stride_workaround = zircon_fx_fy_stride_workaround_env && std::stoi(zircon_fx_fy_stride_workaround_env) == 1;
     bool zircon_cgra_psum_workaround = zircon_cgra_psum_workaround_env && std::stoi(zircon_cgra_psum_workaround_env) == 1;
-    bool hack_tiling = kernel_and_stride_hack || zircon_cgra_psum_workaround;
+    bool hack_tiling = zircon_fx_fy_stride_workaround || zircon_cgra_psum_workaround;
     // Last two args are dump tiling and hack tiling for the AHA flow
     MapOperation(currentOperation, dump_accelerator_params, dump_accelerator_memory_maps, dump_tiling, hack_tiling);
 
@@ -535,6 +537,43 @@ void Harness::sendParams() {
         uint64_t weight_offset = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]["glb_base_address"];
         uint64_t weight_scale_offset = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]["glb_base_address"];
         uint64_t bias_offset = tensor_metadata["ops"][0]["kwargs"]["bias"]["tensor"]["glb_base_address"];
+
+        auto& input_shape = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]["shape"];
+        auto& weight_shape = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]["shape"];
+        auto& input_scale_shape = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]["shape"];
+        auto& weight_scale_shape = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]["shape"];
+
+        int input_size = input_shape[0].get<int>() * input_shape[1].get<int>() * input_shape[2].get<int>() * input_shape[3].get<int>();
+        int weight_size = weight_shape[0].get<int>() * weight_shape[1].get<int>() * weight_shape[2].get<int>() * weight_shape[3].get<int>();
+        int input_scale_size = input_scale_shape[0].get<int>() * input_scale_shape[1].get<int>() * input_scale_shape[2].get<int>() * input_scale_shape[3].get<int>();
+        int weight_scale_size = weight_scale_shape[0].get<int>() * weight_scale_shape[1].get<int>() * weight_scale_shape[2].get<int>() * weight_scale_shape[3].get<int>();
+
+        // Adjust the offsets if using zircon CGRA PSUM workaround: account for tiling along reduction dimension
+        if (zircon_cgra_psum_workaround) {
+          const char* num_psums_env = std::getenv("NUM_PSUMS");
+          const char* psum_idx_env = std::getenv("PSUM_IDX");
+
+          printf("NUM_PSUMS: %s\n", num_psums_env);
+          printf("PSUM_IDX: %s\n", psum_idx_env);
+
+          int num_psums;
+          int psum_idx;
+
+          if (num_psums_env && psum_idx_env) {
+            num_psums = std::stoi(num_psums_env);
+            psum_idx = std::stoi(psum_idx_env);
+          } else {
+            throw std::runtime_error(
+                "Zircon CGRA PSUM workaround requires NUM_PSUMS and PSUM_IDX "
+                "environment variables to be set.");
+          }
+
+          uint64_t input_offset_incr = psum_idx * (input_size / num_psums);
+          input_offset += input_offset_incr;
+          input_scale_offset += psum_idx * (input_scale_size/num_psums);
+          weight_offset += psum_idx * (weight_size/num_psums);
+          weight_scale_offset += psum_idx * (weight_scale_size/num_psums);
+        }
 
         // Print all the offsets
         std::cout << "Input offset: " << input_offset << std::endl;
