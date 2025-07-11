@@ -156,7 +156,7 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     num_psums = "NUM_PSUMS" in os.environ and int(os.environ["NUM_PSUMS"]) if zircon_cgra_psum_workaround else 1
 
     if zircon_cgra_psum_workaround:
-        print(f"\033[93mINFO: Zircon CGRA PSUM workaround enabled to avoid MU bug on downsample layers. Using PSUM index {psum_idx} out of {num_psums} total PSUMs.\033[0m")
+        print(f"\033[93mINFO: Zircon CGRA PSUM workaround enabled to avoid MU bug on downsample layers. Using PSUM index {psum_idx}. There are {num_psums} total PSUMs.\033[0m")
 
     if zircon_fx_fy_stride_workaround:
         print("\033[93mINFO: Zircon FX, FY stride workaround enabled to avoid MU bug on downsample layers.\033[0m")
@@ -250,7 +250,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
 
     # For psum_workoround, if not kernel 0, read prior kernel output from text file and convert to raw binary file
     if zircon_cgra_psum_workaround and (psum_idx != 0):
-        hw_output_txt_path = f'/aha/garnet/tests/test_app/hw_output.txt'
+        hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_psum_reduction_fp/{model}-{layer}_gold/kernel_{psum_idx - 1}_output.txt'
+        assert os.path.exists(hw_output_txt_path), f"The prior kernel output file {hw_output_txt_path} does not exist."
         # For the last psum, write to hw_residual_input_stencil.raw, otherwise write to hw_partial_sum_input_stencil.raw
         if psum_idx == (num_psums - 1):
             hw_output_raw_path = f'{h2h_dir}/hw_residual_input_stencil.raw'
