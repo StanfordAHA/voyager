@@ -127,7 +127,7 @@ void set_immediate(const float scalar, const int stage,
 
 void MapMatrixOperation(const Operation &operation,
                         std::deque<BaseParams *> &mappedParams,
-                        std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
+                        std::deque<AcceleratorMemoryMap> &opMemoryMaps, bool dump_tiling, bool hack_tiling) {
   MatrixParams *matrix_params = new MatrixParams;
   AcceleratorMemoryMap accelerator_memory_map;
 
@@ -135,7 +135,21 @@ void MapMatrixOperation(const Operation &operation,
   const auto op_list = get_op_list(param);
   const auto matrix_op = op_list[0];
 
-  Tiling tiling = get_tiling(operation);
+  Tiling tiling = get_tiling(operation, hack_tiling);
+
+  // --------------DATA DUMPING FOR AHA FLOW-------------------//
+  if (dump_tiling) {
+    std::ofstream output_tiling_dump_file;
+    // Delete the file if it exists
+    std::remove("output_tiling.txt");
+    output_tiling_dump_file.open("output_tiling.txt", std::ios::app);
+    if (!output_tiling_dump_file.is_open()) {
+      spdlog::error("Failed to open output_tiling.txt for writing.");
+      return;
+    }
+    output_tiling_dump_file << tiling;
+  }
+  // --------------DATA DUMPING FOR AHA FLOW-------------------//
 
   int X = tiling.loops[0][tiling.x_loop_index[0]] *
           tiling.loops[1][tiling.x_loop_index[1]];
@@ -149,17 +163,6 @@ void MapMatrixOperation(const Operation &operation,
   int FY = tiling.loops[1][tiling.fy_index];
   int STRIDE = tiling.stride;
 
-  // Dumping for AHA flow
-  std::ofstream output_tiling_dump_file;
-  // Delete the file if it exists
-  std::remove("output_tiling.txt");
-  output_tiling_dump_file.open("output_tiling.txt", std::ios::app);
-  if (!output_tiling_dump_file.is_open()) {
-    spdlog::error("Failed to open output_tiling.txt for writing.");
-    return;
-  }
-
-  output_tiling_dump_file << tiling;
   std::ostringstream oss;
   oss << tiling;
   spdlog::info("Using tiling: \n{}\n", oss.str());

@@ -5,10 +5,12 @@
 
 #include <cassert>
 #include <cstdint>  // for uint32_t
+#include <string>
 
 #include "AccelTypes.h"
 #include "sysc/kernel/sc_time.h"
 #include "lib/nlohmann/json.hpp"
+
 
 #ifndef CFLOAT
 #include "test/toolchain/MapOperation.h"
@@ -461,7 +463,20 @@ void Harness::sendParams() {
 
     std::deque<AcceleratorMemoryMap> accelerator_memory_maps;
     std::deque<BaseParams *> accelerator_params;
-    MapOperation(currentOperation, accelerator_params, accelerator_memory_maps);
+    MapOperation(currentOperation, accelerator_params, accelerator_memory_maps, false, false);
+
+    std::deque<AcceleratorMemoryMap> dump_accelerator_memory_maps;
+    std::deque<BaseParams *> dump_accelerator_params;
+
+
+    const char* zircon_fx_fy_stride_workaround_env = std::getenv("ZIRCON_FX_FY_STRIDE_WORKAROUND");
+    const char* zircon_cgra_psum_workaround_env = std::getenv("ZIRCON_CGRA_PSUM_WORKAROUND");
+    bool dump_tiling = true;
+    bool zircon_fx_fy_stride_workaround = zircon_fx_fy_stride_workaround_env && std::stoi(zircon_fx_fy_stride_workaround_env) == 1;
+    bool zircon_cgra_psum_workaround = zircon_cgra_psum_workaround_env && std::stoi(zircon_cgra_psum_workaround_env) == 1;
+    bool hack_tiling = zircon_fx_fy_stride_workaround || zircon_cgra_psum_workaround;
+    // Last two args are dump tiling and hack tiling for the AHA flow
+    MapOperation(currentOperation, dump_accelerator_params, dump_accelerator_memory_maps, dump_tiling, hack_tiling);
 
     int runtime_scale_factor = 1;
     std::cout << "Operation: " << currentOperation.name << std::endl;
@@ -474,13 +489,18 @@ void Harness::sendParams() {
       bool matrixParamsValid, vectorParamsValid;
 
       BaseParams *baseParam = accelerator_params.front();
+      BaseParams *dumpBaseParam = dump_accelerator_params.front();
 
       MatrixParams *matrixParams = dynamic_cast<MatrixParams *>(baseParam);
+      MatrixParams *dumpMatrixParams = dynamic_cast<MatrixParams *>(dumpBaseParam);
       matrixParamsValid = matrixParams != NULL;
 
       if (matrixParamsValid) {
         accelerator_params.pop_front();
         baseParam = accelerator_params.front();
+
+        dump_accelerator_params.pop_front();
+        dumpBaseParam = dump_accelerator_params.front();
       }
 
       VectorParams *vectorParams = dynamic_cast<VectorParams *>(baseParam);
@@ -510,6 +530,14 @@ void Harness::sendParams() {
         nlohmann::json tensor_metadata;
         tensor_metadata_file >> tensor_metadata;
 
+        uint64_t glb_base_addr = tensor_metadata["mu_glb_base_address"].get<uint64_t>();
+        printf("\nMU-GLB base address: %d\n", glb_base_addr);
+        uint64_t input_offset = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]["glb_base_address"];
+        uint64_t input_scale_offset = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]["glb_base_address"];
+        uint64_t weight_offset = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]["glb_base_address"];
+        uint64_t weight_scale_offset = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]["glb_base_address"];
+        uint64_t bias_offset = tensor_metadata["ops"][0]["kwargs"]["bias"]["tensor"]["glb_base_address"];
+
         auto& input_shape = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]["shape"];
         auto& weight_shape = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]["shape"];
         auto& input_scale_shape = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]["shape"];
@@ -520,33 +548,47 @@ void Harness::sendParams() {
         int input_scale_size = input_scale_shape[0].get<int>() * input_scale_shape[1].get<int>() * input_scale_shape[2].get<int>() * input_scale_shape[3].get<int>();
         int weight_scale_size = weight_scale_shape[0].get<int>() * weight_scale_shape[1].get<int>() * weight_scale_shape[2].get<int>() * weight_scale_shape[3].get<int>();
 
-        // Must be 32B aligned b/c 32 is the OC unrolling. Word width in GLB is 32B.
-        double input_size_aligned = std::ceil(((double)input_size) / 32.0) * 32.0;
-        double input_scale_size_aligned = std::ceil(((double)input_scale_size) / 32.0) * 32.0;
-        double weight_size_aligned = std::ceil(((double)weight_size) / 32.0) * 32.0;
-        double weight_scale_size_aligned = std::ceil(((double)weight_scale_size) / 32.0) * 32.0;
+        // Adjust the offsets if using zircon CGRA PSUM workaround: account for tiling along reduction dimension
+        if (zircon_cgra_psum_workaround) {
+          const char* num_psums_env = std::getenv("NUM_PSUMS");
+          const char* psum_idx_env = std::getenv("PSUM_IDX");
 
-        // Print all the aligned sizes
-        std::cout << "Input size aligned: " << input_size_aligned << std::endl;
-        std::cout << "Input scale size aligned: " << input_scale_size_aligned << std::endl;
-        std::cout << "Weight size aligned: " << weight_size_aligned << std::endl;
-        std::cout << "Weight scale size aligned: " << weight_scale_size_aligned << std::endl;
+          printf("NUM_PSUMS: %s\n", num_psums_env);
+          printf("PSUM_IDX: %s\n", psum_idx_env);
 
-        uint64_t glb_base_addr = tensor_metadata["mu_glb_base_address"].get<uint64_t>();
-        printf("\nMU-GLB base address: %d\n", glb_base_addr);
-        uint64_t input_offset = glb_base_addr; // read the rest from model.txt using keyword args (OR could store in json file to read in)
-        uint64_t input_scale_offset = input_offset + (uint64_t)input_size_aligned;
-        uint64_t weight_offset = input_scale_offset + (uint64_t)input_scale_size_aligned;
-        uint64_t weight_scale_offset = weight_offset + (uint64_t)weight_size_aligned;
-        uint64_t bias_offset = weight_scale_offset + (uint64_t)weight_scale_size_aligned;
+          int num_psums;
+          int psum_idx;
 
-        matrixParams->INPUT_OFFSET = input_offset;
-        matrixParams->INPUT_SCALE_OFFSET = input_scale_offset;
-        matrixParams->WEIGHT_OFFSET = weight_offset;
-        matrixParams->WEIGHT_SCALE_OFFSET = weight_scale_offset;
-        matrixParams->BIAS_OFFSET = bias_offset;
+          if (num_psums_env && psum_idx_env) {
+            num_psums = std::stoi(num_psums_env);
+            psum_idx = std::stoi(psum_idx_env);
+          } else {
+            throw std::runtime_error(
+                "Zircon CGRA PSUM workaround requires NUM_PSUMS and PSUM_IDX "
+                "environment variables to be set.");
+          }
 
-        dumpSerializedParams<MatrixParams, 32>(*matrixParams);
+          uint64_t input_offset_incr = psum_idx * (input_size / num_psums);
+          input_offset += input_offset_incr;
+          input_scale_offset += psum_idx * (input_scale_size/num_psums);
+          weight_offset += psum_idx * (weight_size/num_psums);
+          weight_scale_offset += psum_idx * (weight_scale_size/num_psums);
+        }
+
+        // Print all the offsets
+        std::cout << "Input offset: " << input_offset << std::endl;
+        std::cout << "Input scale offset: " << input_scale_offset << std::endl;
+        std::cout << "Weight offset: " << weight_offset << std::endl;
+        std::cout << "Weight scale offset: " << weight_scale_offset << std::endl;
+        std::cout << "Bias offset: " << bias_offset << std::endl;
+
+        dumpMatrixParams->INPUT_OFFSET = input_offset;
+        dumpMatrixParams->INPUT_SCALE_OFFSET = input_scale_offset;
+        dumpMatrixParams->WEIGHT_OFFSET = weight_offset;
+        dumpMatrixParams->WEIGHT_SCALE_OFFSET = weight_scale_offset;
+        dumpMatrixParams->BIAS_OFFSET = bias_offset;
+
+        dumpSerializedParams<MatrixParams, 32>(*dumpMatrixParams);
         matrixUnitStartSignal.SyncPop();
       }
 

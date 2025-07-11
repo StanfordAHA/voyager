@@ -476,6 +476,17 @@ SC_MODULE(MatrixProcessor) {
           BufferWriteRequest<Pack1D<Buffer, NCols>> req;
           req.address = writeAddress;
           req.data = previous_accumulation;
+
+        // --------------DATA DUMPING FOR AHA FLOW-------------------//
+        std::ofstream SA_psum_output_file;
+        SA_psum_output_file.open("SA_psum_systemC.txt", std::ios::app);
+        if (!SA_psum_output_file.is_open()) {
+          spdlog::error("Failed to open SA_psum_systemC.txt for writing.");
+          return;
+        }
+        SA_psum_output_file << previous_accumulation << std::endl;
+        // --------------DATA DUMPING FOR AHA FLOW-------------------//
+
           accumulation_buffer_write_request[accumulation_buffer_bank].Push(req);
         }
 

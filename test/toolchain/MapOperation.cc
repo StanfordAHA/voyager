@@ -13,7 +13,7 @@
 
 void MapOperation(const Operation &operation,
                   std::deque<BaseParams *> &mappedParams,
-                  std::deque<AcceleratorMemoryMap> &opMemoryMaps) {
+                  std::deque<AcceleratorMemoryMap> &opMemoryMaps, bool dump_tiling, bool hack_tiling) {
   const auto param = operation.param;
   const auto op_list = get_op_list(param);
   const auto first_op = op_list[0];
@@ -29,7 +29,7 @@ void MapOperation(const Operation &operation,
     if (dim == 1) {
       MapMatrixVectorMultiply(param, mappedParams, opMemoryMaps);
     } else {
-      MapMatrixOperation(operation, mappedParams, opMemoryMaps);
+      MapMatrixOperation(operation, mappedParams, opMemoryMaps, dump_tiling, hack_tiling);
     }
   } else if (first_op.target() == "layer_norm") {
     MapLayerNorm(param, mappedParams, opMemoryMaps);

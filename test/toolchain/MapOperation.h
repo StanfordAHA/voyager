@@ -6,4 +6,4 @@
 
 void MapOperation(const Operation &operation,
                   std::deque<BaseParams *> &mappedParams,
-                  std::deque<AcceleratorMemoryMap> &opMemoryMaps);
+                  std::deque<AcceleratorMemoryMap> &opMemoryMaps, bool dump_tiling, bool hack_tiling);

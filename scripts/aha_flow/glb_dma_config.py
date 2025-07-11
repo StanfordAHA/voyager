@@ -1,3 +1,4 @@
+import os
 # This code is used to generate the GLB affine controller config for a specific tiling pattern in a neural network layer.
 
 arg_indices_dict = {
@@ -114,7 +115,7 @@ def get_glb_dma_config_helper(loop_order, loop_bounds):
     return dimensionality, trimmed_strides, trimmed_extents
 
 
-def get_glb_dma_config(output_tiling_filepath: str):
+def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workaround: bool = False):
     """
     Reads the tiling file and returns the GLB DMA config.
     The tiling file should contain the loop order and loop bounds in a specific format.
@@ -138,6 +139,10 @@ def get_glb_dma_config(output_tiling_filepath: str):
         loop_bounds[3] = outer_loops[y_loop_indices[0]]  # Y1
         loop_bounds[4] = inner_loops[k_loop_indices[1]]  # K1
         loop_bounds[5] = outer_loops[k_loop_indices[0]]  # K2
+
+        if zircon_fx_fy_stride_workaround:
+            loop_bounds[0] = loop_bounds[0] // 2 # divide X0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
+            loop_bounds[1] = loop_bounds[1] // 2 # divide Y0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
 
         # Construct loop order based on the indices
         # Map variable names to their values

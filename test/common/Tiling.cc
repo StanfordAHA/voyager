@@ -29,14 +29,22 @@ std::ostream& operator<<(std::ostream& os, const Tiling& tiling) {
   return os;
 }
 
-Tiling get_tiling(const Operation& operation) {
+Tiling get_tiling(const Operation& operation, bool hack_tiling) {
   const auto param = operation.param;
   const auto op_list = get_op_list(param);
   const auto first_op = op_list[0];
 
+  std::string operation_name = first_op.name();
+
   // get environment variable
   const char* env_var = std::getenv("MANUAL_TILING");
   bool manual_tiling = env_var ? std::stoi(env_var) : false;
+
+  const char* zircon_fx_fy_stride_workaround_env = std::getenv("ZIRCON_FX_FY_STRIDE_WORKAROUND");
+  bool zircon_fx_fy_stride_workaround = zircon_fx_fy_stride_workaround_env && std::stoi(zircon_fx_fy_stride_workaround_env) == 1;
+
+  const char* zircon_cgra_psum_workaround_env = std::getenv("ZIRCON_CGRA_PSUM_WORKAROUND");
+  bool zircon_cgra_psum_workaround = zircon_cgra_psum_workaround_env && std::stoi(zircon_cgra_psum_workaround_env) == 1;
 
   Tiling tiling;
   if (manual_tiling || !operation.has_valid_tiling) {
@@ -45,6 +53,8 @@ Tiling get_tiling(const Operation& operation) {
     } else {
       tiling = get_linear_tiling(first_op);
     }
+  } else if (zircon_fx_fy_stride_workaround && hack_tiling) {
+        tiling = get_zircon_fx_fy_stride_workaround_tiling(first_op);
   } else {
     tiling = get_interstellar_tiling(operation.tiling);
     if (first_op.kwargs().contains("stride")) {
@@ -53,6 +63,65 @@ Tiling get_tiling(const Operation& operation) {
     } else {
       tiling.stride = 1;
     }
+
+    // PSUM workaround for Zircon. MU reduction loop bounds must be 1 for MU to work.
+    if (zircon_cgra_psum_workaround && hack_tiling) {
+      tiling.loops[0][tiling.reduction_loop_index[0]] = 1;
+      tiling.loops[1][tiling.reduction_loop_index[1]] = 1;
+    }
+  }
+
+  return tiling;
+}
+
+
+Tiling get_zircon_fx_fy_stride_workaround_tiling(const codegen::OpOverload param) {
+  Tiling tiling;
+
+  printf("Using kernel and stride hack for %s\n", param.name().c_str());
+  const auto kwargs = param.kwargs();
+  const auto input = kwargs.at("input").tensor();
+  const auto weight = kwargs.at("weight").tensor();
+  const auto strides = kwargs.at("stride").int_list().values();
+
+  const auto input_shape = get_shape(input);
+  const auto weight_shape = get_shape(weight);
+  int stride = strides[0];
+
+  // conv4 downsample
+  if (input_shape[1] == 128 && input_shape[2] == 28 && input_shape[3] == 28 &&
+      weight_shape[0] == 256 && weight_shape[2] == 1 && weight_shape[3] == 1 && stride == 2) {
+
+    tiling = {
+          .loops = {{1, 1, 8, 2, 1, 1}, {1, 1, 3, 3, 28, 28}},
+          .x_loop_index = {1, 5},
+          .y_loop_index = {0, 4},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {2, 1},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {4, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  // conv5 downsample
+  } else if (input_shape[1] == 256 && input_shape[2] == 14 && input_shape[3] == 14 &&
+      weight_shape[0] == 512 && weight_shape[2] == 1 && weight_shape[3] == 1 && stride == 2) {
+
+        tiling = {
+          .loops = {{1, 1, 16, 4, 1, 1}, {1, 1, 3, 3, 14, 14}},
+          .x_loop_index = {1, 5},
+          .y_loop_index = {0, 4},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {2, 1},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {4, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  } else {
+     throw std::runtime_error("Zircon fx, fy, stride workaround not implemented for this layer!");
   }
 
   return tiling;
