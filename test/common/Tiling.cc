@@ -46,6 +46,9 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
   const char* zircon_cgra_psum_workaround_env = std::getenv("ZIRCON_CGRA_PSUM_WORKAROUND");
   bool zircon_cgra_psum_workaround = zircon_cgra_psum_workaround_env && std::stoi(zircon_cgra_psum_workaround_env) == 1;
 
+  const char* k_dim_host_tiling_env = std::getenv("K_DIM_HOST_TILING");
+  bool k_dim_host_tiling = k_dim_host_tiling_env && std::stoi(k_dim_host_tiling_env) == 1;
+
   Tiling tiling;
   if (manual_tiling || !operation.has_valid_tiling) {
     if (first_op.target() == "conv2d" || first_op.target() == "conv2d_mx") {
@@ -69,6 +72,27 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
       tiling.loops[0][tiling.reduction_loop_index[0]] = 1;
       tiling.loops[1][tiling.reduction_loop_index[1]] = 1;
     }
+
+    // FIXME: TEMPORARY FOR NOW. This is a hack to get the k dimension tiling. Assuming can tile the K2 loop
+    if (k_dim_host_tiling && hack_tiling) {
+        const char* num_k_host_tiling_kernels_env = std::getenv("NUM_K_HOST_TILING_KERNELS");
+
+        printf("NUM_K_HOST_TILING_KERNELS: %s\n", num_k_host_tiling_kernels_env);
+
+        int num_k_host_tiling_kernels;
+
+        if (num_k_host_tiling_kernels_env) {
+          num_k_host_tiling_kernels = std::stoi(num_k_host_tiling_kernels_env);
+        } else {
+          throw std::runtime_error(
+              "Zircon K HOST TILING workaround requires NUM_K_HOST_TILING_KERNELS "
+              "environment variable to be set.");
+        }
+
+      // FIXME: Assuming this is divisble. Need to generalize this.
+      tiling.loops[0][tiling.weight_loop_index[0]] = tiling.loops[0][tiling.weight_loop_index[0]] / num_k_host_tiling_kernels;
+    }
+
   }
 
   return tiling;

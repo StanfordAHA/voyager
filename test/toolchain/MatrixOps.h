@@ -137,6 +137,22 @@ void MapMatrixOperation(const Operation &operation,
 
   Tiling tiling = get_tiling(operation, hack_tiling);
 
+  // FIXME: Temporary HACK
+  if (hack_tiling) {
+    tiling = {
+          .loops = {{1, 1, 8, 8, 1, 1}, {1, 1, 3, 3, 14, 14}},
+          .x_loop_index = {1, 5},
+          .y_loop_index = {0, 4},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {2, 1},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {4, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  }
+
   // --------------DATA DUMPING FOR AHA FLOW-------------------//
   if (dump_tiling) {
     std::ofstream output_tiling_dump_file;

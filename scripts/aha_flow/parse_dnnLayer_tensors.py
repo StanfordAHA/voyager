@@ -154,6 +154,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     zircon_cgra_psum_workaround = "ZIRCON_CGRA_PSUM_WORKAROUND" in os.environ and os.environ["ZIRCON_CGRA_PSUM_WORKAROUND"] == "1"
     psum_idx = "PSUM_IDX" in os.environ and int(os.environ["PSUM_IDX"]) if zircon_cgra_psum_workaround else 1
     num_psums = "NUM_PSUMS" in os.environ and int(os.environ["NUM_PSUMS"]) if zircon_cgra_psum_workaround else 1
+    zircon_double_ox_oy_workaround = "ZIRCON_DOUBLE_OX_OY_WORKAROUND" in os.environ and os.environ["ZIRCON_DOUBLE_OX_OY_WORKAROUND"] == "1"
+
 
     if zircon_cgra_psum_workaround:
         print(f"\033[93mINFO: Zircon CGRA PSUM workaround enabled to avoid MU bug on downsample layers. Using PSUM index {psum_idx}. There are {num_psums} total PSUMs.\033[0m")
@@ -161,10 +163,22 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     if zircon_fx_fy_stride_workaround:
         print("\033[93mINFO: Zircon FX, FY stride workaround enabled to avoid MU bug on downsample layers.\033[0m")
 
+
+    # K dimension host tiling
+    k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
+    if k_dim_host_tiling:
+        num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS", 1))
+        k_dim_host_tiling_idx = int(os.environ.get("K_DIM_HOST_TILING_INDEX", 0))
+
+    if k_dim_host_tiling:
+        print(f"\033[93mINFO: K dimension host tiling enabled. Using {num_k_host_tiling_kernels} kernels with index {k_dim_host_tiling_idx}.\033[0m")
+
     # INPUT
     # Shape is in format: (OC, IC, Y, X)
     input = read_tensor(base_path + input_tensor_data["node"] + ".bin",
                         (input_tensor_data["shape"][0], input_tensor_data["shape"][1], input_tensor_data["shape"][2], input_tensor_data["shape"][3]))
+    if zircon_double_ox_oy_workaround:
+        input = F.pad(input, pad=(0, input_tensor_data["shape"][2], 0, input_tensor_data["shape"][3])) # Double the input size in X and Y dimensions and pad with zeros
     # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
     input_reordered = input.permute(2, 3, 0, 1)
     if zircon_cgra_psum_workaround:
@@ -177,6 +191,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     # Shape is in format: (OC, IC / BLOCK_SIZE, Y, X)
     inputScale = read_tensor(base_path + inputScale_tensor_data["node"] + ".bin",
                              (inputScale_tensor_data["shape"][0], inputScale_tensor_data["shape"][1], inputScale_tensor_data["shape"][2], inputScale_tensor_data["shape"][3]))
+    if zircon_double_ox_oy_workaround:
+        inputScale = F.pad(inputScale, pad=(0, inputScale_tensor_data["shape"][2], 0, inputScale_tensor_data["shape"][3])) # Double the input size in X and Y dimensions and pad with zeros
     # Re-order it so IC is the innermost dimension (Y, X, OC, IC / BLOCK_SIZE)
     inputScale_reordered = inputScale.permute(2, 3, 0, 1)
     if zircon_cgra_psum_workaround:
@@ -195,7 +211,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     if zircon_cgra_psum_workaround:
         weight_reordered = weight_reordered.reshape((weight_tensor_data["shape"][2], weight_tensor_data["shape"][3], weight_tensor_data["shape"][1] // 64, 64, weight_tensor_data["shape"][0]))
         weight_reordered = weight_reordered.permute(2, 0, 1, 3, 4)
-        # weight_reordered = weight_reordered[psum_idx]
+    if k_dim_host_tiling:
+        weight_reordered = weight_reordered.reshape((weight_tensor_data["shape"][2], weight_tensor_data["shape"][3], weight_tensor_data["shape"][1], num_k_host_tiling_kernels, weight_tensor_data["shape"][0] // num_k_host_tiling_kernels))
+        weight_reordered = weight_reordered.permute(3, 0, 1, 2, 4)
+        weight_reordered = weight_reordered[k_dim_host_tiling_idx]
     weight_int8 = weight_reordered.to(torch.int8)
     weight_start_addr = weight_tensor_data["glb_base_address"]
 
@@ -209,6 +228,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     weightScale_reordered = weightScale.permute(2, 3, 1, 0)
     if zircon_cgra_psum_workaround:
         weightScale_reordered = weightScale_reordered.permute(2, 0, 1, 3)
+    if k_dim_host_tiling:
+        weightScale_reordered = weightScale_reordered.reshape((weightScale_tensor_data["shape"][2], weightScale_tensor_data["shape"][3], weightScale_tensor_data["shape"][1], num_k_host_tiling_kernels, weightScale_tensor_data["shape"][0] // num_k_host_tiling_kernels))
+        weightScale_reordered = weightScale_reordered.permute(3, 0, 1, 2, 4)
+        weightScale_reordered = weightScale_reordered[k_dim_host_tiling_idx]
     weightScale_e8m0 = float_to_e8m0(weightScale_reordered)
     weightScale_start_addr = weightScale_tensor_data["glb_base_address"]
 
@@ -217,6 +240,9 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     if zircon_cgra_psum_workaround and psum_idx != 0:
         # If doing psum workaround, bias is zero for all but the 0th kernel
         bias = torch.zeros((bias_tensor_data["shape"][0],), dtype=torch.float32)
+    if k_dim_host_tiling:
+        bias = bias.reshape((num_k_host_tiling_kernels, bias_tensor_data["shape"][0] // num_k_host_tiling_kernels))
+        bias = bias[k_dim_host_tiling_idx]
     bias_bf16 = float32_to_bfloat16_bits(bias)
     bias_start_addr = bias_tensor_data["glb_base_address"]
 

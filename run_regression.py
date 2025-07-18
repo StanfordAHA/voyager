@@ -744,23 +744,36 @@ def add_layers(network, layers, layer_counts, uniquify):
 
 def append_glb_base_addresses(kwargs, mu_glb_base_address):
     zircon_fx_fy_stride_workaround = "ZIRCON_FX_FY_STRIDE_WORKAROUND" in os.environ and os.environ["ZIRCON_FX_FY_STRIDE_WORKAROUND"] == "1"
+    zircon_double_ox_oy_workaround = "ZIRCON_DOUBLE_OX_OY_WORKAROUND" in os.environ and os.environ["ZIRCON_DOUBLE_OX_OY_WORKAROUND"] == "1"
+    k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
+    if k_dim_host_tiling:
+        num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS", 1))
+        k_dim_host_tiling_idx = int(os.environ.get("K_DIM_HOST_TILING_INDEX", 0))
 
     # Append GLB base addresses to the kwargs for input, weight, bias, inputScale, and weightScale tensors
     input_base_address = mu_glb_base_address
 
     # multiply all element in kwargs['input']['tensor']['shape'] together and add to input_base_address
     input_num_elements = functools.reduce(operator.mul, kwargs['input']['tensor']['shape'], 1)
+    if zircon_double_ox_oy_workaround:
+        input_num_elements *= 2 * 2
     inputScale_base_address = input_base_address + math.ceil(input_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     inputScale_num_elements = functools.reduce(operator.mul, kwargs['input_scale']['tensor']['shape'], 1)
+    if zircon_double_ox_oy_workaround:
+        inputScale_num_elements *= 2 * 2
     weight_base_address = inputScale_base_address + math.ceil(inputScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     weight_num_elements = functools.reduce(operator.mul, kwargs['weight']['tensor']['shape'], 1)
+    if k_dim_host_tiling:
+        weight_num_elements = weight_num_elements // num_k_host_tiling_kernels
     if zircon_fx_fy_stride_workaround:
         weight_num_elements *= 3 * 3
     weightScale_base_address = weight_base_address + math.ceil(weight_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     weightScale_num_elements = functools.reduce(operator.mul, kwargs['weight_scale']['tensor']['shape'], 1)
+    if k_dim_host_tiling:
+        weightScale_num_elements = weightScale_num_elements // num_k_host_tiling_kernels
     if zircon_fx_fy_stride_workaround:
         weightScale_num_elements *= 3 * 3
 

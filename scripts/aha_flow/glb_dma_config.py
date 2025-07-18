@@ -42,7 +42,7 @@ def print_addr_map(X0, Y0, X1, Y1, K1, K2):
                     for y0 in range(0, Y0):
                         for x0 in range(0, X0):
                             addr = get_address(x0, y0, x1, y1, k1, k2, X0, Y0, X1, Y1, K1, K2)
-                            print(f"addr: {addr}, bank index: {int(addr/32)}, y1: {y1}, x1: {x1}, k1: {k1}, y0: {y0}, x0: {x0}")
+                            print(f"addr: {addr}, bank index: {int(addr/32)}, y1: {y1}, x1: {x1}, k2: {k2}, k1: {k1}, y0: {y0}, x0: {x0}")
 
 
 def get_dimensionality(X0, Y0, X1, Y1, K1, K2):
@@ -79,6 +79,14 @@ def compute_strides(loop_order, loop_bounds, arg_indices_dict):
 
     # The addresss function is defined as: addr = y * (X1 * X0 * K2 * K1 * K0) + x * (K2 * K1 * K0) + k
     """
+
+    # FIXME: Temporary HACK
+    k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
+    if k_dim_host_tiling:
+        num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS", 1))
+        # UNDO the change made in the tiling file. i.e. in Tiling.cc. Need to formalize this
+        loop_bounds[5] = loop_bounds[5] * num_k_host_tiling_kernels
+
     strides = [0] * len(loop_order)
     for idx, loop in enumerate(loop_order):
         addr_args_1 = [0] * len(arg_indices_dict)
@@ -98,11 +106,18 @@ def compute_strides(loop_order, loop_bounds, arg_indices_dict):
         # the stride is +8 in the GLB bank address space, which translates to +32 in the MU address space.
         strides[idx] = (addr_1 - addr_0) // 32
 
+
+     # FIXME: very hacky
+    if k_dim_host_tiling:
+        loop_bounds[5] = loop_bounds[5] // num_k_host_tiling_kernels # Restore the original K2 value
+
     return strides
 
 
 
 def get_glb_dma_config_helper(loop_order, loop_bounds):
+
+    print_addr_map(*loop_bounds)
     strides = compute_strides(loop_order, loop_bounds, arg_indices_dict)
 
     trimmed_strides, trimmed_extents = trim_dimensionality(strides, loop_bounds, loop_order, arg_indices_dict)
@@ -144,6 +159,13 @@ def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workarou
             loop_bounds[0] = loop_bounds[0] // 2 # divide X0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
             loop_bounds[1] = loop_bounds[1] // 2 # divide Y0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
 
+        # FIXME: Temporary HACK
+        # FOR K_DIM HOST TILING, DO THE SAME AS THE ABOVE
+        zircon_double_ox_oy_workaround = "ZIRCON_DOUBLE_OX_OY_WORKAROUND" in os.environ and os.environ["ZIRCON_DOUBLE_OX_OY_WORKAROUND"] == "1"
+        if zircon_double_ox_oy_workaround:
+            loop_bounds[0] = loop_bounds[0] // 2 # divide X0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
+            loop_bounds[1] = loop_bounds[1] // 2 # divide Y0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
+
         # Construct loop order based on the indices
         # Map variable names to their values
         outer_vars_dict = {"X1": x_loop_indices[0], "Y1": y_loop_indices[0], "K2": k_loop_indices[0]}
@@ -159,7 +181,8 @@ def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workarou
     return get_glb_dma_config_helper(loop_order, loop_bounds)
 
 if __name__ == "__main__":
-    dimensionality, strides, extents = get_glb_dma_config("/aha/voyager/compiled_collateral/resnet18-conv2d_mx_default_11/output_tiling.txt")
+    # dimensionality, strides, extents = get_glb_dma_config("/aha/voyager/compiled_collateral/resnet18-conv2d_mx_default_11/output_tiling.txt")
+    dimensionality, strides, extents = get_glb_dma_config("./output_tiling.txt")
     print(f"Dimensionality: {dimensionality}")
     print(f"Strides: {strides}")
     print(f"Extents: {extents}")
