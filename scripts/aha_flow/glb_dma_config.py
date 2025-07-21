@@ -124,8 +124,6 @@ def get_glb_dma_config_helper(loop_order, loop_bounds):
     assert len(trimmed_strides) == dimensionality
     assert len(trimmed_extents) == dimensionality
 
-    # Adjust innermost extent to account for aha flow (*= 4, so full data is loaded into GLB. Extent that is programmed in HW (in map.c) will again be divided by 4)
-    trimmed_extents[0] *= 4
     return dimensionality, trimmed_strides, trimmed_extents
 
 
