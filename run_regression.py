@@ -744,24 +744,29 @@ def add_layers(network, layers, layer_counts, uniquify):
 
 def append_glb_base_addresses(kwargs, mu_glb_base_address):
     zircon_fx_fy_stride_workaround = "ZIRCON_FX_FY_STRIDE_WORKAROUND" in os.environ and os.environ["ZIRCON_FX_FY_STRIDE_WORKAROUND"] == "1"
-    zircon_double_ox_oy_workaround = "ZIRCON_DOUBLE_OX_OY_WORKAROUND" in os.environ and os.environ["ZIRCON_DOUBLE_OX_OY_WORKAROUND"] == "1"
+    zircon_input_padding_workaround = "ZIRCON_INPUT_PADDING_WORKAROUND" in os.environ and os.environ["ZIRCON_INPUT_PADDING_WORKAROUND"] == "1"
+    if zircon_input_padding_workaround:
+        assert "ZIRCON_INPUT_PADDING_WORKAROUND_SIZE" in os.environ, "ZIRCON_INPUT_PADDING_WORKAROUND_SIZE environment variable must be set for ZIRCON_INPUT_PADDING_WORKAROUND"
+        zircon_input_padding_workaround_size = int(os.environ.get("ZIRCON_INPUT_PADDING_WORKAROUND_SIZE", 0))
     k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
     if k_dim_host_tiling:
+        assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
         num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS", 1))
-        k_dim_host_tiling_idx = int(os.environ.get("K_DIM_HOST_TILING_INDEX", 0))
 
     # Append GLB base addresses to the kwargs for input, weight, bias, inputScale, and weightScale tensors
     input_base_address = mu_glb_base_address
 
     # multiply all element in kwargs['input']['tensor']['shape'] together and add to input_base_address
     input_num_elements = functools.reduce(operator.mul, kwargs['input']['tensor']['shape'], 1)
-    if zircon_double_ox_oy_workaround:
-        input_num_elements *= 2 * 2
+    if zircon_input_padding_workaround:
+        input_shape = kwargs['input']['tensor']['shape']
+        input_num_elements = input_shape[0] * input_shape[1] * (input_shape[2] + zircon_input_padding_workaround_size) * (input_shape[3] + zircon_input_padding_workaround_size)
     inputScale_base_address = input_base_address + math.ceil(input_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     inputScale_num_elements = functools.reduce(operator.mul, kwargs['input_scale']['tensor']['shape'], 1)
-    if zircon_double_ox_oy_workaround:
-        inputScale_num_elements *= 2 * 2
+    if zircon_input_padding_workaround:
+        inputScale_shape = kwargs['input_scale']['tensor']['shape']
+        inputScale_num_elements = inputScale_shape[0] * inputScale_shape[1] * (inputScale_shape[2] + zircon_input_padding_workaround_size) * (inputScale_shape[3] + zircon_input_padding_workaround_size)
     weight_base_address = inputScale_base_address + math.ceil(inputScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     weight_num_elements = functools.reduce(operator.mul, kwargs['weight']['tensor']['shape'], 1)

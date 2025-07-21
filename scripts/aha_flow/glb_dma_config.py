@@ -80,11 +80,13 @@ def compute_strides(loop_order, loop_bounds, arg_indices_dict):
     # The addresss function is defined as: addr = y * (X1 * X0 * K2 * K1 * K0) + x * (K2 * K1 * K0) + k
     """
 
-    # FIXME: Temporary HACK
     k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
     if k_dim_host_tiling:
-        num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS", 1))
-        # UNDO the change made in the tiling file. i.e. in Tiling.cc. Need to formalize this
+        assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
+        num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS"))
+        # UNDO the change made in the tiling file. i.e. in Tiling.cc.
+        # This is because the tiling file is generated with the assumption that K2 is divided by the number of host tiling kernels, but we need to restore the original K2 value for the stride calculation
+        # to ensure data is stored in correct GLB addresses across all host tiling kernels.
         loop_bounds[5] = loop_bounds[5] * num_k_host_tiling_kernels
 
     strides = [0] * len(loop_order)
@@ -106,10 +108,8 @@ def compute_strides(loop_order, loop_bounds, arg_indices_dict):
         # the stride is +8 in the GLB bank address space, which translates to +32 in the MU address space.
         strides[idx] = (addr_1 - addr_0) // 32
 
-
-     # FIXME: very hacky
     if k_dim_host_tiling:
-        loop_bounds[5] = loop_bounds[5] // num_k_host_tiling_kernels # Restore the original K2 value
+        loop_bounds[5] = loop_bounds[5] // num_k_host_tiling_kernels # Restore K2 value
 
     return strides
 
@@ -117,7 +117,6 @@ def compute_strides(loop_order, loop_bounds, arg_indices_dict):
 
 def get_glb_dma_config_helper(loop_order, loop_bounds):
 
-    print_addr_map(*loop_bounds)
     strides = compute_strides(loop_order, loop_bounds, arg_indices_dict)
 
     trimmed_strides, trimmed_extents = trim_dimensionality(strides, loop_bounds, loop_order, arg_indices_dict)
@@ -130,7 +129,7 @@ def get_glb_dma_config_helper(loop_order, loop_bounds):
     return dimensionality, trimmed_strides, trimmed_extents
 
 
-def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workaround: bool = False):
+def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workaround: bool = False, zircon_input_padding_workaround: bool = False):
     """
     Reads the tiling file and returns the GLB DMA config.
     The tiling file should contain the loop order and loop bounds in a specific format.
@@ -159,12 +158,12 @@ def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workarou
             loop_bounds[0] = loop_bounds[0] // 2 # divide X0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
             loop_bounds[1] = loop_bounds[1] // 2 # divide Y0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
 
-        # FIXME: Temporary HACK
-        # FOR K_DIM HOST TILING, DO THE SAME AS THE ABOVE
-        zircon_double_ox_oy_workaround = "ZIRCON_DOUBLE_OX_OY_WORKAROUND" in os.environ and os.environ["ZIRCON_DOUBLE_OX_OY_WORKAROUND"] == "1"
-        if zircon_double_ox_oy_workaround:
-            loop_bounds[0] = loop_bounds[0] // 2 # divide X0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
-            loop_bounds[1] = loop_bounds[1] // 2 # divide Y0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
+        if zircon_input_padding_workaround:
+            assert "ZIRCON_INPUT_PADDING_WORKAROUND_SIZE" in os.environ, "ZIRCON_INPUT_PADDING_WORKAROUND_SIZE environment variable must be set for ZIRCON_INPUT_PADDING_WORKAROUND"
+            zircon_input_padding_workaround_size = int(os.environ.get("ZIRCON_INPUT_PADDING_WORKAROUND_SIZE", 0))
+            # This file needs to ignore the padding to produce the correct addresses to store REAL data in GLB (i.e. the padded output gets filtered)
+            loop_bounds[0] = loop_bounds[0] - zircon_input_padding_workaround_size
+            loop_bounds[1] = loop_bounds[1] - zircon_input_padding_workaround_size
 
         # Construct loop order based on the indices
         # Map variable names to their values

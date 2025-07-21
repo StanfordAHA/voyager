@@ -117,6 +117,53 @@ def hw_output_txt_to_raw(input_txt_path, output_raw_path):
     uint16_array_be.tofile(output_raw_path)
 
 
+def parse_zircon_workarounds():
+    # Workarounds to avoid Zircon MU bug on Resnet downsample layers
+    zircon_fx_fy_stride_workaround = "ZIRCON_FX_FY_STRIDE_WORKAROUND" in os.environ and os.environ["ZIRCON_FX_FY_STRIDE_WORKAROUND"] == "1"
+    zircon_cgra_psum_workaround = "ZIRCON_CGRA_PSUM_WORKAROUND" in os.environ and os.environ["ZIRCON_CGRA_PSUM_WORKAROUND"] == "1"
+    psum_idx = 0
+    num_psums = 1
+    if zircon_cgra_psum_workaround:
+        assert "PSUM_IDX" in os.environ, "PSUM_IDX environment variable must be set for ZIRCON_CGRA_PSUM_WORKAROUND"
+        assert "NUM_PSUMS" in os.environ, "NUM_PSUMS environment variable must be set for ZIRCON_CGRA_PSUM_WORKAROUND"
+        psum_idx = int(os.environ["PSUM_IDX"])
+        num_psums = int(os.environ["NUM_PSUMS"])
+
+    # Input padding workaround for Zircon MU inability to handle some layer shapes
+    zircon_input_padding_workaround = "ZIRCON_INPUT_PADDING_WORKAROUND" in os.environ and os.environ["ZIRCON_INPUT_PADDING_WORKAROUND"] == "1"
+    zircon_input_padding_workaround_size = 0
+    if zircon_input_padding_workaround:
+        assert "ZIRCON_INPUT_PADDING_WORKAROUND_SIZE" in os.environ, "ZIRCON_INPUT_PADDING_WORKAROUND_SIZE environment variable must be set for ZIRCON_INPUT_PADDING_WORKAROUND"
+        zircon_input_padding_workaround_size = int(os.environ.get("ZIRCON_INPUT_PADDING_WORKAROUND_SIZE"))
+
+    # K dimension host tiling: used in resnet18 conv5 in Zircon
+    k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
+    num_k_host_tiling_kernels = 1
+    k_dim_host_tiling_idx = 0
+    if k_dim_host_tiling:
+        assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
+        assert "K_DIM_HOST_TILING_IDX" in os.environ, "K_DIM_HOST_TILING_IDX environment variable must be set for K_DIM_HOST_TILING"
+        num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS"))
+        k_dim_host_tiling_idx = int(os.environ.get("K_DIM_HOST_TILING_IDX"))
+
+    if zircon_cgra_psum_workaround:
+        print(f"\033[93mINFO: Zircon CGRA PSUM workaround enabled to avoid MU bug on downsample layers. Using PSUM index {psum_idx}. There are {num_psums} total PSUMs.\033[0m")
+
+    if zircon_fx_fy_stride_workaround:
+        print("\033[93mINFO: Zircon FX, FY stride workaround enabled to avoid MU bug on downsample layers.\033[0m")
+
+    if zircon_input_padding_workaround:
+        print(f"\033[93mINFO: Zircon input padding workaround enabled. Input image will be padded with +{zircon_input_padding_workaround_size}.\033[0m")
+
+    if k_dim_host_tiling:
+        print(f"\033[93mINFO: K dimension host tiling enabled. Using {num_k_host_tiling_kernels} kernels with index {k_dim_host_tiling_idx}.\033[0m")
+
+
+    return zircon_fx_fy_stride_workaround, zircon_cgra_psum_workaround, psum_idx, num_psums, \
+           zircon_input_padding_workaround, zircon_input_padding_workaround_size, \
+           k_dim_host_tiling, num_k_host_tiling_kernels, k_dim_host_tiling_idx
+
+
 def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     # Base path for the binary files
     base_path = f'/aha/voyager/test/compiler/networks/{model}/{datatype}/tensor_files/'
@@ -149,36 +196,17 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
 
     mu_glb_base_addr = tensor_metadata["mu_glb_base_address"]
 
-    # Workarounds to avoid Zircon MU bug on Resnet downsample layers
-    zircon_fx_fy_stride_workaround = "ZIRCON_FX_FY_STRIDE_WORKAROUND" in os.environ and os.environ["ZIRCON_FX_FY_STRIDE_WORKAROUND"] == "1"
-    zircon_cgra_psum_workaround = "ZIRCON_CGRA_PSUM_WORKAROUND" in os.environ and os.environ["ZIRCON_CGRA_PSUM_WORKAROUND"] == "1"
-    psum_idx = "PSUM_IDX" in os.environ and int(os.environ["PSUM_IDX"]) if zircon_cgra_psum_workaround else 1
-    num_psums = "NUM_PSUMS" in os.environ and int(os.environ["NUM_PSUMS"]) if zircon_cgra_psum_workaround else 1
-    zircon_double_ox_oy_workaround = "ZIRCON_DOUBLE_OX_OY_WORKAROUND" in os.environ and os.environ["ZIRCON_DOUBLE_OX_OY_WORKAROUND"] == "1"
 
-
-    if zircon_cgra_psum_workaround:
-        print(f"\033[93mINFO: Zircon CGRA PSUM workaround enabled to avoid MU bug on downsample layers. Using PSUM index {psum_idx}. There are {num_psums} total PSUMs.\033[0m")
-
-    if zircon_fx_fy_stride_workaround:
-        print("\033[93mINFO: Zircon FX, FY stride workaround enabled to avoid MU bug on downsample layers.\033[0m")
-
-
-    # K dimension host tiling
-    k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
-    if k_dim_host_tiling:
-        num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS", 1))
-        k_dim_host_tiling_idx = int(os.environ.get("K_DIM_HOST_TILING_INDEX", 0))
-
-    if k_dim_host_tiling:
-        print(f"\033[93mINFO: K dimension host tiling enabled. Using {num_k_host_tiling_kernels} kernels with index {k_dim_host_tiling_idx}.\033[0m")
+    zircon_fx_fy_stride_workaround, zircon_cgra_psum_workaround, psum_idx, num_psums, \
+    zircon_input_padding_workaround, zircon_input_padding_workaround_size, \
+    k_dim_host_tiling, num_k_host_tiling_kernels, k_dim_host_tiling_idx = parse_zircon_workarounds()
 
     # INPUT
     # Shape is in format: (OC, IC, Y, X)
     input = read_tensor(base_path + input_tensor_data["node"] + ".bin",
                         (input_tensor_data["shape"][0], input_tensor_data["shape"][1], input_tensor_data["shape"][2], input_tensor_data["shape"][3]))
-    if zircon_double_ox_oy_workaround:
-        input = F.pad(input, pad=(0, input_tensor_data["shape"][2], 0, input_tensor_data["shape"][3])) # Double the input size in X and Y dimensions and pad with zeros
+    if zircon_input_padding_workaround:
+        input = F.pad(input, pad=(0, zircon_input_padding_workaround_size, 0, zircon_input_padding_workaround_size)) # Pad X and Y dimensions with zeros
     # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
     input_reordered = input.permute(2, 3, 0, 1)
     if zircon_cgra_psum_workaround:
@@ -191,8 +219,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     # Shape is in format: (OC, IC / BLOCK_SIZE, Y, X)
     inputScale = read_tensor(base_path + inputScale_tensor_data["node"] + ".bin",
                              (inputScale_tensor_data["shape"][0], inputScale_tensor_data["shape"][1], inputScale_tensor_data["shape"][2], inputScale_tensor_data["shape"][3]))
-    if zircon_double_ox_oy_workaround:
-        inputScale = F.pad(inputScale, pad=(0, inputScale_tensor_data["shape"][2], 0, inputScale_tensor_data["shape"][3])) # Double the input size in X and Y dimensions and pad with zeros
+    if zircon_input_padding_workaround:
+        inputScale = F.pad(inputScale, pad=(0, zircon_input_padding_workaround_size, 0, zircon_input_padding_workaround_size)) # Pad X and Y dimensions with zeros
     # Re-order it so IC is the innermost dimension (Y, X, OC, IC / BLOCK_SIZE)
     inputScale_reordered = inputScale.permute(2, 3, 0, 1)
     if zircon_cgra_psum_workaround:
