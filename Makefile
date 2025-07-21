@@ -317,6 +317,8 @@ create-env: .conda-env
 .conda-env:
 	@echo "Creating voyager conda environment..."
 	@bash -c '\
+	    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main; \
+		conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r; \
 		conda env create -p .conda-env -f environment.yml; \
 		conda init && eval "$$(conda shell.bash hook)"; \
 		conda activate ./.conda-env; \
