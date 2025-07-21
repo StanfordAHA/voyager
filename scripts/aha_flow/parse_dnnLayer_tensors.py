@@ -287,8 +287,15 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
             residual_tmp[:, :, 1::2, 1::2] = residual
             residual = residual_tmp
 
+        if zircon_input_padding_workaround:
+            residual = F.pad(residual, pad=(0, zircon_input_padding_workaround_size, 0, zircon_input_padding_workaround_size), value=-1000) # Pad with -1000 instead of 0s to catch potential bugs 
+
         # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
         residual_reordered = residual.permute(2, 3, 0, 1)
+        if k_dim_host_tiling:
+            residual_reordered = residual_reordered.reshape((residual.shape[2], residual.shape[3], residual.shape[0], num_k_host_tiling_kernels, residual.shape[1] // num_k_host_tiling_kernels))
+            residual_reordered = residual_reordered.permute(3, 0, 1, 2, 4)
+            residual_reordered = residual_reordered[k_dim_host_tiling_idx]
         residual_bf16 = float32_to_bfloat16_bits(residual_reordered)
         residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
 
