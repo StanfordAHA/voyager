@@ -127,7 +127,7 @@ def get_glb_dma_config_helper(loop_order, loop_bounds):
     return dimensionality, trimmed_strides, trimmed_extents
 
 
-def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workaround: bool = False, zircon_input_padding_workaround: bool = False):
+def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workaround: bool = False, zircon_input_act_padding_workaround: bool = False):
     """
     Reads the tiling file and returns the GLB DMA config.
     The tiling file should contain the loop order and loop bounds in a specific format.
@@ -156,12 +156,12 @@ def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workarou
             loop_bounds[0] = loop_bounds[0] // 2 # divide X0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
             loop_bounds[1] = loop_bounds[1] // 2 # divide Y0 by 2 to account for the hack; actual output is 2x smaller than what MU produces
 
-        if zircon_input_padding_workaround:
-            assert "ZIRCON_INPUT_PADDING_WORKAROUND_SIZE" in os.environ, "ZIRCON_INPUT_PADDING_WORKAROUND_SIZE environment variable must be set for ZIRCON_INPUT_PADDING_WORKAROUND"
-            zircon_input_padding_workaround_size = int(os.environ.get("ZIRCON_INPUT_PADDING_WORKAROUND_SIZE", 0))
+        if zircon_input_act_padding_workaround:
+            assert "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE" in os.environ, "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE environment variable must be set for ZIRCON_INPUT_ACT_PADDING_WORKAROUND"
+            zircon_input_act_padding_workaround_size = int(os.environ.get("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE", 0))
             # This file needs to ignore the padding to produce the correct addresses to store REAL data in GLB (i.e. the padded output gets filtered)
-            loop_bounds[0] = loop_bounds[0] - zircon_input_padding_workaround_size
-            loop_bounds[1] = loop_bounds[1] - zircon_input_padding_workaround_size
+            loop_bounds[0] = loop_bounds[0] - zircon_input_act_padding_workaround_size
+            loop_bounds[1] = loop_bounds[1] - zircon_input_act_padding_workaround_size
 
         # Construct loop order based on the indices
         # Map variable names to their values
@@ -178,8 +178,7 @@ def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workarou
     return get_glb_dma_config_helper(loop_order, loop_bounds)
 
 if __name__ == "__main__":
-    # dimensionality, strides, extents = get_glb_dma_config("/aha/voyager/compiled_collateral/resnet18-conv2d_mx_default_11/output_tiling.txt")
-    dimensionality, strides, extents = get_glb_dma_config("./output_tiling.txt")
+    dimensionality, strides, extents = get_glb_dma_config("/aha/voyager/compiled_collateral/resnet18-conv2d_mx_default_11/output_tiling.txt")
     print(f"Dimensionality: {dimensionality}")
     print(f"Strides: {strides}")
     print(f"Extents: {extents}")

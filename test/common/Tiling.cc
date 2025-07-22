@@ -49,8 +49,8 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
   const char* k_dim_host_tiling_env = std::getenv("K_DIM_HOST_TILING");
   bool k_dim_host_tiling = k_dim_host_tiling_env && std::stoi(k_dim_host_tiling_env) == 1;
 
-  const char* zircon_input_padding_workaround_env = std::getenv("ZIRCON_INPUT_PADDING_WORKAROUND");
-  bool zircon_input_padding_workaround = zircon_input_padding_workaround_env && std::stoi(zircon_input_padding_workaround_env) == 1;
+  const char* zircon_input_act_padding_workaround_env = std::getenv("ZIRCON_INPUT_ACT_PADDING_WORKAROUND");
+  bool zircon_input_act_padding_workaround = zircon_input_act_padding_workaround_env && std::stoi(zircon_input_act_padding_workaround_env) == 1;
 
   Tiling tiling;
   if (manual_tiling || !operation.has_valid_tiling) {
@@ -102,15 +102,15 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
     }
 
     // Workaround to pad inputs to account for Zircon MU's inability to handle some layer shapes
-    if (zircon_input_padding_workaround && hack_tiling){
-      const char* zircon_input_padding_workaround_size_env = std::getenv("ZIRCON_INPUT_PADDING_WORKAROUND_SIZE");
-      int zircon_input_padding_workaround_size;
+    if (zircon_input_act_padding_workaround && hack_tiling){
+      const char* zircon_input_act_padding_workaround_size_env = std::getenv("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE");
+      int zircon_input_act_padding_workaround_size;
 
-      if (zircon_input_padding_workaround_size_env) {
-        zircon_input_padding_workaround_size = std::stoi(zircon_input_padding_workaround_size_env);
+      if (zircon_input_act_padding_workaround_size_env) {
+        zircon_input_act_padding_workaround_size = std::stoi(zircon_input_act_padding_workaround_size_env);
       } else {
         throw std::runtime_error(
-            "Zircon input padding workaround requires ZIRCON_INPUT_PADDING_WORKAROUND_SIZE "
+            "Zircon input padding workaround requires ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE "
             "environment variable to be set.");
       }
 
@@ -121,8 +121,8 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
             "Code modifications will be necessary to proceed.");
       }
 
-      tiling.loops[1][tiling.x_loop_index[1]] += zircon_input_padding_workaround_size;
-      tiling.loops[1][tiling.y_loop_index[1]] += zircon_input_padding_workaround_size;
+      tiling.loops[1][tiling.x_loop_index[1]] += zircon_input_act_padding_workaround_size;
+      tiling.loops[1][tiling.y_loop_index[1]] += zircon_input_act_padding_workaround_size;
 
     }
   }
