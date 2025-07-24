@@ -46,6 +46,12 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
   const char* zircon_cgra_psum_workaround_env = std::getenv("ZIRCON_CGRA_PSUM_WORKAROUND");
   bool zircon_cgra_psum_workaround = zircon_cgra_psum_workaround_env && std::stoi(zircon_cgra_psum_workaround_env) == 1;
 
+  const char* k_dim_host_tiling_env = std::getenv("K_DIM_HOST_TILING");
+  bool k_dim_host_tiling = k_dim_host_tiling_env && std::stoi(k_dim_host_tiling_env) == 1;
+
+  const char* zircon_input_act_padding_workaround_env = std::getenv("ZIRCON_INPUT_ACT_PADDING_WORKAROUND");
+  bool zircon_input_act_padding_workaround = zircon_input_act_padding_workaround_env && std::stoi(zircon_input_act_padding_workaround_env) == 1;
+
   Tiling tiling;
   if (manual_tiling || !operation.has_valid_tiling) {
     if (first_op.target() == "conv2d" || first_op.target() == "conv2d_mx") {
@@ -68,6 +74,56 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
     if (zircon_cgra_psum_workaround && hack_tiling) {
       tiling.loops[0][tiling.reduction_loop_index[0]] = 1;
       tiling.loops[1][tiling.reduction_loop_index[1]] = 1;
+    }
+
+    if (k_dim_host_tiling && hack_tiling) {
+        const char* num_k_host_tiling_kernels_env = std::getenv("NUM_K_HOST_TILING_KERNELS");
+
+        printf("NUM_K_HOST_TILING_KERNELS: %s\n", num_k_host_tiling_kernels_env);
+
+        int num_k_host_tiling_kernels;
+
+        if (num_k_host_tiling_kernels_env) {
+          num_k_host_tiling_kernels = std::stoi(num_k_host_tiling_kernels_env);
+        } else {
+          throw std::runtime_error(
+              "Zircon K HOST TILING workaround requires NUM_K_HOST_TILING_KERNELS "
+              "environment variable to be set.");
+        }
+
+      // NOTE: Assumption is that entire K loop is in k2 and it is divisible by num_k_host_tiling_kernels, which is the case for conv5 layers in Resnet18 on Zircon
+      if ((tiling.loops[0][tiling.weight_loop_index[0]] % num_k_host_tiling_kernels != 0) || (tiling.loops[1][tiling.weight_loop_index[1]] != 1)) {
+        throw std::runtime_error(
+            "Zircon K HOST TILING workaround by default assumes weight loop to be divisible by NUM_K_HOST_TILING_KERNELS and the second weight loop to be 1."
+            "Code modifications will be necessary to proceed.");
+      }
+
+      tiling.loops[0][tiling.weight_loop_index[0]] = tiling.loops[0][tiling.weight_loop_index[0]] / num_k_host_tiling_kernels;
+    }
+
+    // Workaround to pad inputs to account for Zircon MU's inability to handle some layer shapes
+    if (zircon_input_act_padding_workaround && hack_tiling){
+      const char* zircon_input_act_padding_workaround_size_env = std::getenv("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE");
+      int zircon_input_act_padding_workaround_size;
+
+      if (zircon_input_act_padding_workaround_size_env) {
+        zircon_input_act_padding_workaround_size = std::stoi(zircon_input_act_padding_workaround_size_env);
+      } else {
+        throw std::runtime_error(
+            "Zircon input padding workaround requires ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE "
+            "environment variable to be set.");
+      }
+
+      // NOTE: Assumption is that the entire input image is in the inner loop, which is the case for conv5 layers in Resnet18 on Zircon
+      if ((tiling.loops[0][tiling.x_loop_index[0]] != 1) || (tiling.loops[0][tiling.y_loop_index[0]] != 1)) {
+        throw std::runtime_error(
+            "Zircon input padding workaround by default assumes outer x and y loops to be 1. "
+            "Code modifications will be necessary to proceed.");
+      }
+
+      tiling.loops[1][tiling.x_loop_index[1]] += zircon_input_act_padding_workaround_size;
+      tiling.loops[1][tiling.y_loop_index[1]] += zircon_input_act_padding_workaround_size;
+
     }
   }
 

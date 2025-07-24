@@ -37,11 +37,11 @@ float compare_arrays(std::any matrixA, std::string matrixA_name,
   spdlog::info("Writing gold data to file: {}\n", gold_data_filename);
 
 
-  std::string gold_binary_filename = "gold_data" + suffix + "raw";
-  // Delete the file if it exists
-  std::remove(gold_binary_filename.c_str());
-  std::ofstream gold_binary_file(gold_binary_filename, std::ios::binary);
-  spdlog::info("Writing gold binary data to file: {}\n", gold_binary_filename);
+  // std::string gold_binary_filename = "gold_data" + suffix + "raw";
+  // // Delete the file if it exists
+  // std::remove(gold_binary_filename.c_str());
+  // std::ofstream gold_binary_file(gold_binary_filename, std::ios::binary);
+  // spdlog::info("Writing gold binary data to file: {}\n", gold_binary_filename);
 
   // Records absolute differences
   int abs_diff_buckets[5] = {0, 0, 0, 0, 0};
@@ -68,18 +68,18 @@ float compare_arrays(std::any matrixA, std::string matrixA_name,
     gold_data_file << std::endl;
 
     // write gold data out to binary (raw) file
-    const uint8_t* ptr2 = reinterpret_cast<const uint8_t*>(matrixB_ptr) + index * size_of_typeB;
-    // Loop over data in 2-byte chunks
-    for (size_t i = 0; i + 1 < size_of_typeB; i += 2) {
-        uint16_t value;
-        std::memcpy(&value, ptr2 + i, sizeof(uint16_t));  // safely extract 2 bytes
+    // const uint8_t* ptr2 = reinterpret_cast<const uint8_t*>(matrixB_ptr) + index * size_of_typeB;
+    // // Loop over data in 2-byte chunks
+    // for (size_t i = 0; i + 1 < size_of_typeB; i += 2) {
+    //     uint16_t value;
+    //     std::memcpy(&value, ptr2 + i, sizeof(uint16_t));  // safely extract 2 bytes
 
-        uint8_t high_byte = (value >> 8) & 0xFF;
-        uint8_t low_byte  = value & 0xFF;
+    //     uint8_t high_byte = (value >> 8) & 0xFF;
+    //     uint8_t low_byte  = value & 0xFF;
 
-        gold_binary_file.put(static_cast<char>(high_byte));
-        gold_binary_file.put(static_cast<char>(low_byte));
-    }
+    //     gold_binary_file.put(static_cast<char>(high_byte));
+    //     gold_binary_file.put(static_cast<char>(low_byte));
+    // }
 
     // Write the two values + error scale indicator to file
     diffFile << a << " vs. " << b << " ";
