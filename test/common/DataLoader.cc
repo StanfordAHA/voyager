@@ -7,9 +7,9 @@
 #include "test/common/VerificationTypes.h"
 #include "xtensor/xadapt.hpp"
 
-DataLoader::DataLoader(MemoryInterface* memory_interface, bool is_dut,
-                       bool is_cnn)
-    : memory_interface(memory_interface), is_dut(is_dut), is_cnn(is_cnn) {}
+DataLoader::DataLoader(MemoryInterface* memory_interface, bool is_dut)
+    : memory_interface(memory_interface), is_dut(is_dut) {}
+
 
 void DataLoader::load_tensor(const codegen::Tensor& tensor,
                              std::string data_dir, bool transpose,
@@ -103,8 +103,8 @@ void DataLoader::load_inputs(const codegen::Operation param,
       if (value.has_tensor() && tensor.has_memory() &&
           tensor.node().find("constant") == std::string::npos) {
         bool is_conv2d = op.target().find("conv2d") != std::string::npos;
-        bool is_replication = is_conv2d && tensor.shape(1) == 3 && is_dut;
-        load_tensor(value.tensor(), data_dir, is_cnn, is_replication);
+        bool is_replication = is_conv2d && tensor.shape(tensor.shape().size() - 1) == 3 && is_dut;
+        load_tensor(value.tensor(), data_dir, false, is_replication);
       }
     }
   }
@@ -116,7 +116,6 @@ void DataLoader::load_outputs(const codegen::Operation param,
 
   const auto op_list = get_op_list(param);
   std::string opcode = op_list[0].target();
-  bool transpose = is_cnn && opcode != "linear" && opcode != "linear_mx";
 
   uint64_t address = 0;
 
@@ -127,7 +126,7 @@ void DataLoader::load_outputs(const codegen::Operation param,
     output_tensor.mutable_memory()->set_partition(-1);
     output_tensor.mutable_memory()->set_address(address);
 
-    load_tensor(output_tensor, data_dir, transpose);
+    load_tensor(output_tensor, data_dir, false);
     address += get_size(tensor);
   }
 }

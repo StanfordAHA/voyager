@@ -599,6 +599,7 @@ def run_accuracy(model, dataset, num_processes, output_folder):
                 "quantized-training/test/test_codegen.py",
                 model,
                 "--model_name_or_path",
+                "--transpose_weight",
                 model_path,
                 *quantization_args,
                 "--output_dir",

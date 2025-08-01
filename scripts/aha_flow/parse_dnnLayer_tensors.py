@@ -192,69 +192,69 @@ def parse_zircon_workarounds():
 
 
 def parse_input(base_path, input_tensor_data, zircon_workarounds):
-    # Shape is in format: (OC, IC, Y, X)
+    # Shape is in format: (B, Y, X, IC)
     input = read_tensor(base_path + input_tensor_data["node"] + ".bin", tuple(input_tensor_data["shape"]))
     if zircon_workarounds["zircon_input_act_padding_workaround"]:
+        input = input.permute(0, 3, 1, 2)  # Re-order to (B, IC, Y, X)
         input = F.pad(input, pad=(0, zircon_workarounds["zircon_input_act_padding_workaround_size"], 0, zircon_workarounds["zircon_input_act_padding_workaround_size"])) # Pad X and Y dimensions with zeros
-    # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
-    input_reordered = input.permute(2, 3, 0, 1)
+        input = input.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
     if zircon_workarounds["zircon_cgra_psum_workaround"]:
-        input_reordered = input_reordered.reshape((input.shape[2], input.shape[3], input.shape[0], input.shape[1] // ZIRCON_MU_IC0, ZIRCON_MU_IC0))
-        input_reordered = input_reordered.permute(3, 0, 1, 2, 4)
-    input_int8 = input_reordered.to(torch.int8)
+        input = input.reshape((input.shape[0], input.shape[1], input.shape[2], input.shape[3] // ZIRCON_MU_IC0, ZIRCON_MU_IC0))
+        input = input.permute(3, 0, 1, 2, 4)
+    input_int8 = input.to(torch.int8)
 
     return input_int8
 
 
 def parse_inputScale(base_path, inputScale_tensor_data, zircon_workarounds):
-    # Shape is in format: (OC, IC / BLOCK_SIZE, Y, X)
+    # Shape is in format: (B, Y, X, IC / BLOCK_SIZE)
     inputScale = read_tensor(base_path + inputScale_tensor_data["node"] + ".bin", tuple(inputScale_tensor_data["shape"]))
     if zircon_workarounds["zircon_input_act_padding_workaround"]:
+        inputScale = inputScale.permute(0, 3, 1, 2)  # Re-order to (B, IC / BLOCK_SIZE, Y, X)
         inputScale = F.pad(inputScale, pad=(0, zircon_workarounds["zircon_input_act_padding_workaround_size"], 0, zircon_workarounds["zircon_input_act_padding_workaround_size"])) # Pad X and Y dimensions with zeros
-    # Re-order it so IC is the innermost dimension (Y, X, OC, IC / BLOCK_SIZE)
-    inputScale_reordered = inputScale.permute(2, 3, 0, 1)
+        inputScale = inputScale.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC / BLOCK_SIZE)
     if zircon_workarounds["zircon_cgra_psum_workaround"]:
-        inputScale_reordered = inputScale_reordered.permute(3, 0, 1, 2)
-    inputScale_e8m0 = float_to_e8m0(inputScale_reordered)
+        inputScale = inputScale.permute(3, 0, 1, 2)
+    inputScale_e8m0 = float_to_e8m0(inputScale)
 
     return inputScale_e8m0
 
 def parse_weight(base_path, weight_tensor_data, zircon_workarounds):
-     # Shape is in format: (OC, IC, FY, FX)
+     # Shape is in format: (FY, FX, IC, OC)
     weight = read_tensor(base_path + weight_tensor_data["node"] + ".bin", tuple(weight_tensor_data["shape"]))
     if zircon_workarounds["zircon_fx_fy_stride_workaround"]:
+        weight = weight.permute(2, 3, 0, 1)  # Re-order to (IC, OC, FY, FX)
         weight = F.pad(weight, pad=(0, 2, 0, 2))
-    # Re-order it so OC is the innermost dimension (FY, FX, IC, OC)
-    weight_reordered = weight.permute(2, 3, 1, 0)
+        weight = weight.permute(2, 3, 0, 1)  # Re-order back to (FY, FX, IC, OC)
     if zircon_workarounds["zircon_cgra_psum_workaround"]:
-        weight_reordered = weight_reordered.reshape((weight.shape[2], weight.shape[3], weight.shape[1] // ZIRCON_MU_IC0, ZIRCON_MU_IC0, weight.shape[0]))
-        weight_reordered = weight_reordered.permute(2, 0, 1, 3, 4)
+        weight = weight.reshape((weight.shape[0], weight.shape[1], weight.shape[2] // ZIRCON_MU_IC0, ZIRCON_MU_IC0, weight.shape[3]))
+        weight = weight.permute(2, 0, 1, 3, 4)
     if zircon_workarounds["k_dim_host_tiling"]:
         num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
         k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
-        weight_reordered = weight_reordered.reshape((weight.shape[2], weight.shape[3], weight.shape[1], num_k_host_tiling_kernels, weight.shape[0] // num_k_host_tiling_kernels))
-        weight_reordered = weight_reordered.permute(3, 0, 1, 2, 4)
-        weight_reordered = weight_reordered[k_dim_host_tiling_idx]
-    weight_int8 = weight_reordered.to(torch.int8)
+        weight = weight.reshape((weight.shape[0], weight.shape[1], weight.shape[2], num_k_host_tiling_kernels, weight.shape[3] // num_k_host_tiling_kernels))
+        weight = weight.permute(3, 0, 1, 2, 4)
+        weight = weight[k_dim_host_tiling_idx]
+    weight_int8 = weight.to(torch.int8)
 
     return weight_int8
 
 def parse_weightScale(base_path, weightScale_tensor_data, zircon_workarounds):
-     # Shape is in format: (OC, IC / BLOCK_SIZE, FY, FX)
+     # Shape is in format: (FY, FX, IC / BLOCK_SIZE, OC)
     weightScale = read_tensor(base_path + weightScale_tensor_data["node"] + ".bin", tuple(weightScale_tensor_data["shape"]))
     if zircon_workarounds["zircon_fx_fy_stride_workaround"]:
+        weightScale = weightScale.permute(2, 3, 0, 1)  # Re-order to (IC / BLOCK_SIZE, OC, FY, FX)
         weightScale = F.pad(weightScale, pad=(0, 2, 0, 2))
-    # Re-order it so OC is the innermost dimension (FY, FX, IC / BLOCK_SIZE, OC)
-    weightScale_reordered = weightScale.permute(2, 3, 1, 0)
+        weightScale = weightScale.permute(2, 3, 0, 1)  # Re-order back to (FY, FX, IC / BLOCK_SIZE, OC)
     if zircon_workarounds["zircon_cgra_psum_workaround"]:
-        weightScale_reordered = weightScale_reordered.permute(2, 0, 1, 3)
+        weightScale = weightScale.permute(2, 0, 1, 3)
     if zircon_workarounds["k_dim_host_tiling"]:
         num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
         k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
-        weightScale_reordered = weightScale_reordered.reshape((weightScale.shape[2], weightScale.shape[3], weightScale.shape[1], num_k_host_tiling_kernels, weightScale.shape[0] // num_k_host_tiling_kernels))
-        weightScale_reordered = weightScale_reordered.permute(3, 0, 1, 2, 4)
-        weightScale_reordered = weightScale_reordered[k_dim_host_tiling_idx]
-    weightScale_e8m0 = float_to_e8m0(weightScale_reordered)
+        weightScale = weightScale.reshape((weightScale.shape[0], weightScale.shape[1], weightScale.shape[2], num_k_host_tiling_kernels, weightScale.shape[3] // num_k_host_tiling_kernels))
+        weightScale = weightScale.permute(3, 0, 1, 2, 4)
+        weightScale = weightScale[k_dim_host_tiling_idx]
+    weightScale_e8m0 = float_to_e8m0(weightScale)
 
     return weightScale_e8m0
 
@@ -262,10 +262,12 @@ def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
     bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", tuple(bias_tensor_data["shape"]))
     if zircon_workarounds["zircon_cgra_psum_workaround"] and zircon_workarounds["psum_idx"] != 0:
         # If doing psum workaround, bias is zero for all but the 0th kernel
-        bias = torch.zeros((bias.shape[0],), dtype=torch.float32)
+        # TODO: This should be improved in the future to just set the MU->has_bias config to false for such kernels
+        bias = torch.zeros(tuple(bias_tensor_data["shape"]), dtype=torch.float32)
     if zircon_workarounds["k_dim_host_tiling"]:
         num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
         k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
+        bias = bias.flatten()
         bias = bias.reshape((num_k_host_tiling_kernels, bias.shape[0] // num_k_host_tiling_kernels))
         bias = bias[k_dim_host_tiling_idx]
     bias_bf16 = float32_to_bfloat16_bits(bias)
@@ -273,28 +275,29 @@ def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
     return bias_bf16
 
 def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds):
-    # Shape is in format: (OC, IC, Y, X)
-    residual = read_tensor(base_path + residual_tensor_data["node"] + ".bin",
-                            (residual_tensor_data["shape"][0], residual_tensor_data["shape"][1], residual_tensor_data["shape"][2], residual_tensor_data["shape"][3]))
+    # Shape is in format: (B, Y, X, IC)
+    residual = read_tensor(base_path + residual_tensor_data["node"] + ".bin", tuple(residual_tensor_data["shape"]))
 
     if zircon_workarounds["zircon_fx_fy_stride_workaround"]:
+        residual = residual.permute(0, 3, 1, 2)  # Re-order to (B, IC, Y, X)
         residual_tmp = torch.zeros(residual.size(0), residual.size(1), 2*residual.size(2), 2*residual.size(3), device=residual.device, dtype=residual.dtype)
         # Place original values at odd indices (1, 3, 5, ...) using slicing
         residual_tmp[:, :, 1::2, 1::2] = residual
         residual = residual_tmp
+        residual = residual.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
 
     if zircon_workarounds["zircon_input_act_padding_workaround"]:
+        residual = residual.permute(0, 3, 1, 2)  # Re-order to (B, IC, Y, X)
         residual = F.pad(residual, pad=(0, zircon_workarounds["zircon_input_act_padding_workaround_size"], 0, zircon_workarounds["zircon_input_act_padding_workaround_size"]), value=-1000) # Pad with -1000 instead of 0s to catch potential bugs
+        residual = residual.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
 
-    # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
-    residual_reordered = residual.permute(2, 3, 0, 1)
     if zircon_workarounds["k_dim_host_tiling"]:
         num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
         k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
-        residual_reordered = residual_reordered.reshape((residual.shape[2], residual.shape[3], residual.shape[0], num_k_host_tiling_kernels, residual.shape[1] // num_k_host_tiling_kernels))
-        residual_reordered = residual_reordered.permute(3, 0, 1, 2, 4)
-        residual_reordered = residual_reordered[k_dim_host_tiling_idx]
-    residual_bf16 = float32_to_bfloat16_bits(residual_reordered)
+        residual = residual.reshape((residual.shape[0], residual.shape[1], residual.shape[2], num_k_host_tiling_kernels, residual.shape[3] // num_k_host_tiling_kernels))
+        residual = residual.permute(3, 0, 1, 2, 4)
+        residual = residual[k_dim_host_tiling_idx]
+    residual_bf16 = float32_to_bfloat16_bits(residual)
     residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
 
     if zircon_workarounds["zircon_cgra_psum_workaround"] and (zircon_workarounds["psum_idx"] == 0):

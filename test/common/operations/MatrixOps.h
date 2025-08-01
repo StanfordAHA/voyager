@@ -64,6 +64,9 @@ inline Buffer *gemm(std::any input_ptr, std::any input_scale_ptr,
     }
   }
 
+  spdlog::debug("Performing GEMM: {}x{}x{} * {}x{}x{}x{} -> {}x{}x{}\n", Y, X,
+                C, FY, FX, C, K, Y, X, K);
+
   // assert that none of tiling.loops are 0
   for (int j = 0; j < 3; j++) {
     assert(tiling.loops[0][j] != 0);
