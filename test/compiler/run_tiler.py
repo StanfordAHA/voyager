@@ -271,6 +271,7 @@ def main():
         ]:
             continue
 
+        is_matmul = matrix_op.target in ["matmul", "matmul_mx"]
         weight_key = "weight" if "matmul" not in matrix_op.target else "other"
         weight = matrix_op.kwargs[weight_key].tensor
         if weight.HasField("reshape"):
@@ -296,6 +297,12 @@ def main():
             # matrix multiplication
             output_channels = weights_shape[0]
             input_channels = weights_shape[1]
+            kernel_height = 1
+            kernel_width = 1
+        elif len(weights_shape) == 3:
+            # matrix multiplication
+            output_channels = weights_shape[1] if not is_matmul else weights_shape[-1]
+            input_channels = weights_shape[0] if not is_matmul else weights_shape[-2]
             kernel_height = 1
             kernel_width = 1
         else:
