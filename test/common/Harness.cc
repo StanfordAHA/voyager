@@ -536,21 +536,52 @@ void Harness::sendParams() {
 
         uint64_t glb_base_addr = tensor_metadata["mu_glb_base_address"].get<uint64_t>();
         printf("\nMU-GLB base address: %d\n", glb_base_addr);
-        uint64_t input_offset = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]["glb_base_address"];
-        uint64_t input_scale_offset = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]["glb_base_address"];
-        uint64_t weight_offset = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]["glb_base_address"];
-        uint64_t weight_scale_offset = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]["glb_base_address"];
-        uint64_t bias_offset = tensor_metadata["ops"][0]["kwargs"]["bias"]["tensor"]["glb_base_address"];
+        uint64_t input_offset;
+        uint64_t input_scale_offset;
+        uint64_t weight_offset;
+        uint64_t weight_scale_offset;
+        uint64_t bias_offset;
 
-        auto& input_shape = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]["shape"];
-        auto& weight_shape = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]["shape"];
-        auto& input_scale_shape = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]["shape"];
-        auto& weight_scale_shape = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]["shape"];
+        int input_size = 1;
+        int input_scale_size = 1;
+        int weight_size = 1;
+        int weight_scale_size = 1;
 
-        int input_size = input_shape[0].get<int>() * input_shape[1].get<int>() * input_shape[2].get<int>() * input_shape[3].get<int>();
-        int weight_size = weight_shape[0].get<int>() * weight_shape[1].get<int>() * weight_shape[2].get<int>() * weight_shape[3].get<int>();
-        int input_scale_size = input_scale_shape[0].get<int>() * input_scale_shape[1].get<int>() * input_scale_shape[2].get<int>() * input_scale_shape[3].get<int>();
-        int weight_scale_size = weight_scale_shape[0].get<int>() * weight_scale_shape[1].get<int>() * weight_scale_shape[2].get<int>() * weight_scale_shape[3].get<int>();
+        if (tensor_metadata["has_input"].get<bool>()) {
+          input_offset = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]["glb_base_address"];
+          auto& input_shape = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]["shape"];
+          for (const auto& dim : input_shape) {
+            input_size *= dim.get<int>();
+          }
+        }
+
+        if (tensor_metadata["has_input_scale"].get<bool>()) {
+          input_scale_offset = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]["glb_base_address"];
+          auto& input_scale_shape = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]["shape"];
+          for (const auto& dim : input_scale_shape) {
+              input_scale_size *= dim.get<int>();
+          }
+        }
+
+        if (tensor_metadata["has_weight"].get<bool>()) {
+          weight_offset = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]["glb_base_address"];
+          auto& weight_shape = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]["shape"];
+          for (const auto& dim : weight_shape) {
+            weight_size *= dim.get<int>();
+          }
+        }
+
+        if (tensor_metadata["has_weight_scale"].get<bool>()) {
+          weight_scale_offset = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]["glb_base_address"];
+          auto& weight_scale_shape = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]["shape"];
+          for (const auto& dim : weight_scale_shape) {
+            weight_scale_size *= dim.get<int>();
+          }
+        }
+
+        if (tensor_metadata["has_bias"].get<bool>()) {
+          bias_offset = tensor_metadata["ops"][0]["kwargs"]["bias"]["tensor"]["glb_base_address"];
+        }
 
         // Adjust the offsets if using zircon CGRA PSUM workaround: account for tiling along reduction dimension
         if (zircon_cgra_psum_workaround) {
@@ -572,25 +603,37 @@ void Harness::sendParams() {
                 "environment variables to be set.");
           }
 
-          uint64_t input_offset_incr = psum_idx * (input_size / num_psums);
-          input_offset += input_offset_incr;
+          input_offset += psum_idx * (input_size / num_psums);;
           input_scale_offset += psum_idx * (input_scale_size/num_psums);
           weight_offset += psum_idx * (weight_size/num_psums);
           weight_scale_offset += psum_idx * (weight_scale_size/num_psums);
         }
 
-        // Print all the offsets
-        std::cout << "Input offset: " << input_offset << std::endl;
-        std::cout << "Input scale offset: " << input_scale_offset << std::endl;
-        std::cout << "Weight offset: " << weight_offset << std::endl;
-        std::cout << "Weight scale offset: " << weight_scale_offset << std::endl;
-        std::cout << "Bias offset: " << bias_offset << std::endl;
+        // Print all the offsets and add them to the dumpMatrixParams
+        if (tensor_metadata["has_input"].get<bool>()) {
+          std::cout << "Input offset: " << input_offset << std::endl;
+          dumpMatrixParams->INPUT_OFFSET = input_offset;
+        }
 
-        dumpMatrixParams->INPUT_OFFSET = input_offset;
-        dumpMatrixParams->INPUT_SCALE_OFFSET = input_scale_offset;
-        dumpMatrixParams->WEIGHT_OFFSET = weight_offset;
-        dumpMatrixParams->WEIGHT_SCALE_OFFSET = weight_scale_offset;
-        dumpMatrixParams->BIAS_OFFSET = bias_offset;
+        if (tensor_metadata["has_input_scale"].get<bool>()) {
+          std::cout << "Input scale offset: " << input_scale_offset << std::endl;
+          dumpMatrixParams->INPUT_SCALE_OFFSET = input_scale_offset;
+        }
+
+        if (tensor_metadata["has_weight"].get<bool>()) {
+          std::cout << "Weight offset: " << weight_offset << std::endl;
+          dumpMatrixParams->WEIGHT_OFFSET = weight_offset;
+        }
+
+        if (tensor_metadata["has_weight_scale"].get<bool>()) {
+          std::cout << "Weight scale offset: " << weight_scale_offset << std::endl;
+          dumpMatrixParams->WEIGHT_SCALE_OFFSET = weight_scale_offset;
+        }
+
+        if (tensor_metadata["has_bias"].get<bool>()) {
+          std::cout << "Bias offset: " << bias_offset << std::endl;
+          dumpMatrixParams->BIAS_OFFSET = bias_offset;
+        }
 
         dumpSerializedParams<MatrixParams, 32>(*dumpMatrixParams);
         matrixUnitStartSignal.SyncPop();

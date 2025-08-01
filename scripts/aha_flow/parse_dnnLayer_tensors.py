@@ -13,6 +13,8 @@ import json
 # converts them from float32 to int8, bfloat16, and e8m0 formats, tranposes them to the required layout in memory, allocates GLB memory for each tensor, and writes them to hex files
 # consumable by the AHA flow.
 
+ZIRCON_MU_IC0 = 64
+
 def read_tensor(filename, tensor_shape):
     with open(filename, 'rb') as f:
         file_content = f.read()
@@ -49,6 +51,7 @@ def float32_to_bfloat16_bits(x):
 def write_list_to_hex(list, filename, start_addr=0):
    #Write the entire tensor in hex format to a new file
    with open(filename, 'w') as output_file:
+        output_file.write(f"TENSOR_EXISTS: 1\n")
         output_file.write(f"SIZE: {len(list)}\n")
         output_file.write(f"START_ADDR: {start_addr}\n")
         for idx in range(len(list)):
@@ -57,48 +60,64 @@ def write_list_to_hex(list, filename, start_addr=0):
             if idx != len(list) - 1:
                 output_file.write("\n")
 
-def debug_print_tensors(
-            input, input_int8, bias, bias_bf16, inputScale, inputScale_e8m0,
-            weightScale, weightScale_e8m0, weight):
-    # Print first 10 elements and max value
+def debug_print_tensors(input, input_int8, bias_bf16, inputScale_e8m0, weightScale_e8m0):
+        # Print first 10 elements and max value
         print("First 10 elements of the input tensor:", input.flatten()[:10])
         print("Max value of the input tensor:", torch.max(input))
 
         print("First 10 elements of the input INT8 tensor:", input_int8.flatten()[:10])
         print("Max value of the input INT8 tensor:", torch.max(input_int8))
 
-        print("First 10 elements of the bias tensor:", bias.flatten()[:10])
-        print("Max value of the bias tensor:", torch.max(bias))
-
         print("First 10 elements of the bias bFloat16 tensor:", bias_bf16.flatten()[:10])
-        print("First 10 elements of the inputScale tensor:", inputScale.flatten()[:10])
-        print("Max value of the inputScale tensor:", torch.max(inputScale))
-        print("Min value of the inputScale tensor:", torch.min(inputScale))
 
         print("First 10 elements of the inputScale e8m0 tensor:", inputScale_e8m0.flatten()[:10])
 
-        print("First 10 elements of the weightScale tensor:", weightScale.flatten()[:10])
-        print("Max value of the weightScale tensor:", torch.max(weightScale))
-        print("Min value of the weightScale tensor:", torch.min(weightScale))
-
         print("First 10 elements of the weightScale e8m0 tensor:", weightScale_e8m0.flatten()[:10])
 
-        print("First 10 elements of the weight tensor:", weight.flatten()[:10])
         print("Shape of the bytes object:", len(input_int8.numpy().tobytes()))
 
 def write_all_tensors_to_hex(
-        input_int8, weight_int8, bias_bf16, inputScale_e8m0, weightScale_e8m0,
-        output_dir, input_start_addr=0, weight_start_addr=0, bias_start_addr=0,
-        inputScale_start_addr=0, weightScale_start_addr=0,
-        residual_start_addr="set by io_placement", has_residual=False, residual_bf16=None
+        output_dir,
+        input_int8=None, weight_int8=None, bias_bf16=None, inputScale_e8m0=None, weightScale_e8m0=None, residual_bf16=None,
+        input_start_addr=0, weight_start_addr=0, bias_start_addr=0, inputScale_start_addr=0, weightScale_start_addr=0,
+        residual_start_addr="set by io_placement",
     ):
-        write_list_to_hex(input_int8.numpy().tobytes(), output_dir + 'input_hex.txt', input_start_addr)
-        write_list_to_hex(weight_int8.numpy().tobytes(), output_dir + 'weight_hex.txt', weight_start_addr)
-        write_list_to_hex(bias_bf16, output_dir + 'bias_hex.txt', bias_start_addr)
-        write_list_to_hex(inputScale_e8m0, output_dir + 'inputScale_hex.txt', inputScale_start_addr)
-        write_list_to_hex(weightScale_e8m0, output_dir + 'weightScale_hex.txt', weightScale_start_addr)
-        if has_residual and residual_bf16 is not None:
+
+        if input_int8 is not None:
+            write_list_to_hex(input_int8.numpy().tobytes(), output_dir + 'input_hex.txt', input_start_addr)
+        else:
+            with open(output_dir + 'input_hex.txt', 'w') as f:
+                f.write("TENSOR_EXISTS: 0\n")
+
+        if weight_int8 is not None:
+            write_list_to_hex(weight_int8.numpy().tobytes(), output_dir + 'weight_hex.txt', weight_start_addr)
+        else:
+            with open(output_dir + 'weight_hex.txt', 'w') as f:
+                f.write("TENSOR_EXISTS: 0\n")
+
+        if bias_bf16 is not None:
+            write_list_to_hex(bias_bf16, output_dir + 'bias_hex.txt', bias_start_addr)
+        else:
+            with open(output_dir + 'bias_hex.txt', 'w') as f:
+                f.write("TENSOR_EXISTS: 0\n")
+
+        if inputScale_e8m0 is not None:
+            write_list_to_hex(inputScale_e8m0, output_dir + 'inputScale_hex.txt', inputScale_start_addr)
+        else:
+            with open(output_dir + 'inputScale_hex.txt', 'w') as f:
+                f.write("TENSOR_EXISTS: 0\n")
+
+        if weightScale_e8m0 is not None:
+            write_list_to_hex(weightScale_e8m0, output_dir + 'weightScale_hex.txt', weightScale_start_addr)
+        else:
+            with open(output_dir + 'weightScale_hex.txt', 'w') as f:
+                f.write("TENSOR_EXISTS: 0\n")
+
+        if residual_bf16 is not None:
             write_list_to_hex(residual_bf16, output_dir + 'residual_hex.txt', residual_start_addr)
+        else:
+            with open(output_dir + 'residual_hex.txt', 'w') as f:
+                f.write("TENSOR_EXISTS: 0\n")
 
 
 # For writing partial sum output from a prior kernel to raw binary file
@@ -159,10 +178,134 @@ def parse_zircon_workarounds():
         print(f"\033[93mINFO: K dimension host tiling enabled. Using {num_k_host_tiling_kernels} kernels with index {k_dim_host_tiling_idx}.\033[0m")
 
 
-    return zircon_fx_fy_stride_workaround, zircon_cgra_psum_workaround, psum_idx, num_psums, \
-           zircon_input_act_padding_workaround, zircon_input_act_padding_workaround_size, \
-           k_dim_host_tiling, num_k_host_tiling_kernels, k_dim_host_tiling_idx
+    return {
+        "zircon_fx_fy_stride_workaround": zircon_fx_fy_stride_workaround,
+        "zircon_cgra_psum_workaround": zircon_cgra_psum_workaround,
+        "psum_idx": psum_idx,
+        "num_psums": num_psums,
+        "zircon_input_act_padding_workaround": zircon_input_act_padding_workaround,
+        "zircon_input_act_padding_workaround_size": zircon_input_act_padding_workaround_size,
+        "k_dim_host_tiling": k_dim_host_tiling,
+        "num_k_host_tiling_kernels": num_k_host_tiling_kernels,
+        "k_dim_host_tiling_idx": k_dim_host_tiling_idx
+    }
 
+
+def parse_input(base_path, input_tensor_data, zircon_workarounds):
+    # Shape is in format: (OC, IC, Y, X)
+    input = read_tensor(base_path + input_tensor_data["node"] + ".bin", tuple(input_tensor_data["shape"]))
+    if zircon_workarounds["zircon_input_act_padding_workaround"]:
+        input = F.pad(input, pad=(0, zircon_workarounds["zircon_input_act_padding_workaround_size"], 0, zircon_workarounds["zircon_input_act_padding_workaround_size"])) # Pad X and Y dimensions with zeros
+    # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
+    input_reordered = input.permute(2, 3, 0, 1)
+    if zircon_workarounds["zircon_cgra_psum_workaround"]:
+        input_reordered = input_reordered.reshape((input.shape[2], input.shape[3], input.shape[0], input.shape[1] // ZIRCON_MU_IC0, ZIRCON_MU_IC0))
+        input_reordered = input_reordered.permute(3, 0, 1, 2, 4)
+    input_int8 = input_reordered.to(torch.int8)
+
+    return input_int8
+
+
+def parse_inputScale(base_path, inputScale_tensor_data, zircon_workarounds):
+    # Shape is in format: (OC, IC / BLOCK_SIZE, Y, X)
+    inputScale = read_tensor(base_path + inputScale_tensor_data["node"] + ".bin", tuple(inputScale_tensor_data["shape"]))
+    if zircon_workarounds["zircon_input_act_padding_workaround"]:
+        inputScale = F.pad(inputScale, pad=(0, zircon_workarounds["zircon_input_act_padding_workaround_size"], 0, zircon_workarounds["zircon_input_act_padding_workaround_size"])) # Pad X and Y dimensions with zeros
+    # Re-order it so IC is the innermost dimension (Y, X, OC, IC / BLOCK_SIZE)
+    inputScale_reordered = inputScale.permute(2, 3, 0, 1)
+    if zircon_workarounds["zircon_cgra_psum_workaround"]:
+        inputScale_reordered = inputScale_reordered.permute(3, 0, 1, 2)
+    inputScale_e8m0 = float_to_e8m0(inputScale_reordered)
+
+    return inputScale_e8m0
+
+def parse_weight(base_path, weight_tensor_data, zircon_workarounds):
+     # Shape is in format: (OC, IC, FY, FX)
+    weight = read_tensor(base_path + weight_tensor_data["node"] + ".bin", tuple(weight_tensor_data["shape"]))
+    if zircon_workarounds["zircon_fx_fy_stride_workaround"]:
+        weight = F.pad(weight, pad=(0, 2, 0, 2))
+    # Re-order it so OC is the innermost dimension (FY, FX, IC, OC)
+    weight_reordered = weight.permute(2, 3, 1, 0)
+    if zircon_workarounds["zircon_cgra_psum_workaround"]:
+        weight_reordered = weight_reordered.reshape((weight.shape[2], weight.shape[3], weight.shape[1] // ZIRCON_MU_IC0, ZIRCON_MU_IC0, weight.shape[0]))
+        weight_reordered = weight_reordered.permute(2, 0, 1, 3, 4)
+    if zircon_workarounds["k_dim_host_tiling"]:
+        num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
+        k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
+        weight_reordered = weight_reordered.reshape((weight.shape[2], weight.shape[3], weight.shape[1], num_k_host_tiling_kernels, weight.shape[0] // num_k_host_tiling_kernels))
+        weight_reordered = weight_reordered.permute(3, 0, 1, 2, 4)
+        weight_reordered = weight_reordered[k_dim_host_tiling_idx]
+    weight_int8 = weight_reordered.to(torch.int8)
+
+    return weight_int8
+
+def parse_weightScale(base_path, weightScale_tensor_data, zircon_workarounds):
+     # Shape is in format: (OC, IC / BLOCK_SIZE, FY, FX)
+    weightScale = read_tensor(base_path + weightScale_tensor_data["node"] + ".bin", tuple(weightScale_tensor_data["shape"]))
+    if zircon_workarounds["zircon_fx_fy_stride_workaround"]:
+        weightScale = F.pad(weightScale, pad=(0, 2, 0, 2))
+    # Re-order it so OC is the innermost dimension (FY, FX, IC / BLOCK_SIZE, OC)
+    weightScale_reordered = weightScale.permute(2, 3, 1, 0)
+    if zircon_workarounds["zircon_cgra_psum_workaround"]:
+        weightScale_reordered = weightScale_reordered.permute(2, 0, 1, 3)
+    if zircon_workarounds["k_dim_host_tiling"]:
+        num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
+        k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
+        weightScale_reordered = weightScale_reordered.reshape((weightScale.shape[2], weightScale.shape[3], weightScale.shape[1], num_k_host_tiling_kernels, weightScale.shape[0] // num_k_host_tiling_kernels))
+        weightScale_reordered = weightScale_reordered.permute(3, 0, 1, 2, 4)
+        weightScale_reordered = weightScale_reordered[k_dim_host_tiling_idx]
+    weightScale_e8m0 = float_to_e8m0(weightScale_reordered)
+
+    return weightScale_e8m0
+
+def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
+    bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", tuple(bias_tensor_data["shape"]))
+    if zircon_workarounds["zircon_cgra_psum_workaround"] and zircon_workarounds["psum_idx"] != 0:
+        # If doing psum workaround, bias is zero for all but the 0th kernel
+        bias = torch.zeros((bias.shape[0],), dtype=torch.float32)
+    if zircon_workarounds["k_dim_host_tiling"]:
+        num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
+        k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
+        bias = bias.reshape((num_k_host_tiling_kernels, bias.shape[0] // num_k_host_tiling_kernels))
+        bias = bias[k_dim_host_tiling_idx]
+    bias_bf16 = float32_to_bfloat16_bits(bias)
+
+    return bias_bf16
+
+def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds):
+    # Shape is in format: (OC, IC, Y, X)
+    residual = read_tensor(base_path + residual_tensor_data["node"] + ".bin",
+                            (residual_tensor_data["shape"][0], residual_tensor_data["shape"][1], residual_tensor_data["shape"][2], residual_tensor_data["shape"][3]))
+
+    if zircon_workarounds["zircon_fx_fy_stride_workaround"]:
+        residual_tmp = torch.zeros(residual.size(0), residual.size(1), 2*residual.size(2), 2*residual.size(3), device=residual.device, dtype=residual.dtype)
+        # Place original values at odd indices (1, 3, 5, ...) using slicing
+        residual_tmp[:, :, 1::2, 1::2] = residual
+        residual = residual_tmp
+
+    if zircon_workarounds["zircon_input_act_padding_workaround"]:
+        residual = F.pad(residual, pad=(0, zircon_workarounds["zircon_input_act_padding_workaround_size"], 0, zircon_workarounds["zircon_input_act_padding_workaround_size"]), value=-1000) # Pad with -1000 instead of 0s to catch potential bugs
+
+    # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
+    residual_reordered = residual.permute(2, 3, 0, 1)
+    if zircon_workarounds["k_dim_host_tiling"]:
+        num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
+        k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
+        residual_reordered = residual_reordered.reshape((residual.shape[2], residual.shape[3], residual.shape[0], num_k_host_tiling_kernels, residual.shape[1] // num_k_host_tiling_kernels))
+        residual_reordered = residual_reordered.permute(3, 0, 1, 2, 4)
+        residual_reordered = residual_reordered[k_dim_host_tiling_idx]
+    residual_bf16 = float32_to_bfloat16_bits(residual_reordered)
+    residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
+
+    if zircon_workarounds["zircon_cgra_psum_workaround"] and (zircon_workarounds["psum_idx"] == 0):
+        residual_bf16_be.tofile(f'{h2h_dir}/hw_partial_sum_input_stencil.raw')
+    # Write the residual_bf16_be to a raw file except for psum workaround middle kernels
+    elif not (zircon_workarounds["zircon_cgra_psum_workaround"] and zircon_workarounds["psum_idx"] != (zircon_workarounds["num_psums"] - 1)):
+        residual_bf16_be.tofile(f'{h2h_dir}/hw_residual_input_stencil.raw')
+    # Flatten residual_bf16 and convert to a python list
+    residual_bf16 = residual_bf16.flatten().tolist()
+
+    return residual_bf16
 
 def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     # Base path for the binary files
@@ -171,14 +314,47 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
     with open("/aha/voyager/tensor_metadata.json", "r") as f:
         tensor_metadata = json.load(f)
 
+    has_input = tensor_metadata["has_input"]
+    has_weight = tensor_metadata["has_weight"]
+    has_input_scale = tensor_metadata["has_input_scale"]
+    has_weight_scale = tensor_metadata["has_weight_scale"]
+    has_bias = tensor_metadata["has_bias"]
     has_residual = tensor_metadata["has_residual"]
 
-    input_tensor_data = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]
-    weight_tensor_data = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]
-    bias_tensor_data = tensor_metadata["ops"][0]["kwargs"]["bias"]["tensor"]
-    inputScale_tensor_data = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]
-    weightScale_tensor_data = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]
+    zircon_workarounds = parse_zircon_workarounds()
 
+    # INPUT
+    if has_input:
+        input_tensor_data = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]
+        input_start_addr = input_tensor_data["glb_base_address"]
+        input_int8 = parse_input(base_path, input_tensor_data, zircon_workarounds)
+
+    # INPUT SCALE
+    if has_input_scale:
+        inputScale_tensor_data = tensor_metadata["ops"][0]["kwargs"]["input_scale"]["tensor"]
+        inputScale_start_addr = inputScale_tensor_data["glb_base_address"]
+        inputScale_e8m0 = parse_inputScale(base_path, inputScale_tensor_data, zircon_workarounds)
+
+    # WEIGHT
+    if has_weight:
+        weight_tensor_data = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]
+        weight_start_addr = weight_tensor_data["glb_base_address"]
+        weight_int8 = parse_weight(base_path, weight_tensor_data, zircon_workarounds)
+
+    # WEIGHT SCALE
+    if has_weight_scale:
+        weightScale_tensor_data = tensor_metadata["ops"][0]["kwargs"]["weight_scale"]["tensor"]
+        weightScale_start_addr = weightScale_tensor_data["glb_base_address"]
+        weightScale_e8m0 = parse_weightScale(
+            base_path, weightScale_tensor_data, zircon_workarounds)
+
+    # BIAS
+    if has_bias:
+        bias_tensor_data = tensor_metadata["ops"][0]["kwargs"]["bias"]["tensor"]
+        bias_start_addr = bias_tensor_data["glb_base_address"]
+        bias_bf16 = parse_bias(base_path, bias_tensor_data, zircon_workarounds)
+
+    # RESIDUAL
     if has_residual:
         all_op_names = []
         for op in tensor_metadata["ops"]:
@@ -193,152 +369,40 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
                         if op["kwargs"][key]["tensor"]["node"] not in all_op_names:
                             residual_tensor_data = op["kwargs"][key]["tensor"]
                             break
-
-    mu_glb_base_addr = tensor_metadata["mu_glb_base_address"]
-
-
-    zircon_fx_fy_stride_workaround, zircon_cgra_psum_workaround, psum_idx, num_psums, \
-    zircon_input_act_padding_workaround, zircon_input_act_padding_workaround_size, \
-    k_dim_host_tiling, num_k_host_tiling_kernels, k_dim_host_tiling_idx = parse_zircon_workarounds()
-
-    # INPUT
-    # Shape is in format: (OC, IC, Y, X)
-    input = read_tensor(base_path + input_tensor_data["node"] + ".bin",
-                        (input_tensor_data["shape"][0], input_tensor_data["shape"][1], input_tensor_data["shape"][2], input_tensor_data["shape"][3]))
-    if zircon_input_act_padding_workaround:
-        input = F.pad(input, pad=(0, zircon_input_act_padding_workaround_size, 0, zircon_input_act_padding_workaround_size)) # Pad X and Y dimensions with zeros
-    # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
-    input_reordered = input.permute(2, 3, 0, 1)
-    if zircon_cgra_psum_workaround:
-        input_reordered = input_reordered.reshape((input_tensor_data["shape"][2], input_tensor_data["shape"][3], input_tensor_data["shape"][0], input_tensor_data["shape"][1] // 64, 64))
-        input_reordered = input_reordered.permute(3, 0, 1, 2, 4)
-    input_int8 = input_reordered.to(torch.int8)
-    input_start_addr = input_tensor_data["glb_base_address"]
-
-    # INPUT SCALE
-    # Shape is in format: (OC, IC / BLOCK_SIZE, Y, X)
-    inputScale = read_tensor(base_path + inputScale_tensor_data["node"] + ".bin",
-                             (inputScale_tensor_data["shape"][0], inputScale_tensor_data["shape"][1], inputScale_tensor_data["shape"][2], inputScale_tensor_data["shape"][3]))
-    if zircon_input_act_padding_workaround:
-        inputScale = F.pad(inputScale, pad=(0, zircon_input_act_padding_workaround_size, 0, zircon_input_act_padding_workaround_size)) # Pad X and Y dimensions with zeros
-    # Re-order it so IC is the innermost dimension (Y, X, OC, IC / BLOCK_SIZE)
-    inputScale_reordered = inputScale.permute(2, 3, 0, 1)
-    if zircon_cgra_psum_workaround:
-        inputScale_reordered = inputScale_reordered.permute(3, 0, 1, 2)
-    inputScale_e8m0 = float_to_e8m0(inputScale_reordered)
-    inputScale_start_addr = inputScale_tensor_data["glb_base_address"]
-
-    # WEIGHT
-    # Shape is in format: (OC, IC, FY, FX)
-    weight = read_tensor(base_path + weight_tensor_data["node"] + ".bin",
-                         (weight_tensor_data["shape"][0], weight_tensor_data["shape"][1], weight_tensor_data["shape"][2], weight_tensor_data["shape"][3]))
-    if zircon_fx_fy_stride_workaround:
-        weight = F.pad(weight, pad=(0, 2, 0, 2))
-    # Re-order it so OC is the innermost dimension (FY, FX, IC, OC)
-    weight_reordered = weight.permute(2, 3, 1, 0)
-    if zircon_cgra_psum_workaround:
-        weight_reordered = weight_reordered.reshape((weight_tensor_data["shape"][2], weight_tensor_data["shape"][3], weight_tensor_data["shape"][1] // 64, 64, weight_tensor_data["shape"][0]))
-        weight_reordered = weight_reordered.permute(2, 0, 1, 3, 4)
-    if k_dim_host_tiling:
-        weight_reordered = weight_reordered.reshape((weight_tensor_data["shape"][2], weight_tensor_data["shape"][3], weight_tensor_data["shape"][1], num_k_host_tiling_kernels, weight_tensor_data["shape"][0] // num_k_host_tiling_kernels))
-        weight_reordered = weight_reordered.permute(3, 0, 1, 2, 4)
-        weight_reordered = weight_reordered[k_dim_host_tiling_idx]
-    weight_int8 = weight_reordered.to(torch.int8)
-    weight_start_addr = weight_tensor_data["glb_base_address"]
-
-    # WEIGHT SCALE
-    # Shape is in format: (OC, IC / BLOCK_SIZE, FY, FX)
-    weightScale = read_tensor(base_path + weightScale_tensor_data["node"] + ".bin",
-                              (weightScale_tensor_data["shape"][0], weightScale_tensor_data["shape"][1], weightScale_tensor_data["shape"][2], weightScale_tensor_data["shape"][3]))
-    if zircon_fx_fy_stride_workaround:
-        weightScale = F.pad(weightScale, pad=(0, 2, 0, 2))
-    # Re-order it so OC is the innermost dimension (FY, FX, IC / BLOCK_SIZE, OC)
-    weightScale_reordered = weightScale.permute(2, 3, 1, 0)
-    if zircon_cgra_psum_workaround:
-        weightScale_reordered = weightScale_reordered.permute(2, 0, 1, 3)
-    if k_dim_host_tiling:
-        weightScale_reordered = weightScale_reordered.reshape((weightScale_tensor_data["shape"][2], weightScale_tensor_data["shape"][3], weightScale_tensor_data["shape"][1], num_k_host_tiling_kernels, weightScale_tensor_data["shape"][0] // num_k_host_tiling_kernels))
-        weightScale_reordered = weightScale_reordered.permute(3, 0, 1, 2, 4)
-        weightScale_reordered = weightScale_reordered[k_dim_host_tiling_idx]
-    weightScale_e8m0 = float_to_e8m0(weightScale_reordered)
-    weightScale_start_addr = weightScale_tensor_data["glb_base_address"]
-
-    # BIAS
-    bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", (bias_tensor_data["shape"][0]))
-    if zircon_cgra_psum_workaround and psum_idx != 0:
-        # If doing psum workaround, bias is zero for all but the 0th kernel
-        bias = torch.zeros((bias_tensor_data["shape"][0],), dtype=torch.float32)
-    if k_dim_host_tiling:
-        bias = bias.reshape((num_k_host_tiling_kernels, bias_tensor_data["shape"][0] // num_k_host_tiling_kernels))
-        bias = bias[k_dim_host_tiling_idx]
-    bias_bf16 = float32_to_bfloat16_bits(bias)
-    bias_start_addr = bias_tensor_data["glb_base_address"]
-
-
-    # RESIDUAL
-    # Shape is in format: (OC, IC, Y, X)
-    if has_residual:
-        residual = read_tensor(base_path + residual_tensor_data["node"] + ".bin",
-                               (residual_tensor_data["shape"][0], residual_tensor_data["shape"][1], residual_tensor_data["shape"][2], residual_tensor_data["shape"][3]))
-
-        if zircon_fx_fy_stride_workaround:
-            residual_tmp = torch.zeros(residual.size(0), residual.size(1), 2*residual.size(2), 2*residual.size(3), device=residual.device, dtype=residual.dtype)
-            # Place original values at odd indices (1, 3, 5, ...) using slicing
-            residual_tmp[:, :, 1::2, 1::2] = residual
-            residual = residual_tmp
-
-        if zircon_input_act_padding_workaround:
-            residual = F.pad(residual, pad=(0, zircon_input_act_padding_workaround_size, 0, zircon_input_act_padding_workaround_size), value=-1000) # Pad with -1000 instead of 0s to catch potential bugs
-
-        # Re-order it so IC is the innermost dimension (Y, X, OC, IC)
-        residual_reordered = residual.permute(2, 3, 0, 1)
-        if k_dim_host_tiling:
-            residual_reordered = residual_reordered.reshape((residual.shape[2], residual.shape[3], residual.shape[0], num_k_host_tiling_kernels, residual.shape[1] // num_k_host_tiling_kernels))
-            residual_reordered = residual_reordered.permute(3, 0, 1, 2, 4)
-            residual_reordered = residual_reordered[k_dim_host_tiling_idx]
-        residual_bf16 = float32_to_bfloat16_bits(residual_reordered)
-        residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
-
-        if zircon_cgra_psum_workaround and (psum_idx == 0):
-            residual_bf16_be.tofile(f'{h2h_dir}/hw_partial_sum_input_stencil.raw')
-        # Write the residual_bf16_be to a raw file except for psum workaround middle kernels
-        elif not(zircon_cgra_psum_workaround and psum_idx != (num_psums - 1)):
-            residual_bf16_be.tofile(f'{h2h_dir}/hw_residual_input_stencil.raw')
-        # Flatten residual_bf16 and convert to a python list
-        residual_bf16 = residual_bf16.flatten().tolist()
+        residual_bf16 = parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
 
     torch.set_printoptions(precision=10)
 
     # For psum_workoround, if not kernel 0, read prior kernel output from text file and convert to raw binary file
-    if zircon_cgra_psum_workaround and (psum_idx != 0):
-        hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_psum_reduction_fp/{model}-{layer}_gold/kernel_{psum_idx - 1}_output.txt'
+    if zircon_workarounds["zircon_cgra_psum_workaround"] and (zircon_workarounds["psum_idx"] != 0):
+        hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_psum_reduction_fp/{model}-{layer}_gold/kernel_{zircon_workarounds["psum_idx"] - 1}_output.txt'
         assert os.path.exists(hw_output_txt_path), f"The prior kernel output file {hw_output_txt_path} does not exist."
         # For the last psum, write to hw_residual_input_stencil.raw, otherwise write to hw_partial_sum_input_stencil.raw
-        if psum_idx == (num_psums - 1):
+        if zircon_workarounds["psum_idx"] == (zircon_workarounds["num_psums"] - 1):
             hw_output_raw_path = f'{h2h_dir}/hw_residual_input_stencil.raw'
         else:
             hw_output_raw_path = f'{h2h_dir}/hw_partial_sum_input_stencil.raw'
         hw_output_txt_to_raw(hw_output_txt_path, hw_output_raw_path)
 
     if debug_mode:
-        debug_print_tensors(
-            input, input_int8, bias, bias_bf16, inputScale, inputScale_e8m0,
-            weightScale, weightScale_e8m0, weight)
-
+        debug_print_tensors(input, input_int8, bias_bf16, inputScale_e8m0, weightScale_e8m0)
 
     output_dir = f'/aha/voyager/compiled_collateral/{model}-{layer}/tensor_files/'
 
     # Write the tensors to hex files in tensor_files directory
     write_all_tensors_to_hex(
-        input_int8, weight_int8, bias_bf16, inputScale_e8m0, weightScale_e8m0,
         output_dir,
-        input_start_addr=input_start_addr,
-        weight_start_addr=weight_start_addr,
-        bias_start_addr=bias_start_addr,
-        inputScale_start_addr=inputScale_start_addr,
-        weightScale_start_addr=weightScale_start_addr,
-        has_residual=has_residual,
-        residual_bf16=residual_bf16 if has_residual else None
+        input_int8=input_int8 if has_input else None,
+        weight_int8=weight_int8 if has_weight else None,
+        bias_bf16=bias_bf16 if has_bias else None,
+        inputScale_e8m0=inputScale_e8m0 if has_input_scale else None,
+        weightScale_e8m0=weightScale_e8m0 if has_weight_scale else None,
+        residual_bf16=residual_bf16 if has_residual else None,
+        input_start_addr=input_start_addr if has_input else 0,
+        weight_start_addr=weight_start_addr if has_weight else 0,
+        bias_start_addr=bias_start_addr if has_bias else 0,
+        inputScale_start_addr=inputScale_start_addr if has_input_scale else 0,
+        weightScale_start_addr=weightScale_start_addr if has_weight_scale else 0,
     )
 
 
