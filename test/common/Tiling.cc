@@ -52,6 +52,9 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
   const char* zircon_input_act_padding_workaround_env = std::getenv("ZIRCON_INPUT_ACT_PADDING_WORKAROUND");
   bool zircon_input_act_padding_workaround = zircon_input_act_padding_workaround_env && std::stoi(zircon_input_act_padding_workaround_env) == 1;
 
+  const char* zircon_inner_loop_reduction_workaround_env = std::getenv("ZIRCON_INNER_LOOP_REDUCTION_WORKAROUND");
+  bool zircon_inner_loop_reduction_workaround = zircon_inner_loop_reduction_workaround_env && std::stoi(zircon_inner_loop_reduction_workaround_env) == 1;
+
   Tiling tiling;
   if (manual_tiling || !operation.has_valid_tiling) {
     if (first_op.target() == "conv2d" || first_op.target() == "conv2d_mx") {
@@ -68,6 +71,14 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
       tiling.stride = stride[0];
     } else {
       tiling.stride = 1;
+    }
+
+    // Inner loop reduction workaround for Zircon.
+    // The workaround ensures there is a non-trivial reduction loop in the inner level. It moves the outer channel loop to inner level.
+    // This step is needed to avoid a bug in the Zircon MU.
+    if (zircon_inner_loop_reduction_workaround && hack_tiling) {
+      tiling.loops[1][tiling.reduction_loop_index[1]] *= tiling.loops[0][tiling.reduction_loop_index[0]];
+      tiling.loops[0][tiling.reduction_loop_index[0]] = 1;
     }
 
     // PSUM workaround for Zircon. MU reduction loop bounds must be 1 for MU to work.

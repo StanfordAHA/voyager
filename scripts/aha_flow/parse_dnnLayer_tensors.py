@@ -137,6 +137,9 @@ def hw_output_txt_to_raw(input_txt_path, output_raw_path):
 
 
 def parse_zircon_workarounds():
+    # Workaround needed to avoid Zircon MU bug on Resnet downsample layers and in GEMM layers
+    zircon_inner_loop_reduction_workaround = "ZIRCON_INNER_LOOP_REDUCTION_WORKAROUND" in os.environ and os.environ["ZIRCON_INNER_LOOP_REDUCTION_WORKAROUND"] == "1"
+
     # Workarounds to avoid Zircon MU bug on Resnet downsample layers
     zircon_fx_fy_stride_workaround = "ZIRCON_FX_FY_STRIDE_WORKAROUND" in os.environ and os.environ["ZIRCON_FX_FY_STRIDE_WORKAROUND"] == "1"
     zircon_cgra_psum_workaround = "ZIRCON_CGRA_PSUM_WORKAROUND" in os.environ and os.environ["ZIRCON_CGRA_PSUM_WORKAROUND"] == "1"
@@ -154,6 +157,7 @@ def parse_zircon_workarounds():
     if zircon_input_act_padding_workaround:
         assert "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE" in os.environ, "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE environment variable must be set for ZIRCON_INPUT_ACT_PADDING_WORKAROUND"
         zircon_input_act_padding_workaround_size = int(os.environ.get("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE"))
+        zircon_input_act_padding_workaround_stride = int(os.environ.get("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_STRIDE", 1))
 
     # K dimension host tiling: used in resnet18 conv5 in Zircon
     k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
@@ -165,6 +169,9 @@ def parse_zircon_workarounds():
         num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS"))
         k_dim_host_tiling_idx = int(os.environ.get("K_DIM_HOST_TILING_IDX"))
 
+    if zircon_inner_loop_reduction_workaround:
+        print("\033[93mINFO: Zircon inner loop reduction workaround enabled. The outer channel loop is moved to the inner level. This should only be used to avoid the Zircon MU bug on Resnet downsample layers and in GEMM layers.\033[0m")
+
     if zircon_cgra_psum_workaround:
         print(f"\033[93mINFO: Zircon CGRA PSUM workaround enabled to avoid MU bug on downsample layers. Using PSUM index {psum_idx}. There are {num_psums} total PSUMs.\033[0m")
 
@@ -172,7 +179,7 @@ def parse_zircon_workarounds():
         print("\033[93mINFO: Zircon FX, FY stride workaround enabled to avoid MU bug on downsample layers.\033[0m")
 
     if zircon_input_act_padding_workaround:
-        print(f"\033[93mINFO: Zircon input padding workaround enabled. Input image will be padded with +{zircon_input_act_padding_workaround_size}.\033[0m")
+        print(f"\033[93mINFO: Zircon input padding workaround enabled. Input image will be padded with +{zircon_input_act_padding_workaround_size}. The stride is {zircon_input_act_padding_workaround_stride}.\033[0m")
 
     if k_dim_host_tiling:
         print(f"\033[93mINFO: K dimension host tiling enabled. Using {num_k_host_tiling_kernels} kernels with index {k_dim_host_tiling_idx}.\033[0m")
@@ -185,6 +192,7 @@ def parse_zircon_workarounds():
         "num_psums": num_psums,
         "zircon_input_act_padding_workaround": zircon_input_act_padding_workaround,
         "zircon_input_act_padding_workaround_size": zircon_input_act_padding_workaround_size,
+        "zircon_input_act_padding_workaround_stride": zircon_input_act_padding_workaround_stride,
         "k_dim_host_tiling": k_dim_host_tiling,
         "num_k_host_tiling_kernels": num_k_host_tiling_kernels,
         "k_dim_host_tiling_idx": k_dim_host_tiling_idx
@@ -196,7 +204,8 @@ def parse_input(base_path, input_tensor_data, zircon_workarounds):
     input = read_tensor(base_path + input_tensor_data["node"] + ".bin", tuple(input_tensor_data["shape"]))
     if zircon_workarounds["zircon_input_act_padding_workaround"]:
         input = input.permute(0, 3, 1, 2)  # Re-order to (B, IC, Y, X)
-        input = F.pad(input, pad=(0, zircon_workarounds["zircon_input_act_padding_workaround_size"], 0, zircon_workarounds["zircon_input_act_padding_workaround_size"])) # Pad X and Y dimensions with zeros
+        pad_dim = zircon_workarounds["zircon_input_act_padding_workaround_size"] * zircon_workarounds["zircon_input_act_padding_workaround_stride"]
+        input = F.pad(input, pad=(0, pad_dim, 0, pad_dim)) # Pad X and Y dimensions with zeros
         input = input.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
     if zircon_workarounds["zircon_cgra_psum_workaround"]:
         input = input.reshape((input.shape[0], input.shape[1], input.shape[2], input.shape[3] // ZIRCON_MU_IC0, ZIRCON_MU_IC0))
@@ -211,7 +220,8 @@ def parse_inputScale(base_path, inputScale_tensor_data, zircon_workarounds):
     inputScale = read_tensor(base_path + inputScale_tensor_data["node"] + ".bin", tuple(inputScale_tensor_data["shape"]))
     if zircon_workarounds["zircon_input_act_padding_workaround"]:
         inputScale = inputScale.permute(0, 3, 1, 2)  # Re-order to (B, IC / BLOCK_SIZE, Y, X)
-        inputScale = F.pad(inputScale, pad=(0, zircon_workarounds["zircon_input_act_padding_workaround_size"], 0, zircon_workarounds["zircon_input_act_padding_workaround_size"])) # Pad X and Y dimensions with zeros
+        pad_dim = zircon_workarounds["zircon_input_act_padding_workaround_size"] * zircon_workarounds["zircon_input_act_padding_workaround_stride"]
+        inputScale = F.pad(inputScale, pad=(0, pad_dim, 0, pad_dim)) # Pad X and Y dimensions with zeros
         inputScale = inputScale.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC / BLOCK_SIZE)
     if zircon_workarounds["zircon_cgra_psum_workaround"]:
         inputScale = inputScale.permute(3, 0, 1, 2)

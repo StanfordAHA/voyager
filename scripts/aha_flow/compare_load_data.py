@@ -44,6 +44,23 @@ def read_bytes_from_waveform(file_path):
     return all_bytes
 
 
+def read_bfloat16_data_from_waveform(file_path):
+    all_16b_data = []
+
+    with open(file_path, "r") as file:
+        for line in file:
+            if "=" in line:
+                hex_data = line.split("=")[-1].strip().replace(" ", "")
+                # Break into bytes (4 hex chars), LSB first
+                bytes_list = [hex_data[i:i+4] for i in range(0, len(hex_data), 4)]
+                bytes_list.reverse()  # LSB first
+                all_16b_data.extend(bytes_list)
+
+
+    float_array = np.array([bfbin2float(bin(int(x, 16))[2:].zfill(16)) for x in all_16b_data], dtype=np.float32)
+    return float_array
+
+
 def read_bytes_from_systemC(file_path):
     all_bytes = []
 
@@ -110,44 +127,67 @@ def compare_floating_point_data(data1, data2, name):
     print(f"{name} match!")
 
 
+def trim_bogus_output(systolic_array_data_out):
+    trimmed_output = []
+    bogus_count = 1
+    K2 = 16
+    Y = 8
+    X = 8
+    K0 = 32
+    for k2 in range(K2):
+        for y in range(Y):
+            for x in range(X):
+                for k0 in range(K0):
+                    if (y < Y-bogus_count and x < X-bogus_count):
+                        index = (k2 * Y * X * K0) + (y * X * K0) + (x * K0) + k0
+                        trimmed_output.append(systolic_array_data_out[index])
+    return np.array(trimmed_output, dtype=np.float32)
+
+
 
 if __name__ == "__main__":
     # input_data_mu_in = read_bytes_from_waveform("/aha/garnet/tests/test_app/input_data_mu_in.txt")
-    # weight_data_mu_in = read_bytes_from_waveform("/aha/garnet/tests/test_app/weight_data_mu_in.txt")
-    # bias_data_mu_in = read_bytes_from_waveform("/aha/garnet/tests/test_app/bias_data_mu_in.txt")
+    weight_data_mu_in = read_bytes_from_waveform("/aha/garnet/tests/test_app/weight_data_mu_in.txt")
+    bias_data_mu_in = read_bytes_from_waveform("/aha/garnet/tests/test_app/bias_data_mu_in.txt")
     # inputScale_data_mu_in = read_bytes_from_waveform("/aha/garnet/tests/test_app/inputScale_data_mu_in.txt")
-    # weightScale_data_mu_in = read_bytes_from_waveform("/aha/garnet/tests/test_app/weightScale_data_mu_in.txt")
+    weightScale_data_mu_in = read_bytes_from_waveform("/aha/garnet/tests/test_app/weightScale_data_mu_in.txt")
 
-    # # systolic_array_data_out = read_bytes_from_waveform("/aha/garnet/tests/test_app/systolic_array_output.txt")
+    systolic_array_data_out = read_bfloat16_data_from_waveform("/aha/garnet/tests/test_app/systolic_array_output.txt")
+    systolic_array_data_out = trim_bogus_output(systolic_array_data_out)
+    # breakpoint()
+
+
     # # print(len(systolic_array_data_out))
 
 
-    # input_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_6/compare/input_data_systemC.txt")
-    # weight_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_6/compare/weight_data_systemC.txt")
-    # bias_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_6/compare/bias_data_systemC.txt")
-    # inputScale_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_6/compare/inputScale_data_systemC.txt")
-    # weightScale_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_6/compare/weightScale_data_systemC.txt")
+    # input_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_15/compare/input_data_systemC.txt")
+    weight_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_15/compare/weight_data_systemC.txt")
+    bias_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_15/compare/bias_data_systemC.txt")
+    # inputScale_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_15/compare/inputScale_data_systemC.txt")
+    weightScale_data_systemC = read_bytes_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_15/compare/weightScale_data_systemC.txt")
 
-    SA_output_systemC = read_SA_output_from_systemC("/aha/SA_output_systemC.txt")
+    SA_output_systemC = read_SA_output_from_systemC("/aha/voyager/compiled_collateral/resnet18-submodule_15/compare/SA_output_systemC.txt")
+    # breakpoint()
 
 
 
-    glb_hw_output = read_bytes_from_hw_output_txt("/aha/garnet/tests/test_app/hw_output.txt")
+    # glb_hw_output = read_bytes_from_hw_output_txt("/aha/garnet/tests/test_app/hw_output.txt")
 
-    # Reshape it to (Y1, Y0, X1, X0, K2, K1, K0=32)
-    glb_hw_output = glb_hw_output.reshape((1, 14, 1, 14, 8, 1, 32))
-    glb_hw_output = glb_hw_output.transpose(0, 2, 4, 5, 1, 3, 6)  # (Y1, X1, K2, K1, Y0, X0, K0=32)
-    glb_hw_output = glb_hw_output.flatten()  # Flatten to 1D array
+    # # Reshape it to (Y1, Y0, X1, X0, K2, K1, K0=32)
+    # glb_hw_output = glb_hw_output.reshape((1, 14, 1, 14, 8, 1, 32))
+    # glb_hw_output = glb_hw_output.transpose(0, 2, 4, 5, 1, 3, 6)  # (Y1, X1, K2, K1, Y0, X0, K0=32)
+    # glb_hw_output = glb_hw_output.flatten()  # Flatten to 1D array
 
 
     # compare_data(input_data_mu_in, input_data_systemC, "input_data")
-    # compare_data(weight_data_mu_in, weight_data_systemC, "weight_data")
-    # compare_data(bias_data_mu_in, bias_data_systemC, "bias_data")
+    compare_data(weight_data_mu_in, weight_data_systemC, "weight_data")
+    compare_data(bias_data_mu_in, bias_data_systemC, "bias_data")
     # compare_data(inputScale_data_mu_in, inputScale_data_systemC, "inputScale_data")
-    # compare_data(weightScale_data_mu_in, weightScale_data_systemC, "weightScale_data")
+    compare_data(weightScale_data_mu_in, weightScale_data_systemC, "weightScale_data")
 
 
-    compare_floating_point_data(SA_output_systemC, glb_hw_output, "systolic_array_output_float")
+    # compare_floating_point_data(SA_output_systemC, glb_hw_output, "systolic_array_output_float")
+    # compare_floating_point_data(SA_output_systemC, systolic_array_data_out, "systolic_array_output_float")
 
 
 
