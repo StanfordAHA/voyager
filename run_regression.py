@@ -176,16 +176,24 @@ def run_systemc_unit_test(model, layer, output_folder, fast, scale_down_operatio
 
     with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
         try:
-            subprocess.run(
+            process = subprocess.Popen(
                 ["make", "fast-sim" if fast else "sim"],
                 env=env_vars,
-                stdout=stdout_file,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                timeout=1 * 60 * 60,
+                text=True,
             )
+
+            for line in process.stdout:
+                print(line, end="")        # print to terminal
+                stdout_file.write(line)    # write to file
+
+            process.wait(timeout=1 * 60 * 60)
+
         except subprocess.TimeoutExpired:
             print(f"Test {model}_{layer} timed out")
-            stdout_file.write("Test timed out")
+            stdout_file.write("Test timed out\n")
+            process.kill()
 
     # search if the test passed
     p = subprocess.Popen(
@@ -206,12 +214,19 @@ def run_systemc_tests(layers, condensed_models, num_processes, results_folder, f
     subprocess.run(["make", "clean"], env=os.environ)
 
     with open(f"{results_folder}/build.log", "w") as stdout_file:
-        subprocess.run(
+        process = subprocess.Popen(
             ["make", "-j", "TestRunner-fast" if fast else "TestRunner"],
             env=env_vars,
-            stdout=stdout_file,
+            stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            text=True,
         )
+
+        for line in process.stdout:
+            print(line, end="")        # show on terminal
+            stdout_file.write(line)    # also save to log
+
+        process.wait()
 
     pool = mp.Pool(num_processes)
 
