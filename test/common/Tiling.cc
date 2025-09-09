@@ -52,6 +52,9 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
   const char* zircon_input_act_padding_workaround_env = std::getenv("ZIRCON_INPUT_ACT_PADDING_WORKAROUND");
   bool zircon_input_act_padding_workaround = zircon_input_act_padding_workaround_env && std::stoi(zircon_input_act_padding_workaround_env) == 1;
 
+  const char* zircon_gemm_x_dim_host_tiling_env = std::getenv("ZIRCON_GEMM_X_DIM_HOST_TILING");
+  bool zircon_gemm_x_dim_host_tiling = zircon_gemm_x_dim_host_tiling_env && std::stoi(zircon_gemm_x_dim_host_tiling_env) == 1;
+
   Tiling tiling;
   if (manual_tiling || !operation.has_valid_tiling) {
     if (first_op.target() == "conv2d" || first_op.target() == "conv2d_mx") {
@@ -124,6 +127,13 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
       tiling.loops[1][tiling.x_loop_index[1]] += zircon_input_act_padding_workaround_size;
       tiling.loops[1][tiling.y_loop_index[1]] += zircon_input_act_padding_workaround_size;
 
+    }
+
+    // GEMM X dimension host tiling workaround
+    // FIXME: This is a HACK for x = 4096. Should really give the new x dim to interstellar and have it generate the tiling config for it 
+    if (zircon_gemm_x_dim_host_tiling && hack_tiling) {
+      tiling.loops[0][tiling.x_loop_index[0]] = 128;
+      tiling.loops[1][tiling.x_loop_index[1]] = 32;
     }
   }
 
