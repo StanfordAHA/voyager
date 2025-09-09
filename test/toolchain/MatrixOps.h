@@ -137,6 +137,60 @@ void MapMatrixOperation(const Operation &operation,
 
   Tiling tiling = get_tiling(operation, hack_tiling);
 
+  // tiling = {
+  //     .loops = {{1, 2, 128, 1, 1, 1}, {1, 1, 1, 1, 1, 32}},
+  //     .x_loop_index = {2, 5},
+  //     .y_loop_index = {0, 1},
+  //     .reduction_loop_index = {3, 0},
+  //     .weight_loop_index = {1, 2},
+  //     .fx_index = 4,
+  //     .fy_index = 3,
+  //     .weight_reuse_index = {5, 5},
+  //     .stride = 1,
+  //     .replication = false,
+  //   };
+
+
+    //   tiling = {
+    //   .loops = {{1, 1, 8, 1, 1, 1}, {3, 2, 1, 1, 1, 288}},
+    //   .x_loop_index = {2, 5},
+    //   .y_loop_index = {0, 4},
+    //   .reduction_loop_index = {3, 0},
+    //   .weight_loop_index = {1, 1},
+    //   .fx_index = 3,
+    //   .fy_index = 2,
+    //   .weight_reuse_index = {5, 5},
+    //   .stride = 1,
+    //   .replication = false,
+    // };
+
+    //   tiling = {
+    //   .loops = {{1, 8, 2, 1, 1, 1}, {2, 1, 1, 1, 7, 14}},
+    //   .x_loop_index = {0, 5},
+    //   .y_loop_index = {2, 4},
+    //   .reduction_loop_index = {3, 0},
+    //   .weight_loop_index = {1, 1},
+    //   .fx_index = 3,
+    //   .fy_index = 2,
+    //   .weight_reuse_index = {4, 5},
+    //   .stride = 2,
+    //   .replication = false,
+    // };
+
+     tiling = {
+      .loops = {{1, 1, 16, 1, 1, 1}, {4, 1, 1, 1, 8, 8}},
+      .x_loop_index = {1, 5},
+      .y_loop_index = {0, 4},
+      .reduction_loop_index = {3, 0},
+      .weight_loop_index = {2, 1},
+      .fx_index = 3,
+      .fy_index = 2,
+      .weight_reuse_index = {4, 5},
+      .stride = 2,
+      .replication = false,
+    };
+
+
   // --------------DATA DUMPING FOR AHA FLOW-------------------//
   if (dump_tiling) {
     std::ofstream output_tiling_dump_file;
