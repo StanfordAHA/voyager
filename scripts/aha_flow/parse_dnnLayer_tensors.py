@@ -49,16 +49,16 @@ def float32_to_bfloat16_bits(x):
 
 
 def write_list_to_hex(list, filename, start_addr=0):
-   #Write the entire tensor in hex format to a new file
-   with open(filename, 'w') as output_file:
-        output_file.write(f"TENSOR_EXISTS: 1\n")
-        output_file.write(f"SIZE: {len(list)}\n")
-        output_file.write(f"START_ADDR: {start_addr}\n")
-        for idx in range(len(list)):
-            value = list[idx]
-            output_file.write(str(f"{value:04x}"))
-            if idx != len(list) - 1:
-                output_file.write("\n")
+    #Write the entire tensor in hex format to a new file
+    with open(filename, 'w') as output_file:
+            output_file.write(f"TENSOR_EXISTS: 1\n")
+            output_file.write(f"SIZE: {len(list)}\n")
+            output_file.write(f"START_ADDR: {start_addr}\n")
+            for idx in range(len(list)):
+                value = list[idx]
+                output_file.write(str(f"{value:04x}"))
+                if idx != len(list) - 1:
+                    output_file.write("\n")
 
 def debug_print_tensors(input, input_int8, bias_bf16, inputScale_e8m0, weightScale_e8m0):
         # Print first 10 elements and max value
@@ -299,7 +299,11 @@ def parse_weightScale(base_path, weightScale_tensor_data, zircon_workarounds):
     return weightScale_e8m0
 
 def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
-    bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", tuple(bias_tensor_data["shape"]))
+    bias_shape = bias_tensor_data["shape"]
+    for element in bias_shape:
+        if element == 1:
+            bias_shape.remove(element)
+    bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", bias_shape)
     if zircon_workarounds["zircon_cgra_psum_workaround"] and zircon_workarounds["psum_idx"] != 0:
         # If doing psum workaround, bias is zero for all but the 0th kernel
         # TODO: This should be improved in the future to just set the MU->has_bias config to false for such kernels
@@ -311,7 +315,6 @@ def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
         bias = bias.reshape((num_k_host_tiling_kernels, bias.shape[0] // num_k_host_tiling_kernels))
         bias = bias[k_dim_host_tiling_idx]
     bias_bf16 = float32_to_bfloat16_bits(bias)
-
     return bias_bf16
 
 def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds):

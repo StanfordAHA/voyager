@@ -639,6 +639,11 @@ void Harness::sendParams() {
           dumpMatrixParams->BIAS_OFFSET = bias_offset;
         }
 
+        bool conv1_bias_hack = true;
+        if (conv1_bias_hack){
+          dumpMatrixParams->has_bias = true;
+        }
+
         dumpSerializedParams<MatrixParams, 32>(*dumpMatrixParams);
         matrixUnitStartSignal.SyncPop();
       }

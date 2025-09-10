@@ -917,6 +917,12 @@ def create_tensor_metadata_json(layer, params_dict):
             break
 
 
+    conv1_bias_hack = True
+    if conv1_bias_hack:
+        tensor_metadata["ops"][0]["kwargs"]["bias"] = tensor_metadata["ops"][1]["kwargs"]["other"]
+        del tensor_metadata["ops"][1]
+        tensor_metadata["has_residual"] = False
+        append_glb_base_addresses(tensor_metadata, tensor_metadata["ops"][0]["kwargs"], mu_glb_base_address)
 
     with open(f"tensor_metadata.json", "w") as f:
         import json
