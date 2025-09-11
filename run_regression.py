@@ -917,7 +917,7 @@ def create_tensor_metadata_json(layer, params_dict):
             break
 
 
-    conv1_bias_hack = True
+    conv1_bias_hack = "CONV1_BIAS_HACK" in os.environ and os.environ["CONV1_BIAS_HACK"] == "1"
     if conv1_bias_hack:
         tensor_metadata["ops"][0]["kwargs"]["bias"] = tensor_metadata["ops"][1]["kwargs"]["other"]
         del tensor_metadata["ops"][1]

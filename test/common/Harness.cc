@@ -639,7 +639,8 @@ void Harness::sendParams() {
           dumpMatrixParams->BIAS_OFFSET = bias_offset;
         }
 
-        bool conv1_bias_hack = true;
+        const char* conv1_bias_hack_env = std::getenv("CONV1_BIAS_HACK");
+        bool conv1_bias_hack = conv1_bias_hack_env && std::stoi(conv1_bias_hack_env) == 1;
         if (conv1_bias_hack){
           dumpMatrixParams->has_bias = true;
         }

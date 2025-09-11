@@ -54,9 +54,15 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
 
   const char* zircon_inner_loop_reduction_workaround_env = std::getenv("ZIRCON_INNER_LOOP_REDUCTION_WORKAROUND");
   bool zircon_inner_loop_reduction_workaround = zircon_inner_loop_reduction_workaround_env && std::stoi(zircon_inner_loop_reduction_workaround_env) == 1;
-  
+
   const char* zircon_gemm_x_dim_host_tiling_env = std::getenv("ZIRCON_GEMM_X_DIM_HOST_TILING");
   bool zircon_gemm_x_dim_host_tiling = zircon_gemm_x_dim_host_tiling_env && std::stoi(zircon_gemm_x_dim_host_tiling_env) == 1;
+
+  const char* zircon_gemm_x_dimm_host_tiling_slice_length_env = std::getenv("X_DIM_HOST_TILING_SLICE_LENGTH");
+  int zircon_gemm_x_dim_host_tiling_slice_length = 0;
+  if (zircon_gemm_x_dimm_host_tiling_slice_length_env) {
+    zircon_gemm_x_dim_host_tiling_slice_length = std::stoi(zircon_gemm_x_dimm_host_tiling_slice_length_env);
+  }
 
   Tiling tiling;
   if (manual_tiling || !operation.has_valid_tiling) {
@@ -140,11 +146,10 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
 
     }
 
-    // GEMM X dimension host tiling workaround
-    // FIXME: This is a HACK for x = 4096. Should really give the new x dim to interstellar and have it generate the tiling config for it
-    if (zircon_gemm_x_dim_host_tiling && hack_tiling) {
-      tiling.loops[0][tiling.x_loop_index[0]] = 128;
-      tiling.loops[1][tiling.x_loop_index[1]] = 32;
+    // This is a HACK for x = 3136, used for Resnet18 conv1 in Zircon
+    if (zircon_gemm_x_dim_host_tiling && hack_tiling && (zircon_gemm_x_dim_host_tiling_slice_length == 3136)) {
+      tiling.loops[0][tiling.x_loop_index[0]] = 14;
+      tiling.loops[1][tiling.x_loop_index[1]] = 224;
     }
   }
 
