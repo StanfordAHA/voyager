@@ -3,69 +3,89 @@
 
 E4M3_FLAGS := --activation fp8_e4m3 --weight fp8_e4m3 --bf16
 P8_1_FLAGS := --activation posit8_1 --weight posit8_1 --bf16
-INT8_FLAGS := --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --bias int24 --bf16
-INT8_32_FLAGS := --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --bias int32 --bf16
+INT8_FLAGS := --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --bias int24 --bf16 --calibration_steps 10
+INT8_32_FLAGS := --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --bias int32 --bf16 --calibration_steps 10
 BLOCK_SIZE := $(shell [ $(IC_DIMENSION) -gt $(OC_DIMENSION) ] && echo $(IC_DIMENSION) || echo $(OC_DIMENSION))
-# BLOCK_SIZE := 64
 MXINT8_FLAGS := --activation int8,qs=microscaling,bs=$(BLOCK_SIZE) --weight int8,qs=microscaling,bs=$(BLOCK_SIZE) --force_scale_power_of_two --bf16
-MXNF4_FLAGS := --activation nf4_5,qs=microscaling,bs=$(BLOCK_SIZE),scale=fp8_e5m3 --weight nf4_5,qs=microscaling,bs=$(BLOCK_SIZE),scale=fp8_e5m3 --bf16
+MXNF4_FLAGS := --activation nf4_6,qs=microscaling,bs=$(BLOCK_SIZE),scale=fp8_e5m3 --weight nf4_6,qs=microscaling,bs=$(BLOCK_SIZE),scale=fp8_e5m3 --bf16
+COMMON_FLAGS := --transpose_weight --hardware_unrolling $(IC_DIMENSION),$(OC_DIMENSION)
+LLM_FLAGS := --context_length 512 --remove_duplicate
 EXTRA_COMPILER_FLAGS ?=
+
+# Set default values if not already defined in the environment
+CACHE_SIZE ?= 4194304
+NUM_BANKS  ?= 8
+
+ifeq ($(SOC_SIM),1)
+COMMON_FLAGS += --cache_size $(CACHE_SIZE) --num_banks $(NUM_BANKS)
+endif
 
 ################################################################################
 $(CODEGEN_DIR)/networks/resnet18/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python quantized-training/test/test_codegen.py resnet18 $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+	python quantized-training/test/test_codegen.py resnet18 $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) --conv2d_im2col $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
 $(CODEGEN_DIR)/networks/resnet50/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python quantized-training/test/test_codegen.py resnet50 $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+	python quantized-training/test/test_codegen.py resnet50 $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
 $(CODEGEN_DIR)/networks/mobilebert/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python quantized-training/test/test_codegen.py mobilebert $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) --model_name_or_path models/mobilebert/mobilebert-tiny-sst2-bf16 $(EXTRA_COMPILER_FLAGS) --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+	python quantized-training/test/test_codegen.py mobilebert $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) --model_name_or_path models/mobilebert/mobilebert-tiny-sst2-bf16 $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
 $(CODEGEN_DIR)/networks/mobilebert_encoder/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python quantized-training/test/test_codegen.py mobilebert_encoder $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) --model_name_or_path models/mobilebert/mobilebert-tiny-sst2-bf16 $(EXTRA_COMPILER_FLAGS) --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+	python quantized-training/test/test_codegen.py mobilebert $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) --model_name_or_path models/mobilebert/mobilebert-tiny-sst2-bf16 $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) --remove_duplicate 2>&1 | tee $(dir $@)/codegen.log
 
 $(CODEGEN_DIR)/networks/bert/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python quantized-training/test/test_codegen.py bert $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --output_dir $(dir $@) &> $(dir $@)codegen.log
+	python quantized-training/test/test_codegen.py bert $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
-$(CODEGEN_DIR)/networks/llama/%/model.txt: quantized-training/test/test_codegen.py
+$(CODEGEN_DIR)/networks/llama_prefill/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python quantized-training/test/test_codegen.py llama_decoder $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --output_dir $(dir $@) &> $(dir $@)codegen.log
+	python quantized-training/test/test_codegen.py llm_prefill $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) $(LLM_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
-$(CODEGEN_DIR)networks/vit/%/model.txt: quantized-training/test/test_codegen.py
+$(CODEGEN_DIR)/networks/llama_decode/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python quantized-training/test/test_codegen.py vit $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --output_dir $(dir $@) &> $(dir $@)codegen.log
+	python quantized-training/test/test_codegen.py llm_decode $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) $(LLM_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
+
+$(CODEGEN_DIR)/networks/llama_prefill_mp/%/model.txt: quantized-training/test/test_codegen.py
+	mkdir -p $(dir $@)
+	python quantized-training/test/test_codegen.py llm_prefill $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) $(LLM_FLAGS) --mixed_precision 2>&1 | tee $(dir $@)/codegen.log
+
+$(CODEGEN_DIR)/networks/llama_decode_mp/%/model.txt: quantized-training/test/test_codegen.py
+	mkdir -p $(dir $@)
+	python quantized-training/test/test_codegen.py llm_decode $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) $(LLM_FLAGS) --mixed_precision 2>&1 | tee $(dir $@)/codegen.log
+
+$(CODEGEN_DIR)/networks/vit/%/model.txt: quantized-training/test/test_codegen.py
+	mkdir -p $(dir $@)
+	python quantized-training/test/test_codegen.py vit $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
 $(CODEGEN_DIR)/networks/segformer/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python -u quantized-training/test/test_codegen.py segformer $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --output_dir $(dir $@) &> $(dir $@)codegen.log
+	python -u quantized-training/test/test_codegen.py segformer $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
 $(CODEGEN_DIR)/networks/fakeconv2d/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python -u quantized-training/test/test_codegen.py fakeconv2d $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --output_dir $(dir $@) &> $(dir $@)codegen.log
-
+	python -u quantized-training/test/test_codegen.py fakeconv2d $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
 ################################################################################
 # Gesture
 ################################################################################
 $(CODEGEN_DIR)/networks/gesture/CFLOAT/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python quantized-training/test/test_codegen.py gesture --model_name_or_path models/gesture/model.pth --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+	python quantized-training/test/test_codegen.py gesture --model_name_or_path models/gesture/model.pth --model_output_dir $(dir $@) 2>&1 | tee $(dir $@)/codegen.log
 
 ################################################################################
 # Layer Tests
 ################################################################################
 test/compiler/networks/layertest/CFLOAT/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python quantized-training/test/test_codegen.py layertest --output_dir $(dir $@) > $(dir $@)/codegen.log 2>&1
+	python quantized-training/test/test_codegen.py layertest --model_output_dir $(dir $@) 2>&1 | tee $(dir $@)/codegen.log
 
 ################################################################################
 # Tilings
 ################################################################################
-$(CODEGEN_DIR)/networks/$(NETWORK)/$(DATATYPE)/$(IC_DIMENSION)x$(OC_DIMENSION)_$(INPUT_BUFFER_SIZE)x$(WEIGHT_BUFFER_SIZE)x$(ACCUM_BUFFER_SIZE)_$(DOUBLE_BUFFERED_ACCUM_BUFFER)/tilings.txtpb: $(CODEGEN_DIR)/networks/$(NETWORK)/$(DATATYPE)/model.txt test/compiler/run_tiler.py
+$(CODEGEN_DIR)/networks/$(NETWORK)/$(DATATYPE)/$(IC_DIMENSION)x$(OC_DIMENSION)_$(INPUT_BUFFER_SIZE)x$(WEIGHT_BUFFER_SIZE)x$(ACCUM_BUFFER_SIZE)_$(DOUBLE_BUFFERED_ACCUM_BUFFER)/tilings.txtpb: $(CODEGEN_DIR)/networks/$(NETWORK)/$(DATATYPE)/model.txt test/compiler/run_tiler.py test/compiler/proto/tiling_pb2.py
 	mkdir -p $(dir $@)
-	python test/compiler/run_tiler.py --codegen_dir $(dir $<) --IC_dimension $(IC_DIMENSION) --OC_dimension $(OC_DIMENSION) --input_buffer_size $(INPUT_BUFFER_SIZE) --weight_buffer_size $(WEIGHT_BUFFER_SIZE) --accum_buffer_size $(ACCUM_BUFFER_SIZE) $(if $(filter true,$(DOUBLE_BUFFERED_ACCUM_BUFFER)), --double_buffered_accum_buffer) > $(dir $@)/tiler.log 2>&1
+	python test/compiler/run_tiler.py --codegen_dir $(dir $<) --IC_dimension $(IC_DIMENSION) --OC_dimension $(OC_DIMENSION) --input_buffer_size $(INPUT_BUFFER_SIZE) --weight_buffer_size $(WEIGHT_BUFFER_SIZE) --accum_buffer_size $(ACCUM_BUFFER_SIZE) $(if $(filter true,$(DOUBLE_BUFFERED_ACCUM_BUFFER)), --double_buffered_accum_buffer) 2>&1 | tee $(dir $@)/tiler.log

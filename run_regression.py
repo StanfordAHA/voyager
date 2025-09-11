@@ -176,16 +176,24 @@ def run_systemc_unit_test(model, layer, output_folder, fast, scale_down_operatio
 
     with open(f"{output_folder}/{model}_{layer}.log", "w") as stdout_file:
         try:
-            subprocess.run(
+            process = subprocess.Popen(
                 ["make", "fast-sim" if fast else "sim"],
                 env=env_vars,
-                stdout=stdout_file,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                timeout=1 * 60 * 60,
+                text=True,
             )
+
+            for line in process.stdout:
+                print(line, end="")        # print to terminal
+                stdout_file.write(line)    # write to file
+
+            process.wait(timeout=1 * 60 * 60)
+
         except subprocess.TimeoutExpired:
             print(f"Test {model}_{layer} timed out")
-            stdout_file.write("Test timed out")
+            stdout_file.write("Test timed out\n")
+            process.kill()
 
     # search if the test passed
     p = subprocess.Popen(
@@ -206,12 +214,19 @@ def run_systemc_tests(layers, condensed_models, num_processes, results_folder, f
     subprocess.run(["make", "clean"], env=os.environ)
 
     with open(f"{results_folder}/build.log", "w") as stdout_file:
-        subprocess.run(
+        process = subprocess.Popen(
             ["make", "-j", "TestRunner-fast" if fast else "TestRunner"],
             env=env_vars,
-            stdout=stdout_file,
+            stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            text=True,
         )
+
+        for line in process.stdout:
+            print(line, end="")        # show on terminal
+            stdout_file.write(line)    # also save to log
+
+        process.wait()
 
     pool = mp.Pool(num_processes)
 
@@ -599,6 +614,7 @@ def run_accuracy(model, dataset, num_processes, output_folder):
                 "quantized-training/test/test_codegen.py",
                 model,
                 "--model_name_or_path",
+                "--transpose_weight",
                 model_path,
                 *quantization_args,
                 "--output_dir",
@@ -742,7 +758,7 @@ def add_layers(network, layers, layer_counts, uniquify):
                 layer_counts[network][name] = 1
 
 
-def append_glb_base_addresses(kwargs, mu_glb_base_address):
+def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_gemm=False):
     zircon_fx_fy_stride_workaround = "ZIRCON_FX_FY_STRIDE_WORKAROUND" in os.environ and os.environ["ZIRCON_FX_FY_STRIDE_WORKAROUND"] == "1"
     zircon_input_act_padding_workaround = "ZIRCON_INPUT_ACT_PADDING_WORKAROUND" in os.environ and os.environ["ZIRCON_INPUT_ACT_PADDING_WORKAROUND"] == "1"
     if zircon_input_act_padding_workaround:
@@ -755,46 +771,73 @@ def append_glb_base_addresses(kwargs, mu_glb_base_address):
 
     # Append GLB base addresses to the kwargs for input, weight, bias, inputScale, and weightScale tensors
     input_base_address = mu_glb_base_address
+    curr_addr_pointer = input_base_address
 
     # multiply all element in kwargs['input']['tensor']['shape'] together and add to input_base_address
     input_num_elements = functools.reduce(operator.mul, kwargs['input']['tensor']['shape'], 1)
     if zircon_input_act_padding_workaround:
         input_shape = kwargs['input']['tensor']['shape']
         input_num_elements = input_shape[0] * input_shape[1] * (input_shape[2] + zircon_input_act_padding_workaround_size) * (input_shape[3] + zircon_input_act_padding_workaround_size)
-    inputScale_base_address = input_base_address + math.ceil(input_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+    curr_addr_pointer = input_base_address + math.ceil(input_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
-    inputScale_num_elements = functools.reduce(operator.mul, kwargs['input_scale']['tensor']['shape'], 1)
-    if zircon_input_act_padding_workaround:
-        inputScale_shape = kwargs['input_scale']['tensor']['shape']
-        inputScale_num_elements = inputScale_shape[0] * inputScale_shape[1] * (inputScale_shape[2] + zircon_input_act_padding_workaround_size) * (inputScale_shape[3] + zircon_input_act_padding_workaround_size)
-    weight_base_address = inputScale_base_address + math.ceil(inputScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
+    if 'input_scale' in kwargs and 'tensor' in kwargs['input_scale'] and 'shape' in kwargs['input_scale']['tensor']:
+        inputScale_num_elements = functools.reduce(operator.mul, kwargs['input_scale']['tensor']['shape'], 1)
+        if zircon_input_act_padding_workaround:
+            inputScale_shape = kwargs['input_scale']['tensor']['shape']
+            inputScale_num_elements = inputScale_shape[0] * inputScale_shape[1] * (inputScale_shape[2] + zircon_input_act_padding_workaround_size) * (inputScale_shape[3] + zircon_input_act_padding_workaround_size)
+        inputScale_base_address = curr_addr_pointer
+        curr_addr_pointer += math.ceil(inputScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+
+    if is_gemm:
+        kwargs['weight'] = kwargs['other']  # rename 'other' to 'weight' for consistency
+        del kwargs['other']  # remove 'other' from kwargs
     weight_num_elements = functools.reduce(operator.mul, kwargs['weight']['tensor']['shape'], 1)
     if k_dim_host_tiling:
         weight_num_elements = weight_num_elements // num_k_host_tiling_kernels
     if zircon_fx_fy_stride_workaround:
         weight_num_elements *= 3 * 3
-    weightScale_base_address = weight_base_address + math.ceil(weight_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+    weight_base_address = curr_addr_pointer
+    curr_addr_pointer += math.ceil(weight_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
-    weightScale_num_elements = functools.reduce(operator.mul, kwargs['weight_scale']['tensor']['shape'], 1)
-    if k_dim_host_tiling:
-        weightScale_num_elements = weightScale_num_elements // num_k_host_tiling_kernels
-    if zircon_fx_fy_stride_workaround:
-        weightScale_num_elements *= 3 * 3
+    if 'weight_scale' in kwargs and 'tensor' in kwargs['weight_scale'] and 'shape' in kwargs['weight_scale']['tensor']:
+        weightScale_num_elements = functools.reduce(operator.mul, kwargs['weight_scale']['tensor']['shape'], 1)
+        if k_dim_host_tiling:
+            weightScale_num_elements = weightScale_num_elements // num_k_host_tiling_kernels
+        if zircon_fx_fy_stride_workaround:
+            weightScale_num_elements *= 3 * 3
+        weightScale_base_address = curr_addr_pointer
+        curr_addr_pointer += math.ceil(weightScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
-    bias_base_address = weightScale_base_address + math.ceil(weightScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+    if 'bias' in kwargs:
+        bias_base_address = curr_addr_pointer
 
-    kwargs['input']['tensor']['glb_base_address'] = input_base_address
-    kwargs['input_scale']['tensor']['glb_base_address'] = inputScale_base_address
-    kwargs['weight']['tensor']['glb_base_address'] = weight_base_address
-    kwargs['weight_scale']['tensor']['glb_base_address'] = weightScale_base_address
-    kwargs['bias']['tensor']['glb_base_address'] = bias_base_address
+    if 'input' in kwargs:
+        kwargs['input']['tensor']['glb_base_address'] = input_base_address
+        tensor_metadata["has_input"] = True
+    if 'input_scale' in kwargs:
+        kwargs['input_scale']['tensor']['glb_base_address'] = inputScale_base_address
+        tensor_metadata["has_input_scale"] = True
+    if 'weight' in kwargs:
+        kwargs['weight']['tensor']['glb_base_address'] = weight_base_address
+        tensor_metadata["has_weight"] = True
+    if 'weight_scale' in kwargs:
+        kwargs['weight_scale']['tensor']['glb_base_address'] = weightScale_base_address
+        tensor_metadata["has_weight_scale"] = True
+    if 'bias' in kwargs:
+        kwargs['bias']['tensor']['glb_base_address'] = bias_base_address
+        tensor_metadata["has_bias"] = True
 
 
 def create_tensor_metadata_json(layer, params_dict):
     # create tensor_metadata.json file, needed by aha flow
     tensor_metadata = {
         "layer_name": layer,
+        "has_input": True,
+        "has_input_scale": False,
+        "has_weight": True,
+        "has_weight_scale": False,
+        "has_bias": False,
         "has_residual": False,
         "mu_glb_base_address": 0,
         "ops": [],
@@ -816,8 +859,8 @@ def create_tensor_metadata_json(layer, params_dict):
             op_dict["name"] = op["op"]["name"]
             op_dict["kwargs"] = op["op"]["kwargs"]
             # Should be if "conv2d" or if "matmul", etc. Generalize this in the future
-            if "conv2d" in op_dict["name"]:
-                append_glb_base_addresses(op_dict["kwargs"], mu_glb_base_address)
+            if "conv2d" in op_dict["name"] or "matmul" in op_dict["name"]:
+                append_glb_base_addresses(tensor_metadata, op_dict["kwargs"], mu_glb_base_address, is_gemm="matmul" in op_dict["name"])
             for arg_key in op_dict["kwargs"]:
                     arg = op_dict["kwargs"][arg_key]
                     tensor = arg.get("tensor")
@@ -836,8 +879,8 @@ def create_tensor_metadata_json(layer, params_dict):
                     tensor_metadata["has_residual"] = True
                 fused_op_dict["kwargs"] = fused_op["kwargs"]
                 # Should be if "conv2d" or if "matmul", etc. Generalize this in the future
-                if "conv2d" in fused_op_dict["name"]:
-                    append_glb_base_addresses(fused_op_dict["kwargs"], mu_glb_base_address)
+                if "conv2d" in fused_op_dict["name"] or "matmul" in fused_op_dict["name"]:
+                    append_glb_base_addresses(tensor_metadata, fused_op_dict["kwargs"], mu_glb_base_address, is_gemm="matmul" in fused_op_dict["name"])
                 for arg_key in fused_op_dict["kwargs"]:
                     arg = fused_op_dict["kwargs"][arg_key]
                     tensor = arg.get("tensor")

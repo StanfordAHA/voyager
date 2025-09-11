@@ -52,6 +52,9 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
   const char* zircon_input_act_padding_workaround_env = std::getenv("ZIRCON_INPUT_ACT_PADDING_WORKAROUND");
   bool zircon_input_act_padding_workaround = zircon_input_act_padding_workaround_env && std::stoi(zircon_input_act_padding_workaround_env) == 1;
 
+  const char* zircon_inner_loop_reduction_workaround_env = std::getenv("ZIRCON_INNER_LOOP_REDUCTION_WORKAROUND");
+  bool zircon_inner_loop_reduction_workaround = zircon_inner_loop_reduction_workaround_env && std::stoi(zircon_inner_loop_reduction_workaround_env) == 1;
+
   Tiling tiling;
   if (manual_tiling || !operation.has_valid_tiling) {
     if (first_op.target() == "conv2d" || first_op.target() == "conv2d_mx") {
@@ -68,6 +71,14 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
       tiling.stride = stride[0];
     } else {
       tiling.stride = 1;
+    }
+
+    // Inner loop reduction workaround for Zircon.
+    // The workaround ensures there is a non-trivial reduction loop in the inner level. It moves the outer channel loop to inner level.
+    // This step is needed to avoid a bug in the Zircon MU.
+    if (zircon_inner_loop_reduction_workaround && hack_tiling) {
+      tiling.loops[1][tiling.reduction_loop_index[1]] *= tiling.loops[0][tiling.reduction_loop_index[0]];
+      tiling.loops[0][tiling.reduction_loop_index[0]] = 1;
     }
 
     // PSUM workaround for Zircon. MU reduction loop bounds must be 1 for MU to work.
@@ -145,8 +156,8 @@ Tiling get_zircon_fx_fy_stride_workaround_tiling(const codegen::OpOverload param
   int stride = strides[0];
 
   // conv4 downsample
-  if (input_shape[1] == 128 && input_shape[2] == 28 && input_shape[3] == 28 &&
-      weight_shape[0] == 256 && weight_shape[2] == 1 && weight_shape[3] == 1 && stride == 2) {
+  if (input_shape[3] == 128 && input_shape[1] == 28 && input_shape[2] == 28 &&
+      weight_shape[3] == 256 && weight_shape[0] == 1 && weight_shape[1] == 1 && stride == 2) {
 
     tiling = {
           .loops = {{1, 1, 8, 2, 1, 1}, {1, 1, 3, 3, 28, 28}},
@@ -161,8 +172,8 @@ Tiling get_zircon_fx_fy_stride_workaround_tiling(const codegen::OpOverload param
           .replication = false,
       };
   // conv5 downsample
-  } else if (input_shape[1] == 256 && input_shape[2] == 14 && input_shape[3] == 14 &&
-      weight_shape[0] == 512 && weight_shape[2] == 1 && weight_shape[3] == 1 && stride == 2) {
+  } else if (input_shape[3] == 256 && input_shape[1] == 14 && input_shape[2] == 14 &&
+      weight_shape[3] == 512 && weight_shape[0] == 1 && weight_shape[1] == 1 && stride == 2) {
 
         tiling = {
           .loops = {{1, 1, 16, 4, 1, 1}, {1, 1, 3, 3, 14, 14}},
@@ -342,33 +353,39 @@ Tiling get_conv2d_tiling(const codegen::OpOverload param) {
   const auto input_shape = get_shape(input);
   const auto weight_shape = get_shape(weight);
 
-  const int output_height = (input_shape[2] + 2 * padding[0] -
-                             dilation[0] * (weight_shape[2] - 1) - 1) /
+  const int output_height = (input_shape[1] + 2 * padding[0] -
+                             dilation[0] * (weight_shape[0] - 1) - 1) /
                                 strides[0] +
                             1;
-  const int output_width = (input_shape[3] + 2 * padding[1] -
-                            dilation[1] * (weight_shape[3] - 1) - 1) /
+  const int output_width = (input_shape[2] + 2 * padding[1] -
+                            dilation[1] * (weight_shape[1] - 1) - 1) /
                                strides[1] +
                            1;
 
-  std::vector<int> output_shape = {input_shape[0], weight_shape[0],
-                                   output_height, output_width};
+
+  std::vector<int> output_shape = {
+      output_height,
+      output_width,
+      input_shape[3],
+      weight_shape[3],
+  };
+
 
   const int oc_unroll = OC_DIMENSION;
   const int ic_unroll = IC_DIMENSION;
 
   int x1 = 1, y1 = 1, k1 = 1;
   int x0 = output_shape[2];
-  int y0 = output_shape[3];
-  int k0 = weight_shape[0] / oc_unroll;
-  int c0 = weight_shape[1] / ic_unroll;
-  int fx = weight_shape[2];
-  int fy = weight_shape[3];
+  int y0 = output_shape[1];
+  int k0 = weight_shape[3] / oc_unroll;
+  int c0 = weight_shape[2] / ic_unroll;
+  int fx = weight_shape[1];
+  int fy = weight_shape[0];
   int stride = strides[0];
 
   // conv1
-  if (input_shape[1] == 3 && input_shape[2] == 224 && input_shape[3] == 224 &&
-      weight_shape[0] == 64 && weight_shape[2] == 7 && weight_shape[3] == 7) {
+  if (input_shape[3] == 3 && input_shape[1] == 224 && input_shape[2] == 224 &&
+      weight_shape[3] == 64 && weight_shape[0] == 7 && weight_shape[1] == 7) {
     int fx;
     if (IC_DIMENSION == 4) {
       fx = 7;
@@ -586,11 +603,11 @@ Tiling get_pool2d_tiling(const codegen::OpOverload op) {
   const auto kwargs = op.kwargs();
   const auto input_shape = get_shape(kwargs.at("input").tensor());
 
-  int K = input_shape[1];
+  int Y = input_shape[1];
   int X = input_shape[2];
-  int Y = input_shape[3];
+  int K = input_shape[3];
 
-  int x0, y0, stride;
+  int x0, y0, stride, padding, x1, y1, k0, actual_padding;
 
   if (kwargs.contains("output_size")) {
     const auto output_size = kwargs.at("output_size").int_list().values();
@@ -600,19 +617,28 @@ Tiling get_pool2d_tiling(const codegen::OpOverload op) {
     stride = X / output_h;
     x0 = X - (output_h - 1) * stride;
     y0 = Y - (output_w - 1) * stride;
+
+    x1 = X / x0;
+    y1 = Y / y0;
+    k0 = K / OC_DIMENSION;
+    actual_padding = 0;
   } else {
     const auto kernel_size = kwargs.at("kernel_size").int_list().values();
     const auto strides = kwargs.at("stride").int_list().values();
 
-    x0 = kernel_size[0];
-    y0 = kernel_size[1];
+    y0 = kernel_size[0];
+    x0 = kernel_size[1];
     stride = strides[0];
+
+    // calculate ouptut dimension (ignoring padding, which will be handled in
+    // hw)
+    x1 = (X + 2 * padding - x0) / stride + 1;
+    y1 = (Y + 2 * padding - y0) / stride + 1;
+    // pytorch assumes padding on all direction, not all of the values are used
+    actual_padding = (x1 - 1) * stride + x0 - X;
+    k0 = K / OC_DIMENSION;
+
   }
-
-  int x1 = X / x0;
-  int y1 = Y / y0;
-  int k0 = K / OC_DIMENSION;
-
   return {
       .loops = {{x1, y1, 1, 1, 1, 1}, {1, k0, 1, 1, y0, x0}},
       .x_loop_index = {0, 5},

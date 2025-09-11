@@ -27,8 +27,8 @@ bool run_sample(std::string model_name, std::string data_dir,
 
   const auto model = network.model;
 
-  bool is_cnn = model_name == "resnet18" || model_name == "resnet50";
-  auto data_loader = std::make_unique<DataLoader>(memory.get(), false, is_cnn);
+
+ auto data_loader = std::make_unique<DataLoader>(memory.get(), false);
 
   int num_classes;
   if (model_name == "mobilebert" || model_name == "bert") {
@@ -44,19 +44,15 @@ bool run_sample(std::string model_name, std::string data_dir,
   // Load inputs and parameters
   std::string inputs_dir = data_dir + "/" + sample;
   for (const auto& tensor : model.inputs()) {
-    data_loader->load_tensor(tensor, inputs_dir, is_cnn);
+    data_loader->load_tensor(tensor, inputs_dir, false);
   }
 
-  // Fully connected layer, or linear ops with input of a 1D tensor, is run
-  // on the vector unit. Its weight does not need to be transposed. We check
-  // if an op is a FC by checking its output dimension. This should be
-  // improved in the future.
+
   std::string params_dir = std::string(getenv("CODEGEN_DIR")) + "/networks/" +
                            model_name + "/" + std::getenv("DATATYPE") +
                            "/tensor_files";
   for (const auto& tensor : model.parameters()) {
-    bool transpose_weight = tensor.shape(0) != num_classes;
-    data_loader->load_tensor(tensor, params_dir, transpose_weight);
+    data_loader->load_tensor(tensor, params_dir, false);
   }
 
   // Run inference

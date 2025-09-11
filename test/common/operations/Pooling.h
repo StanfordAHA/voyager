@@ -6,12 +6,21 @@ template <typename T>
 T *pooling(std::any input_ptr, const std::vector<int> &input_shape,
            const std::vector<int> &output_shape, int stride, int kernel_size,
            int padding, const bool is_max_pool) {
-  int input_height = input_shape[2];
-  int input_width = input_shape[3];
-  int input_depth = input_shape[1];
+  int input_height = input_shape[1];
+  int input_width = input_shape[2];
+  int input_depth = input_shape[3];
 
   int output_height = output_shape[0];
   int output_width = output_shape[1];
+
+  spdlog::debug("Performing {} pooling with kernel size {} and stride {}\n",
+                is_max_pool ? "max" : "average", kernel_size, stride);
+  spdlog::debug("Input shape: {}x{}x{}\n", input_height, input_width,
+                input_depth);
+  spdlog::debug("Output shape: {}x{}x{}\n", output_height, output_width,
+                input_depth);
+  spdlog::debug("Padding: {}\n", padding);
+
 
   T *inputs = std::any_cast<T *>(input_ptr);
 
@@ -65,7 +74,7 @@ T *adaptive_avg_pool2d(std::map<std::string, std::any> &kwargs,
   std::vector<int> output_shape{static_cast<int>(output_size[0]),
                                 static_cast<int>(output_size[1])};
 
-  int input_height = input_shape[2];
+  int input_height = input_shape[1];
   int output_height = output_shape[0];
 
   int stride = input_height / output_height;
@@ -91,8 +100,8 @@ T *max_pool2d(std::map<std::string, std::any> &kwargs,
   const auto kernel_size = op_kwargs.at("kernel_size").int_list().values()[0];
   const auto padding = op_kwargs.at("padding").int_list().values()[0];
 
-  int input_height = input_shape[2];
-  int input_width = input_shape[3];
+  int input_height = input_shape[1];
+  int input_width = input_shape[2];
 
   int output_height = (input_height + 2 * padding - kernel_size) / stride + 1;
   int output_width = (input_width + 2 * padding - kernel_size) / stride + 1;

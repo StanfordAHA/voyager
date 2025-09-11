@@ -269,8 +269,10 @@ def main():
             "linear_mx",
             "matmul_mx",
         ]:
+            print(f"Unsupported operation: {matrix_op.target}, skipping")
             continue
 
+        is_matmul = matrix_op.target in ["matmul", "matmul_mx"]
         weight_key = "weight" if "matmul" not in matrix_op.target else "other"
         weight = matrix_op.kwargs[weight_key].tensor
         if weight.HasField("reshape"):
@@ -288,14 +290,20 @@ def main():
 
         if len(weights_shape) == 4:
             # convolution
-            output_channels = weights_shape[0]
-            input_channels = weights_shape[1]
-            kernel_height = weights_shape[2]
-            kernel_width = weights_shape[3]
+            output_channels = weights_shape[3]
+            input_channels = weights_shape[2]
+            kernel_height = weights_shape[1]
+            kernel_width = weights_shape[0]
         elif len(weights_shape) == 2:
             # matrix multiplication
-            output_channels = weights_shape[0]
-            input_channels = weights_shape[1]
+            output_channels = weights_shape[1] if not is_matmul else weights_shape[0]
+            input_channels = weights_shape[0] if not is_matmul else weights_shape[1]
+            kernel_height = 1
+            kernel_width = 1
+        elif len(weights_shape) == 3:
+            # matrix multiplication
+            output_channels = weights_shape[1] if not is_matmul else weights_shape[-1]
+            input_channels = weights_shape[0] if not is_matmul else weights_shape[-2]
             kernel_height = 1
             kernel_width = 1
         else:
@@ -315,8 +323,8 @@ def main():
                     input_channels = output_channels
                     output_channels = output_shape[3]
             else:
-                height = output_shape[2]
-                width = output_shape[3]
+                height = output_shape[1]
+                width = output_shape[2]
         elif len(output_shape) == 3:
             assert output_shape[0] == 1
             width = output_shape[1]
@@ -346,6 +354,14 @@ def main():
 
             width = input_shape[1]
             height = 1
+
+        print(f"Input channels: {input_channels}")
+        print(f"Output channels: {output_channels}")
+        print(f"Input height: {height}")
+        print(f"Input width: {width}")
+        print(f"Kernel height: {kernel_height}")
+        print(f"Kernel width: {kernel_width}")
+        print(f"Stride: {stride}")
 
         layer = interstellar.Layer(
             nifm=input_channels,

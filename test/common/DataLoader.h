@@ -13,7 +13,7 @@
 
 class DataLoader {
  public:
-  DataLoader(MemoryInterface*, bool, bool);
+  DataLoader(MemoryInterface*, bool);
 
   void load_inputs(const codegen::Operation param, std::string data_dir,
                    bool random_data = false);
@@ -27,5 +27,4 @@ class DataLoader {
   MemoryInterface* memory_interface;
   // special addressing is sometimes needed for DUT memory (ex. replication)
   bool is_dut;
-  bool is_cnn;
 };

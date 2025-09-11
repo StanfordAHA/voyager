@@ -18,7 +18,7 @@ void MapPoolingOperation(const codegen::Operation &param,
   const auto input = pooling_op.kwargs().at("input").tensor();
 
   const auto output = param.output();
-  const int output_dim = output.shape(1);
+  const int output_dim = output.shape(3);
 
   // input
   const auto input_memory = input.memory();
