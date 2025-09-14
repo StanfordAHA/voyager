@@ -29,6 +29,23 @@ def adjust_gold_for_k_tiling(input_file, output_file, channel_size, total_num_ke
     with open(output_file, "w") as f:
         f.write("\n".join(result))
 
+def adjust_gold_for_zircon_conv1(input_file, output_file, slice_offset, out_img, n_oc):
+    tile_num_pixels = out_img * out_img * n_oc
+    with open(input_file, "r") as f:
+        lines = [line.strip() for line in f]
+
+    result = []
+    startpoint = slice_offset * n_oc
+    endpoint = startpoint + tile_num_pixels
+
+    # Shrink the gold file to only include the specified slice
+    for i, val in enumerate(lines):
+        if startpoint <= i < endpoint:
+            result.append(val)
+
+    with open(output_file, "w") as f:
+        f.write("\n".join(result))
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Zero out all micro-kernels except the selected one.")
 
@@ -38,7 +55,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
-    # Do nothing if K_DIM_HOST_TILING is not set
+    zircon_conv1_gold = "ZIRCON_CONV1_GOLD" in os.environ and os.environ["ZIRCON_CONV1_GOLD"] == "1"
+
+
     if k_dim_host_tiling:
         assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
         assert "K_DIM_HOST_TILING_IDX" in os.environ, "K_DIM_HOST_TILING_IDX environment variable must be set for K_DIM_HOST_TILING"
@@ -57,4 +76,28 @@ if __name__ == "__main__":
             n_oc,
             num_k_host_tiling_kernels,
             k_host_tiling_idx
+        )
+
+
+    elif zircon_conv1_gold:
+        assert "X_DIM_HOST_TILING_SLICE_OFFSET" in os.environ, "X_DIM_HOST_TILING_SLICE_OFFSET environment variable must be set for ZIRCON_CONV1_GOLD"
+
+        assert "HALIDE_GEN_ARGS" in os.environ, "HALIDE_GEN_ARGS environment variable must be set for ZIRCON_CONV1_GOLD"
+        HALIDE_GEN_ARGS = os.environ["HALIDE_GEN_ARGS"]
+        n_oc_match = re.search(r'n_oc=(\d+)', HALIDE_GEN_ARGS)
+        assert n_oc_match, "No n_oc in HALIDE_GEN_ARGS!"
+        n_oc = int(n_oc_match.group(1))
+
+        out_img = re.search(r'out_img=(\d+)', HALIDE_GEN_ARGS)
+        assert out_img, "No out_img in HALIDE_GEN_ARGS!"
+        out_img = int(out_img.group(1))
+
+        x_dim_host_tiling_slice_offset = int(os.environ["X_DIM_HOST_TILING_SLICE_OFFSET"])
+
+        adjust_gold_for_zircon_conv1(
+            args.input,
+            args.output,
+            x_dim_host_tiling_slice_offset,
+            out_img,
+            n_oc
         )

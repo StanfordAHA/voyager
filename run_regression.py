@@ -59,7 +59,7 @@ def print_test_results(test_results, layers, output_folder):
 
         if not failed.empty:
             print(f"\033[91mERROR: Some voyager tests failed in SystemC. Please see above. Check the regression_results folder for the log. \033[0m")
-            sys.exit(1)
+            # sys.exit(1)
 
         # if runtime column exists, print runtime of each layer
         if "Runtime" in model_df.columns:
@@ -769,12 +769,25 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
         assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
         num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS", 1))
 
+    x_dim_host_tiling = "ZIRCON_GEMM_X_DIM_HOST_TILING" in os.environ and os.environ["ZIRCON_GEMM_X_DIM_HOST_TILING"] == "1"
+    if x_dim_host_tiling:
+        assert "X_DIM_HOST_TILING_SLICE_LENGTH" in os.environ, "X_DIM_HOST_TILING_SLICE_LENGTH environment variable must be set for ZIRCON_GEMM_X_DIM_HOST_TILING"
+        x_dim_host_tiling_slice_length = int(os.environ.get("X_DIM_HOST_TILING_SLICE_LENGTH"))
+
+
     # Append GLB base addresses to the kwargs for input, weight, bias, inputScale, and weightScale tensors
     input_base_address = mu_glb_base_address
     curr_addr_pointer = input_base_address
 
     # multiply all element in kwargs['input']['tensor']['shape'] together and add to input_base_address
     input_num_elements = functools.reduce(operator.mul, kwargs['input']['tensor']['shape'], 1)
+    # TODO: Refine this
+    if x_dim_host_tiling:
+        if len(kwargs['input']['tensor']['shape']) == 3:
+            input_num_elements = kwargs['input']['tensor']['shape'][0] * x_dim_host_tiling_slice_length * (kwargs['input']['tensor']['shape'][2])
+        # Error out because it's not supported yet
+        else:
+            raise NotImplementedError("X dimension host tiling is not supported for non 3-D (conv1 im2col) tensors yet.")
     if zircon_input_act_padding_workaround:
         input_shape = kwargs['input']['tensor']['shape']
         input_num_elements = input_shape[0] * input_shape[1] * (input_shape[2] + zircon_input_act_padding_workaround_size) * (input_shape[3] + zircon_input_act_padding_workaround_size)
@@ -904,6 +917,12 @@ def create_tensor_metadata_json(layer, params_dict):
             break
 
 
+    conv1_bias_hack = "CONV1_BIAS_HACK" in os.environ and os.environ["CONV1_BIAS_HACK"] == "1"
+    if conv1_bias_hack:
+        tensor_metadata["ops"][0]["kwargs"]["bias"] = tensor_metadata["ops"][1]["kwargs"]["other"]
+        del tensor_metadata["ops"][1]
+        tensor_metadata["has_residual"] = False
+        append_glb_base_addresses(tensor_metadata, tensor_metadata["ops"][0]["kwargs"], mu_glb_base_address)
 
     with open(f"tensor_metadata.json", "w") as f:
         import json

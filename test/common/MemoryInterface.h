@@ -109,7 +109,8 @@ class MemoryInterface {
 
     for (const auto op : op_list) {
       for (const auto [key, value] : op.kwargs()) {
-        if (value.has_tensor() && value.tensor().has_memory()) {
+        if (value.has_tensor() &&
+            (value.tensor().has_memory() || get_size(value.tensor()) == 1)) {
           spdlog::debug("Pushing tensor: {}", value.tensor().node());
           kwargs[value.tensor().node()] = read_tensor(value.tensor());
         }

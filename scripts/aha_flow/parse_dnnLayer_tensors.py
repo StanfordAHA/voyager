@@ -49,16 +49,16 @@ def float32_to_bfloat16_bits(x):
 
 
 def write_list_to_hex(list, filename, start_addr=0):
-   #Write the entire tensor in hex format to a new file
-   with open(filename, 'w') as output_file:
-        output_file.write(f"TENSOR_EXISTS: 1\n")
-        output_file.write(f"SIZE: {len(list)}\n")
-        output_file.write(f"START_ADDR: {start_addr}\n")
-        for idx in range(len(list)):
-            value = list[idx]
-            output_file.write(str(f"{value:04x}"))
-            if idx != len(list) - 1:
-                output_file.write("\n")
+    #Write the entire tensor in hex format to a new file
+    with open(filename, 'w') as output_file:
+            output_file.write(f"TENSOR_EXISTS: 1\n")
+            output_file.write(f"SIZE: {len(list)}\n")
+            output_file.write(f"START_ADDR: {start_addr}\n")
+            for idx in range(len(list)):
+                value = list[idx]
+                output_file.write(str(f"{value:04x}"))
+                if idx != len(list) - 1:
+                    output_file.write("\n")
 
 def debug_print_tensors(input, input_int8, bias_bf16, inputScale_e8m0, weightScale_e8m0):
         # Print first 10 elements and max value
@@ -169,6 +169,18 @@ def parse_zircon_workarounds():
         num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS"))
         k_dim_host_tiling_idx = int(os.environ.get("K_DIM_HOST_TILING_IDX"))
 
+
+    # X dim host tiling for GEMM
+    x_dim_host_tiling = "ZIRCON_GEMM_X_DIM_HOST_TILING" in os.environ and os.environ["ZIRCON_GEMM_X_DIM_HOST_TILING"] == "1"
+    x_dim_host_tiling_slice_offset = 0
+    x_dim_host_tiling_slice_length = 0
+    if x_dim_host_tiling:
+        assert "X_DIM_HOST_TILING_SLICE_OFFSET" in os.environ, "X_DIM_HOST_TILING_SLICE_OFFSET environment variable must be set for ZIRCON_GEMM_X_DIM_HOST_TILING"
+        assert "X_DIM_HOST_TILING_SLICE_LENGTH" in os.environ, "X_DIM_HOST_TILING_SLICE_LENGTH environment variable must be set for ZIRCON_GEMM_X_DIM_HOST_TILING"
+        x_dim_host_tiling_slice_offset = int(os.environ.get("X_DIM_HOST_TILING_SLICE_OFFSET"))
+        x_dim_host_tiling_slice_length = int(os.environ.get("X_DIM_HOST_TILING_SLICE_LENGTH"))
+
+
     if zircon_inner_loop_reduction_workaround:
         print("\033[93mINFO: Zircon inner loop reduction workaround enabled. The outer channel loop is moved to the inner level. This should only be used to avoid the Zircon MU bug on Resnet downsample layers and in GEMM layers.\033[0m")
 
@@ -184,6 +196,9 @@ def parse_zircon_workarounds():
     if k_dim_host_tiling:
         print(f"\033[93mINFO: K dimension host tiling enabled. Using {num_k_host_tiling_kernels} kernels with index {k_dim_host_tiling_idx}.\033[0m")
 
+    if x_dim_host_tiling:
+        print(f"\033[93mINFO: X dimension host tiling enabled for GEMM. Using {x_dim_host_tiling_slice_offset} slice offset and {x_dim_host_tiling_slice_length} slice length along the x dimension. \033[0m")
+
 
     return {
         "zircon_fx_fy_stride_workaround": zircon_fx_fy_stride_workaround,
@@ -195,12 +210,15 @@ def parse_zircon_workarounds():
         "zircon_input_act_padding_workaround_stride": zircon_input_act_padding_workaround_stride,
         "k_dim_host_tiling": k_dim_host_tiling,
         "num_k_host_tiling_kernels": num_k_host_tiling_kernels,
-        "k_dim_host_tiling_idx": k_dim_host_tiling_idx
+        "k_dim_host_tiling_idx": k_dim_host_tiling_idx,
+        "x_dim_host_tiling": x_dim_host_tiling,
+        "x_dim_host_tiling_slice_offset": x_dim_host_tiling_slice_offset,
+        "x_dim_host_tiling_slice_length": x_dim_host_tiling_slice_length
     }
 
 
 def parse_input(base_path, input_tensor_data, zircon_workarounds):
-    # Shape is in format: (B, Y, X, IC)
+    # For conv2d, shape is in format: (B, Y, X, IC)
     input = read_tensor(base_path + input_tensor_data["node"] + ".bin", tuple(input_tensor_data["shape"]))
     if zircon_workarounds["zircon_input_act_padding_workaround"]:
         input = input.permute(0, 3, 1, 2)  # Re-order to (B, IC, Y, X)
@@ -210,13 +228,25 @@ def parse_input(base_path, input_tensor_data, zircon_workarounds):
     if zircon_workarounds["zircon_cgra_psum_workaround"]:
         input = input.reshape((input.shape[0], input.shape[1], input.shape[2], input.shape[3] // ZIRCON_MU_IC0, ZIRCON_MU_IC0))
         input = input.permute(3, 0, 1, 2, 4)
+    # TODO: May need to add this for residual as well
+    if zircon_workarounds["x_dim_host_tiling"]:
+        x_dim_host_tiling_slice_offset = zircon_workarounds["x_dim_host_tiling_slice_offset"]
+        x_dim_host_tiling_slice_length = zircon_workarounds["x_dim_host_tiling_slice_length"]
+        if len(input.shape) == 3:
+            # input = input.reshape((input.shape[0], num_x_host_tiling_kernels, input.shape[1] // num_x_host_tiling_kernels, input.shape[2]))
+            # input = input.permute(1, 0, 2, 3)
+            # input = input[x_dim_host_tiling_idx]
+            input = input[:, x_dim_host_tiling_slice_offset:x_dim_host_tiling_slice_offset + x_dim_host_tiling_slice_length, :]
+        # Error out becuase it's not supported yet
+        else:
+            raise NotImplementedError("X dimension host tiling is not supported for non 3-D (conv1 im2col) tensors yet.")
     input_int8 = input.to(torch.int8)
 
     return input_int8
 
 
 def parse_inputScale(base_path, inputScale_tensor_data, zircon_workarounds):
-    # Shape is in format: (B, Y, X, IC / BLOCK_SIZE)
+    # For conv2d, shape is in format: (B, Y, X, IC / BLOCK_SIZE)
     inputScale = read_tensor(base_path + inputScale_tensor_data["node"] + ".bin", tuple(inputScale_tensor_data["shape"]))
     if zircon_workarounds["zircon_input_act_padding_workaround"]:
         inputScale = inputScale.permute(0, 3, 1, 2)  # Re-order to (B, IC / BLOCK_SIZE, Y, X)
@@ -230,7 +260,7 @@ def parse_inputScale(base_path, inputScale_tensor_data, zircon_workarounds):
     return inputScale_e8m0
 
 def parse_weight(base_path, weight_tensor_data, zircon_workarounds):
-     # Shape is in format: (FY, FX, IC, OC)
+     # For conv2d, shape is in format: (FY, FX, IC, OC)
     weight = read_tensor(base_path + weight_tensor_data["node"] + ".bin", tuple(weight_tensor_data["shape"]))
     if zircon_workarounds["zircon_fx_fy_stride_workaround"]:
         weight = weight.permute(2, 3, 0, 1)  # Re-order to (IC, OC, FY, FX)
@@ -250,7 +280,7 @@ def parse_weight(base_path, weight_tensor_data, zircon_workarounds):
     return weight_int8
 
 def parse_weightScale(base_path, weightScale_tensor_data, zircon_workarounds):
-     # Shape is in format: (FY, FX, IC / BLOCK_SIZE, OC)
+     # For conv2d, shape is in format: (FY, FX, IC / BLOCK_SIZE, OC)
     weightScale = read_tensor(base_path + weightScale_tensor_data["node"] + ".bin", tuple(weightScale_tensor_data["shape"]))
     if zircon_workarounds["zircon_fx_fy_stride_workaround"]:
         weightScale = weightScale.permute(2, 3, 0, 1)  # Re-order to (IC / BLOCK_SIZE, OC, FY, FX)
@@ -269,7 +299,11 @@ def parse_weightScale(base_path, weightScale_tensor_data, zircon_workarounds):
     return weightScale_e8m0
 
 def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
-    bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", tuple(bias_tensor_data["shape"]))
+    bias_shape = bias_tensor_data["shape"]
+    for element in bias_shape:
+        if element == 1:
+            bias_shape.remove(element)
+    bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", bias_shape)
     if zircon_workarounds["zircon_cgra_psum_workaround"] and zircon_workarounds["psum_idx"] != 0:
         # If doing psum workaround, bias is zero for all but the 0th kernel
         # TODO: This should be improved in the future to just set the MU->has_bias config to false for such kernels
@@ -281,11 +315,10 @@ def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
         bias = bias.reshape((num_k_host_tiling_kernels, bias.shape[0] // num_k_host_tiling_kernels))
         bias = bias[k_dim_host_tiling_idx]
     bias_bf16 = float32_to_bfloat16_bits(bias)
-
     return bias_bf16
 
 def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds):
-    # Shape is in format: (B, Y, X, IC)
+    # For conv2d, shape is in format: (B, Y, X, IC)
     residual = read_tensor(base_path + residual_tensor_data["node"] + ".bin", tuple(residual_tensor_data["shape"]))
 
     if zircon_workarounds["zircon_fx_fy_stride_workaround"]:

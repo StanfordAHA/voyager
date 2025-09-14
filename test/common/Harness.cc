@@ -474,13 +474,15 @@ void Harness::sendParams() {
     const char* k_dim_host_tiling_env = std::getenv("K_DIM_HOST_TILING");
     const char* zircon_input_act_padding_workaround_env = std::getenv("ZIRCON_INPUT_ACT_PADDING_WORKAROUND");
     const char* zircon_inner_loop_reduction_workaround_env = std::getenv("ZIRCON_INNER_LOOP_REDUCTION_WORKAROUND");
+    const char* zircon_gemm_x_dim_host_tiling_env = std::getenv("ZIRCON_GEMM_X_DIM_HOST_TILING");
     bool dump_tiling = true;
     bool zircon_fx_fy_stride_workaround = zircon_fx_fy_stride_workaround_env && std::stoi(zircon_fx_fy_stride_workaround_env) == 1;
     bool zircon_cgra_psum_workaround = zircon_cgra_psum_workaround_env && std::stoi(zircon_cgra_psum_workaround_env) == 1;
     bool k_dim_host_tiling = k_dim_host_tiling_env && std::stoi(k_dim_host_tiling_env) == 1;
     bool zircon_input_act_padding_workaround = zircon_input_act_padding_workaround_env && std::stoi(zircon_input_act_padding_workaround_env) == 1;
     bool zircon_inner_loop_reduction_workaround = zircon_inner_loop_reduction_workaround_env && std::stoi(zircon_inner_loop_reduction_workaround_env) == 1;
-    bool hack_tiling = zircon_fx_fy_stride_workaround || zircon_cgra_psum_workaround || k_dim_host_tiling || zircon_input_act_padding_workaround || zircon_inner_loop_reduction_workaround;
+    bool zircon_gemm_x_dim_host_tiling = zircon_gemm_x_dim_host_tiling_env && std::stoi(zircon_gemm_x_dim_host_tiling_env) == 1;
+    bool hack_tiling = zircon_fx_fy_stride_workaround || zircon_cgra_psum_workaround || k_dim_host_tiling || zircon_input_act_padding_workaround || zircon_inner_loop_reduction_workaround || zircon_gemm_x_dim_host_tiling;
     // Last two args are dump tiling and hack tiling for the AHA flow
     MapOperation(currentOperation, dump_accelerator_params, dump_accelerator_memory_maps, dump_tiling, hack_tiling);
 
@@ -635,6 +637,12 @@ void Harness::sendParams() {
         if (tensor_metadata["has_bias"].get<bool>()) {
           std::cout << "Bias offset: " << bias_offset << std::endl;
           dumpMatrixParams->BIAS_OFFSET = bias_offset;
+        }
+
+        const char* conv1_bias_hack_env = std::getenv("CONV1_BIAS_HACK");
+        bool conv1_bias_hack = conv1_bias_hack_env && std::stoi(conv1_bias_hack_env) == 1;
+        if (conv1_bias_hack){
+          dumpMatrixParams->has_bias = true;
         }
 
         dumpSerializedParams<MatrixParams, 32>(*dumpMatrixParams);
