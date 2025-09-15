@@ -276,7 +276,16 @@ int Simulation::check_outputs() {
 
     std::string suffix = ".";
     if (outputs1.size() > 1) {
-      suffix = "_" + std::to_string(i)  + ".";
+      if (i == 0) {
+        suffix = "_scale.txt";
+      } else if (i == 1) {
+        suffix = "_activation.txt";
+      } else {
+        throw std::runtime_error("Output tensor index greater than 2 not supported yet.");
+      }
+      // suffix = "_" + std::to_string(i)  + ".";
+    } else {
+      suffix = "_activation.txt";
     }
 
     if (tensor.dtype() == "bfloat16") {
