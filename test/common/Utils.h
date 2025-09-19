@@ -18,7 +18,7 @@ float compare_arrays(std::any matrixA, std::string matrixA_name,
                      std::any matrixB, std::string matrixB_name, size_t size,
                      std::string filename_in, std::string suffix, bool doublePrecision, int size_of_typeB) {
 
-  std::string filename = filename_in + suffix + "txt";
+  std::string filename = filename_in + suffix;
   spdlog::info("Writing comparison between {} and {} to file: {}\n",
                matrixA_name, matrixB_name, filename);
   std::ofstream diffFile(filename);
@@ -27,7 +27,7 @@ float compare_arrays(std::any matrixA, std::string matrixA_name,
 
   std::ofstream gold_data_file;
   // Delete the file if it exists
-  std::string gold_data_filename = "gold_data" + suffix + "txt";
+  std::string gold_data_filename = "gold" + suffix;
   std::remove(gold_data_filename.c_str());
   gold_data_file.open(gold_data_filename, std::ios::app);
   if (!gold_data_file.is_open()) {
