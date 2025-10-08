@@ -7,6 +7,13 @@ from quantized_training.codegen import param_pb2
 from proto import tiling_pb2
 
 
+GLB_BANDWIDTH = 32 # assume 32 bytes per cycle (256 bits)
+GLB_ISCALE_BANDWIDTH = 1 # assume 1 byte per cycle (8 bits)
+DATATYPE_WIDTH = 1 # assume 8-bit inputs and weights (1 byte)
+IC_DIMENSION = 64 # assume 64 for now
+OC_DIMENSION = 32 # assume 32 for now
+MX_BLOCK_SIZE = 64
+
 class RuntimeCalculator:
     def __init__(self, operation, double_buffered_accum_buffer):
         self.operation = operation
@@ -48,7 +55,7 @@ class RuntimeCalculator:
             if mapping.loop_orders[i][1] >= first_non_ox_oy_index:
                 num_remaining_l1_tiles *= mapping.loop_blockings[i][1]
         # include the reduction loop at the L2 level
-        num_remaining_l1_tiles *= mapping.loop_blockings[interstellar.le.IC][2]
+        # num_remaining_l1_tiles *= mapping.loop_blockings[interstellar.le.IC][2]
 
         # calculate time for computation at the L1 level
         computation_l1_time = weight_reuse_tile_time * num_remaining_l1_tiles
@@ -61,8 +68,10 @@ class RuntimeCalculator:
         input_buffer_loading_size = 1
         for loop in input_relevant_loops:
             input_buffer_loading_size *= mapping.loop_blockings[loop][1]
-        # currently assume that each value in the input buffer is loaded in one cycle
-        input_buffer_loading_time = input_buffer_loading_size
+        # Input loading time = weight size / GLB bandwidth
+        input_buffer_loading_time = input_buffer_loading_size * DATATYPE_WIDTH * IC_DIMENSION // GLB_BANDWIDTH
+        # Input scale loading time = input scale size / GLB_ISCALE bandwidth
+        inputScale_buffer_loading_time = input_buffer_loading_size // MX_BLOCK_SIZE * DATATYPE_WIDTH * IC_DIMENSION // GLB_ISCALE_BANDWIDTH
 
         weight_relevant_loops = [
             interstellar.le.IC,
@@ -75,8 +84,10 @@ class RuntimeCalculator:
             weight_buffer_loading_size *= mapping.loop_blockings[loop][1]
         # include the unrolled reduction loop
         weight_buffer_loading_size *= mapping.loop_partitionings[interstellar.le.IC][0]
-        # currently assume that each value in the weight buffer is loaded in one cycle
-        weight_buffer_loading_time = weight_buffer_loading_size
+        # Weight loading time = weight size / GLB bandwidth
+        weight_buffer_loading_time = weight_buffer_loading_size * DATATYPE_WIDTH * OC_DIMENSION // GLB_BANDWIDTH
+        # Weight scale loading time = weight scale size / GLB bandwidth
+        weightScale_buffer_loading_time = weight_buffer_loading_size // MX_BLOCK_SIZE * DATATYPE_WIDTH * OC_DIMENSION // GLB_BANDWIDTH
 
         # calculate time for vector unit to process values from the accumulation buffer
         # for now, let's assume that all vector unit operations flow through the vector unit pipeline once.
@@ -132,18 +143,18 @@ class RuntimeCalculator:
                 vector_unit_time,
             )
 
-        l2_blocks = 1
+        total_l2_blocks = 1
         for i in range(interstellar.le.NUM):
-            # don't count the reduction loop here, since it's counted towards the number of L1 tiles
-            if i == interstellar.le.IC:
-                continue
-            l2_blocks *= mapping.loop_blockings[i][2]
+            # # don't count the reduction loop here, since it's counted towards the number of L1 tiles
+            # if i == interstellar.le.IC:
+            #     continue
+            total_l2_blocks *= mapping.loop_blockings[i][2]
 
         if self.double_buffered_accum_buffer:
             total_time = (
                 # initial buffer loading time
                 max(input_buffer_loading_time, weight_buffer_loading_time)
-                + l2_blocks * l1_time
+                + total_l2_blocks * l1_time
                 # time for last tile to be processed by vector unit
                 + vector_unit_time
             )
@@ -155,12 +166,36 @@ class RuntimeCalculator:
             else:
                 extra_vector_unit_time = 0
 
-            total_time = (
-                # initial buffer loading time
-                max(input_buffer_loading_time, weight_buffer_loading_time)
-                + l2_blocks * l1_time
-                + extra_vector_unit_time
-            )
+            compute_bound_runtime = ((input_buffer_loading_time + weight_buffer_loading_time + inputScale_buffer_loading_time + weightScale_buffer_loading_time)
+                                    + (total_l2_blocks * computation_l1_time))
+
+            num_weight_l2_tiles = total_l2_blocks
+            # If OY and OX loops are the innermost L2 loops, then there is extra reuse at the L1 level, meaning fewer L2 tiles are needed
+            if (mapping.loop_blockings[interstellar.le.IC][2] == 1):
+                if (mapping.loop_orders[interstellar.le.OC][2] > mapping.loop_orders[interstellar.le.OY][2]):
+                    num_weight_l2_tiles = num_weight_l2_tiles // mapping.loop_blockings[interstellar.le.OY][2]
+
+                if (mapping.loop_orders[interstellar.le.OC][2] > mapping.loop_orders[interstellar.le.OX][2]):
+                    num_weight_l2_tiles = num_weight_l2_tiles // mapping.loop_blockings[interstellar.le.OX][2]
+
+
+            # Add the time to load all the tensors from L2 to L1 instead of taking max b/c Zircon has a single unified L2 to L1 interface
+            memory_bound_runtime = (total_l2_blocks * (input_buffer_loading_time + inputScale_buffer_loading_time)
+                                    + num_weight_l2_tiles * (weight_buffer_loading_time + weightScale_buffer_loading_time)
+                                    + computation_l1_time)
+
+            total_time = max(compute_bound_runtime, memory_bound_runtime) + extra_vector_unit_time
+
+
+            # total_time = (
+            #     # initial buffer loading time
+            #     max(input_buffer_loading_time, weight_buffer_loading_time)
+            #     + total_l2_blocks * l1_time
+            #     + extra_vector_unit_time
+            # )
+
+            # print("Extra vector unit time = ", extra_vector_unit_time)
+            # print("Total time for layer = ", total_time)
 
         return total_time
 
@@ -210,7 +245,7 @@ def main():
                 args.accum_buffer_size * args.OC_dimension,
                 args.weight_buffer_size * args.OC_dimension,
             ],  # L1 buffer
-            [12 * 1024 * 1024],  # L2 main memory
+            [1792 * 1024],  # L2 main memory
         ],
         memory_partitions=[[0, 1, 2], [0, 1, 2], [0, 0, 0]],
         buf_access_cost_list=[[1, 1, 1], [10, 10, 10], [100]],
