@@ -168,16 +168,20 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
   printf("Using ZIRCON HARDCODED TILING for %s\n", param.name().c_str());
   const auto kwargs = param.kwargs();
   const auto input = kwargs.at("input").tensor();
-  const auto weight = kwargs.at("weight").tensor();
-  const auto strides = kwargs.at("stride").int_list().values();
+  const auto weight = kwargs.contains("weight") ? kwargs.at("weight").tensor() : kwargs.at("other").tensor();
+  int stride = 1;
+
+  if (kwargs.contains("stride")) {
+    const auto strides = kwargs.at("stride").int_list().values();
+    stride = strides[0];
+  }
 
   const auto input_shape = get_shape(input);
   const auto weight_shape = get_shape(weight);
-  int stride = strides[0];
 
   // submodule (conv1 im2col GEMM), tiled into 4 sub-kernels along x dim
-  if (input_shape[3] == 192 && input_shape[1] == 112 && input_shape[2] == 112 &&
-      weight_shape[3] == 64 && weight_shape[0] == 1 && weight_shape[1] == 1 && stride == 1) {
+  if (input_shape[2] == 192 && input_shape[1] == 12544 && input_shape[0] == 1 &&
+      weight_shape[1] == 64 && weight_shape[0] == 192 && stride == 1) {
 
     tiling = {
           .loops = {{1, 1, 32, 1, 1, 1}, {3, 1, 1, 1, 2, 98}},
