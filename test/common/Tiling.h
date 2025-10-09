@@ -27,4 +27,5 @@ Tiling get_conv2d_tiling(const codegen::OpOverload param);
 Tiling get_linear_tiling(const codegen::OpOverload param);
 Tiling get_pool2d_tiling(const codegen::OpOverload param);
 Tiling get_zircon_fx_fy_stride_workaround_tiling(const codegen::OpOverload param);
+Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param);
 void adjust_tiling_for_dimension(Tiling& tiling);
