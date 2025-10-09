@@ -253,7 +253,7 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
       weight_shape[3] == 512 && weight_shape[0] == 1 && weight_shape[1] == 1 && stride == 2) {
 
         tiling = {
-          .loops = {{1, 1, 2, 2, 1, 1}, {2, 1, 1, 8, 7, 7}},
+          .loops = {{1, 1, 2, 2, 1, 1}, {2, 1, 1, 8, 8, 8}},
           .x_loop_index = {1, 5},
           .y_loop_index = {0, 4},
           .reduction_loop_index = {3, 0},
