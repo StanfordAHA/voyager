@@ -475,6 +475,7 @@ void Harness::sendParams() {
     const char* zircon_input_act_padding_workaround_env = std::getenv("ZIRCON_INPUT_ACT_PADDING_WORKAROUND");
     const char* zircon_inner_loop_reduction_workaround_env = std::getenv("ZIRCON_INNER_LOOP_REDUCTION_WORKAROUND");
     const char* zircon_gemm_x_dim_host_tiling_env = std::getenv("ZIRCON_GEMM_X_DIM_HOST_TILING");
+    const char* zircon_hardcoded_tiling_env = std::getenv("ZIRCON_HARDCODED_TILING");
     bool dump_tiling = true;
     bool zircon_fx_fy_stride_workaround = zircon_fx_fy_stride_workaround_env && std::stoi(zircon_fx_fy_stride_workaround_env) == 1;
     bool zircon_cgra_psum_workaround = zircon_cgra_psum_workaround_env && std::stoi(zircon_cgra_psum_workaround_env) == 1;
@@ -482,7 +483,8 @@ void Harness::sendParams() {
     bool zircon_input_act_padding_workaround = zircon_input_act_padding_workaround_env && std::stoi(zircon_input_act_padding_workaround_env) == 1;
     bool zircon_inner_loop_reduction_workaround = zircon_inner_loop_reduction_workaround_env && std::stoi(zircon_inner_loop_reduction_workaround_env) == 1;
     bool zircon_gemm_x_dim_host_tiling = zircon_gemm_x_dim_host_tiling_env && std::stoi(zircon_gemm_x_dim_host_tiling_env) == 1;
-    bool hack_tiling = zircon_fx_fy_stride_workaround || zircon_cgra_psum_workaround || k_dim_host_tiling || zircon_input_act_padding_workaround || zircon_inner_loop_reduction_workaround || zircon_gemm_x_dim_host_tiling;
+    bool zircon_hardcoded_tiling = zircon_hardcoded_tiling_env && std::stoi(zircon_hardcoded_tiling_env) == 1;
+    bool hack_tiling = zircon_fx_fy_stride_workaround || zircon_cgra_psum_workaround || k_dim_host_tiling || zircon_input_act_padding_workaround || zircon_inner_loop_reduction_workaround || zircon_gemm_x_dim_host_tiling || zircon_hardcoded_tiling;
     // Last two args are dump tiling and hack tiling for the AHA flow
     MapOperation(currentOperation, dump_accelerator_params, dump_accelerator_memory_maps, dump_tiling, hack_tiling);
 

@@ -40,6 +40,9 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
   const char* env_var = std::getenv("MANUAL_TILING");
   bool manual_tiling = env_var ? std::stoi(env_var) : false;
 
+  const char* zircon_hardcoded_tiling_env = std::getenv("ZIRCON_HARDCODED_TILING");
+  bool zircon_hardcoded_tiling = zircon_hardcoded_tiling_env && std::stoi(zircon_hardcoded_tiling_env) == 1;
+
   const char* zircon_fx_fy_stride_workaround_env = std::getenv("ZIRCON_FX_FY_STRIDE_WORKAROUND");
   bool zircon_fx_fy_stride_workaround = zircon_fx_fy_stride_workaround_env && std::stoi(zircon_fx_fy_stride_workaround_env) == 1;
 
@@ -71,6 +74,8 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
     } else {
       tiling = get_linear_tiling(first_op);
     }
+  } else if(zircon_hardcoded_tiling && hack_tiling) {
+      tiling = get_zircon_hardcoded_tiling(first_op);
   } else if (zircon_fx_fy_stride_workaround && hack_tiling) {
         tiling = get_zircon_fx_fy_stride_workaround_tiling(first_op);
   } else {
@@ -151,6 +156,116 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
       tiling.loops[0][tiling.x_loop_index[0]] = 14;
       tiling.loops[1][tiling.x_loop_index[1]] = 224;
     }
+  }
+
+  return tiling;
+}
+
+
+Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
+  Tiling tiling;
+
+  printf("Using ZIRCON HARDCODED TILING for %s\n", param.name().c_str());
+  const auto kwargs = param.kwargs();
+  const auto input = kwargs.at("input").tensor();
+  const auto weight = kwargs.contains("weight") ? kwargs.at("weight").tensor() : kwargs.at("other").tensor();
+  int stride = 1;
+
+  if (kwargs.contains("stride")) {
+    const auto strides = kwargs.at("stride").int_list().values();
+    stride = strides[0];
+  }
+
+  const auto input_shape = get_shape(input);
+  const auto weight_shape = get_shape(weight);
+
+  // submodule (conv1 im2col GEMM), tiled into 4 sub-kernels along x dim
+  if (input_shape[2] == 192 && input_shape[1] == 12544 && input_shape[0] == 1 &&
+      weight_shape[1] == 64 && weight_shape[0] == 192 && stride == 1) {
+
+    tiling = {
+          .loops = {{1, 1, 32, 1, 1, 1}, {3, 1, 1, 1, 2, 98}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+
+  // submodule_3 (conv2_x)
+ } else if (input_shape[3] == 64 && input_shape[1] == 56 && input_shape[2] == 56 &&
+      weight_shape[3] == 64 && weight_shape[0] == 3 && weight_shape[1] == 3 && stride == 1) {
+
+    tiling = {
+          .loops = {{2, 4, 2, 1, 1, 1}, {1, 1, 3, 3, 14, 28}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {1, 4},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {0, 1},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {4, 5},
+          .stride = 1,
+          .replication = false,
+      };
+
+  // conv2d_mx_default_6 (conv3_x)
+  } else if (input_shape[3] == 128 && input_shape[1] == 28 && input_shape[2] == 28 &&
+      weight_shape[3] == 128 && weight_shape[0] == 3 && weight_shape[1] == 3 && stride == 1) {
+
+        tiling = {
+          .loops = {{4, 2, 2, 2, 1, 1}, {1, 1, 3, 3, 14, 14}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {1, 4},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {0, 1},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {4, 5},
+          .stride = 1,
+          .replication = false,
+      };
+
+
+  // conv2d_mx_default_11 (conv4_x)
+  } else if (input_shape[3] == 256 && input_shape[1] == 14 && input_shape[2] == 14 &&
+      weight_shape[3] == 256 && weight_shape[0] == 3 && weight_shape[1] == 3 && stride == 1) {
+
+        tiling = {
+          .loops = {{1, 1, 8, 4, 1, 1}, {1, 1, 3, 3, 14, 14}},
+          .x_loop_index = {1, 5},
+          .y_loop_index = {0, 4},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {2, 1},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {4, 5},
+          .stride = 1,
+          .replication = false,
+      };
+
+  // submodule_15 (conv5 downsample)
+  } else if (input_shape[3] == 256 && input_shape[1] == 14 && input_shape[2] == 14 &&
+      weight_shape[3] == 512 && weight_shape[0] == 1 && weight_shape[1] == 1 && stride == 2) {
+
+        tiling = {
+          .loops = {{1, 1, 2, 2, 1, 1}, {2, 1, 1, 8, 8, 8}},
+          .x_loop_index = {1, 5},
+          .y_loop_index = {0, 4},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {2, 3},
+          .fx_index = 2,
+          .fy_index = 1,
+          .weight_reuse_index = {4, 5},
+          .stride = 2,
+          .replication = false,
+      };
+  } else {
+     throw std::runtime_error("Zircon hardcoded tiling not implemented for this layer!");
   }
 
   return tiling;
