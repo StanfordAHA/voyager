@@ -3,7 +3,7 @@
 
 E4M3_FLAGS := --activation fp8_e4m3 --weight fp8_e4m3 --bf16
 P8_1_FLAGS := --activation posit8_1 --weight posit8_1 --bf16
-INT8_FLAGS := --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --bias int24 --bf16 --calibration_steps 10
+INT8_FLAGS := --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --bias bfloat16 --bf16 --calibration_steps 10
 INT8_32_FLAGS := --activation int8,qs=per_tensor_symmetric --weight int8,qs=per_tensor_symmetric --bias int32 --bf16 --calibration_steps 10
 BLOCK_SIZE := $(shell [ $(IC_DIMENSION) -gt $(OC_DIMENSION) ] && echo $(IC_DIMENSION) || echo $(OC_DIMENSION))
 MXINT8_FLAGS := --activation int8,qs=microscaling,bs=$(BLOCK_SIZE) --weight int8,qs=microscaling,bs=$(BLOCK_SIZE) --force_scale_power_of_two --bf16
@@ -23,7 +23,7 @@ endif
 ################################################################################
 $(CODEGEN_DIR)/networks/resnet18/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python quantized-training/test/test_codegen.py resnet18 $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) --conv2d_im2col $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
+	python quantized-training/test/test_codegen.py resnet18 $(INT8_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) --conv2d_im2col $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
 $(CODEGEN_DIR)/networks/resnet50/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
