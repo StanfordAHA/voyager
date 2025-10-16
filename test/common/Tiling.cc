@@ -230,6 +230,23 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
+  // submodule_7 (conv3_downsample)
+  } else if (input_shape[3] == 64 && input_shape[1] == 56 && input_shape[2] == 56 &&
+      weight_shape[3] == 128 && weight_shape[0] == 1 && weight_shape[1] == 1 && stride == 2) {
+
+      tiling = {
+          .loops = {{2, 2, 1, 1, 1, 1}, {1, 4, 1, 1, 14, 14}},
+          .x_loop_index = {1, 5},
+          .y_loop_index = {0, 4},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {2, 1},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {4, 5},
+          .stride = 2,
+          .replication = false,
+      };
+
 
   // conv2d_mx_default_11 (conv4_x)
   } else if (input_shape[3] == 256 && input_shape[1] == 14 && input_shape[2] == 14 &&
@@ -248,7 +265,6 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
-  // submodule_15 (conv5 downsample)
   } else if (input_shape[3] == 256 && input_shape[1] == 14 && input_shape[2] == 14 &&
       weight_shape[3] == 512 && weight_shape[0] == 1 && weight_shape[1] == 1 && stride == 2) {
 
