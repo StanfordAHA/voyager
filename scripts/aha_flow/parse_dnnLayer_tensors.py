@@ -26,6 +26,16 @@ def read_tensor(filename, tensor_shape):
     tensor = torch.tensor(unpacked_data).reshape(tensor_shape)
     return tensor
 
+def get_scale_from_bin(filename):
+    with open(filename, 'rb') as f:
+        file_content = f.read()
+
+        num_elements = len(file_content) // struct.calcsize('f')
+        print(f"INFO: Read {num_elements} elements from binary file {filename}")
+        unpacked_data = struct.unpack(f'{num_elements}f', file_content)
+
+        tensor = torch.tensor(unpacked_data).reshape(1,)
+        return tensor[0].item()
 
 def float_to_e8m0(x):
     # Assume input is a float32 tensor
@@ -353,7 +363,29 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
 
     return residual_bf16
 
-def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
+def write_per_tensor_scales(tensor_metadata, base_path, output_dir):
+    scales = {}
+    for op in tensor_metadata["ops"]:
+        op_name = op["name"]
+        # Look for dequantize and quantize ops to find the names of the per-tensor scales
+        if "dequantize_default" in op_name:
+            dequantize_scale_file_name = op["kwargs"]["scale"]["tensor"]["node"]
+            dequantize_scale = get_scale_from_bin(f"{base_path}{dequantize_scale_file_name}.bin")
+            print(f"Read dequantize scale {dequantize_scale} from {base_path}{dequantize_scale_file_name}.bin")
+            scales["dequantize_scale"] = dequantize_scale
+        if "quantize_default" in op_name and "dequantize_default" not in op_name:
+            quantize_scale_file_name = op["kwargs"]["scale"]["tensor"]["node"]
+            # For quantize, take the reciprocal so we can still use fpmul
+            quantize_scale = 1.0/get_scale_from_bin(f"{base_path}{quantize_scale_file_name}.bin")
+            print(f"Read quantize scale {quantize_scale} from {base_path}{quantize_scale_file_name}.bin")
+            scales["quantize_scale"] = quantize_scale
+
+    with open(f"{output_dir}/per_tensor_scales.txt", "w") as f:
+        for key in scales:
+            f.write(f"{key}: {scales[key]}\n")
+
+
+def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scaling=False):
     # Base path for the binary files
     base_path = f'/aha/voyager/test/compiler/networks/{model}/{datatype}/tensor_files/'
 
@@ -417,6 +449,14 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
                             break
         residual_bf16 = parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
 
+
+
+    output_dir = f'/aha/voyager/compiled_collateral/{model}-{layer}/tensor_files/'
+
+    # Per tensor scaling factors (read them and write out as floating point values)
+    if per_tensor_scaling:
+        write_per_tensor_scales(tensor_metadata, base_path, output_dir)
+
     torch.set_printoptions(precision=10)
 
     # For psum_workoround, if not kernel 0, read prior kernel output from text file and convert to raw binary file
@@ -432,8 +472,6 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
 
     if debug_mode:
         debug_print_tensors(input, input_int8, bias_bf16, inputScale_e8m0, weightScale_e8m0)
-
-    output_dir = f'/aha/voyager/compiled_collateral/{model}-{layer}/tensor_files/'
 
     # Write the tensors to hex files in tensor_files directory
     write_all_tensors_to_hex(
@@ -451,7 +489,6 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode):
         weightScale_start_addr=weightScale_start_addr if has_weight_scale else 0,
     )
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Parse DNN layer tensors from binary files and convert them to hex files.')
     parser.add_argument('--model', type=str, required=True, help='Model name (e.g., resnet18)')
@@ -459,7 +496,8 @@ if __name__ == "__main__":
     parser.add_argument('--datatype', type=str, default='MXINT8', help='Data type of the tensors')
     parser.add_argument('--h2h_dir', type=str, required=True, default='/aha/Halide-to-Hardware/', help='Path to Halide-to-Hardware directory')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode to print tensor values')
+    parser.add_argument('--per-tensor-scaling', action='store_true', help='Read and dump scales for per-tensor scaling (default is microscaling)')
 
     args = parser.parse_args()
 
-    parse_tensors(args.model, args.layer, args.datatype, args.h2h_dir, args.debug)
+    parse_tensors(args.model, args.layer, args.datatype, args.h2h_dir, args.debug, per_tensor_scaling=args.per_tensor_scaling)
