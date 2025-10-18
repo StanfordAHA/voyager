@@ -264,7 +264,7 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
-  // conv2d_mx_default_11 (conv4_x)
+  // conv4_x
   } else if (input_shape[3] == 256 && input_shape[1] == 14 && input_shape[2] == 14 &&
       weight_shape[3] == 256 && weight_shape[0] == 3 && weight_shape[1] == 3 && stride == 1) {
 
