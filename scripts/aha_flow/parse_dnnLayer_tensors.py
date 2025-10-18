@@ -153,13 +153,18 @@ def parse_zircon_workarounds():
     # Workarounds to avoid Zircon MU bug on Resnet downsample layers
     zircon_fx_fy_stride_workaround = "ZIRCON_FX_FY_STRIDE_WORKAROUND" in os.environ and os.environ["ZIRCON_FX_FY_STRIDE_WORKAROUND"] == "1"
     zircon_cgra_psum_workaround = "ZIRCON_CGRA_PSUM_WORKAROUND" in os.environ and os.environ["ZIRCON_CGRA_PSUM_WORKAROUND"] == "1"
+    zircon_outer_reduction_tiling_workaround = "ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND" in os.environ and os.environ["ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND"] == "1"
     psum_idx = 0
     num_psums = 1
-    if zircon_cgra_psum_workaround:
-        assert "PSUM_IDX" in os.environ, "PSUM_IDX environment variable must be set for ZIRCON_CGRA_PSUM_WORKAROUND"
-        assert "NUM_PSUMS" in os.environ, "NUM_PSUMS environment variable must be set for ZIRCON_CGRA_PSUM_WORKAROUND"
+    if zircon_cgra_psum_workaround or zircon_outer_reduction_tiling_workaround:
+        assert "PSUM_IDX" in os.environ, "PSUM_IDX environment variable must be set for ZIRCON_CGRA_PSUM_WORKAROUND or ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND"
+        assert "NUM_PSUMS" in os.environ, "NUM_PSUMS environment variable must be set for ZIRCON_CGRA_PSUM_WORKAROUND or ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND"
         psum_idx = int(os.environ["PSUM_IDX"])
         num_psums = int(os.environ["NUM_PSUMS"])
+
+    if zircon_outer_reduction_tiling_workaround:
+        assert "INTERMEDIATE_GOLD_DIR" in os.environ, "INTERMEDIATE_GOLD_DIR environment variable must be set for ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND"
+        intermediate_gold_dir = os.environ["INTERMEDIATE_GOLD_DIR"]
 
     # Input padding workaround for Zircon MU inability to handle some layer shapes
     zircon_input_act_padding_workaround = "ZIRCON_INPUT_ACT_PADDING_WORKAROUND" in os.environ and os.environ["ZIRCON_INPUT_ACT_PADDING_WORKAROUND"] == "1"
@@ -197,6 +202,9 @@ def parse_zircon_workarounds():
     if zircon_cgra_psum_workaround:
         print(f"\033[93mINFO: Zircon CGRA PSUM workaround enabled to avoid MU bug on downsample layers. Using PSUM index {psum_idx}. There are {num_psums} total PSUMs.\033[0m")
 
+    if zircon_outer_reduction_tiling_workaround:
+        print(f"\033[93mINFO: Zircon outer channel tiling workaround enabled to avoid MU bug on downsample layers. Using PSUM index {psum_idx}. There are {num_psums} total PSUMs.\033[0m")
+
     if zircon_fx_fy_stride_workaround:
         print("\033[93mINFO: Zircon FX, FY stride workaround enabled to avoid MU bug on downsample layers.\033[0m")
 
@@ -213,6 +221,8 @@ def parse_zircon_workarounds():
     return {
         "zircon_fx_fy_stride_workaround": zircon_fx_fy_stride_workaround,
         "zircon_cgra_psum_workaround": zircon_cgra_psum_workaround,
+        "zircon_outer_reduction_tiling_workaround": zircon_outer_reduction_tiling_workaround,
+        "intermediate_gold_dir": intermediate_gold_dir,
         "psum_idx": psum_idx,
         "num_psums": num_psums,
         "zircon_input_act_padding_workaround": zircon_input_act_padding_workaround,
@@ -235,7 +245,7 @@ def parse_input(base_path, input_tensor_data, zircon_workarounds):
         pad_dim = zircon_workarounds["zircon_input_act_padding_workaround_size"] * zircon_workarounds["zircon_input_act_padding_workaround_stride"]
         input = F.pad(input, pad=(0, pad_dim, 0, pad_dim)) # Pad X and Y dimensions with zeros
         input = input.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
-    if zircon_workarounds["zircon_cgra_psum_workaround"]:
+    if zircon_workarounds["zircon_cgra_psum_workaround"] or zircon_workarounds["zircon_outer_reduction_tiling_workaround"]:
         input = input.reshape((input.shape[0], input.shape[1], input.shape[2], input.shape[3] // ZIRCON_MU_IC0, ZIRCON_MU_IC0))
         input = input.permute(3, 0, 1, 2, 4)
     # TODO: May need to add this for residual as well
@@ -263,7 +273,7 @@ def parse_inputScale(base_path, inputScale_tensor_data, zircon_workarounds):
         pad_dim = zircon_workarounds["zircon_input_act_padding_workaround_size"] * zircon_workarounds["zircon_input_act_padding_workaround_stride"]
         inputScale = F.pad(inputScale, pad=(0, pad_dim, 0, pad_dim)) # Pad X and Y dimensions with zeros
         inputScale = inputScale.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC / BLOCK_SIZE)
-    if zircon_workarounds["zircon_cgra_psum_workaround"]:
+    if zircon_workarounds["zircon_cgra_psum_workaround"] or zircon_workarounds["zircon_outer_reduction_tiling_workaround"]:
         inputScale = inputScale.permute(3, 0, 1, 2)
     inputScale_e8m0 = float_to_e8m0(inputScale)
 
@@ -276,7 +286,7 @@ def parse_weight(base_path, weight_tensor_data, zircon_workarounds):
         weight = weight.permute(2, 3, 0, 1)  # Re-order to (IC, OC, FY, FX)
         weight = F.pad(weight, pad=(0, 2, 0, 2))
         weight = weight.permute(2, 3, 0, 1)  # Re-order back to (FY, FX, IC, OC)
-    if zircon_workarounds["zircon_cgra_psum_workaround"]:
+    if zircon_workarounds["zircon_cgra_psum_workaround"] or zircon_workarounds["zircon_outer_reduction_tiling_workaround"]:
         weight = weight.reshape((weight.shape[0], weight.shape[1], weight.shape[2] // ZIRCON_MU_IC0, ZIRCON_MU_IC0, weight.shape[3]))
         weight = weight.permute(2, 0, 1, 3, 4)
     if zircon_workarounds["k_dim_host_tiling"]:
@@ -296,7 +306,7 @@ def parse_weightScale(base_path, weightScale_tensor_data, zircon_workarounds):
         weightScale = weightScale.permute(2, 3, 0, 1)  # Re-order to (IC / BLOCK_SIZE, OC, FY, FX)
         weightScale = F.pad(weightScale, pad=(0, 2, 0, 2))
         weightScale = weightScale.permute(2, 3, 0, 1)  # Re-order back to (FY, FX, IC / BLOCK_SIZE, OC)
-    if zircon_workarounds["zircon_cgra_psum_workaround"]:
+    if zircon_workarounds["zircon_cgra_psum_workaround"] or zircon_workarounds["zircon_outer_reduction_tiling_workaround"]:
         weightScale = weightScale.permute(2, 0, 1, 3)
     if zircon_workarounds["k_dim_host_tiling"]:
         num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
@@ -314,7 +324,7 @@ def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
         if element == 1:
             bias_shape.remove(element)
     bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", bias_shape)
-    if zircon_workarounds["zircon_cgra_psum_workaround"] and zircon_workarounds["psum_idx"] != 0:
+    if ((zircon_workarounds["zircon_cgra_psum_workaround"] or zircon_workarounds["zircon_outer_reduction_tiling_workaround"]) and zircon_workarounds["psum_idx"] != 0):
         # If doing psum workaround, bias is zero for all but the 0th kernel
         # TODO: This should be improved in the future to just set the MU->has_bias config to false for such kernels
         bias = torch.zeros(tuple(bias_tensor_data["shape"]), dtype=torch.float32)
@@ -469,6 +479,18 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
         else:
             hw_output_raw_path = f'{h2h_dir}/hw_partial_sum_input_stencil.raw'
         hw_output_txt_to_raw(hw_output_txt_path, hw_output_raw_path)
+
+    # For outer channel tiling workaround, if not kernel 0, read prior kernel output from text file and convert to raw binary file
+    if zircon_workarounds["zircon_outer_reduction_tiling_workaround"] and (zircon_workarounds["psum_idx"] != 0):
+        hw_output_txt_path = f'{zircon_workarounds["intermediate_gold_dir"]}/{model}-{layer}_gold/kernel_{zircon_workarounds["psum_idx"] - 1}_output.txt'
+        assert os.path.exists(hw_output_txt_path), f"The prior kernel output file {hw_output_txt_path} does not exist."
+        # For the last psum, write to hw_residual_input_stencil.raw, otherwise write to hw_partial_sum_input_stencil.raw
+        if zircon_workarounds["psum_idx"] == (zircon_workarounds["num_psums"] - 1):
+            hw_output_raw_path = f'{h2h_dir}/hw_residual_input_stencil.raw'
+        else:
+            hw_output_raw_path = f'{h2h_dir}/hw_partial_sum_input_stencil.raw'
+        hw_output_txt_to_raw(hw_output_txt_path, hw_output_raw_path)
+
 
     if debug_mode:
         debug_print_tensors(input, input_int8, bias_bf16, inputScale_e8m0, weightScale_e8m0)
