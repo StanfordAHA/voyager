@@ -162,9 +162,9 @@ def parse_zircon_workarounds():
         psum_idx = int(os.environ["PSUM_IDX"])
         num_psums = int(os.environ["NUM_PSUMS"])
 
-    if zircon_outer_reduction_tiling_workaround:
-        assert "INTERMEDIATE_GOLD_DIR" in os.environ, "INTERMEDIATE_GOLD_DIR environment variable must be set for ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND"
-        intermediate_gold_dir = os.environ["INTERMEDIATE_GOLD_DIR"]
+    # if zircon_outer_reduction_tiling_workaround:
+    #     assert "INTERMEDIATE_GOLD_DIR" in os.environ, "INTERMEDIATE_GOLD_DIR environment variable must be set for ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND"
+    #     intermediate_gold_dir = os.environ["INTERMEDIATE_GOLD_DIR"]
 
     # Input padding workaround for Zircon MU inability to handle some layer shapes
     zircon_input_act_padding_workaround = "ZIRCON_INPUT_ACT_PADDING_WORKAROUND" in os.environ and os.environ["ZIRCON_INPUT_ACT_PADDING_WORKAROUND"] == "1"
@@ -222,7 +222,7 @@ def parse_zircon_workarounds():
         "zircon_fx_fy_stride_workaround": zircon_fx_fy_stride_workaround,
         "zircon_cgra_psum_workaround": zircon_cgra_psum_workaround,
         "zircon_outer_reduction_tiling_workaround": zircon_outer_reduction_tiling_workaround,
-        "intermediate_gold_dir": intermediate_gold_dir,
+        # "intermediate_gold_dir": intermediate_gold_dir,
         "psum_idx": psum_idx,
         "num_psums": num_psums,
         "zircon_input_act_padding_workaround": zircon_input_act_padding_workaround,
@@ -363,6 +363,7 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
     residual_bf16 = float32_to_bfloat16_bits(residual)
     residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
 
+    # TODO: Probably need to add logic for zircon_outer_reduction_tiling_workaround here as well
     if zircon_workarounds["zircon_cgra_psum_workaround"] and (zircon_workarounds["psum_idx"] == 0):
         residual_bf16_be.tofile(f'{h2h_dir}/hw_partial_sum_input_stencil.raw')
     # Write the residual_bf16_be to a raw file except for psum workaround middle kernels
@@ -482,7 +483,7 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
 
     # For outer channel tiling workaround, if not kernel 0, read prior kernel output from text file and convert to raw binary file
     if zircon_workarounds["zircon_outer_reduction_tiling_workaround"] and (zircon_workarounds["psum_idx"] != 0):
-        hw_output_txt_path = f'{zircon_workarounds["intermediate_gold_dir"]}/{model}-{layer}_gold/kernel_{zircon_workarounds["psum_idx"] - 1}_output.txt'
+        hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_psum_reduction_fp/per_tensor_{model}-{layer}_gold/kernel_{zircon_workarounds["psum_idx"] - 1}_output.txt'
         assert os.path.exists(hw_output_txt_path), f"The prior kernel output file {hw_output_txt_path} does not exist."
         # For the last psum, write to hw_residual_input_stencil.raw, otherwise write to hw_partial_sum_input_stencil.raw
         if zircon_workarounds["psum_idx"] == (zircon_workarounds["num_psums"] - 1):
