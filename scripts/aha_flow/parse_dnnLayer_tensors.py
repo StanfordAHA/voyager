@@ -340,6 +340,7 @@ def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
 def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds):
     # For conv2d, shape is in format: (B, Y, X, IC)
     residual = read_tensor(base_path + residual_tensor_data["node"] + ".bin", tuple(residual_tensor_data["shape"]))
+    # breakpoint()
 
     if zircon_workarounds["zircon_fx_fy_stride_workaround"]:
         residual = residual.permute(0, 3, 1, 2)  # Re-order to (B, IC, Y, X)
@@ -354,12 +355,12 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
         residual = F.pad(residual, pad=(0, zircon_workarounds["zircon_input_act_padding_workaround_size"], 0, zircon_workarounds["zircon_input_act_padding_workaround_size"]), value=-1000) # Pad with -1000 instead of 0s to catch potential bugs
         residual = residual.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
 
-    if zircon_workarounds["k_dim_host_tiling"]:
-        num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
-        k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
-        residual = residual.reshape((residual.shape[0], residual.shape[1], residual.shape[2], num_k_host_tiling_kernels, residual.shape[3] // num_k_host_tiling_kernels))
-        residual = residual.permute(3, 0, 1, 2, 4)
-        residual = residual[k_dim_host_tiling_idx]
+    # if zircon_workarounds["k_dim_host_tiling"]:
+    #     num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
+    #     k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
+    #     residual = residual.reshape((residual.shape[0], residual.shape[1], residual.shape[2], num_k_host_tiling_kernels, residual.shape[3] // num_k_host_tiling_kernels))
+    #     residual = residual.permute(3, 0, 1, 2, 4)
+    #     residual = residual[k_dim_host_tiling_idx]
     residual_bf16 = float32_to_bfloat16_bits(residual)
     residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
 
