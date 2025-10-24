@@ -848,7 +848,7 @@ def create_tensor_metadata_json(layer, params_dict):
         "layer_name": layer,
         "has_input": True,
         "has_input_scale": False,
-        "has_weight": True,
+        "has_weight": False,
         "has_weight_scale": False,
         "has_bias": False,
         "has_residual": False,

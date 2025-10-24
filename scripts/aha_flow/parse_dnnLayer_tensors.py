@@ -88,15 +88,21 @@ def debug_print_tensors(input, input_int8, bias_bf16, inputScale_e8m0, weightSca
 
 def write_all_tensors_to_hex(
         output_dir,
-        input_int8=None, weight_int8=None, bias_bf16=None, inputScale_e8m0=None, weightScale_e8m0=None, residual_bf16=None,
+        input_int8=None, input_bf16=None, weight_int8=None, bias_bf16=None, inputScale_e8m0=None, weightScale_e8m0=None, residual_bf16=None,
         input_start_addr=0, weight_start_addr=0, bias_start_addr=0, inputScale_start_addr=0, weightScale_start_addr=0,
-        residual_start_addr="set by io_placement",
+        residual_start_addr="set by io_placement", input_bf16_start_addr="set by io_placement"
     ):
 
         if input_int8 is not None:
             write_list_to_hex(input_int8.numpy().tobytes(), output_dir + 'input_hex.txt', input_start_addr)
         else:
             with open(output_dir + 'input_hex.txt', 'w') as f:
+                f.write("TENSOR_EXISTS: 0\n")
+
+        if input_bf16 is not None:
+            write_list_to_hex(input_bf16, output_dir + 'input_bf16_hex.txt', input_bf16_start_addr)
+        else:
+            with open(output_dir + 'input_bf16_hex.txt', 'w') as f:
                 f.write("TENSOR_EXISTS: 0\n")
 
         if weight_int8 is not None:
@@ -340,7 +346,6 @@ def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
 def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds):
     # For conv2d, shape is in format: (B, Y, X, IC)
     residual = read_tensor(base_path + residual_tensor_data["node"] + ".bin", tuple(residual_tensor_data["shape"]))
-    # breakpoint()
 
     if zircon_workarounds["zircon_fx_fy_stride_workaround"]:
         residual = residual.permute(0, 3, 1, 2)  # Re-order to (B, IC, Y, X)
@@ -375,6 +380,19 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
 
     return residual_bf16
 
+def parse_input_bf16(base_path, input_tensor_data, h2h_dir, zircon_workarounds):
+    # For conv2d, shape is in format: (B, Y, X, IC)
+    input= read_tensor(base_path + input_tensor_data["node"] + ".bin", tuple(input_tensor_data["shape"]))
+
+    input_bf16 = float32_to_bfloat16_bits(input)
+    input_bf16_be = input_bf16.byteswap().newbyteorder('>')
+    input_bf16_be.tofile(f'{h2h_dir}/hw_input_stencil.raw')
+
+    # Flatten input_bf16 and convert to a python list
+    input_bf16 = input_bf16.flatten().tolist()
+
+    return input_bf16
+
 def write_per_tensor_scales(tensor_metadata, base_path, output_dir):
     scales = {}
     for op in tensor_metadata["ops"]:
@@ -397,7 +415,7 @@ def write_per_tensor_scales(tensor_metadata, base_path, output_dir):
             f.write(f"{key}: {scales[key]}\n")
 
 
-def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scaling=False):
+def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scaling=False, standalone_cgra_test=False):
     # Base path for the binary files
     base_path = f'/aha/voyager/test/compiler/networks/{model}/{datatype}/tensor_files/'
 
@@ -416,8 +434,11 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     # INPUT
     if has_input:
         input_tensor_data = tensor_metadata["ops"][0]["kwargs"]["input"]["tensor"]
-        input_start_addr = input_tensor_data["glb_base_address"]
-        input_int8 = parse_input(base_path, input_tensor_data, zircon_workarounds)
+        if not(standalone_cgra_test):
+            input_start_addr = input_tensor_data["glb_base_address"]
+            input_int8 = parse_input(base_path, input_tensor_data, zircon_workarounds)
+        else:
+            input_bf16 = parse_input_bf16(base_path, input_tensor_data, h2h_dir, zircon_workarounds)
 
     # INPUT SCALE
     if has_input_scale:
@@ -500,13 +521,14 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     # Write the tensors to hex files in tensor_files directory
     write_all_tensors_to_hex(
         output_dir,
-        input_int8=input_int8 if has_input else None,
+        input_int8=input_int8 if has_input and not(standalone_cgra_test) else None,
+        input_bf16=input_bf16 if has_input and standalone_cgra_test else None,
         weight_int8=weight_int8 if has_weight else None,
         bias_bf16=bias_bf16 if has_bias else None,
         inputScale_e8m0=inputScale_e8m0 if has_input_scale else None,
         weightScale_e8m0=weightScale_e8m0 if has_weight_scale else None,
         residual_bf16=residual_bf16 if has_residual else None,
-        input_start_addr=input_start_addr if has_input else 0,
+        input_start_addr=input_start_addr if has_input and not(standalone_cgra_test) else 0,
         weight_start_addr=weight_start_addr if has_weight else 0,
         bias_start_addr=bias_start_addr if has_bias else 0,
         inputScale_start_addr=inputScale_start_addr if has_input_scale else 0,
@@ -521,7 +543,8 @@ if __name__ == "__main__":
     parser.add_argument('--h2h_dir', type=str, required=True, default='/aha/Halide-to-Hardware/', help='Path to Halide-to-Hardware directory')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode to print tensor values')
     parser.add_argument('--per-tensor-scaling', action='store_true', help='Read and dump scales for per-tensor scaling (default is microscaling)')
+    parser.add_argument('--standalone-cgra-test', action='store_true', help='Enable standalone CGRA test mode')
 
     args = parser.parse_args()
 
-    parse_tensors(args.model, args.layer, args.datatype, args.h2h_dir, args.debug, per_tensor_scaling=args.per_tensor_scaling)
+    parse_tensors(args.model, args.layer, args.datatype, args.h2h_dir, args.debug, per_tensor_scaling=args.per_tensor_scaling, standalone_cgra_test=args.standalone_cgra_test)
