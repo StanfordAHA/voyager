@@ -175,6 +175,7 @@ def parse_zircon_workarounds():
     # Input padding workaround for Zircon MU inability to handle some layer shapes
     zircon_input_act_padding_workaround = "ZIRCON_INPUT_ACT_PADDING_WORKAROUND" in os.environ and os.environ["ZIRCON_INPUT_ACT_PADDING_WORKAROUND"] == "1"
     zircon_input_act_padding_workaround_size = 0
+    zircon_input_act_padding_workaround_stride = 1
     if zircon_input_act_padding_workaround:
         assert "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE" in os.environ, "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE environment variable must be set for ZIRCON_INPUT_ACT_PADDING_WORKAROUND"
         zircon_input_act_padding_workaround_size = int(os.environ.get("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE"))
