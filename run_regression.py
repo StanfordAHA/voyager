@@ -764,6 +764,9 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
     if zircon_input_act_padding_workaround:
         assert "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE" in os.environ, "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE environment variable must be set for ZIRCON_INPUT_ACT_PADDING_WORKAROUND"
         zircon_input_act_padding_workaround_size = int(os.environ.get("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE", 0))
+        assert "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_STRIDE" in os.environ, "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_STRIDE environment variable must be set for ZIRCON_INPUT_ACT_PADDING_WORKAROUND"
+        zircon_input_act_padding_workaround_stride = int(os.environ.get("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_STRIDE", 0))
+        pad_dim = zircon_input_act_padding_workaround_size * zircon_input_act_padding_workaround_stride
     k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
     if k_dim_host_tiling:
         assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
@@ -790,7 +793,7 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
             raise NotImplementedError("X dimension host tiling is not supported for non 3-D (conv1 im2col) tensors yet.")
     if zircon_input_act_padding_workaround:
         input_shape = kwargs['input']['tensor']['shape']
-        input_num_elements = input_shape[0] * (input_shape[1] + zircon_input_act_padding_workaround_size) * (input_shape[2] + zircon_input_act_padding_workaround_size) * input_shape[3]
+        input_num_elements = input_shape[0] * (input_shape[1] + pad_dim) * (input_shape[2] + pad_dim) * input_shape[3]
     curr_addr_pointer = input_base_address + math.ceil(input_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
 
@@ -798,7 +801,7 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
         inputScale_num_elements = functools.reduce(operator.mul, kwargs['input_scale']['tensor']['shape'], 1)
         if zircon_input_act_padding_workaround:
             inputScale_shape = kwargs['input_scale']['tensor']['shape']
-            inputScale_num_elements = inputScale_shape[0] * (inputScale_shape[1] + zircon_input_act_padding_workaround_size) * (inputScale_shape[2] + zircon_input_act_padding_workaround_size) * inputScale_shape[3]
+            inputScale_num_elements = inputScale_shape[0] * (inputScale_shape[1] + pad_dim) * (inputScale_shape[2] + pad_dim) * inputScale_shape[3]
         inputScale_base_address = curr_addr_pointer
         curr_addr_pointer += math.ceil(inputScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 

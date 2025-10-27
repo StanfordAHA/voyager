@@ -178,7 +178,8 @@ def parse_zircon_workarounds():
     if zircon_input_act_padding_workaround:
         assert "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE" in os.environ, "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE environment variable must be set for ZIRCON_INPUT_ACT_PADDING_WORKAROUND"
         zircon_input_act_padding_workaround_size = int(os.environ.get("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE"))
-    zircon_input_act_padding_workaround_stride = int(os.environ.get("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_STRIDE", 1))
+        assert "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_STRIDE" in os.environ, "ZIRCON_INPUT_ACT_PADDING_WORKAROUND_STRIDE environment variable must be set for ZIRCON_INPUT_ACT_PADDING_WORKAROUND"
+        zircon_input_act_padding_workaround_stride = int(os.environ.get("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_STRIDE"))
 
     # K dimension host tiling: used in resnet18 conv5 in Zircon
     k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
