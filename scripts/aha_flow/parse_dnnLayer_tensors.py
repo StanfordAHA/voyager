@@ -353,7 +353,6 @@ def parse_bias(base_path, bias_tensor_data, h2h_dir, zircon_workarounds, standal
             bias_shape.remove(element)
     bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", bias_shape)
 
-    breakpoint()
     if zircon_workarounds["pad_oc"]:
         oc_dim = bias.shape[-1]
         padded_oc_dim = math.ceil(oc_dim / ZIRCON_MU_WORD_NUM_BYTES) * ZIRCON_MU_WORD_NUM_BYTES
@@ -502,7 +501,6 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     has_residual = tensor_metadata["has_residual"]
 
     zircon_workarounds = parse_zircon_workarounds()
-    breakpoint()
 
     # INPUT
     if has_input:
