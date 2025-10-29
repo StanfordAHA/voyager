@@ -353,6 +353,7 @@ def parse_bias(base_path, bias_tensor_data, h2h_dir, zircon_workarounds, standal
             bias_shape.remove(element)
     bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", bias_shape)
 
+    breakpoint()
     if zircon_workarounds["pad_oc"]:
         oc_dim = bias.shape[-1]
         padded_oc_dim = math.ceil(oc_dim / ZIRCON_MU_WORD_NUM_BYTES) * ZIRCON_MU_WORD_NUM_BYTES
@@ -501,6 +502,7 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     has_residual = tensor_metadata["has_residual"]
 
     zircon_workarounds = parse_zircon_workarounds()
+    breakpoint()
 
     # INPUT
     if has_input:
@@ -538,7 +540,7 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
         bias_tensor_data = tensor_metadata["ops"][0]["kwargs"]["bias"]["tensor"]
         if not(standalone_cgra_test):
             bias_start_addr = bias_tensor_data["glb_base_address"]
-            bias_bf16 = parse_bias(base_path, bias_tensor_data, zircon_workarounds, standalone_cgra_test)
+            bias_bf16 = parse_bias(base_path, bias_tensor_data, h2h_dir, zircon_workarounds, standalone_cgra_test)
         else:
             bias_bf16_cgra = parse_bias(base_path, bias_tensor_data, h2h_dir, zircon_workarounds, standalone_cgra_test)
 
