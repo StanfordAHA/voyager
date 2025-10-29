@@ -14,6 +14,7 @@ import json
 # consumable by the AHA flow.
 
 ZIRCON_MU_IC0 = 64
+ZIRCON_MU_WORD_NUM_BYTES = 32
 
 def read_tensor(filename, tensor_shape):
     with open(filename, 'rb') as f:
@@ -88,9 +89,9 @@ def debug_print_tensors(input, input_int8, bias_bf16, inputScale_e8m0, weightSca
 
 def write_all_tensors_to_hex(
         output_dir,
-        input_int8=None, input_bf16=None, weight_int8=None, bias_bf16=None, inputScale_e8m0=None, weightScale_e8m0=None, residual_bf16=None,
+        input_int8=None, input_bf16_cgra=None, weight_int8=None, weight_bf16_cgra=None, bias_bf16=None, bias_bf16_cgra=None, inputScale_e8m0=None, weightScale_e8m0=None, residual_bf16=None,
         input_start_addr=0, weight_start_addr=0, bias_start_addr=0, inputScale_start_addr=0, weightScale_start_addr=0,
-        residual_start_addr="set by io_placement", input_bf16_start_addr="set by io_placement"
+        residual_start_addr="set by io_placement", input_bf16_cgra_start_addr="set by io_placement", weight_bf16_cgra_start_addr="set by io_placement", bias_bf16_cgra_start_addr="set by io_placement"
     ):
 
         if input_int8 is not None:
@@ -99,10 +100,16 @@ def write_all_tensors_to_hex(
             with open(output_dir + 'input_hex.txt', 'w') as f:
                 f.write("TENSOR_EXISTS: 0\n")
 
-        if input_bf16 is not None:
-            write_list_to_hex(input_bf16, output_dir + 'input_bf16_hex.txt', input_bf16_start_addr)
+        if input_bf16_cgra is not None:
+            write_list_to_hex(input_bf16_cgra, output_dir + 'input_bf16_cgra_hex.txt', input_bf16_cgra_start_addr)
         else:
-            with open(output_dir + 'input_bf16_hex.txt', 'w') as f:
+            with open(output_dir + 'input_bf16_cgra_hex.txt', 'w') as f:
+                f.write("TENSOR_EXISTS: 0\n")
+
+        if weight_bf16_cgra is not None:
+            write_list_to_hex(weight_bf16_cgra, output_dir + 'weight_bf16_cgra_hex.txt', weight_bf16_cgra_start_addr)
+        else:
+            with open(output_dir + 'weight_bf16_cgra_hex.txt', 'w') as f:
                 f.write("TENSOR_EXISTS: 0\n")
 
         if weight_int8 is not None:
@@ -115,6 +122,12 @@ def write_all_tensors_to_hex(
             write_list_to_hex(bias_bf16, output_dir + 'bias_hex.txt', bias_start_addr)
         else:
             with open(output_dir + 'bias_hex.txt', 'w') as f:
+                f.write("TENSOR_EXISTS: 0\n")
+
+        if bias_bf16_cgra is not None:
+            write_list_to_hex(bias_bf16_cgra, output_dir + 'bias_bf16_cgra_hex.txt', bias_bf16_cgra_start_addr)
+        else:
+            with open(output_dir + 'bias_bf16_cgra_hex.txt', 'w') as f:
                 f.write("TENSOR_EXISTS: 0\n")
 
         if inputScale_e8m0 is not None:
@@ -203,6 +216,9 @@ def parse_zircon_workarounds():
         x_dim_host_tiling_slice_offset = int(os.environ.get("X_DIM_HOST_TILING_SLICE_OFFSET"))
         x_dim_host_tiling_slice_length = int(os.environ.get("X_DIM_HOST_TILING_SLICE_LENGTH"))
 
+    # Padding OC dimension for fully connected layers
+    pad_oc = "PAD_OC" in os.environ and os.environ["PAD_OC"] == "1"
+
 
     if zircon_inner_loop_reduction_workaround:
         print("\033[93mINFO: Zircon inner loop reduction workaround enabled. The outer channel loop is moved to the inner level. This should only be used to avoid the Zircon MU bug on Resnet downsample layers and in GEMM layers.\033[0m")
@@ -225,6 +241,9 @@ def parse_zircon_workarounds():
     if x_dim_host_tiling:
         print(f"\033[93mINFO: X dimension host tiling enabled for GEMM. Using {x_dim_host_tiling_slice_offset} slice offset and {x_dim_host_tiling_slice_length} slice length along the x dimension. \033[0m")
 
+    if pad_oc:
+        print("\033[93mINFO: OC dimension padding is turned on.\033[0m")
+
 
     return {
         "zircon_fx_fy_stride_workaround": zircon_fx_fy_stride_workaround,
@@ -241,7 +260,8 @@ def parse_zircon_workarounds():
         "k_dim_host_tiling_idx": k_dim_host_tiling_idx,
         "x_dim_host_tiling": x_dim_host_tiling,
         "x_dim_host_tiling_slice_offset": x_dim_host_tiling_slice_offset,
-        "x_dim_host_tiling_slice_length": x_dim_host_tiling_slice_length
+        "x_dim_host_tiling_slice_length": x_dim_host_tiling_slice_length,
+        "pad_oc": pad_oc
     }
 
 
@@ -326,12 +346,20 @@ def parse_weightScale(base_path, weightScale_tensor_data, zircon_workarounds):
 
     return weightScale_e8m0
 
-def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
+def parse_bias(base_path, bias_tensor_data, h2h_dir, zircon_workarounds, standalone_cgra_test=False):
     bias_shape = bias_tensor_data["shape"]
     for element in bias_shape:
         if element == 1:
             bias_shape.remove(element)
     bias = read_tensor(base_path + bias_tensor_data["node"] + ".bin", bias_shape)
+
+    if zircon_workarounds["pad_oc"]:
+        oc_dim = bias.shape[-1]
+        padded_oc_dim = math.ceil(oc_dim / ZIRCON_MU_WORD_NUM_BYTES) * ZIRCON_MU_WORD_NUM_BYTES
+        pad_size = padded_oc_dim - oc_dim
+        bias = F.pad(bias, (0, pad_size), "constant", 0)
+        print(f"INFO: Padded bias OC dimension from {oc_dim} to {padded_oc_dim} for fully connected layer.")
+
     if ((zircon_workarounds["zircon_cgra_psum_workaround"] or zircon_workarounds["zircon_outer_reduction_tiling_workaround"]) and zircon_workarounds["psum_idx"] != 0):
         # If doing psum workaround, bias is zero for all but the 0th kernel
         # TODO: This should be improved in the future to just set the MU->has_bias config to false for such kernels
@@ -343,6 +371,11 @@ def parse_bias(base_path, bias_tensor_data, zircon_workarounds):
         bias = bias.reshape((num_k_host_tiling_kernels, bias.shape[0] // num_k_host_tiling_kernels))
         bias = bias[k_dim_host_tiling_idx]
     bias_bf16 = float32_to_bfloat16_bits(bias)
+
+    if standalone_cgra_test:
+        bias_bf16_be = bias_bf16.byteswap().newbyteorder('>')
+        bias_bf16_be.tofile(f'{h2h_dir}/hw_bias_stencil.raw')
+
     return bias_bf16
 
 def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds):
@@ -382,18 +415,54 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
 
     return residual_bf16
 
-def parse_input_bf16(base_path, input_tensor_data, h2h_dir, zircon_workarounds):
+def parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarounds):
     # For conv2d, shape is in format: (B, Y, X, IC)
     input= read_tensor(base_path + input_tensor_data["node"] + ".bin", tuple(input_tensor_data["shape"]))
 
-    input_bf16 = float32_to_bfloat16_bits(input)
-    input_bf16_be = input_bf16.byteswap().newbyteorder('>')
-    input_bf16_be.tofile(f'{h2h_dir}/hw_input_stencil.raw')
+    input_bf16_cgra = float32_to_bfloat16_bits(input)
+    input_bf16_cgra_be = input_bf16_cgra.byteswap().newbyteorder('>')
+    input_bf16_cgra_be.tofile(f'{h2h_dir}/hw_input_stencil.raw')
 
-    # Flatten input_bf16 and convert to a python list
-    input_bf16 = input_bf16.flatten().tolist()
+    # Flatten input_bf16_cgra and convert to a python list
+    input_bf16_cgra = input_bf16_cgra.flatten().tolist()
 
-    return input_bf16
+    return input_bf16_cgra
+
+def parse_weight_bf16_cgra(base_path, weight_tensor_data, h2h_dir, zircon_workarounds):
+    # For conv2d, shape is in format: (Y, X, IC, OC)
+    weight = read_tensor(base_path + weight_tensor_data["node"] + ".bin", tuple(weight_tensor_data["shape"]))
+
+    # Pad to multiple of 32
+    if zircon_workarounds["pad_oc"]:
+        assert len(weight.shape) == 2, "PAD_OC is only supported for fully connected layers with 2D weight tensors."
+        oc_dim = weight.shape[0]
+        padded_oc_dim = math.ceil(oc_dim / ZIRCON_MU_WORD_NUM_BYTES) * ZIRCON_MU_WORD_NUM_BYTES
+        pad_size = padded_oc_dim - oc_dim
+        weight = F.pad(weight, (0, 0, 0, pad_size), "constant", 0)
+        print(f"INFO: Padded weight OC dimension from {oc_dim} to {padded_oc_dim} for fully connected layer.")
+
+
+    if zircon_workarounds["k_dim_host_tiling"]:
+        num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
+        k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
+        # Fully connected layers have 2D weight tensors
+        if len(weight.shape) == 2:
+            weight = weight.reshape((num_k_host_tiling_kernels, weight.shape[0] // num_k_host_tiling_kernels, weight.shape[1]))
+        else:
+            # throw exception
+            exception_message = f"Error: K dimension host tiling is only supported for fully connected layers with 2D weight tensors in CGRA standalone test mode. Weight tensor shape: {weight.shape}"
+            raise NotImplementedError(exception_message)
+
+        weight = weight[k_dim_host_tiling_idx]
+
+    weight_bf16_cgra = float32_to_bfloat16_bits(weight)
+    weight_bf16_cgra_be = weight_bf16_cgra.byteswap().newbyteorder('>')
+    weight_bf16_cgra_be.tofile(f'{h2h_dir}/hw_weight_stencil.raw')
+
+    # Flatten weight_bf16_cgra and convert to a python list
+    weight_bf16_cgra = weight_bf16_cgra.flatten().tolist()
+
+    return weight_bf16_cgra
 
 def write_per_tensor_scales(tensor_metadata, base_path, output_dir):
     scales = {}
@@ -440,7 +509,7 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
             input_start_addr = input_tensor_data["glb_base_address"]
             input_int8 = parse_input(base_path, input_tensor_data, zircon_workarounds)
         else:
-            input_bf16 = parse_input_bf16(base_path, input_tensor_data, h2h_dir, zircon_workarounds)
+            input_bf16_cgra = parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarounds)
 
     # INPUT SCALE
     if has_input_scale:
@@ -451,8 +520,11 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     # WEIGHT
     if has_weight:
         weight_tensor_data = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]
-        weight_start_addr = weight_tensor_data["glb_base_address"]
-        weight_int8 = parse_weight(base_path, weight_tensor_data, zircon_workarounds)
+        if not(standalone_cgra_test):
+            weight_start_addr = weight_tensor_data["glb_base_address"]
+            weight_int8 = parse_weight(base_path, weight_tensor_data, zircon_workarounds)
+        else:
+            weight_bf16_cgra = parse_weight_bf16_cgra(base_path, weight_tensor_data, h2h_dir, zircon_workarounds)
 
     # WEIGHT SCALE
     if has_weight_scale:
@@ -464,8 +536,11 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     # BIAS
     if has_bias:
         bias_tensor_data = tensor_metadata["ops"][0]["kwargs"]["bias"]["tensor"]
-        bias_start_addr = bias_tensor_data["glb_base_address"]
-        bias_bf16 = parse_bias(base_path, bias_tensor_data, zircon_workarounds)
+        if not(standalone_cgra_test):
+            bias_start_addr = bias_tensor_data["glb_base_address"]
+            bias_bf16 = parse_bias(base_path, bias_tensor_data, zircon_workarounds, standalone_cgra_test)
+        else:
+            bias_bf16_cgra = parse_bias(base_path, bias_tensor_data, h2h_dir, zircon_workarounds, standalone_cgra_test)
 
     # RESIDUAL
     if has_residual:
@@ -524,15 +599,17 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     write_all_tensors_to_hex(
         output_dir,
         input_int8=input_int8 if has_input and not(standalone_cgra_test) else None,
-        input_bf16=input_bf16 if has_input and standalone_cgra_test else None,
-        weight_int8=weight_int8 if has_weight else None,
-        bias_bf16=bias_bf16 if has_bias else None,
+        input_bf16_cgra=input_bf16_cgra if has_input and standalone_cgra_test else None,
+        weight_int8=weight_int8 if has_weight and not(standalone_cgra_test) else None,
+        weight_bf16_cgra=weight_bf16_cgra if has_weight and standalone_cgra_test else None,
+        bias_bf16=bias_bf16 if has_bias and not(standalone_cgra_test) else None,
+        bias_bf16_cgra=bias_bf16_cgra if has_bias and standalone_cgra_test else None,
         inputScale_e8m0=inputScale_e8m0 if has_input_scale else None,
         weightScale_e8m0=weightScale_e8m0 if has_weight_scale else None,
         residual_bf16=residual_bf16 if has_residual else None,
         input_start_addr=input_start_addr if has_input and not(standalone_cgra_test) else 0,
-        weight_start_addr=weight_start_addr if has_weight else 0,
-        bias_start_addr=bias_start_addr if has_bias else 0,
+        weight_start_addr=weight_start_addr if has_weight and not(standalone_cgra_test) else 0,
+        bias_start_addr=bias_start_addr if has_bias and not(standalone_cgra_test) else 0,
         inputScale_start_addr=inputScale_start_addr if has_input_scale else 0,
         weightScale_start_addr=weightScale_start_addr if has_weight_scale else 0,
     )
