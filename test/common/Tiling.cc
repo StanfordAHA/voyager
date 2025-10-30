@@ -49,6 +49,9 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
   const char* zircon_cgra_psum_workaround_env = std::getenv("ZIRCON_CGRA_PSUM_WORKAROUND");
   bool zircon_cgra_psum_workaround = zircon_cgra_psum_workaround_env && std::stoi(zircon_cgra_psum_workaround_env) == 1;
 
+  const char* zircon_outer_reduction_tiling_workaround_env = std::getenv("ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND");
+  bool zircon_outer_reduction_tiling_workaround = zircon_outer_reduction_tiling_workaround_env && std::stoi(zircon_outer_reduction_tiling_workaround_env) == 1;
+
   const char* k_dim_host_tiling_env = std::getenv("K_DIM_HOST_TILING");
   bool k_dim_host_tiling = k_dim_host_tiling_env && std::stoi(k_dim_host_tiling_env) == 1;
 
@@ -96,7 +99,7 @@ Tiling get_tiling(const Operation& operation, bool hack_tiling) {
     }
 
     // PSUM workaround for Zircon. MU reduction loop bounds must be 1 for MU to work.
-    if (zircon_cgra_psum_workaround && hack_tiling) {
+    if ((zircon_cgra_psum_workaround || zircon_outer_reduction_tiling_workaround) && hack_tiling) {
       tiling.loops[0][tiling.reduction_loop_index[0]] = 1;
       tiling.loops[1][tiling.reduction_loop_index[1]] = 1;
     }
@@ -213,12 +216,12 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
-  // conv2d_mx_default_6 (conv3_x)
+  // conv3_x
   } else if (input_shape[3] == 128 && input_shape[1] == 28 && input_shape[2] == 28 &&
       weight_shape[3] == 128 && weight_shape[0] == 3 && weight_shape[1] == 3 && stride == 1) {
 
         tiling = {
-          .loops = {{4, 2, 2, 2, 1, 1}, {1, 1, 3, 3, 14, 14}},
+          .loops = {{4, 2, 1, 2, 1, 1}, {1, 1, 3, 3, 14, 28}},
           .x_loop_index = {2, 5},
           .y_loop_index = {1, 4},
           .reduction_loop_index = {3, 0},
@@ -230,8 +233,41 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
+  // conv3_1 pointwise
+  } else if (input_shape[3] == 64 && input_shape[1] == 56 && input_shape[2] == 56 &&
+      weight_shape[3] == 128 && weight_shape[0] == 1 && weight_shape[1] == 1 && stride == 2) {
 
-  // conv2d_mx_default_11 (conv4_x)
+      tiling = {
+          .loops = {{2, 2, 1, 1, 1, 1}, {1, 4, 1, 1, 14, 14}},
+          .x_loop_index = {1, 5},
+          .y_loop_index = {0, 4},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {2, 1},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {4, 5},
+          .stride = 2,
+          .replication = false,
+      };
+
+  // conv3_1 strided convolution
+  } else if (input_shape[3] == 64 && input_shape[1] == 56 && input_shape[2] == 56 &&
+      weight_shape[3] == 128 && weight_shape[0] == 3 && weight_shape[1] == 3 && stride == 2) {
+
+      tiling = {
+          .loops = {{2, 2, 4, 1, 1, 1}, {1, 1, 3, 3, 14, 14}},
+          .x_loop_index = {1, 5},
+          .y_loop_index = {0, 4},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {2, 1},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {4, 5},
+          .stride = 2,
+          .replication = false,
+      };
+
+  // conv4_x
   } else if (input_shape[3] == 256 && input_shape[1] == 14 && input_shape[2] == 14 &&
       weight_shape[3] == 256 && weight_shape[0] == 3 && weight_shape[1] == 3 && stride == 1) {
 
@@ -248,7 +284,7 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
-  // submodule_15 (conv5 downsample)
+  // conv5_1 pointwise
   } else if (input_shape[3] == 256 && input_shape[1] == 14 && input_shape[2] == 14 &&
       weight_shape[3] == 512 && weight_shape[0] == 1 && weight_shape[1] == 1 && stride == 2) {
 

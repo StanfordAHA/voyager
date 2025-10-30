@@ -71,7 +71,11 @@ class RuntimeCalculator:
         # Input loading time = weight size / GLB bandwidth
         input_buffer_loading_time = input_buffer_loading_size * DATATYPE_WIDTH * IC_DIMENSION // GLB_BANDWIDTH
         # Input scale loading time = input scale size / GLB_ISCALE bandwidth
-        inputScale_buffer_loading_time = input_buffer_loading_size // MX_BLOCK_SIZE * DATATYPE_WIDTH * IC_DIMENSION // GLB_ISCALE_BANDWIDTH
+        inputScale_buffer_loading_time = 0
+        is_mx = "mx" in self.operation.op.target
+        if is_mx:
+            inputScale_buffer_loading_time = input_buffer_loading_size // MX_BLOCK_SIZE * DATATYPE_WIDTH * IC_DIMENSION // GLB_ISCALE_BANDWIDTH
+
 
         weight_relevant_loops = [
             interstellar.le.IC,
@@ -87,7 +91,10 @@ class RuntimeCalculator:
         # Weight loading time = weight size / GLB bandwidth
         weight_buffer_loading_time = weight_buffer_loading_size * DATATYPE_WIDTH * OC_DIMENSION // GLB_BANDWIDTH
         # Weight scale loading time = weight scale size / GLB bandwidth
-        weightScale_buffer_loading_time = weight_buffer_loading_size // MX_BLOCK_SIZE * DATATYPE_WIDTH * OC_DIMENSION // GLB_BANDWIDTH
+        weightScale_buffer_loading_time = 0
+        is_mx = "mx" in self.operation.op.target
+        if is_mx:
+            weightScale_buffer_loading_time = weight_buffer_loading_size // MX_BLOCK_SIZE * DATATYPE_WIDTH * OC_DIMENSION // GLB_BANDWIDTH
 
         # calculate time for vector unit to process values from the accumulation buffer
         # for now, let's assume that all vector unit operations flow through the vector unit pipeline once.
