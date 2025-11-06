@@ -418,6 +418,11 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
 def parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarounds):
     # For conv2d, shape is in format: (B, Y, X, IC)
     input= read_tensor(base_path + input_tensor_data["node"] + ".bin", tuple(input_tensor_data["shape"]))
+    if zircon_workarounds["zircon_input_act_padding_workaround"]:
+        input = input.permute(0, 3, 1, 2)  # Re-order to (B, IC, Y, X)
+        pad_dim = zircon_workarounds["zircon_input_act_padding_workaround_size"] * zircon_workarounds["zircon_input_act_padding_workaround_stride"]
+        input = F.pad(input, pad=(0, pad_dim, 0, pad_dim)) # Pad X and Y dimensions with zeros
+        input = input.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
 
     input_bf16_cgra = float32_to_bfloat16_bits(input)
     input_bf16_cgra_be = input_bf16_cgra.byteswap().newbyteorder('>')
