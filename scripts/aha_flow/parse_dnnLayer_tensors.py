@@ -534,8 +534,23 @@ def write_per_tensor_scales(tensor_metadata, base_path, output_dir):
         for key in scales:
             f.write(f"{key}: {scales[key]}\n")
 
+def write_attention_scale(tensor_metadata, base_path, output_dir):
+    scale = None
+    for op in tensor_metadata["ops"]:
+        op_name = op["name"]
+        # Look out for "div" in name
+        if "div" in op_name:
+            attention_scale_file_name = op["kwargs"]["other"]["tensor"]["node"]
+            # Take the reciprocal so we can use fpmul
+            scale = 1.0/get_scale_from_bin(f"{base_path}{attention_scale_file_name}.bin")
+            print(f"Read attention scale {scale} from {base_path}{attention_scale_file_name}.bin")
 
-def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scaling=False, standalone_cgra_test=False):
+    assert scale is not None, "Attention scale not found in tensor metadata."
+    with open(f"{output_dir}/attention_scale.txt", "w") as f:
+        f.write(f"{scale}\n")
+
+
+def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scaling=False, attention_scaling=False, standalone_cgra_test=False):
     # Base path for the binary files
     base_path = f'/aha/voyager/test/compiler/networks/{model}/{datatype}/tensor_files/'
 
@@ -616,6 +631,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     if per_tensor_scaling:
         write_per_tensor_scales(tensor_metadata, base_path, output_dir)
 
+    # Attention scaling factor (read and write out as floating point value)
+    if attention_scaling:
+        write_attention_scale(tensor_metadata, base_path, output_dir)
+
     torch.set_printoptions(precision=10)
 
     # For psum_workoround, if not kernel 0, read prior kernel output from text file and convert to raw binary file
@@ -644,7 +663,7 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     if zircon_workarounds["zircon_gemm_reduction_tiling_workaround"] and (zircon_workarounds["psum_idx"] != 0):
         hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_2d_psum_reduction_fp/{model}-{layer}_gold/kernel_{zircon_workarounds["psum_idx"] - 1}_output.txt'
         assert os.path.exists(hw_output_txt_path), f"The prior kernel output file {hw_output_txt_path} does not exist."
-        # TODO: Only do this if there IS a residual 
+        # TODO: Only do this if there IS a residual
         # # For the last psum, write to hw_residual_input_stencil.raw, otherwise write to hw_partial_sum_input_stencil.raw
         # if zircon_workarounds["psum_idx"] == (zircon_workarounds["num_psums"] - 1):
         #     hw_output_raw_path = f'{h2h_dir}/hw_residual_input_stencil.raw'
@@ -684,8 +703,9 @@ if __name__ == "__main__":
     parser.add_argument('--h2h_dir', type=str, required=True, default='/aha/Halide-to-Hardware/', help='Path to Halide-to-Hardware directory')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode to print tensor values')
     parser.add_argument('--per-tensor-scaling', action='store_true', help='Read and dump scales for per-tensor scaling (default is microscaling)')
+    parser.add_argument('--attention-scaling', action='store_true', help='Enable attention scaling for a layer')
     parser.add_argument('--standalone-cgra-test', action='store_true', help='Enable standalone CGRA test mode')
 
     args = parser.parse_args()
 
-    parse_tensors(args.model, args.layer, args.datatype, args.h2h_dir, args.debug, per_tensor_scaling=args.per_tensor_scaling, standalone_cgra_test=args.standalone_cgra_test)
+    parse_tensors(args.model, args.layer, args.datatype, args.h2h_dir, args.debug, per_tensor_scaling=args.per_tensor_scaling, attention_scaling=args.attention_scaling, standalone_cgra_test=args.standalone_cgra_test)

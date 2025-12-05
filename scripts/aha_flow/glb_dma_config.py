@@ -20,19 +20,42 @@ mha_arg_indices_dict = {
         "H1": 5
     }
 
-def get_address(x0, y0, x1, y1, k1, k2, X0, Y0, X1, Y1, K1, K2, K0=32):
-    y = y1 * Y0 + y0
-    x = x1 * X0 + x0
-    k = k2 * K1 * K0 + k1 * K0
+def get_address(x0, y0, x1, y1, k1, k2, X0, Y0, X1, Y1, K1, K2, K0=32, broadcast_dims: list = []):
+    # Handle broadcasting by setting the corresponding loop variable to 0
+    if 'Y' in broadcast_dims or 'y' in broadcast_dims:
+        y = 0
+    else:
+        y = y1 * Y0 + y0
+
+    if 'X' in broadcast_dims or 'x' in broadcast_dims:
+        x = 0
+    else:
+        x = x1 * X0 + x0
+
+    if 'K' in broadcast_dims or 'k' in broadcast_dims:
+        k = 0
+    else:
+        k = k2 * K1 * K0 + k1 * K0
 
     addr = y * (X1 * X0 * K2 * K1 * K0) + x * (K2 * K1 * K0) + k
     return addr
 
 
-def get_address_mha_permute(d1, d2, n0, n1, h0, h1, D1, D2, N0, N1, H0, H1, D0=32):
-    d = d2 * D1 * D0 + d1 * D0
-    n = n1 * N0 + n0
-    h = h1 * H0 + h0
+def get_address_mha_permute(d1, d2, n0, n1, h0, h1, D1, D2, N0, N1, H0, H1, D0=32, broadcast_dims: list = []):
+    if 'D' in broadcast_dims or 'd' in broadcast_dims:
+        d = 0
+    else:
+        d = d2 * D1 * D0 + d1 * D0
+
+    if 'N' in broadcast_dims or 'n' in broadcast_dims:
+        n = 0
+    else:
+        n = n1 * N0 + n0
+
+    if 'H' in broadcast_dims or 'h' in broadcast_dims:
+        h = 0
+    else:
+        h = h1 * H0 + h0
 
     head_size = D2 * D1 * D0
     seq_len = N0 * N1
@@ -40,7 +63,7 @@ def get_address_mha_permute(d1, d2, n0, n1, h0, h1, D1, D2, N0, N1, H0, H1, D0=3
 
     return addr
 
-def get_address_wrapper(addr_args: list, loop_bounds: list, mha_permute: bool = False, num_attn_heads: int = 12):
+def get_address_wrapper(addr_args: list, loop_bounds: list, broadcast_dims: list = [], mha_permute: bool = False, num_attn_heads: int = 12):
     """
     Returns the address based on the provided arguments.
     The order of the arguments should be [x0, y0, x1, y1, k1, k2].
@@ -55,12 +78,11 @@ def get_address_wrapper(addr_args: list, loop_bounds: list, mha_permute: bool = 
     if mha_permute:
         d1, d2, n0, n1, h0, h1 = addr_args
         D1, D2, N0, N1, H0, H1 = loop_bounds
-        return get_address_mha_permute(d1, d2, n0, n1, h0, h1, D1, D2, N0, N1, H0, H1)
+        return get_address_mha_permute(d1, d2, n0, n1, h0, h1, D1, D2, N0, N1, H0, H1, broadcast_dims=broadcast_dims)
 
     x0, y0, x1, y1, k1, k2 = addr_args
     X0, Y0, X1, Y1, K1, K2 = loop_bounds
-    return get_address(x0, y0, x1, y1, k1, k2, X0, Y0, X1, Y1, K1, K2)
-
+    return get_address(x0, y0, x1, y1, k1, k2, X0, Y0, X1, Y1, K1, K2, broadcast_dims=broadcast_dims)
 
 def print_addr_map(X0, Y0, X1, Y1, K1, K2, mha_permute: bool = False, num_attn_heads: int = 12):
     for k2 in range(0, K2):
@@ -99,7 +121,7 @@ def trim_dimensionality(strides, loop_bounds, loop_order, arg_indices_dict, mha_
     return trimmed_strides, trimmed_extents
 
 
-def compute_strides(loop_order, loop_bounds, arg_indices_dict, mha_arg_indices_dict, mha_permute: bool = False, num_attn_heads: int = 12):
+def compute_strides(loop_order, loop_bounds, arg_indices_dict, mha_arg_indices_dict, broadcast_dims: list = [], mha_permute: bool = False, num_attn_heads: int = 12):
     """
     Computes the data addresss strides for the given loop order and loop bounds.
     Does so by calculating the derivative of the address function with respect to each loop variable. E.g.,
@@ -135,8 +157,8 @@ def compute_strides(loop_order, loop_bounds, arg_indices_dict, mha_arg_indices_d
         for inner_idx in range(idx):
             addr_args_0[indices_dict[loop_order[inner_idx]]] = loop_bounds[indices_dict[loop_order[inner_idx]]] - 1
 
-        addr_1 = get_address_wrapper(addr_args_1, loop_bounds, mha_permute=mha_permute, num_attn_heads=num_attn_heads)
-        addr_0 = get_address_wrapper(addr_args_0, loop_bounds, mha_permute=mha_permute, num_attn_heads=num_attn_heads)
+        addr_1 = get_address_wrapper(addr_args_1, loop_bounds, broadcast_dims=broadcast_dims, mha_permute=mha_permute, num_attn_heads=num_attn_heads)
+        addr_0 = get_address_wrapper(addr_args_0, loop_bounds, broadcast_dims=broadcast_dims, mha_permute=mha_permute, num_attn_heads=num_attn_heads)
 
         # Divide by 32 to account for each "word" being 32 bytes in our MU address space. Dividing by 32 yields the index into the bank
         # This implies that a stride of 1 here means that the next address is 32 bytes away in the MU address space, as intended.
@@ -282,9 +304,9 @@ def map_mha_loops(orig_loop_bounds: list, orig_loop_order, K0: int = 32, num_att
 
 
 
-def get_glb_dma_config_helper(loop_order, loop_bounds, mha_permute: bool = False, num_attn_heads: int = 12):
+def get_glb_dma_config_helper(loop_order, loop_bounds, broadcast_dims: list = [], mha_permute: bool = False, num_attn_heads: int = 12):
 
-    strides = compute_strides(loop_order, loop_bounds, arg_indices_dict, mha_arg_indices_dict, mha_permute, num_attn_heads)
+    strides = compute_strides(loop_order, loop_bounds, arg_indices_dict, mha_arg_indices_dict, broadcast_dims=broadcast_dims, mha_permute=mha_permute, num_attn_heads=num_attn_heads)
 
     trimmed_strides, trimmed_extents = trim_dimensionality(strides, loop_bounds, loop_order, arg_indices_dict, mha_arg_indices_dict, mha_permute)
     dimensionality = get_dimensionality(loop_bounds)
@@ -294,7 +316,7 @@ def get_glb_dma_config_helper(loop_order, loop_bounds, mha_permute: bool = False
     return dimensionality, trimmed_strides, trimmed_extents
 
 
-def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workaround: bool = False, zircon_input_act_padding_workaround: bool = False, mha_permute: bool = False, num_attn_heads: int = 12):
+def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workaround: bool = False, zircon_input_act_padding_workaround: bool = False, mha_permute: bool = False, num_attn_heads: int = 1, broadcast_dims: list = []):
     """
     Reads the tiling file and returns the GLB DMA config.
     The tiling file should contain the loop order and loop bounds in a specific format.
@@ -344,12 +366,12 @@ def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workarou
 
     if mha_permute:
         mha_loop_bounds, mha_loop_order = map_mha_loops(loop_bounds, loop_order, num_attn_heads=num_attn_heads)
-        return get_glb_dma_config_helper(mha_loop_order, mha_loop_bounds, mha_permute, num_attn_heads)
+        return get_glb_dma_config_helper(mha_loop_order, mha_loop_bounds, broadcast_dims=broadcast_dims, mha_permute=mha_permute, num_attn_heads=num_attn_heads)
 
-    return get_glb_dma_config_helper(loop_order, loop_bounds)
+    return get_glb_dma_config_helper(loop_order, loop_bounds, broadcast_dims=broadcast_dims)
 
 if __name__ == "__main__":
-    dimensionality, strides, extents = get_glb_dma_config("/aha/voyager/compiled_collateral/bert-submodule_2/output_tiling.txt")
+    dimensionality, strides, extents = get_glb_dma_config("/aha/voyager/compiled_collateral/bert-submodule_3/output_tiling.txt")
     print(f"Dimensionality: {dimensionality}")
     print(f"Strides: {strides}")
     print(f"Extents: {extents}")
