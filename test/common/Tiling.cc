@@ -301,7 +301,7 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
-    // BERT Query, Key, Value Projections
+    // BERT Query, Key, Value Projections; pre-layernorm projection
     } else if (input_shape[0] == 1 && input_shape[1] == 128 && input_shape[2] == 768 &&
       weight_shape[0] == 768 && weight_shape[1] == 768 && stride == 1) {
 

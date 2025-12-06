@@ -449,10 +449,10 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
     residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
 
     # TODO: Probably need to add logic for zircon_outer_reduction_tiling_workaround here as well
-    if zircon_workarounds["zircon_cgra_psum_workaround"] and (zircon_workarounds["psum_idx"] == 0):
+    if (zircon_workarounds["zircon_gemm_reduction_tiling_workaround"] or zircon_workarounds["zircon_cgra_psum_workaround"]) and (zircon_workarounds["psum_idx"] == 0):
         residual_bf16_be.tofile(f'{h2h_dir}/hw_partial_sum_input_stencil.raw')
     # Write the residual_bf16_be to a raw file except for psum workaround middle kernels
-    elif not (zircon_workarounds["zircon_cgra_psum_workaround"] and zircon_workarounds["psum_idx"] != (zircon_workarounds["num_psums"] - 1)):
+    elif not ((zircon_workarounds["zircon_gemm_reduction_tiling_workaround"] or zircon_workarounds["zircon_cgra_psum_workaround"]) and zircon_workarounds["psum_idx"] != (zircon_workarounds["num_psums"] - 1)):
         residual_bf16_be.tofile(f'{h2h_dir}/hw_residual_input_stencil.raw')
     # Flatten residual_bf16 and convert to a python list
     residual_bf16 = residual_bf16.flatten().tolist()
@@ -618,7 +618,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
                     if "tensor" in op["kwargs"][key]:
                         # Slightly fragile, but we assume the residual tensor is the one that is not in the list of all op names
                         # May need to revisit this in the future...
-                        if op["kwargs"][key]["tensor"]["node"] not in all_op_names:
+                        # Also skipping dropout nodes b/c training is turned off right now
+                        if (op["kwargs"][key]["tensor"]["node"] not in all_op_names) and ("dropout" not in op["kwargs"][key]["tensor"]["node"]):
                             residual_tensor_data = op["kwargs"][key]["tensor"]
                             break
         residual_bf16 = parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
