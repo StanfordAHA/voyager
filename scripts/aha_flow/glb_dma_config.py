@@ -1,7 +1,7 @@
 import os
 # This code is used to generate the GLB affine controller config for a specific tiling pattern in a neural network layer.
 
-arg_indices_dict = {
+vanilla_arg_indices_dict = {
         "X0": 0,
         "Y0": 1,
         "X1": 2,
@@ -18,6 +18,12 @@ mha_arg_indices_dict = {
         "N1": 3,
         "H0": 4,
         "H1": 5
+    }
+
+mha_concat_arg_indices_dict = {
+        "D": 0,
+        "N": 1,
+        "H": 2
     }
 
 def get_address(x0, y0, x1, y1, k1, k2, X0, Y0, X1, Y1, K1, K2, K0=32, broadcast_dims: list = []):
@@ -63,17 +69,35 @@ def get_address_mha_permute(d1, d2, n0, n1, h0, h1, D1, D2, N0, N1, H0, H1, D0=3
 
     return addr
 
-def get_address_wrapper(addr_args: list, loop_bounds: list, broadcast_dims: list = [], mha_permute: bool = False, num_attn_heads: int = 12):
+def get_address_mha_concat(h, n, d, H, N, D, D0=32):
+    addr = n * H * D*D0 + h * D*D0 + d*D0
+    return addr
+
+def get_address_wrapper(addr_args: list, loop_bounds: list, broadcast_dims: list = [], mha_permute: bool = False, num_attn_heads: int = 12, mha_concat: bool = False):
     """
     Returns the address based on the provided arguments.
     The order of the arguments should be [x0, y0, x1, y1, k1, k2].
 
     For MHA permute, the order should be [d1, d2, n0, n1, h0, h1].
+
+    For MHA concat, the order should be h, n, d.
     """
-    if len(addr_args) != 6:
-        raise ValueError("addr_args must contain exactly 6 elements: [x0, y0, x1, y1, k1, k2]. If doing multi-head attention permute, the order should be [d1, d2, n0, n1, h0, h1].")
-    if len(loop_bounds) != 6:
-        raise ValueError("loop_bounds must contain exactly 6 elements: [X0, Y0, X1, Y1, K1, K2]. If doing multi-head attention permute, the order should be [D1, D2, N0, N1, H0, H1].")
+
+    if not mha_concat:
+        if len(addr_args) != 6:
+            raise ValueError("addr_args must contain exactly 6 elements: [x0, y0, x1, y1, k1, k2]. If doing multi-head attention permute, the order should be [d1, d2, n0, n1, h0, h1].")
+        if len(loop_bounds) != 6:
+            raise ValueError("loop_bounds must contain exactly 6 elements: [X0, Y0, X1, Y1, K1, K2]. If doing multi-head attention permute, the order should be [D1, D2, N0, N1, H0, H1].")
+    else:
+        if len(addr_args) != 3:
+            raise ValueError("addr_args must contain exactly 3 elements: [h, n, d] for MHA concat.")
+        if len(loop_bounds) != 3:
+            raise ValueError("loop_bounds must contain exactly 3 elements: [H, N, D] for MHA concat.")
+
+    if mha_concat:
+        d, n, h = addr_args
+        D, N, H = loop_bounds
+        return get_address_mha_concat(h, n, d, H, N, D)
 
     if mha_permute:
         d1, d2, n0, n1, h0, h1 = addr_args
@@ -102,26 +126,21 @@ def get_dimensionality(loop_bounds):
     return sum(1 for dim in loop_bounds if dim > 1)
 
 
-def trim_dimensionality(strides, loop_bounds, loop_order, arg_indices_dict, mha_arg_indices_dict, mha_permute: bool = False):
+def trim_dimensionality(strides, loop_bounds, loop_order, arg_indices_dict, mha_permute: bool = False):
     """
     Trims the strides to only include dimensions that are greater than 1.
     """
     trimmed_strides = []
     trimmed_extents = []
 
-    indices_dict = arg_indices_dict
-    if mha_permute:
-        indices_dict = mha_arg_indices_dict
-
     for idx, loop in enumerate(loop_order):
-        if loop_bounds[indices_dict[loop]] > 1:
+        if loop_bounds[arg_indices_dict[loop]] > 1:
             trimmed_strides.append(strides[idx])
-            trimmed_extents.append(loop_bounds[indices_dict[loop]])
-
+            trimmed_extents.append(loop_bounds[arg_indices_dict[loop]])
     return trimmed_strides, trimmed_extents
 
 
-def compute_strides(loop_order, loop_bounds, arg_indices_dict, mha_arg_indices_dict, broadcast_dims: list = [], mha_permute: bool = False, num_attn_heads: int = 12):
+def compute_strides(loop_order, loop_bounds, arg_indices_dict, broadcast_dims: list = [], mha_permute: bool = False, num_attn_heads: int = 12, mha_concat: bool = False):
     """
     Computes the data addresss strides for the given loop order and loop bounds.
     Does so by calculating the derivative of the address function with respect to each loop variable. E.g.,
@@ -143,22 +162,19 @@ def compute_strides(loop_order, loop_bounds, arg_indices_dict, mha_arg_indices_d
         # to ensure data is stored in correct GLB addresses across all host tiling kernels.
         loop_bounds[5] = loop_bounds[5] * num_k_host_tiling_kernels
 
-    indices_dict = arg_indices_dict
-    if mha_permute:
-        indices_dict = mha_arg_indices_dict
 
     strides = [0] * len(loop_order)
     for idx, loop in enumerate(loop_order):
-        addr_args_1 = [0] * len(indices_dict)
-        addr_args_1[indices_dict[loop]] = 1
+        addr_args_1 = [0] * len(arg_indices_dict)
+        addr_args_1[arg_indices_dict[loop]] = 1
 
-        addr_args_0 = [0] * len(indices_dict)
+        addr_args_0 = [0] * len(arg_indices_dict)
         # Now loop over everything beneath and set it to its max value in args_0
         for inner_idx in range(idx):
-            addr_args_0[indices_dict[loop_order[inner_idx]]] = loop_bounds[indices_dict[loop_order[inner_idx]]] - 1
+            addr_args_0[arg_indices_dict[loop_order[inner_idx]]] = loop_bounds[arg_indices_dict[loop_order[inner_idx]]] - 1
 
-        addr_1 = get_address_wrapper(addr_args_1, loop_bounds, broadcast_dims=broadcast_dims, mha_permute=mha_permute, num_attn_heads=num_attn_heads)
-        addr_0 = get_address_wrapper(addr_args_0, loop_bounds, broadcast_dims=broadcast_dims, mha_permute=mha_permute, num_attn_heads=num_attn_heads)
+        addr_1 = get_address_wrapper(addr_args_1, loop_bounds, broadcast_dims=broadcast_dims, mha_permute=mha_permute, num_attn_heads=num_attn_heads, mha_concat=mha_concat)
+        addr_0 = get_address_wrapper(addr_args_0, loop_bounds, broadcast_dims=broadcast_dims, mha_permute=mha_permute, num_attn_heads=num_attn_heads, mha_concat=mha_concat)
 
         # Divide by 32 to account for each "word" being 32 bytes in our MU address space. Dividing by 32 yields the index into the bank
         # This implies that a stride of 1 here means that the next address is 32 bytes away in the MU address space, as intended.
@@ -304,11 +320,16 @@ def map_mha_loops(orig_loop_bounds: list, orig_loop_order, K0: int = 32, num_att
 
 
 
-def get_glb_dma_config_helper(loop_order, loop_bounds, broadcast_dims: list = [], mha_permute: bool = False, num_attn_heads: int = 12):
+def get_glb_dma_config_helper(loop_order, loop_bounds, broadcast_dims: list = [], mha_permute: bool = False, num_attn_heads: int = 12, mha_concat: bool = False):
 
-    strides = compute_strides(loop_order, loop_bounds, arg_indices_dict, mha_arg_indices_dict, broadcast_dims=broadcast_dims, mha_permute=mha_permute, num_attn_heads=num_attn_heads)
+    arg_indices_dict = vanilla_arg_indices_dict
+    if mha_permute:
+        arg_indices_dict = mha_arg_indices_dict
+    elif mha_concat:
+        arg_indices_dict = mha_concat_arg_indices_dict
 
-    trimmed_strides, trimmed_extents = trim_dimensionality(strides, loop_bounds, loop_order, arg_indices_dict, mha_arg_indices_dict, mha_permute)
+    strides = compute_strides(loop_order, loop_bounds, arg_indices_dict, broadcast_dims=broadcast_dims, mha_permute=mha_permute, num_attn_heads=num_attn_heads, mha_concat=mha_concat)
+    trimmed_strides, trimmed_extents = trim_dimensionality(strides, loop_bounds, loop_order, arg_indices_dict, mha_permute)
     dimensionality = get_dimensionality(loop_bounds)
     assert len(trimmed_strides) == dimensionality
     assert len(trimmed_extents) == dimensionality
@@ -371,7 +392,7 @@ def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workarou
     return get_glb_dma_config_helper(loop_order, loop_bounds, broadcast_dims=broadcast_dims)
 
 if __name__ == "__main__":
-    dimensionality, strides, extents = get_glb_dma_config("/aha/voyager/compiled_collateral/bert-submodule_3/output_tiling.txt")
+    dimensionality, strides, extents = get_glb_dma_config("/aha/voyager/compiled_collateral/bert-matmul_mx_12/output_tiling.txt")
     print(f"Dimensionality: {dimensionality}")
     print(f"Strides: {strides}")
     print(f"Extents: {extents}")
