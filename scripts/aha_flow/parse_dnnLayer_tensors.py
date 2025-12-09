@@ -671,7 +671,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
         # else:
         #     hw_output_raw_path = f'{h2h_dir}/hw_partial_sum_input_stencil.raw'
         hw_output_raw_path = f'{h2h_dir}/hw_partial_sum_input_stencil.raw'
+        hw_output_raw_path_plus_bin = f'{h2h_dir}/bin/hw_partial_sum_input_stencil.raw'
         hw_output_txt_to_raw(hw_output_txt_path, hw_output_raw_path)
+        if os.path.exists(f'{h2h_dir}/bin/'):
+            hw_output_txt_to_raw(hw_output_txt_path, hw_output_raw_path_plus_bin)
 
 
     if debug_mode:
