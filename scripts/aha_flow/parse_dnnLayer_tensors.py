@@ -173,11 +173,12 @@ def parse_zircon_workarounds():
     zircon_fx_fy_stride_workaround = "ZIRCON_FX_FY_STRIDE_WORKAROUND" in os.environ and os.environ["ZIRCON_FX_FY_STRIDE_WORKAROUND"] == "1"
     zircon_cgra_psum_workaround = "ZIRCON_CGRA_PSUM_WORKAROUND" in os.environ and os.environ["ZIRCON_CGRA_PSUM_WORKAROUND"] == "1"
     zircon_outer_reduction_tiling_workaround = "ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND" in os.environ and os.environ["ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND"] == "1"
+    zircon_gemm_reduction_tiling_workaround = "ZIRCON_GEMM_REDUCTION_TILING_WORKAROUND" in os.environ and os.environ["ZIRCON_GEMM_REDUCTION_TILING_WORKAROUND"] == "1"
     psum_idx = 0
     num_psums = 1
-    if zircon_cgra_psum_workaround or zircon_outer_reduction_tiling_workaround:
-        assert "PSUM_IDX" in os.environ, "PSUM_IDX environment variable must be set for ZIRCON_CGRA_PSUM_WORKAROUND or ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND"
-        assert "NUM_PSUMS" in os.environ, "NUM_PSUMS environment variable must be set for ZIRCON_CGRA_PSUM_WORKAROUND or ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND"
+    if zircon_cgra_psum_workaround or zircon_outer_reduction_tiling_workaround or zircon_gemm_reduction_tiling_workaround:
+        assert "PSUM_IDX" in os.environ, "PSUM_IDX environment variable must be set for ZIRCON_CGRA_PSUM_WORKAROUND or ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND or ZIRCON_GEMM_REDUCTION_TILING_WORKAROUND"
+        assert "NUM_PSUMS" in os.environ, "NUM_PSUMS environment variable must be set for ZIRCON_CGRA_PSUM_WORKAROUND or ZIRCON_OUTER_REDUCTION_TILING_WORKAROUND or ZIRCON_GEMM_REDUCTION_TILING_WORKAROUND"
         psum_idx = int(os.environ["PSUM_IDX"])
         num_psums = int(os.environ["NUM_PSUMS"])
 
@@ -229,6 +230,9 @@ def parse_zircon_workarounds():
     if zircon_outer_reduction_tiling_workaround:
         print(f"\033[93mINFO: Zircon outer channel tiling workaround enabled to avoid MU bug on downsample layers. Using PSUM index {psum_idx}. There are {num_psums} total PSUMs.\033[0m")
 
+    if zircon_gemm_reduction_tiling_workaround:
+        print(f"\033[93mINFO: Zircon GEMM reduction tiling workaround enabled to avoid MU bug in some GEMM layers. Using PSUM index {psum_idx}. There are {num_psums} total PSUMs.\033[0m")
+
     if zircon_fx_fy_stride_workaround:
         print("\033[93mINFO: Zircon FX, FY stride workaround enabled to avoid MU bug on downsample layers.\033[0m")
 
@@ -249,6 +253,7 @@ def parse_zircon_workarounds():
         "zircon_fx_fy_stride_workaround": zircon_fx_fy_stride_workaround,
         "zircon_cgra_psum_workaround": zircon_cgra_psum_workaround,
         "zircon_outer_reduction_tiling_workaround": zircon_outer_reduction_tiling_workaround,
+        "zircon_gemm_reduction_tiling_workaround": zircon_gemm_reduction_tiling_workaround,
         # "intermediate_gold_dir": intermediate_gold_dir,
         "psum_idx": psum_idx,
         "num_psums": num_psums,
@@ -276,6 +281,16 @@ def parse_input(base_path, input_tensor_data, zircon_workarounds):
     if zircon_workarounds["zircon_cgra_psum_workaround"] or zircon_workarounds["zircon_outer_reduction_tiling_workaround"]:
         input = input.reshape((input.shape[0], input.shape[1], input.shape[2], input.shape[3] // ZIRCON_MU_IC0, ZIRCON_MU_IC0))
         input = input.permute(3, 0, 1, 2, 4)
+    if zircon_workarounds["zircon_gemm_reduction_tiling_workaround"]:
+        num_psums = zircon_workarounds["num_psums"]
+        psum_idx = zircon_workarounds["psum_idx"]
+        if len(input.shape) == 3:
+            # Tile along the reduction dimension, which is the innermost dimension for input tensor
+            input = input.reshape((input.shape[0], input.shape[1], num_psums, input.shape[2] // num_psums))
+            input = input.permute(2, 0, 1, 3)
+            input = input[psum_idx]
+        else:
+            raise NotImplementedError("Zircon GEMM reduction tiling workaround is only supported for 3-D (GEMM) input tensors currently.")
     # TODO: May need to add this for residual as well
     if zircon_workarounds["x_dim_host_tiling"]:
         x_dim_host_tiling_slice_offset = zircon_workarounds["x_dim_host_tiling_slice_offset"]
@@ -303,6 +318,17 @@ def parse_inputScale(base_path, inputScale_tensor_data, zircon_workarounds):
         inputScale = inputScale.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC / BLOCK_SIZE)
     if zircon_workarounds["zircon_cgra_psum_workaround"] or zircon_workarounds["zircon_outer_reduction_tiling_workaround"]:
         inputScale = inputScale.permute(3, 0, 1, 2)
+
+    if zircon_workarounds["zircon_gemm_reduction_tiling_workaround"]:
+        num_psums = zircon_workarounds["num_psums"]
+        psum_idx = zircon_workarounds["psum_idx"]
+        if len(inputScale.shape) == 3:
+            # Tile along the reduction dimension, which is the innermost dimension for inputScale tensor
+            inputScale = inputScale.reshape((inputScale.shape[0], inputScale.shape[1], num_psums, inputScale.shape[2] // num_psums))
+            inputScale = inputScale.permute(2, 0, 1, 3)
+            inputScale = inputScale[psum_idx]
+        else:
+            raise NotImplementedError("Zircon GEMM reduction tiling workaround is only supported for 3-D (GEMM) inputScale tensors currently.")
     inputScale_e8m0 = float_to_e8m0(inputScale)
 
     return inputScale_e8m0
@@ -323,6 +349,15 @@ def parse_weight(base_path, weight_tensor_data, zircon_workarounds):
         weight = weight.reshape((weight.shape[0], weight.shape[1], weight.shape[2], num_k_host_tiling_kernels, weight.shape[3] // num_k_host_tiling_kernels))
         weight = weight.permute(3, 0, 1, 2, 4)
         weight = weight[k_dim_host_tiling_idx]
+    if zircon_workarounds["zircon_gemm_reduction_tiling_workaround"]:
+        num_psums = zircon_workarounds["num_psums"]
+        psum_idx = zircon_workarounds["psum_idx"]
+        if len(weight.shape) == 2:
+            # Tile along the reduction dimension, which is the outermost dimension for weight tensor
+            weight = weight.reshape((num_psums, weight.shape[0] // num_psums, weight.shape[1]))
+            weight = weight[psum_idx]
+        else:
+            raise NotImplementedError("Zircon GEMM reduction tiling workaround is only supported for 2-D (GEMM) weight tensors currently.")
     weight_int8 = weight.to(torch.int8)
 
     return weight_int8
@@ -342,6 +377,15 @@ def parse_weightScale(base_path, weightScale_tensor_data, zircon_workarounds):
         weightScale = weightScale.reshape((weightScale.shape[0], weightScale.shape[1], weightScale.shape[2], num_k_host_tiling_kernels, weightScale.shape[3] // num_k_host_tiling_kernels))
         weightScale = weightScale.permute(3, 0, 1, 2, 4)
         weightScale = weightScale[k_dim_host_tiling_idx]
+    if zircon_workarounds["zircon_gemm_reduction_tiling_workaround"]:
+        num_psums = zircon_workarounds["num_psums"]
+        psum_idx = zircon_workarounds["psum_idx"]
+        if len(weightScale.shape) == 2:
+            # Tile along the reduction dimension, which is the outermost dimension for weightScale tensor
+            weightScale = weightScale.reshape((num_psums, weightScale.shape[0] // num_psums, weightScale.shape[1]))
+            weightScale = weightScale[psum_idx]
+        else:
+            raise NotImplementedError("Zircon GEMM reduction tiling workaround is only supported for 2-D (GEMM) weightScale tensors currently.")
     weightScale_e8m0 = float_to_e8m0(weightScale)
 
     return weightScale_e8m0
@@ -360,7 +404,7 @@ def parse_bias(base_path, bias_tensor_data, h2h_dir, zircon_workarounds, standal
         bias = F.pad(bias, (0, pad_size), "constant", 0)
         print(f"INFO: Padded bias OC dimension from {oc_dim} to {padded_oc_dim} for fully connected layer.")
 
-    if ((zircon_workarounds["zircon_cgra_psum_workaround"] or zircon_workarounds["zircon_outer_reduction_tiling_workaround"]) and zircon_workarounds["psum_idx"] != 0):
+    if ((zircon_workarounds["zircon_cgra_psum_workaround"] or zircon_workarounds["zircon_outer_reduction_tiling_workaround"] or zircon_workarounds["zircon_gemm_reduction_tiling_workaround"]) and zircon_workarounds["psum_idx"] != 0):
         # If doing psum workaround, bias is zero for all but the 0th kernel
         # TODO: This should be improved in the future to just set the MU->has_bias config to false for such kernels
         bias = torch.zeros(tuple(bias_tensor_data["shape"]), dtype=torch.float32)
@@ -405,10 +449,10 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
     residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
 
     # TODO: Probably need to add logic for zircon_outer_reduction_tiling_workaround here as well
-    if zircon_workarounds["zircon_cgra_psum_workaround"] and (zircon_workarounds["psum_idx"] == 0):
+    if (zircon_workarounds["zircon_gemm_reduction_tiling_workaround"] or zircon_workarounds["zircon_cgra_psum_workaround"]) and (zircon_workarounds["psum_idx"] == 0):
         residual_bf16_be.tofile(f'{h2h_dir}/hw_partial_sum_input_stencil.raw')
     # Write the residual_bf16_be to a raw file except for psum workaround middle kernels
-    elif not (zircon_workarounds["zircon_cgra_psum_workaround"] and zircon_workarounds["psum_idx"] != (zircon_workarounds["num_psums"] - 1)):
+    elif not ((zircon_workarounds["zircon_gemm_reduction_tiling_workaround"] or zircon_workarounds["zircon_cgra_psum_workaround"]) and zircon_workarounds["psum_idx"] != (zircon_workarounds["num_psums"] - 1)):
         residual_bf16_be.tofile(f'{h2h_dir}/hw_residual_input_stencil.raw')
     # Flatten residual_bf16 and convert to a python list
     residual_bf16 = residual_bf16.flatten().tolist()
@@ -490,8 +534,23 @@ def write_per_tensor_scales(tensor_metadata, base_path, output_dir):
         for key in scales:
             f.write(f"{key}: {scales[key]}\n")
 
+def write_attention_scale(tensor_metadata, base_path, output_dir):
+    scale = None
+    for op in tensor_metadata["ops"]:
+        op_name = op["name"]
+        # Look out for "div" in name
+        if "div" in op_name:
+            attention_scale_file_name = op["kwargs"]["other"]["tensor"]["node"]
+            # Take the reciprocal so we can use fpmul
+            scale = 1.0/get_scale_from_bin(f"{base_path}{attention_scale_file_name}.bin")
+            print(f"Read attention scale {scale} from {base_path}{attention_scale_file_name}.bin")
 
-def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scaling=False, standalone_cgra_test=False):
+    assert scale is not None, "Attention scale not found in tensor metadata."
+    with open(f"{output_dir}/attention_scale.txt", "w") as f:
+        f.write(f"{scale}\n")
+
+
+def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scaling=False, attention_scaling=False, standalone_cgra_test=False):
     # Base path for the binary files
     base_path = f'/aha/voyager/test/compiler/networks/{model}/{datatype}/tensor_files/'
 
@@ -559,7 +618,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
                     if "tensor" in op["kwargs"][key]:
                         # Slightly fragile, but we assume the residual tensor is the one that is not in the list of all op names
                         # May need to revisit this in the future...
-                        if op["kwargs"][key]["tensor"]["node"] not in all_op_names:
+                        # Also skipping dropout nodes b/c training is turned off right now
+                        if (op["kwargs"][key]["tensor"]["node"] not in all_op_names) and ("dropout" not in op["kwargs"][key]["tensor"]["node"]):
                             residual_tensor_data = op["kwargs"][key]["tensor"]
                             break
         residual_bf16 = parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
@@ -571,6 +631,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     # Per tensor scaling factors (read them and write out as floating point values)
     if per_tensor_scaling:
         write_per_tensor_scales(tensor_metadata, base_path, output_dir)
+
+    # Attention scaling factor (read and write out as floating point value)
+    if attention_scaling:
+        write_attention_scale(tensor_metadata, base_path, output_dir)
 
     torch.set_printoptions(precision=10)
 
@@ -595,6 +659,22 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
         else:
             hw_output_raw_path = f'{h2h_dir}/hw_partial_sum_input_stencil.raw'
         hw_output_txt_to_raw(hw_output_txt_path, hw_output_raw_path)
+
+    # For gemm reduction tiling workaround, if not kernel 0, read prior kernel output from text file and convert to raw binary file
+    if zircon_workarounds["zircon_gemm_reduction_tiling_workaround"] and (zircon_workarounds["psum_idx"] != 0):
+        hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_2d_psum_reduction_fp/{model}-{layer}_gold/kernel_{zircon_workarounds["psum_idx"] - 1}_output.txt'
+        assert os.path.exists(hw_output_txt_path), f"The prior kernel output file {hw_output_txt_path} does not exist."
+        # TODO: Only do this if there IS a residual
+        # # For the last psum, write to hw_residual_input_stencil.raw, otherwise write to hw_partial_sum_input_stencil.raw
+        # if zircon_workarounds["psum_idx"] == (zircon_workarounds["num_psums"] - 1):
+        #     hw_output_raw_path = f'{h2h_dir}/hw_residual_input_stencil.raw'
+        # else:
+        #     hw_output_raw_path = f'{h2h_dir}/hw_partial_sum_input_stencil.raw'
+        hw_output_raw_path = f'{h2h_dir}/hw_partial_sum_input_stencil.raw'
+        hw_output_raw_path_plus_bin = f'{h2h_dir}/bin/hw_partial_sum_input_stencil.raw'
+        hw_output_txt_to_raw(hw_output_txt_path, hw_output_raw_path)
+        if os.path.exists(f'{h2h_dir}/bin/'):
+            hw_output_txt_to_raw(hw_output_txt_path, hw_output_raw_path_plus_bin)
 
 
     if debug_mode:
@@ -627,8 +707,9 @@ if __name__ == "__main__":
     parser.add_argument('--h2h_dir', type=str, required=True, default='/aha/Halide-to-Hardware/', help='Path to Halide-to-Hardware directory')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode to print tensor values')
     parser.add_argument('--per-tensor-scaling', action='store_true', help='Read and dump scales for per-tensor scaling (default is microscaling)')
+    parser.add_argument('--attention-scaling', action='store_true', help='Enable attention scaling for a layer')
     parser.add_argument('--standalone-cgra-test', action='store_true', help='Enable standalone CGRA test mode')
 
     args = parser.parse_args()
 
-    parse_tensors(args.model, args.layer, args.datatype, args.h2h_dir, args.debug, per_tensor_scaling=args.per_tensor_scaling, standalone_cgra_test=args.standalone_cgra_test)
+    parse_tensors(args.model, args.layer, args.datatype, args.h2h_dir, args.debug, per_tensor_scaling=args.per_tensor_scaling, attention_scaling=args.attention_scaling, standalone_cgra_test=args.standalone_cgra_test)

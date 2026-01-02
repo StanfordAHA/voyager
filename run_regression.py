@@ -772,6 +772,11 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
         assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
         num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS", 1))
 
+    zircon_gemm_reduction_tiling_workaround = "ZIRCON_GEMM_REDUCTION_TILING_WORKAROUND" in os.environ and os.environ["ZIRCON_GEMM_REDUCTION_TILING_WORKAROUND"] == "1"
+    if zircon_gemm_reduction_tiling_workaround:
+        assert "NUM_PSUMS" in os.environ, "NUM_PSUMS environment variable must be set for ZIRCON_GEMM_REDUCTION_TILING_WORKAROUND"
+        num_psums = int(os.environ.get("NUM_PSUMS", 1))
+
     x_dim_host_tiling = "ZIRCON_GEMM_X_DIM_HOST_TILING" in os.environ and os.environ["ZIRCON_GEMM_X_DIM_HOST_TILING"] == "1"
     if x_dim_host_tiling:
         assert "X_DIM_HOST_TILING_SLICE_LENGTH" in os.environ, "X_DIM_HOST_TILING_SLICE_LENGTH environment variable must be set for ZIRCON_GEMM_X_DIM_HOST_TILING"
@@ -794,6 +799,8 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
     if zircon_input_act_padding_workaround:
         input_shape = kwargs['input']['tensor']['shape']
         input_num_elements = input_shape[0] * (input_shape[1] + pad_dim) * (input_shape[2] + pad_dim) * input_shape[3]
+    if zircon_gemm_reduction_tiling_workaround:
+        input_num_elements = input_num_elements // num_psums
     curr_addr_pointer = input_base_address + math.ceil(input_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     if 'input_scale' in kwargs and 'tensor' in kwargs['input_scale'] and 'shape' in kwargs['input_scale']['tensor']:
@@ -801,6 +808,8 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
         if zircon_input_act_padding_workaround:
             inputScale_shape = kwargs['input_scale']['tensor']['shape']
             inputScale_num_elements = inputScale_shape[0] * (inputScale_shape[1] + pad_dim) * (inputScale_shape[2] + pad_dim) * inputScale_shape[3]
+        if zircon_gemm_reduction_tiling_workaround:
+            inputScale_num_elements = inputScale_num_elements // num_psums
         inputScale_base_address = curr_addr_pointer
         # FIXME: Temporay HACK for on-chip testing to ensure inputScale is aligned to 32 byte address space
         inputScale_base_address += 3
@@ -810,11 +819,14 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
     curr_addr_pointer +=1024
 
     if is_gemm:
-        kwargs['weight'] = kwargs['other']  # rename 'other' to 'weight' for consistency
-        del kwargs['other']  # remove 'other' from kwargs
+        if 'other' in kwargs and not 'weight' in kwargs:
+            kwargs['weight'] = kwargs['other']  # rename 'other' to 'weight' for consistency
+            del kwargs['other']  # remove 'other' from kwargs
     weight_num_elements = functools.reduce(operator.mul, kwargs['weight']['tensor']['shape'], 1)
     if k_dim_host_tiling:
         weight_num_elements = weight_num_elements // num_k_host_tiling_kernels
+    if zircon_gemm_reduction_tiling_workaround:
+        weight_num_elements = weight_num_elements // num_psums
     if zircon_fx_fy_stride_workaround:
         weight_num_elements *= 3 * 3
     weight_base_address = curr_addr_pointer
@@ -822,6 +834,8 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
 
     if 'weight_scale' in kwargs and 'tensor' in kwargs['weight_scale'] and 'shape' in kwargs['weight_scale']['tensor']:
         weightScale_num_elements = functools.reduce(operator.mul, kwargs['weight_scale']['tensor']['shape'], 1)
+        if zircon_gemm_reduction_tiling_workaround:
+            weightScale_num_elements = weightScale_num_elements // num_psums
         if k_dim_host_tiling:
             weightScale_num_elements = weightScale_num_elements // num_k_host_tiling_kernels
         if zircon_fx_fy_stride_workaround:
@@ -869,6 +883,7 @@ def create_tensor_metadata_json(layer, params_dict):
     if "MU_GLB_BASE_ADDR" in os.environ:
         mu_glb_base_address = int(os.environ["MU_GLB_BASE_ADDR"])
 
+    is_standalone_cgra_app = "VOYAGER_STANDALONE_CGRA_APP" in os.environ and os.environ["VOYAGER_STANDALONE_CGRA_APP"] == "1"
     tensor_metadata["mu_glb_base_address"] = mu_glb_base_address
 
     match = False
@@ -880,7 +895,8 @@ def create_tensor_metadata_json(layer, params_dict):
             op_dict["kwargs"] = op["op"]["kwargs"]
             # Should be if "conv2d" or if "matmul", etc. Generalize this in the future
             if "conv2d" in op_dict["name"] or "matmul" in op_dict["name"] or "linear" in op_dict["name"]:
-                append_glb_base_addresses(tensor_metadata, op_dict["kwargs"], mu_glb_base_address, is_gemm="matmul" in op_dict["name"])
+                is_gemm = "matmul" in op_dict["name"] or ("linear" in op_dict["name"] and not(is_standalone_cgra_app))
+                append_glb_base_addresses(tensor_metadata, op_dict["kwargs"], mu_glb_base_address, is_gemm=is_gemm)
             for arg_key in op_dict["kwargs"]:
                     arg = op_dict["kwargs"][arg_key]
                     tensor = arg.get("tensor")
@@ -900,7 +916,8 @@ def create_tensor_metadata_json(layer, params_dict):
                 fused_op_dict["kwargs"] = fused_op["kwargs"]
                 # Should be if "conv2d" or if "matmul", etc. Generalize this in the future
                 if "conv2d" in fused_op_dict["name"] or "matmul" in fused_op_dict["name"] or "linear" in fused_op_dict["name"]:
-                    append_glb_base_addresses(tensor_metadata, fused_op_dict["kwargs"], mu_glb_base_address, is_gemm="matmul" in fused_op_dict["name"])
+                    is_gemm = "matmul" in fused_op_dict["name"] or ("linear" in fused_op_dict["name"] and not(is_standalone_cgra_app))
+                    append_glb_base_addresses(tensor_metadata, fused_op_dict["kwargs"], mu_glb_base_address, is_gemm=is_gemm)
                 for arg_key in fused_op_dict["kwargs"]:
                     arg = fused_op_dict["kwargs"][arg_key]
                     tensor = arg.get("tensor")
