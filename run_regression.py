@@ -796,14 +796,18 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
         input_num_elements = input_shape[0] * (input_shape[1] + pad_dim) * (input_shape[2] + pad_dim) * input_shape[3]
     curr_addr_pointer = input_base_address + math.ceil(input_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
-
     if 'input_scale' in kwargs and 'tensor' in kwargs['input_scale'] and 'shape' in kwargs['input_scale']['tensor']:
         inputScale_num_elements = functools.reduce(operator.mul, kwargs['input_scale']['tensor']['shape'], 1)
         if zircon_input_act_padding_workaround:
             inputScale_shape = kwargs['input_scale']['tensor']['shape']
             inputScale_num_elements = inputScale_shape[0] * (inputScale_shape[1] + pad_dim) * (inputScale_shape[2] + pad_dim) * inputScale_shape[3]
         inputScale_base_address = curr_addr_pointer
+        # FIXME: Temporay HACK for on-chip testing to ensure inputScale is aligned to 32 byte address space
+        inputScale_base_address += 3
         curr_addr_pointer += math.ceil(inputScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+
+    # FIXME: Temporay HACK for on-chip testing to push weights, weight scales, and bias to higher addresses to avoid conflicts with inputs and inputScales
+    curr_addr_pointer +=1024
 
     if is_gemm:
         kwargs['weight'] = kwargs['other']  # rename 'other' to 'weight' for consistency
