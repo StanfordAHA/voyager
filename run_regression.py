@@ -811,12 +811,8 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
         if zircon_gemm_reduction_tiling_workaround:
             inputScale_num_elements = inputScale_num_elements // num_psums
         inputScale_base_address = curr_addr_pointer
-        # FIXME: Temporay HACK for on-chip testing to ensure inputScale is aligned to 32 byte address space
-        inputScale_base_address += 3
         curr_addr_pointer += math.ceil(inputScale_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
-    # FIXME: Temporay HACK for on-chip testing to push weights, weight scales, and bias to higher addresses to avoid conflicts with inputs and inputScales
-    curr_addr_pointer +=1024
 
     if is_gemm:
         if 'other' in kwargs and not 'weight' in kwargs:

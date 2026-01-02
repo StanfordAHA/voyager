@@ -361,7 +361,7 @@ void sendSerializedParams(
 
 // Dumping for AHA flow
 template <typename T, unsigned int interfaceWidth>
-void dumpSerializedParams(T params) {
+void  dumpSerializedParams(T params, bool is_post_silicon) {
     ac_int<T::width, false> serializedParam;
     vector_to_type(TypeToBits<T>(params), false, &serializedParam);
 
@@ -372,10 +372,16 @@ void dumpSerializedParams(T params) {
 
     std::ofstream params_file;
     // Delete the file if it exists
-    std::remove("serialized_matrix_params.txt");
-    params_file.open("serialized_matrix_params.txt", std::ios::app);
+    if (is_post_silicon) {
+      std::remove("post_silicon_serialized_matrix_params.txt");
+      params_file.open("post_silicon_serialized_matrix_params.txt", std::ios::app);
+    } else {
+      std::remove("serialized_matrix_params.txt");
+      params_file.open("serialized_matrix_params.txt", std::ios::app);
+    }
+
     if (!params_file.is_open()) {
-      spdlog::error("Failed to open serialized_matrix_params.txt for writing.");
+      spdlog::error("Failed to open matrix params file for writing.");
       return;
     }
 
@@ -468,6 +474,9 @@ void Harness::sendParams() {
     std::deque<AcceleratorMemoryMap> dump_accelerator_memory_maps;
     std::deque<BaseParams *> dump_accelerator_params;
 
+    std::deque<AcceleratorMemoryMap> postSilicon_dump_accelerator_memory_maps;
+    std::deque<BaseParams *> postSilicon_dump_accelerator_params;
+
 
     const char* zircon_fx_fy_stride_workaround_env = std::getenv("ZIRCON_FX_FY_STRIDE_WORKAROUND");
     const char* zircon_cgra_psum_workaround_env = std::getenv("ZIRCON_CGRA_PSUM_WORKAROUND");
@@ -492,6 +501,7 @@ void Harness::sendParams() {
                                                       || zircon_input_act_padding_workaround || zircon_inner_loop_reduction_workaround || zircon_gemm_x_dim_host_tiling || zircon_hardcoded_tiling || zircon_gemm_reduction_tiling_workaround;
     // Last two args are dump tiling and hack tiling for the AHA flow
     MapOperation(currentOperation, dump_accelerator_params, dump_accelerator_memory_maps, dump_tiling, hack_tiling);
+    MapOperation(currentOperation, postSilicon_dump_accelerator_params, postSilicon_dump_accelerator_memory_maps, false, hack_tiling);
 
     int runtime_scale_factor = 1;
     std::cout << "Operation: " << currentOperation.name << std::endl;
@@ -505,9 +515,11 @@ void Harness::sendParams() {
 
       BaseParams *baseParam = accelerator_params.front();
       BaseParams *dumpBaseParam = dump_accelerator_params.front();
+      BaseParams *postSilicon_dumpBaseParam = postSilicon_dump_accelerator_params.front();
 
       MatrixParams *matrixParams = dynamic_cast<MatrixParams *>(baseParam);
       MatrixParams *dumpMatrixParams = dynamic_cast<MatrixParams *>(dumpBaseParam);
+      MatrixParams *postSilicon_dumpMatrixParams = dynamic_cast<MatrixParams *>(postSilicon_dumpBaseParam);
       matrixParamsValid = matrixParams != NULL;
 
       if (matrixParamsValid) {
@@ -516,6 +528,9 @@ void Harness::sendParams() {
 
         dump_accelerator_params.pop_front();
         dumpBaseParam = dump_accelerator_params.front();
+
+        postSilicon_dump_accelerator_params.pop_front();
+        postSilicon_dumpBaseParam = postSilicon_dump_accelerator_params.front();
       }
 
       VectorParams *vectorParams = dynamic_cast<VectorParams *>(baseParam);
@@ -620,39 +635,52 @@ void Harness::sendParams() {
           weight_scale_offset += psum_idx * (weight_scale_size/num_psums);
         }
 
-        // Print all the offsets and add them to the dumpMatrixParams
+        // Print all the offsets and add them to the dumpMatrixParams and postSilicon_dumpMatrixParams
+        const int POST_SILICON_INPUT_OFFSET = 32;
+        const int POST_SILICON_INPUT_SCALE_OFFSET = 3;
+        const int POST_SILICON_WEIGHT_OFFSET = 32;
+        const int POST_SILICON_WEIGHT_SCALE_OFFSET = 32;
+        const int POST_SILICON_BIAS_OFFSET = 32;
+
         if (tensor_metadata["has_input"].get<bool>()) {
           std::cout << "Input offset: " << input_offset << std::endl;
           dumpMatrixParams->INPUT_OFFSET = input_offset;
+          postSilicon_dumpMatrixParams->INPUT_OFFSET = input_offset + POST_SILICON_INPUT_OFFSET;
         }
 
         if (tensor_metadata["has_input_scale"].get<bool>()) {
           std::cout << "Input scale offset: " << input_scale_offset << std::endl;
           dumpMatrixParams->INPUT_SCALE_OFFSET = input_scale_offset;
+          postSilicon_dumpMatrixParams->INPUT_SCALE_OFFSET = input_scale_offset + POST_SILICON_INPUT_SCALE_OFFSET;
         }
 
         if (tensor_metadata["has_weight"].get<bool>()) {
           std::cout << "Weight offset: " << weight_offset << std::endl;
           dumpMatrixParams->WEIGHT_OFFSET = weight_offset;
+          postSilicon_dumpMatrixParams->WEIGHT_OFFSET = weight_offset + POST_SILICON_WEIGHT_OFFSET;
         }
 
         if (tensor_metadata["has_weight_scale"].get<bool>()) {
           std::cout << "Weight scale offset: " << weight_scale_offset << std::endl;
           dumpMatrixParams->WEIGHT_SCALE_OFFSET = weight_scale_offset;
+          postSilicon_dumpMatrixParams->WEIGHT_SCALE_OFFSET = weight_scale_offset + POST_SILICON_WEIGHT_SCALE_OFFSET;
         }
 
         if (tensor_metadata["has_bias"].get<bool>()) {
           std::cout << "Bias offset: " << bias_offset << std::endl;
           dumpMatrixParams->BIAS_OFFSET = bias_offset;
+          postSilicon_dumpMatrixParams->BIAS_OFFSET = bias_offset + POST_SILICON_BIAS_OFFSET;
         }
 
         const char* conv1_bias_hack_env = std::getenv("CONV1_BIAS_HACK");
         bool conv1_bias_hack = conv1_bias_hack_env && std::stoi(conv1_bias_hack_env) == 1;
         if (conv1_bias_hack){
           dumpMatrixParams->has_bias = true;
+          postSilicon_dumpMatrixParams->has_bias = true;
         }
 
-        dumpSerializedParams<MatrixParams, 32>(*dumpMatrixParams);
+        dumpSerializedParams<MatrixParams, 32>(*dumpMatrixParams, false);
+        dumpSerializedParams<MatrixParams, 32>(*postSilicon_dumpMatrixParams, true);
         matrixUnitStartSignal.SyncPop();
       }
 
