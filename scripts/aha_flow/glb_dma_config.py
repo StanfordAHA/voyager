@@ -371,7 +371,7 @@ def get_glb_dma_config(output_tiling_filepath: str, zircon_fx_fy_stride_workarou
             zircon_input_act_padding_workaround_size = int(os.environ.get("ZIRCON_INPUT_ACT_PADDING_WORKAROUND_SIZE", 0))
             # This file needs to ignore the padding to produce the correct addresses to store REAL data in GLB (i.e. the padded output gets filtered)
             loop_bounds[0] = loop_bounds[0] - zircon_input_act_padding_workaround_size
-            loop_bounds[1] = loop_bounds[1] - zircon_input_act_padding_workaround_size
+            # loop_bounds[1] = loop_bounds[1] - zircon_input_act_padding_workaround_size # UPDATE: 01/13/2026: We now pass the last row through to avoid garbage pixels being left in CGRA's FIFOS
 
         # Construct loop order based on the indices
         # Map variable names to their values
