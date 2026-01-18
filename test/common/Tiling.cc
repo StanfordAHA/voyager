@@ -318,6 +318,23 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
+   // BERT Up-projection
+  } else if (input_shape[0] == 1 && input_shape[1] == 128 && input_shape[2] == 768 &&
+      weight_shape[0] == 768 && weight_shape[1] == 3072 && stride == 1) {
+
+        tiling = {
+          .loops = {{1, 1, 12, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+          .x_loop_index = {1, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {2, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+
   // BERT Down-projection
   } else if (input_shape[0] == 1 && input_shape[1] == 128 && input_shape[2] == 3072 &&
       weight_shape[0] == 3072 && weight_shape[1] == 768 && stride == 1) {

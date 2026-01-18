@@ -1,5 +1,6 @@
 import argparse
 import interstellar
+import os
 
 from google.protobuf import text_format
 
@@ -72,7 +73,9 @@ class RuntimeCalculator:
         input_buffer_loading_time = input_buffer_loading_size * DATATYPE_WIDTH * IC_DIMENSION // GLB_BANDWIDTH
         # Input scale loading time = input scale size / GLB_ISCALE bandwidth
         inputScale_buffer_loading_time = 0
-        is_mx = "mx" in self.operation.op.target
+        # is_mx = "mx" in self.operation.op.target
+        per_tensor_scaling = "PER_TENSOR_SCALING" in os.environ and os.environ["PER_TENSOR_SCALING"] == "1"
+        is_mx = not(per_tensor_scaling)
         if is_mx:
             inputScale_buffer_loading_time = input_buffer_loading_size // MX_BLOCK_SIZE * DATATYPE_WIDTH * IC_DIMENSION // GLB_ISCALE_BANDWIDTH
 
@@ -92,7 +95,8 @@ class RuntimeCalculator:
         weight_buffer_loading_time = weight_buffer_loading_size * DATATYPE_WIDTH * OC_DIMENSION // GLB_BANDWIDTH
         # Weight scale loading time = weight scale size / GLB bandwidth
         weightScale_buffer_loading_time = 0
-        is_mx = "mx" in self.operation.op.target
+        # is_mx = "mx" in self.operation.op.target
+        is_mx = not(per_tensor_scaling)
         if is_mx:
             weightScale_buffer_loading_time = weight_buffer_loading_size // MX_BLOCK_SIZE * DATATYPE_WIDTH * OC_DIMENSION // GLB_BANDWIDTH
 
