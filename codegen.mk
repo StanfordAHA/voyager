@@ -23,7 +23,7 @@ endif
 ################################################################################
 $(CODEGEN_DIR)/networks/resnet18/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
-	python quantized-training/test/test_codegen.py resnet18 $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) --conv2d_im2col $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
+	python quantized-training/test/test_codegen.py resnet18 $(INT8_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) --conv2d_im2col $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
 $(CODEGEN_DIR)/networks/resnet50/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
