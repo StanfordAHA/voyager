@@ -346,9 +346,16 @@ def parse_weight(base_path, weight_tensor_data, zircon_workarounds):
     if zircon_workarounds["k_dim_host_tiling"]:
         num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
         k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
-        weight = weight.reshape((weight.shape[0], weight.shape[1], weight.shape[2], num_k_host_tiling_kernels, weight.shape[3] // num_k_host_tiling_kernels))
-        weight = weight.permute(3, 0, 1, 2, 4)
+        if len(weight.shape) == 2:
+            weight = weight.reshape((weight.shape[0], num_k_host_tiling_kernels, weight.shape[1] // num_k_host_tiling_kernels))
+            weight = weight.permute(1, 0, 2)
+        elif len(weight.shape) == 4:
+            weight = weight.reshape((weight.shape[0], weight.shape[1], weight.shape[2], num_k_host_tiling_kernels, weight.shape[3] // num_k_host_tiling_kernels))
+            weight = weight.permute(3, 0, 1, 2, 4)
+        else:
+            raise NotImplementedError("K dimension host tiling is only supported for 2-D (GEMM) and 4-D (conv2d) weight tensors currently.")
         weight = weight[k_dim_host_tiling_idx]
+
     if zircon_workarounds["zircon_gemm_reduction_tiling_workaround"]:
         num_psums = zircon_workarounds["num_psums"]
         psum_idx = zircon_workarounds["psum_idx"]
@@ -374,8 +381,14 @@ def parse_weightScale(base_path, weightScale_tensor_data, zircon_workarounds):
     if zircon_workarounds["k_dim_host_tiling"]:
         num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
         k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
-        weightScale = weightScale.reshape((weightScale.shape[0], weightScale.shape[1], weightScale.shape[2], num_k_host_tiling_kernels, weightScale.shape[3] // num_k_host_tiling_kernels))
-        weightScale = weightScale.permute(3, 0, 1, 2, 4)
+        if len(weightScale.shape) == 2:
+            weightScale = weightScale.reshape((weightScale.shape[0], num_k_host_tiling_kernels, weightScale.shape[1] // num_k_host_tiling_kernels))
+            weightScale = weightScale.permute(1, 0, 2)
+        elif len(weightScale.shape) == 4:
+            weightScale = weightScale.reshape((weightScale.shape[0], weightScale.shape[1], weightScale.shape[2], num_k_host_tiling_kernels, weightScale.shape[3] // num_k_host_tiling_kernels))
+            weightScale = weightScale.permute(3, 0, 1, 2, 4)
+        else:
+            raise NotImplementedError("K dimension host tiling is only supported for 2-D (GEMM) and 4-D (conv2d) weightScale tensors currently.")
         weightScale = weightScale[k_dim_host_tiling_idx]
     if zircon_workarounds["zircon_gemm_reduction_tiling_workaround"]:
         num_psums = zircon_workarounds["num_psums"]

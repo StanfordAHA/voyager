@@ -154,7 +154,10 @@ def compute_strides(loop_order, loop_bounds, arg_indices_dict, broadcast_dims: l
     """
 
     k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
-    if k_dim_host_tiling:
+    # This means the OUTPUT tensor is too large to fit in GLB. So we tile along K dim to fit it in GLB.
+    # In regular k_dim_host_tiling, it is assumed that the OUTPUT tesnor can fit in the GLB. The tiling is due to input tensors being too large to fit in GLB.
+    output_tensor_k_dim_tiling = "OUTPUT_TENSOR_K_DIM_TILING" in os.environ and os.environ["OUTPUT_TENSOR_K_DIM_TILING"] == "1"
+    if k_dim_host_tiling and not(output_tensor_k_dim_tiling):
         assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
         num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS"))
         # UNDO the change made in the tiling file. i.e. in Tiling.cc.
@@ -182,7 +185,7 @@ def compute_strides(loop_order, loop_bounds, arg_indices_dict, broadcast_dims: l
         # the stride is +8 in the GLB bank address space, which translates to +32 in the MU address space.
         strides[idx] = (addr_1 - addr_0) // 32
 
-    if k_dim_host_tiling:
+    if k_dim_host_tiling and not(output_tensor_k_dim_tiling):
         loop_bounds[5] = loop_bounds[5] // num_k_host_tiling_kernels # Restore K2 value
 
     return strides

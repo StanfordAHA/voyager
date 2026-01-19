@@ -2,7 +2,7 @@ import argparse
 import os
 import re
 
-def adjust_gold_for_k_tiling(input_file, output_file, channel_size, total_num_kernels, kernel_idx):
+def adjust_gold_for_k_tiling(input_file, output_file, channel_size, total_num_kernels, kernel_idx, output_tensor_k_dim_tiling=False):
     with open(input_file, "r") as f:
         lines = [line.strip() for line in f]
 
@@ -23,7 +23,7 @@ def adjust_gold_for_k_tiling(input_file, output_file, channel_size, total_num_ke
         # Keep only the desired kernel, zero out others
         if micro_kernel_idx == kernel_idx:
             result.append(val)
-        else:
+        elif not(output_tensor_k_dim_tiling):
             result.append("0000")
 
     with open(output_file, "w") as f:
@@ -55,6 +55,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
+    # This means the OUTPUT tensor is too large to fit in GLB. So we tile along K dim to fit it in GLB.
+    # In regular k_dim_host_tiling, it is assumed that the OUTPUT tesnor can fit in the GLB. The tiling is due to input tensors being too large to fit in GLB.
+    output_tensor_k_dim_tiling = "OUTPUT_TENSOR_K_DIM_TILING" in os.environ and os.environ["OUTPUT_TENSOR_K_DIM_TILING"] == "1"
     zircon_conv1_gold = "ZIRCON_CONV1_GOLD" in os.environ and os.environ["ZIRCON_CONV1_GOLD"] == "1"
 
 
@@ -75,7 +78,8 @@ if __name__ == "__main__":
             args.output,
             n_oc,
             num_k_host_tiling_kernels,
-            k_host_tiling_idx
+            k_host_tiling_idx,
+            output_tensor_k_dim_tiling=output_tensor_k_dim_tiling
         )
 
 
