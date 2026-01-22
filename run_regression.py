@@ -818,15 +818,16 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
         if 'other' in kwargs and not 'weight' in kwargs:
             kwargs['weight'] = kwargs['other']  # rename 'other' to 'weight' for consistency
             del kwargs['other']  # remove 'other' from kwargs
-    weight_num_elements = functools.reduce(operator.mul, kwargs['weight']['tensor']['shape'], 1)
-    if k_dim_host_tiling:
-        weight_num_elements = weight_num_elements // num_k_host_tiling_kernels
-    if zircon_gemm_reduction_tiling_workaround:
-        weight_num_elements = weight_num_elements // num_psums
-    if zircon_fx_fy_stride_workaround:
-        weight_num_elements *= 3 * 3
-    weight_base_address = curr_addr_pointer
-    curr_addr_pointer += math.ceil(weight_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
+    if 'weight' in kwargs:
+        weight_num_elements = functools.reduce(operator.mul, kwargs['weight']['tensor']['shape'], 1)
+        if k_dim_host_tiling:
+            weight_num_elements = weight_num_elements // num_k_host_tiling_kernels
+        if zircon_gemm_reduction_tiling_workaround:
+            weight_num_elements = weight_num_elements // num_psums
+        if zircon_fx_fy_stride_workaround:
+            weight_num_elements *= 3 * 3
+        weight_base_address = curr_addr_pointer
+        curr_addr_pointer += math.ceil(weight_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     if 'weight_scale' in kwargs and 'tensor' in kwargs['weight_scale'] and 'shape' in kwargs['weight_scale']['tensor']:
         weightScale_num_elements = functools.reduce(operator.mul, kwargs['weight_scale']['tensor']['shape'], 1)
@@ -848,6 +849,11 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
     if 'input_scale' in kwargs:
         kwargs['input_scale']['tensor']['glb_base_address'] = inputScale_base_address
         tensor_metadata["has_input_scale"] = True
+    # Handle CGRA-only layers with scale inputs
+    if 'scale' in kwargs:
+        num_elements = functools.reduce(operator.mul, kwargs['scale']['tensor']['shape'], 1)
+        if num_elements > 1:
+            tensor_metadata["has_input_scale"] = True
     if 'weight' in kwargs:
         kwargs['weight']['tensor']['glb_base_address'] = weight_base_address
         tensor_metadata["has_weight"] = True
@@ -890,7 +896,7 @@ def create_tensor_metadata_json(layer, params_dict):
             op_dict["name"] = op["op"]["name"]
             op_dict["kwargs"] = op["op"]["kwargs"]
             # Should be if "conv2d" or if "matmul", etc. Generalize this in the future
-            if "conv2d" in op_dict["name"] or "matmul" in op_dict["name"] or "linear" in op_dict["name"]:
+            if "conv2d" in op_dict["name"] or "matmul" in op_dict["name"] or "linear" in op_dict["name"] or "quantize" in op_dict["name"]:
                 is_gemm = "matmul" in op_dict["name"] or ("linear" in op_dict["name"] and not(is_standalone_cgra_app))
                 append_glb_base_addresses(tensor_metadata, op_dict["kwargs"], mu_glb_base_address, is_gemm=is_gemm)
             for arg_key in op_dict["kwargs"]:
@@ -911,7 +917,7 @@ def create_tensor_metadata_json(layer, params_dict):
                     tensor_metadata["has_residual"] = True
                 fused_op_dict["kwargs"] = fused_op["kwargs"]
                 # Should be if "conv2d" or if "matmul", etc. Generalize this in the future
-                if "conv2d" in fused_op_dict["name"] or "matmul" in fused_op_dict["name"] or "linear" in fused_op_dict["name"]:
+                if "conv2d" in fused_op_dict["name"] or "matmul" in fused_op_dict["name"] or "linear" in fused_op_dict["name"] or "quantize" in fused_op_dict["name"]:
                     is_gemm = "matmul" in fused_op_dict["name"] or ("linear" in fused_op_dict["name"] and not(is_standalone_cgra_app))
                     append_glb_base_addresses(tensor_metadata, fused_op_dict["kwargs"], mu_glb_base_address, is_gemm=is_gemm)
                 for arg_key in fused_op_dict["kwargs"]:
