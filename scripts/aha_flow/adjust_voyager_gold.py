@@ -2,7 +2,7 @@ import argparse
 import os
 import re
 
-def adjust_gold_for_k_tiling(input_file, output_file, channel_size, total_num_kernels, kernel_idx):
+def adjust_gold_for_k_tiling(input_file, output_file, channel_size, total_num_kernels, kernel_idx, output_tensor_k_dim_tiling=False):
     with open(input_file, "r") as f:
         lines = [line.strip() for line in f]
 
@@ -23,7 +23,7 @@ def adjust_gold_for_k_tiling(input_file, output_file, channel_size, total_num_ke
         # Keep only the desired kernel, zero out others
         if micro_kernel_idx == kernel_idx:
             result.append(val)
-        else:
+        elif not(output_tensor_k_dim_tiling):
             result.append("0000")
 
     with open(output_file, "w") as f:
@@ -46,6 +46,26 @@ def adjust_gold_for_zircon_conv1(input_file, output_file, slice_offset, out_img,
     with open(output_file, "w") as f:
         f.write("\n".join(result))
 
+def adjust_gold_for_bert_up_proj_gelu(input_file, output_file, gelu_gold_num_kernels, gelu_gold_kernel_idx):
+    MU_OC0 = 32
+    with open(input_file, "r") as f:
+        lines = [line.strip() for line in f]
+
+    result = []
+
+    gelu_gold_channel_start = gelu_gold_kernel_idx * (MU_OC0 // gelu_gold_num_kernels)
+    gelu_gold_channel_end = gelu_gold_channel_start + (MU_OC0 // gelu_gold_num_kernels)
+
+    for i, val in enumerate(lines):
+        is_in_gelu_gold_region = gelu_gold_channel_start <= (i % MU_OC0) < gelu_gold_channel_end
+
+        # Keep only the desired channels
+        if is_in_gelu_gold_region:
+            result.append(val)
+
+    with open(output_file, "w") as f:
+        f.write("\n".join(result))
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Zero out all micro-kernels except the selected one.")
 
@@ -55,7 +75,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
+    # This means the OUTPUT tensor is too large to fit in GLB. So we tile along K dim to fit it in GLB.
+    # In regular k_dim_host_tiling, it is assumed that the OUTPUT tesnor can fit in the GLB. The tiling is due to input tensors being too large to fit in GLB.
+    output_tensor_k_dim_tiling = "OUTPUT_TENSOR_K_DIM_TILING" in os.environ and os.environ["OUTPUT_TENSOR_K_DIM_TILING"] == "1"
     zircon_conv1_gold = "ZIRCON_CONV1_GOLD" in os.environ and os.environ["ZIRCON_CONV1_GOLD"] == "1"
+    BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT = "BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT" in os.environ and os.environ["BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT"] == "1"
 
 
     if k_dim_host_tiling:
@@ -70,12 +94,14 @@ if __name__ == "__main__":
         assert n_oc_match, "No n_oc in HALIDE_GEN_ARGS!"
         n_oc = int(n_oc_match.group(1))
 
+
         adjust_gold_for_k_tiling(
             args.input,
             args.output,
             n_oc,
             num_k_host_tiling_kernels,
-            k_host_tiling_idx
+            k_host_tiling_idx,
+            output_tensor_k_dim_tiling=output_tensor_k_dim_tiling
         )
 
 
@@ -100,4 +126,18 @@ if __name__ == "__main__":
             x_dim_host_tiling_slice_offset,
             out_img,
             n_oc
+        )
+
+
+    if BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT:
+        assert "GELU_GOLD_NUM_KERNELS" in os.environ, "GELU_GOLD_NUM_KERNELS environment variable must be set for BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT"
+        gelu_gold_num_kernels = int(os.environ["GELU_GOLD_NUM_KERNELS"])
+        assert "GELU_GOLD_KERNEL_IDX" in os.environ, "GELU_GOLD_KERNEL_IDX environment variable must be set for BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT"
+        gelu_gold_kernel_idx = int(os.environ["GELU_GOLD_KERNEL_IDX"])
+
+        adjust_gold_for_bert_up_proj_gelu(
+            args.output,
+            args.output,
+            gelu_gold_num_kernels,
+            gelu_gold_kernel_idx
         )
