@@ -157,6 +157,18 @@ def write_all_tensors_to_hex(
                 f.write("TENSOR_EXISTS: 0\n")
 
 
+def trim_channels_if_needed(tensor):
+    GOLD_CHANNEL_TRIMMING_WORKAROUND = "GOLD_CHANNEL_TRIMMING_WORKAROUND" in os.environ and os.environ["GOLD_CHANNEL_TRIMMING_WORKAROUND"] == "1"
+    if GOLD_CHANNEL_TRIMMING_WORKAROUND:
+        assert "GOLD_CHANNEL_TRIMMING_WORKAROUND_NUM_KERNELS" in os.environ, "GOLD_CHANNEL_TRIMMING_WORKAROUND_NUM_KERNELS environment variable must be set for GOLD_CHANNEL_TRIMMING_WORKAROUND"
+        gold_channel_trimming_workaround_num_kernels = int(os.environ["GOLD_CHANNEL_TRIMMING_WORKAROUND_NUM_KERNELS"])
+        assert "GOLD_CHANNEL_TRIMMING_WORKAROUND_KERNEL_IDX" in os.environ, "GOLD_CHANNEL_TRIMMING_WORKAROUND_KERNEL_IDX environment variable must be set for GOLD_CHANNEL_TRIMMING_WORKAROUND"
+        gold_channel_trimming_workaround_kernel_idx = int(os.environ["GOLD_CHANNEL_TRIMMING_WORKAROUND_KERNEL_IDX"])
+
+        tensor = tensor.reshape((-1, gold_channel_trimming_workaround_num_kernels, ZIRCON_MU_OC0 // gold_channel_trimming_workaround_num_kernels))
+        tensor = tensor[:, gold_channel_trimming_workaround_kernel_idx, :].reshape(-1)
+    return tensor
+
 # For writing partial sum output from a prior kernel to raw binary file
 def hw_output_txt_to_raw(input_txt_path, output_raw_path):
     # Read the file content
@@ -169,15 +181,8 @@ def hw_output_txt_to_raw(input_txt_path, output_raw_path):
     # Swap byte order
     uint16_array_be = uint16_array.byteswap().newbyteorder('>')
 
-    BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT = "BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT" in os.environ and os.environ["BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT"] == "1"
-    if BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT:
-        assert "GELU_GOLD_NUM_KERNELS" in os.environ, "GELU_GOLD_NUM_KERNELS environment variable must be set for BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT"
-        gelu_gold_num_kernels = int(os.environ["GELU_GOLD_NUM_KERNELS"])
-        assert "GELU_GOLD_KERNEL_IDX" in os.environ, "GELU_GOLD_KERNEL_IDX environment variable must be set for BERT_UP_PROJ_GELU_GOLD_CHANNEL_ADJUSTMENT"
-        gelu_gold_kernel_idx = int(os.environ["GELU_GOLD_KERNEL_IDX"])
-
-        uint16_array_be = uint16_array_be.reshape((-1, gelu_gold_num_kernels, ZIRCON_MU_OC0 // gelu_gold_num_kernels))
-        uint16_array_be = uint16_array_be[:, gelu_gold_kernel_idx, :].reshape(-1)
+    # Trim channels if needed
+    uint16_array_be = trim_channels_if_needed(uint16_array_be)
 
     # Save to raw binary file
     uint16_array_be.tofile(output_raw_path)
@@ -455,6 +460,7 @@ def parse_bias(base_path, bias_tensor_data, h2h_dir, zircon_workarounds, standal
     bias_bf16 = float32_to_bfloat16_bits(bias)
 
     if standalone_cgra_test:
+        bias_bf16 = trim_channels_if_needed(bias_bf16)
         bias_bf16_be = bias_bf16.byteswap().newbyteorder('>')
         bias_bf16_be.tofile(f'{h2h_dir}/hw_bias_stencil.raw')
 
@@ -507,11 +513,13 @@ def parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarou
         input = input.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
 
     input_bf16_cgra = float32_to_bfloat16_bits(input)
+    input_bf16_cgra = trim_channels_if_needed(input_bf16_cgra)
     input_bf16_cgra_be = input_bf16_cgra.byteswap().newbyteorder('>')
     input_bf16_cgra_be.tofile(f'{h2h_dir}/hw_input_stencil.raw')
 
     # Flatten input_bf16_cgra and convert to a python list
     input_bf16_cgra = input_bf16_cgra.flatten().tolist()
+
 
     return input_bf16_cgra
 
@@ -560,6 +568,7 @@ def parse_weight_bf16_cgra(base_path, weight_tensor_data, h2h_dir, zircon_workar
         weight = weight[k_dim_host_tiling_idx]
 
     weight_bf16_cgra = float32_to_bfloat16_bits(weight)
+    weight_bf16_cgra = trim_channels_if_needed(weight_bf16_cgra)
     weight_bf16_cgra_be = weight_bf16_cgra.byteswap().newbyteorder('>')
     weight_bf16_cgra_be.tofile(f'{h2h_dir}/hw_weight_stencil.raw')
 
