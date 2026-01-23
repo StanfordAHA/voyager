@@ -721,6 +721,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
 
     # For gemm reduction tiling workaround, if not kernel 0, read prior kernel output from text file and convert to raw binary file
     if zircon_workarounds["zircon_gemm_reduction_tiling_workaround"] and (zircon_workarounds["psum_idx"] != 0):
+        if model == "bert" and layer == "gelu":
+            layer = "linear_mx_default_4"
         hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_2d_psum_reduction_fp/{model}-{layer}_gold/kernel_{zircon_workarounds["intermediate_gold_idx"] - 1}_output.txt'
         assert os.path.exists(hw_output_txt_path), f"The prior kernel output file {hw_output_txt_path} does not exist."
         # TODO: Only do this if there IS a residual
