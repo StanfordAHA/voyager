@@ -1055,6 +1055,10 @@ def main():
         for layer in layers[args.models[0]]:
             create_tensor_metadata_json(layer, params_dict)
 
+        # tanh not yet supported
+        if args.models[0] == 'bert' and layer == 'tanh':
+            exit(0)
+
     if args.sims == "systemc" or args.sims == "fast-systemc":
         success = run_systemc_tests(
             layers,
