@@ -49,7 +49,7 @@ if __name__ == "__main__":
     model = args.model
     layer = args.layer
 
-    if model == "bert" and layer == "linear_mx_default_4":
+    if model == "bert" and (layer == "linear_mx_default_4" or layer == "gelu"):
         verify_bert_gelu()
     else:
         raise NotImplementedError(f"No custom validation script for model {model} layer {layer}")

@@ -896,7 +896,7 @@ def create_tensor_metadata_json(layer, params_dict):
             op_dict["name"] = op["op"]["name"]
             op_dict["kwargs"] = op["op"]["kwargs"]
             # Should be if "conv2d" or if "matmul", etc. Generalize this in the future
-            if "conv2d" in op_dict["name"] or "matmul" in op_dict["name"] or "linear" in op_dict["name"] or "quantize" in op_dict["name"]:
+            if "conv2d" in op_dict["name"] or "matmul" in op_dict["name"] or "linear" in op_dict["name"] or "quantize" in op_dict["name"] or "layer_norm" in op_dict["name"]:
                 is_gemm = "matmul" in op_dict["name"] or ("linear" in op_dict["name"] and not(is_standalone_cgra_app))
                 append_glb_base_addresses(tensor_metadata, op_dict["kwargs"], mu_glb_base_address, is_gemm=is_gemm)
             for arg_key in op_dict["kwargs"]:
@@ -917,7 +917,7 @@ def create_tensor_metadata_json(layer, params_dict):
                     tensor_metadata["has_residual"] = True
                 fused_op_dict["kwargs"] = fused_op["kwargs"]
                 # Should be if "conv2d" or if "matmul", etc. Generalize this in the future
-                if "conv2d" in fused_op_dict["name"] or "matmul" in fused_op_dict["name"] or "linear" in fused_op_dict["name"] or "quantize" in fused_op_dict["name"]:
+                if "conv2d" in fused_op_dict["name"] or "matmul" in fused_op_dict["name"] or "linear" in fused_op_dict["name"] or "quantize" in fused_op_dict["name"] or "layer_norm" in fused_op_dict["name"]:
                     is_gemm = "matmul" in fused_op_dict["name"] or ("linear" in fused_op_dict["name"] and not(is_standalone_cgra_app))
                     append_glb_base_addresses(tensor_metadata, fused_op_dict["kwargs"], mu_glb_base_address, is_gemm=is_gemm)
                 for arg_key in fused_op_dict["kwargs"]:
