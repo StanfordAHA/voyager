@@ -503,9 +503,14 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
 
     return residual_bf16
 
-def parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarounds):
+def parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarounds, model, layer):
     # For conv2d, shape is in format: (B, Y, X, IC)
     input= read_tensor(base_path + input_tensor_data["node"] + ".bin", tuple(input_tensor_data["shape"]))
+
+    # SOFTMAX HACK: Change all -inf values (generally, all values < -200) to -200.0
+    if model == 'bert' and 'softmax' in layer:
+        input[input < -200.0] = -200.0
+        
     if zircon_workarounds["zircon_input_act_padding_workaround"]:
         input = input.permute(0, 3, 1, 2)  # Re-order to (B, IC, Y, X)
         pad_dim = zircon_workarounds["zircon_input_act_padding_workaround_size"] * zircon_workarounds["zircon_input_act_padding_workaround_stride"]
@@ -637,7 +642,7 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
             input_start_addr = input_tensor_data["glb_base_address"]
             input_int8 = parse_input(base_path, input_tensor_data, zircon_workarounds)
         else:
-            input_bf16_cgra = parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarounds)
+            input_bf16_cgra = parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarounds, model, layer)
 
     # INPUT SCALE
     if has_input_scale:
