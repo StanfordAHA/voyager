@@ -29,6 +29,37 @@ def adjust_gold_for_k_tiling(input_file, output_file, channel_size, total_num_ke
     with open(output_file, "w") as f:
         f.write("\n".join(result))
 
+
+def adjust_gold_for_io_dim0_tiling(input_file, output_file, channel_size, total_num_kernels, kernel_idx, output_tensor_io_dim0_tiling=False):
+    with open(input_file, "r") as f:
+        lines = [line.strip() for line in f]
+
+    result = []
+    micro_kernel_size = channel_size // total_num_kernels
+
+    # Safety check
+    if channel_size % total_num_kernels != 0:
+        raise ValueError("channel_size must be divisible by total_num_kernels")
+
+    for i, val in enumerate(lines):
+        # Position within current channel_size group
+        group_pos = i % channel_size
+
+        # Which micro-kernel is this line in?
+        micro_kernel_idx = group_pos // micro_kernel_size
+
+        # Keep only the desired kernel, zero out others
+        if micro_kernel_idx == kernel_idx:
+            result.append(val)
+        elif not(output_tensor_io_dim0_tiling):
+            result.append("0000")
+
+    with open(output_file, "w") as f:
+        f.write("\n".join(result))
+
+
+
+
 def adjust_gold_for_zircon_conv1(input_file, output_file, slice_offset, out_img, n_oc):
     tile_num_pixels = out_img * out_img * n_oc
     with open(input_file, "r") as f:
@@ -71,6 +102,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--input", required=True, help="Path to input file")
     parser.add_argument("--output", required=True, help="Path to output file")
+    parser.add_argument("--is-mx-scale", action="store_true", help="Whether the gold file is for MX scale operation")
+    parser.add_argument("--mx-block-size", type=int, default=64, help="Block size for MX scale operation")
 
     args = parser.parse_args()
 
@@ -80,6 +113,34 @@ if __name__ == "__main__":
     output_tensor_k_dim_tiling = "OUTPUT_TENSOR_K_DIM_TILING" in os.environ and os.environ["OUTPUT_TENSOR_K_DIM_TILING"] == "1"
     zircon_conv1_gold = "ZIRCON_CONV1_GOLD" in os.environ and os.environ["ZIRCON_CONV1_GOLD"] == "1"
     GOLD_CHANNEL_TRIMMING_WORKAROUND = "GOLD_CHANNEL_TRIMMING_WORKAROUND" in os.environ and os.environ["GOLD_CHANNEL_TRIMMING_WORKAROUND"] == "1"
+
+    io_dim0_tiling = "IO_DIM0_TILING" in os.environ and os.environ["IO_DIM0_TILING"] == "1"
+    if io_dim0_tiling:
+        assert "NUM_IO_DIM0_TILING_KERNELS" in os.environ, "NUM_IO_DIM0_TILING_KERNELS environment variable must be set for IO_DIM0_TILING"
+        assert "IO_DIM0_TILING_IDX" in os.environ, "IO_DIM0_TILING_IDX environment variable must be set for IO_DIM0_TILING"
+        num_io_dim0_tiling_kernels = int(os.environ["NUM_IO_DIM0_TILING_KERNELS"])
+        io_dim0_tiling_idx = int(os.environ["IO_DIM0_TILING_IDX"])
+
+        output_tensor_io_dim0_tiling = "OUTPUT_TENSOR_IO_DIM0_TILING" in os.environ and os.environ["OUTPUT_TENSOR_IO_DIM0_TILING"] == "1"
+
+        assert "HALIDE_GEN_ARGS" in os.environ, "HALIDE_GEN_ARGS environment variable must be set for IO_DIM0_TILING"
+        HALIDE_GEN_ARGS = os.environ["HALIDE_GEN_ARGS"]
+        dim0_fake_match = re.search(r'dim0_fake=(\d+)', HALIDE_GEN_ARGS)
+        assert dim0_fake_match, "No dim0_fake in HALIDE_GEN_ARGS!"
+        dim0_fake = int(dim0_fake_match.group(1))
+
+        if args.is_mx_scale:
+            dim0_fake = dim0_fake // args.mx_block_size
+
+        adjust_gold_for_io_dim0_tiling(
+            args.input,
+            args.output,
+            dim0_fake,
+            num_io_dim0_tiling_kernels,
+            io_dim0_tiling_idx,
+            output_tensor_io_dim0_tiling=output_tensor_io_dim0_tiling
+        )
+
 
 
     if k_dim_host_tiling:
@@ -94,6 +155,8 @@ if __name__ == "__main__":
         assert n_oc_match, "No n_oc in HALIDE_GEN_ARGS!"
         n_oc = int(n_oc_match.group(1))
 
+        if args.is_mx_scale:
+            n_oc = n_oc // args.mx_block_size
 
         adjust_gold_for_k_tiling(
             args.input,
