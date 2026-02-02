@@ -249,6 +249,8 @@ def parse_zircon_workarounds():
     # I/O dimension 0 host tiling
     IO_DIM0_TILING = "IO_DIM0_TILING" in os.environ and os.environ["IO_DIM0_TILING"] == "1"
     output_tensor_io_dim0_tiling = False
+    num_io_dim0_tiling_kernels = 0
+    io_dim0_tiling_idx = 0
     if IO_DIM0_TILING:
         output_tensor_io_dim0_tiling = "OUTPUT_TENSOR_IO_DIM0_TILING" in os.environ and os.environ["OUTPUT_TENSOR_IO_DIM0_TILING"] == "1"
         assert "NUM_IO_DIM0_TILING_KERNELS" in os.environ, "NUM_IO_DIM0_TILING_KERNELS environment variable must be set for IO_DIM0_TILING"

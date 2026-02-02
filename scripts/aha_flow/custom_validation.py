@@ -50,6 +50,18 @@ def verify_bert_tanh():
     # Write output tensor to hex file
     write_list_to_hex(gold_tensor_bf16, '/aha/voyager/gold_activation.txt', "", add_metadata=False)
 
+def verify_fakegemm_linear():
+    # Read gold tensor
+    gold_path = "/aha/voyager/test/compiler/networks/fakegemm/MXINT8/tensor_files/dequantize_default.bin"
+    gold_shape = (3364, 32)
+    gold_tensor = read_tensor(gold_path, gold_shape)
+
+    gold_tensor_bf16 = float32_to_bfloat16_bits(gold_tensor)
+    gold_tensor_bf16 = gold_tensor_bf16.flatten().tolist()
+
+    # Write output tensor to hex file
+    write_list_to_hex(gold_tensor_bf16, '/aha/voyager/gold_activation.txt', "", add_metadata=False)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Custom validation scripts for AHA Voyager flows.")
     # Add model and layer args
@@ -64,6 +76,8 @@ if __name__ == "__main__":
         verify_bert_gelu()
     elif model == "bert" and layer == "tanh":
         verify_bert_tanh()
+    elif model == "fakegemm" and layer == "linear_default_1":
+        verify_fakegemm_linear()
     else:
         raise NotImplementedError(f"No custom validation script for model {model} layer {layer}")
 

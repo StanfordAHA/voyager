@@ -69,6 +69,10 @@ $(CODEGEN_DIR)/networks/fakeconv2d/%/model.txt: quantized-training/test/test_cod
 	mkdir -p $(dir $@)
 	python -u quantized-training/test/test_codegen.py fakeconv2d $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
+$(CODEGEN_DIR)/networks/fakegemm/%/model.txt: quantized-training/test/test_codegen.py
+	mkdir -p $(dir $@)
+	python -u quantized-training/test/test_codegen.py fakegemm $(INT8_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
+
 ################################################################################
 # Gesture
 ################################################################################
