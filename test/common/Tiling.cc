@@ -351,7 +351,330 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .stride = 1,
           .replication = false,
       };
-  } else {
+
+  // Llama 3.2-1B prefill, A*V
+  } else if (input_shape[0] == 1 && input_shape[1] == 1 && input_shape[2] == 512 && input_shape[3] == 512 &&
+      weight_shape[0] == 512 && weight_shape[1] == 64 && stride == 1) {
+
+        tiling = {
+          .loops = {{1, 4, 1, 1, 1, 1}, {8, 1, 1, 1, 2, 128}},
+          .x_loop_index = {1, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {2, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  // Llama 3.2-1B prefill, Q projection, post attn projection
+  } else if (input_shape[0] == 1 && input_shape[1] == 512 && input_shape[2] == 2048 &&
+      weight_shape[0] == 2048 && weight_shape[1] == 2048 && stride == 1) {
+
+      // c1 = 2, k1 = 8, k2 = 2 => 81% util
+      //   tiling = {
+      //     .loops = {{1, 2, 4, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+      //     .x_loop_index = {2, 5},
+      //     .y_loop_index = {0, 1},
+      //     .reduction_loop_index = {3, 0},
+      //     .weight_loop_index = {1, 4},
+      //     .fx_index = 3,
+      //     .fy_index = 2,
+      //     .weight_reuse_index = {5, 5},
+      //     .stride = 1,
+      //     .replication = false,
+      // };
+
+        // c1 = 4, k1 = 4, k2 = 4 => 88 % util
+      //   tiling = {
+      //     .loops = {{1, 4, 4, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+      //     .x_loop_index = {2, 5},
+      //     .y_loop_index = {0, 1},
+      //     .reduction_loop_index = {3, 0},
+      //     .weight_loop_index = {1, 4},
+      //     .fx_index = 3,
+      //     .fy_index = 2,
+      //     .weight_reuse_index = {5, 5},
+      //     .stride = 1,
+      //     .replication = false,
+      // };
+
+      // 88% util
+      // tiling = {
+      //     .loops = {{1, 4, 4, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+      //     .x_loop_index = {2, 5},
+      //     .y_loop_index = {0, 1},
+      //     .reduction_loop_index = {3, 0},
+      //     .weight_loop_index = {1, 4},
+      //     .fx_index = 3,
+      //     .fy_index = 2,
+      //     .weight_reuse_index = {5, 5},
+      //     .stride = 1,
+      //     .replication = false,
+      // };
+
+
+      // c1 = 8, k1 = 2, k2 = 8 => 60 % util
+      // tiling = {
+      //     .loops = {{1, 8, 4, 1, 1, 1}, {8, 1, 1, 1, 2, 128}},
+      //     .x_loop_index = {2, 5},
+      //     .y_loop_index = {0, 1},
+      //     .reduction_loop_index = {3, 0},
+      //     .weight_loop_index = {1, 4},
+      //     .fx_index = 3,
+      //     .fy_index = 2,
+      //     .weight_reuse_index = {5, 5},
+      //     .stride = 1,
+      //     .replication = false,
+      // };
+
+        // 25% util
+      //   tiling = {
+      //     .loops = {{1, 16, 8, 1, 1, 1}, {16, 1, 1, 1, 1, 64}},
+      //     .x_loop_index = {2, 5},
+      //     .y_loop_index = {0, 1},
+      //     .reduction_loop_index = {3, 0},
+      //     .weight_loop_index = {1, 4},
+      //     .fx_index = 3,
+      //     .fy_index = 2,
+      //     .weight_reuse_index = {5, 5},
+      //     .stride = 1,
+      //     .replication = false,
+      // };
+
+
+
+      // 71.5% util
+      // tiling = {
+      //     .loops = {{1, 1, 4, 1, 1, 1}, {1, 1, 1, 1, 16, 128}},
+      //     .x_loop_index = {2, 5},
+      //     .y_loop_index = {0, 1},
+      //     .reduction_loop_index = {3, 0},
+      //     .weight_loop_index = {1, 4},
+      //     .fx_index = 3,
+      //     .fy_index = 2,
+      //     .weight_reuse_index = {5, 5},
+      //     .stride = 1,
+      //     .replication = false,
+      // };
+
+      //   tiling = {
+      //     .loops = {{1, 4, 2, 1, 1, 1}, {4, 1, 1, 1, 4, 256}},
+      //     .x_loop_index = {2, 5},
+      //     .y_loop_index = {0, 1},
+      //     .reduction_loop_index = {3, 0},
+      //     .weight_loop_index = {1, 4},
+      //     .fx_index = 3,
+      //     .fy_index = 2,
+      //     .weight_reuse_index = {5, 5},
+      //     .stride = 1,
+      //     .replication = false,
+      // };
+
+
+        // 82% util
+      //   tiling = {
+      //     .loops = {{1, 4, 2, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+      //     .x_loop_index = {2, 5},
+      //     .y_loop_index = {0, 1},
+      //     .reduction_loop_index = {3, 0},
+      //     .weight_loop_index = {1, 4},
+      //     .fx_index = 3,
+      //     .fy_index = 2,
+      //     .weight_reuse_index = {5, 5},
+      //     .stride = 1,
+      //     .replication = false,
+      // };
+
+
+      // 88% util
+      tiling = {
+      .loops = {{1, 8, 2, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+      .x_loop_index = {2, 5},
+      .y_loop_index = {0, 1},
+      .reduction_loop_index = {3, 0},
+      .weight_loop_index = {1, 4},
+      .fx_index = 3,
+      .fy_index = 2,
+      .weight_reuse_index = {5, 5},
+      .stride = 1,
+      .replication = false,
+  };
+
+  //   tiling = {
+  //     .loops = {{1, 8, 2, 1, 1, 1}, {1, 1, 1, 1, 4, 128}},
+  //     .x_loop_index = {2, 5},
+  //     .y_loop_index = {0, 1},
+  //     .reduction_loop_index = {3, 0},
+  //     .weight_loop_index = {1, 4},
+  //     .fx_index = 3,
+  //     .fy_index = 2,
+  //     .weight_reuse_index = {5, 5},
+  //     .stride = 1,
+  //     .replication = false,
+  // };
+
+
+ // Hangs
+  // tiling = {
+  //     .loops = {{1, 2, 8, 1, 1, 1}, {4, 1, 1, 1, 128, 4}},
+  //     .x_loop_index = {1, 4},
+  //     .y_loop_index = {0, 1},
+  //     .reduction_loop_index = {3, 0},
+  //     .weight_loop_index = {2, 5},
+  //     .fx_index = 3,
+  //     .fy_index = 2,
+  //     .weight_reuse_index = {5, 5},
+  //     .stride = 1,
+  //     .replication = false,
+  // };
+
+  // 50% util
+  // tiling = {
+  //     .loops = {{1, 2, 8, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+  //     .x_loop_index = {1, 5},
+  //     .y_loop_index = {0, 1},
+  //     .reduction_loop_index = {3, 0},
+  //     .weight_loop_index = {2, 4},
+  //     .fx_index = 3,
+  //     .fy_index = 2,
+  //     .weight_reuse_index = {5, 5},
+  //     .stride = 1,
+  //     .replication = false,
+  // };
+
+
+
+  //    tiling = {
+  //     .loops = {{1, 8, 1, 1, 1, 1}, {4, 1, 1, 1, 4, 256}},
+  //     .x_loop_index = {2, 5},
+  //     .y_loop_index = {0, 1},
+  //     .reduction_loop_index = {3, 0},
+  //     .weight_loop_index = {1, 4},
+  //     .fx_index = 3,
+  //     .fy_index = 2,
+  //     .weight_reuse_index = {5, 5},
+  //     .stride = 1,
+  //     .replication = false,
+  // };
+
+
+
+  // 50% util
+  //   tiling = {
+  //     .loops = {{1, 16, 1, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+  //     .x_loop_index = {2, 5},
+  //     .y_loop_index = {0, 1},
+  //     .reduction_loop_index = {3, 0},
+  //     .weight_loop_index = {1, 4},
+  //     .fx_index = 3,
+  //     .fy_index = 2,
+  //     .weight_reuse_index = {5, 5},
+  //     .stride = 1,
+  //     .replication = false,
+  // };
+
+  }
+  // Llama 3.2-1B prefill, K, V projection
+  else if (input_shape[0] == 1 && input_shape[1] == 512 && input_shape[2] == 2048 &&
+      weight_shape[0] == 2048 && weight_shape[1] == 512 && stride == 1) {
+
+        tiling = {
+          .loops = {{1, 2, 4, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  }
+  // Llama 3.2-1B prefill, Up projection
+  else if (input_shape[0] == 1 && input_shape[1] == 512 && input_shape[2] == 2048 &&
+      weight_shape[0] == 2048 && weight_shape[1] == 8192 && stride == 1) {
+
+        tiling = {
+          .loops = {{1, 2, 4, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  }
+  // Llama 3.2-1B prefill, Down projection
+  else if (input_shape[0] == 1 && input_shape[1] == 512 && input_shape[2] == 8192 &&
+      weight_shape[0] == 8192 && weight_shape[1] == 2048 && stride == 1) {
+
+        tiling = {
+          .loops = {{1, 8, 4, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  }
+   // Llama 3.2-1B prefill, final linear layer across vocabulary
+  else if (input_shape[0] == 1 && input_shape[1] == 512 && input_shape[2] == 2048 &&
+      weight_shape[0] == 2048 && weight_shape[1] == 128256 && stride == 1) {
+
+      //   // 77% util
+      //   tiling = {
+      //     .loops = {{1, 3, 2, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+      //     .x_loop_index = {2, 5},
+      //     .y_loop_index = {0, 1},
+      //     .reduction_loop_index = {3, 0},
+      //     .weight_loop_index = {1, 4},
+      //     .fx_index = 3,
+      //     .fy_index = 2,
+      //     .weight_reuse_index = {5, 5},
+      //     .stride = 1,
+      //     .replication = false,
+      // };
+
+
+        // 88% util: run 250 times on k dim
+        tiling = {
+          .loops = {{1, 4, 4, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+
+        // run once on k dim
+        tiling = {
+          .loops = {{1, 2, 4, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  }
+  else {
      throw std::runtime_error("Zircon hardcoded tiling not implemented for this layer!");
   }
 

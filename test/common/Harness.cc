@@ -469,7 +469,9 @@ void Harness::sendParams() {
 
     std::deque<AcceleratorMemoryMap> accelerator_memory_maps;
     std::deque<BaseParams *> accelerator_params;
-    MapOperation(currentOperation, accelerator_params, accelerator_memory_maps, false, false);
+    // MapOperation(currentOperation, accelerator_params, accelerator_memory_maps, false, false);
+    // FIXME: Temporary HACKING tiling for debugging purposes
+    MapOperation(currentOperation, accelerator_params, accelerator_memory_maps, false, true);
 
     std::deque<AcceleratorMemoryMap> dump_accelerator_memory_maps;
     std::deque<BaseParams *> dump_accelerator_params;
@@ -699,12 +701,14 @@ void Harness::sendParams() {
       CCS_LOG("----- Accelerator Layer '" << currentOperation.name
                                           << "' Started. -----");
 
-      if (matrixParamsValid) {
-        matrixUnitDoneSignal.SyncPop();
-      }
-      if (vectorParamsValid) {
-        vectorUnitDoneSignal.SyncPop();
-      }
+      // BEGIN COMMENTED LINES TO SKIP SYSTEMC SIM
+      // if (matrixParamsValid) {
+      //   matrixUnitDoneSignal.SyncPop();
+      // }
+      // if (vectorParamsValid) {
+      //   vectorUnitDoneSignal.SyncPop();
+      // }
+      // END COMEMNTED LINES TO SKIP SYSTEMC SIM
       CCS_LOG("----- Accelerator Layer '" << currentOperation.name
                                           << "' Finished. -----");
       sc_time end = sc_time_stamp();

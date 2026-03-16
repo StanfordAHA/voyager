@@ -779,9 +779,17 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
 
     x_dim_host_tiling = "ZIRCON_GEMM_X_DIM_HOST_TILING" in os.environ and os.environ["ZIRCON_GEMM_X_DIM_HOST_TILING"] == "1"
     if x_dim_host_tiling:
-        assert "X_DIM_HOST_TILING_SLICE_LENGTH" in os.environ, "X_DIM_HOST_TILING_SLICE_LENGTH environment variable must be set for ZIRCON_GEMM_X_DIM_HOST_TILING"
-        x_dim_host_tiling_slice_length = int(os.environ.get("X_DIM_HOST_TILING_SLICE_LENGTH"))
+        x_dim_host_tiling_slice_length = None
+        num_x_host_tiling_kernels = None
 
+        if "X_DIM_HOST_TILING_SLICE_LENGTH" in os.environ:
+            x_dim_host_tiling_slice_length = int(os.environ.get("X_DIM_HOST_TILING_SLICE_LENGTH"))
+
+        if "NUM_X_HOST_TILING_KERNELS" in os.environ:
+            num_x_host_tiling_kernels = int(os.environ.get("NUM_X_HOST_TILING_KERNELS"))
+
+
+        assert x_dim_host_tiling_slice_length is not None or num_x_host_tiling_kernels is not None, "Either X_DIM_HOST_TILING_SLICE_LENGTH or NUM_X_HOST_TILING_KERNELS environment variable must be set for ZIRCON_GEMM_X_DIM_HOST_TILING"
 
     # Append GLB base addresses to the kwargs for input, weight, bias, inputScale, and weightScale tensors
     input_base_address = mu_glb_base_address
@@ -792,10 +800,13 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
     # TODO: Refine this
     if x_dim_host_tiling:
         if len(kwargs['input']['tensor']['shape']) == 3:
-            input_num_elements = kwargs['input']['tensor']['shape'][0] * x_dim_host_tiling_slice_length * (kwargs['input']['tensor']['shape'][2])
+            if x_dim_host_tiling_slice_length is not None:
+                input_num_elements = kwargs['input']['tensor']['shape'][0] * x_dim_host_tiling_slice_length * (kwargs['input']['tensor']['shape'][2])
+            else:
+                input_num_elements = kwargs['input']['tensor']['shape'][0] * (kwargs['input']['tensor']['shape'][1] // num_x_host_tiling_kernels) * (kwargs['input']['tensor']['shape'][2])
         # Error out because it's not supported yet
         else:
-            raise NotImplementedError("X dimension host tiling is not supported for non 3-D (conv1 im2col) tensors yet.")
+            raise NotImplementedError("X dimension host tiling is not supported for non 3-D tensors yet.")
     if zircon_input_act_padding_workaround:
         input_shape = kwargs['input']['tensor']['shape']
         input_num_elements = input_shape[0] * (input_shape[1] + pad_dim) * (input_shape[2] + pad_dim) * input_shape[3]
@@ -805,6 +816,16 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
 
     if 'input_scale' in kwargs and 'tensor' in kwargs['input_scale'] and 'shape' in kwargs['input_scale']['tensor']:
         inputScale_num_elements = functools.reduce(operator.mul, kwargs['input_scale']['tensor']['shape'], 1)
+
+        if x_dim_host_tiling:
+            if len(kwargs['input_scale']['tensor']['shape']) == 3:
+                if x_dim_host_tiling_slice_length is not None:
+                    inputScale_num_elements = kwargs['input_scale']['tensor']['shape'][0] * x_dim_host_tiling_slice_length * (kwargs['input_scale']['tensor']['shape'][2])
+                else:
+                    inputScale_num_elements = kwargs['input_scale']['tensor']['shape'][0] * (kwargs['input_scale']['tensor']['shape'][1] // num_x_host_tiling_kernels) * (kwargs['input_scale']['tensor']['shape'][2])
+            # Error out because it's not supported yet
+            else:
+                raise NotImplementedError("X dimension host tiling is not supported for non 3-D tensors yet.")
         if zircon_input_act_padding_workaround:
             inputScale_shape = kwargs['input_scale']['tensor']['shape']
             inputScale_num_elements = inputScale_shape[0] * (inputScale_shape[1] + pad_dim) * (inputScale_shape[2] + pad_dim) * inputScale_shape[3]

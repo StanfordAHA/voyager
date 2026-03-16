@@ -59,6 +59,42 @@ def adjust_gold_for_io_dim0_tiling(input_file, output_file, channel_size, total_
 
 
 
+def adjust_gold_for_x_tiling(input_file, output_file, slice_offset, total_num_kernels, kernel_idx, out_img, n_oc, output_tensor_x_dim_tiling=False):
+    if slice_offset is not None:
+        tile_num_pixels = out_img * out_img * n_oc
+        with open(input_file, "r") as f:
+            lines = [line.strip() for line in f]
+
+        result = []
+        startpoint = slice_offset * n_oc
+        endpoint = startpoint + tile_num_pixels
+
+        # Shrink the gold file to only include the specified slice
+        for i, val in enumerate(lines):
+            if startpoint <= i < endpoint:
+                result.append(val)
+
+        with open(output_file, "w") as f:
+            f.write("\n".join(result))
+    else:
+        # This means we are doing x dimension host tiling but we don't have explicit slice offsets, so we need to calculate which lines to keep based on the kernel_idx and total_num_kernels
+        tile_num_pixels = out_img * out_img * n_oc
+        with open(input_file, "r") as f:
+            lines = [line.strip() for line in f]
+
+        result = []
+        for i, val in enumerate(lines):
+            pixel_idx = i % tile_num_pixels
+            micro_kernel_idx = (pixel_idx // n_oc) % total_num_kernels  # Determine which micro-kernel this pixel belongs to
+
+            if micro_kernel_idx == kernel_idx:
+                result.append(val)
+            elif not(output_tensor_x_dim_tiling):
+                result.append("0000")
+
+        with open(output_file, "w") as f:
+            f.write("\n".join(result))
+
 
 def adjust_gold_for_zircon_conv1(input_file, output_file, slice_offset, out_img, n_oc):
     tile_num_pixels = out_img * out_img * n_oc
@@ -107,89 +143,133 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
-    # This means the OUTPUT tensor is too large to fit in GLB. So we tile along K dim to fit it in GLB.
-    # In regular k_dim_host_tiling, it is assumed that the OUTPUT tesnor can fit in the GLB. The tiling is due to input tensors being too large to fit in GLB.
-    output_tensor_k_dim_tiling = "OUTPUT_TENSOR_K_DIM_TILING" in os.environ and os.environ["OUTPUT_TENSOR_K_DIM_TILING"] == "1"
-    zircon_conv1_gold = "ZIRCON_CONV1_GOLD" in os.environ and os.environ["ZIRCON_CONV1_GOLD"] == "1"
+    # k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
+    # # This means the OUTPUT tensor is too large to fit in GLB. So we tile along K dim to fit it in GLB.
+    # # In regular k_dim_host_tiling, it is assumed that the OUTPUT tesnor can fit in the GLB. The tiling is due to input tensors being too large to fit in GLB.
+    # output_tensor_k_dim_tiling = "OUTPUT_TENSOR_K_DIM_TILING" in os.environ and os.environ["OUTPUT_TENSOR_K_DIM_TILING"] == "1"
+    # zircon_conv1_gold = "ZIRCON_CONV1_GOLD" in os.environ and os.environ["ZIRCON_CONV1_GOLD"] == "1"
     GOLD_CHANNEL_TRIMMING_WORKAROUND = "GOLD_CHANNEL_TRIMMING_WORKAROUND" in os.environ and os.environ["GOLD_CHANNEL_TRIMMING_WORKAROUND"] == "1"
+    # x_dim_host_tiling = "ZIRCON_GEMM_X_DIM_HOST_TILING" in os.environ and os.environ["ZIRCON_GEMM_X_DIM_HOST_TILING"] == "1"
+    # output_tensor_x_dim_tiling = "OUTPUT_TENSOR_X_DIM_TILING" in os.environ and os.environ["OUTPUT_TENSOR_X_DIM_TILING"] == "1"
 
-    io_dim0_tiling = "IO_DIM0_TILING" in os.environ and os.environ["IO_DIM0_TILING"] == "1"
-    if io_dim0_tiling:
-        assert "NUM_IO_DIM0_TILING_KERNELS" in os.environ, "NUM_IO_DIM0_TILING_KERNELS environment variable must be set for IO_DIM0_TILING"
-        assert "IO_DIM0_TILING_IDX" in os.environ, "IO_DIM0_TILING_IDX environment variable must be set for IO_DIM0_TILING"
-        num_io_dim0_tiling_kernels = int(os.environ["NUM_IO_DIM0_TILING_KERNELS"])
-        io_dim0_tiling_idx = int(os.environ["IO_DIM0_TILING_IDX"])
+    # io_dim0_tiling = "IO_DIM0_TILING" in os.environ and os.environ["IO_DIM0_TILING"] == "1"
+    # if io_dim0_tiling:
+    #     assert "NUM_IO_DIM0_TILING_KERNELS" in os.environ, "NUM_IO_DIM0_TILING_KERNELS environment variable must be set for IO_DIM0_TILING"
+    #     assert "IO_DIM0_TILING_IDX" in os.environ, "IO_DIM0_TILING_IDX environment variable must be set for IO_DIM0_TILING"
+    #     num_io_dim0_tiling_kernels = int(os.environ["NUM_IO_DIM0_TILING_KERNELS"])
+    #     io_dim0_tiling_idx = int(os.environ["IO_DIM0_TILING_IDX"])
 
-        output_tensor_io_dim0_tiling = "OUTPUT_TENSOR_IO_DIM0_TILING" in os.environ and os.environ["OUTPUT_TENSOR_IO_DIM0_TILING"] == "1"
+    #     output_tensor_io_dim0_tiling = "OUTPUT_TENSOR_IO_DIM0_TILING" in os.environ and os.environ["OUTPUT_TENSOR_IO_DIM0_TILING"] == "1"
 
-        assert "HALIDE_GEN_ARGS" in os.environ, "HALIDE_GEN_ARGS environment variable must be set for IO_DIM0_TILING"
-        HALIDE_GEN_ARGS = os.environ["HALIDE_GEN_ARGS"]
-        dim0_fake_match = re.search(r'dim0_fake=(\d+)', HALIDE_GEN_ARGS)
-        assert dim0_fake_match, "No dim0_fake in HALIDE_GEN_ARGS!"
-        dim0_fake = int(dim0_fake_match.group(1))
+    #     assert "HALIDE_GEN_ARGS" in os.environ, "HALIDE_GEN_ARGS environment variable must be set for IO_DIM0_TILING"
+    #     HALIDE_GEN_ARGS = os.environ["HALIDE_GEN_ARGS"]
+    #     dim0_fake_match = re.search(r'dim0_fake=(\d+)', HALIDE_GEN_ARGS)
+    #     assert dim0_fake_match, "No dim0_fake in HALIDE_GEN_ARGS!"
+    #     dim0_fake = int(dim0_fake_match.group(1))
 
-        if args.is_mx_scale:
-            dim0_fake = dim0_fake // args.mx_block_size
+    #     if args.is_mx_scale:
+    #         dim0_fake = dim0_fake // args.mx_block_size
 
-        adjust_gold_for_io_dim0_tiling(
-            args.input,
-            args.output,
-            dim0_fake,
-            num_io_dim0_tiling_kernels,
-            io_dim0_tiling_idx,
-            output_tensor_io_dim0_tiling=output_tensor_io_dim0_tiling
-        )
-
-
-
-    if k_dim_host_tiling:
-        assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
-        assert "K_DIM_HOST_TILING_IDX" in os.environ, "K_DIM_HOST_TILING_IDX environment variable must be set for K_DIM_HOST_TILING"
-        num_k_host_tiling_kernels = int(os.environ["NUM_K_HOST_TILING_KERNELS"])
-        k_host_tiling_idx = int(os.environ["K_DIM_HOST_TILING_IDX"])
-
-        assert "HALIDE_GEN_ARGS" in os.environ, "HALIDE_GEN_ARGS environment variable must be set for K_DIM_HOST_TILING"
-        HALIDE_GEN_ARGS = os.environ["HALIDE_GEN_ARGS"]
-        n_oc_match = re.search(r'n_oc=(\d+)', HALIDE_GEN_ARGS)
-        assert n_oc_match, "No n_oc in HALIDE_GEN_ARGS!"
-        n_oc = int(n_oc_match.group(1))
-
-        if args.is_mx_scale:
-            n_oc = n_oc // args.mx_block_size
-
-        adjust_gold_for_k_tiling(
-            args.input,
-            args.output,
-            n_oc,
-            num_k_host_tiling_kernels,
-            k_host_tiling_idx,
-            output_tensor_k_dim_tiling=output_tensor_k_dim_tiling
-        )
+    #     adjust_gold_for_io_dim0_tiling(
+    #         args.input,
+    #         args.output,
+    #         dim0_fake,
+    #         num_io_dim0_tiling_kernels,
+    #         io_dim0_tiling_idx,
+    #         output_tensor_io_dim0_tiling=output_tensor_io_dim0_tiling
+    #     )
 
 
-    elif zircon_conv1_gold:
-        assert "X_DIM_HOST_TILING_SLICE_OFFSET" in os.environ, "X_DIM_HOST_TILING_SLICE_OFFSET environment variable must be set for ZIRCON_CONV1_GOLD"
 
-        assert "HALIDE_GEN_ARGS" in os.environ, "HALIDE_GEN_ARGS environment variable must be set for ZIRCON_CONV1_GOLD"
-        HALIDE_GEN_ARGS = os.environ["HALIDE_GEN_ARGS"]
-        n_oc_match = re.search(r'n_oc=(\d+)', HALIDE_GEN_ARGS)
-        assert n_oc_match, "No n_oc in HALIDE_GEN_ARGS!"
-        n_oc = int(n_oc_match.group(1))
+    # if k_dim_host_tiling:
+    #     assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
+    #     assert "K_DIM_HOST_TILING_IDX" in os.environ, "K_DIM_HOST_TILING_IDX environment variable must be set for K_DIM_HOST_TILING"
+    #     num_k_host_tiling_kernels = int(os.environ["NUM_K_HOST_TILING_KERNELS"])
+    #     k_host_tiling_idx = int(os.environ["K_DIM_HOST_TILING_IDX"])
 
-        out_img = re.search(r'out_img=(\d+)', HALIDE_GEN_ARGS)
-        assert out_img, "No out_img in HALIDE_GEN_ARGS!"
-        out_img = int(out_img.group(1))
+    #     assert "HALIDE_GEN_ARGS" in os.environ, "HALIDE_GEN_ARGS environment variable must be set for K_DIM_HOST_TILING"
+    #     HALIDE_GEN_ARGS = os.environ["HALIDE_GEN_ARGS"]
+    #     n_oc_match = re.search(r'n_oc=(\d+)', HALIDE_GEN_ARGS)
+    #     assert n_oc_match, "No n_oc in HALIDE_GEN_ARGS!"
+    #     n_oc = int(n_oc_match.group(1))
 
-        x_dim_host_tiling_slice_offset = int(os.environ["X_DIM_HOST_TILING_SLICE_OFFSET"])
+    #     if args.is_mx_scale:
+    #         n_oc = n_oc // args.mx_block_size
 
-        adjust_gold_for_zircon_conv1(
-            args.input,
-            args.output,
-            x_dim_host_tiling_slice_offset,
-            out_img,
-            n_oc
-        )
+    #     adjust_gold_for_k_tiling(
+    #         args.input,
+    #         args.output,
+    #         n_oc,
+    #         num_k_host_tiling_kernels,
+    #         k_host_tiling_idx,
+    #         output_tensor_k_dim_tiling=output_tensor_k_dim_tiling
+    #     )
+
+    # elif x_dim_host_tiling:
+    #     x_dim_host_tiling_slice_offset = None
+    #     x_dim_host_tiling_slice_length = None
+    #     num_x_host_tiling_kernels = None
+    #     x_dim_host_tiling_kernel_idx = None
+
+    #     if x_dim_host_tiling:
+    #         if "X_DIM_HOST_TILING_SLICE_LENGTH" in os.environ:
+    #             x_dim_host_tiling_slice_length = int(os.environ.get("X_DIM_HOST_TILING_SLICE_LENGTH"))
+
+    #         if "X_DIM_HOST_TILING_SLICE_OFFSET" in os.environ:
+    #             x_dim_host_tiling_slice_offset = int(os.environ.get("X_DIM_HOST_TILING_SLICE_OFFSET"))
+
+    #         if "NUM_X_HOST_TILING_KERNELS" in os.environ:
+    #             num_x_host_tiling_kernels = int(os.environ.get("NUM_X_HOST_TILING_KERNELS"))
+
+    #         if "X_DIM_HOST_TILING_IDX" in os.environ:
+    #             x_dim_host_tiling_kernel_idx = int(os.environ.get("X_DIM_HOST_TILING_IDX"))
+
+    #         assert (x_dim_host_tiling_slice_length is not None and x_dim_host_tiling_slice_offset is not None) or (num_x_host_tiling_kernels is not None and x_dim_host_tiling_kernel_idx is not None), "Either X_DIM_HOST_TILING_SLICE_LENGTH and X_DIM_HOST_TILING_SLICE_OFFSET or NUM_X_HOST_TILING_KERNELS and X_DIM_HOST_TILING_KERNEL_IDX environment variables must be set for ZIRCON_GEMM_X_DIM_HOST_TILING"
+
+    #     assert "HALIDE_GEN_ARGS" in os.environ, "HALIDE_GEN_ARGS environment variable must be set for ZIRCON_CONV1_GOLD"
+    #     HALIDE_GEN_ARGS = os.environ["HALIDE_GEN_ARGS"]
+    #     n_oc_match = re.search(r'n_oc=(\d+)', HALIDE_GEN_ARGS)
+    #     assert n_oc_match, "No n_oc in HALIDE_GEN_ARGS!"
+    #     n_oc = int(n_oc_match.group(1))
+
+    #     out_img = re.search(r'out_img=(\d+)', HALIDE_GEN_ARGS)
+    #     assert out_img, "No out_img in HALIDE_GEN_ARGS!"
+    #     out_img = int(out_img.group(1))
+
+    #     adjust_gold_for_x_tiling(
+    #         args.input,
+    #         args.output,
+    #         x_dim_host_tiling_slice_offset,
+    #         num_x_host_tiling_kernels,
+    #         x_dim_host_tiling_kernel_idx,
+    #         out_img,
+    #         n_oc,
+    #         output_tensor_x_dim_tiling=output_tensor_x_dim_tiling,
+    #     )
+
+
+    # elif zircon_conv1_gold:
+    #     assert "X_DIM_HOST_TILING_SLICE_OFFSET" in os.environ, "X_DIM_HOST_TILING_SLICE_OFFSET environment variable must be set for ZIRCON_CONV1_GOLD"
+
+    #     assert "HALIDE_GEN_ARGS" in os.environ, "HALIDE_GEN_ARGS environment variable must be set for ZIRCON_CONV1_GOLD"
+    #     HALIDE_GEN_ARGS = os.environ["HALIDE_GEN_ARGS"]
+    #     n_oc_match = re.search(r'n_oc=(\d+)', HALIDE_GEN_ARGS)
+    #     assert n_oc_match, "No n_oc in HALIDE_GEN_ARGS!"
+    #     n_oc = int(n_oc_match.group(1))
+
+    #     out_img = re.search(r'out_img=(\d+)', HALIDE_GEN_ARGS)
+    #     assert out_img, "No out_img in HALIDE_GEN_ARGS!"
+    #     out_img = int(out_img.group(1))
+
+    #     x_dim_host_tiling_slice_offset = int(os.environ["X_DIM_HOST_TILING_SLICE_OFFSET"])
+
+    #     adjust_gold_for_zircon_conv1(
+    #         args.input,
+    #         args.output,
+    #         x_dim_host_tiling_slice_offset,
+    #         out_img,
+    #         n_oc
+    #     )
 
 
     if GOLD_CHANNEL_TRIMMING_WORKAROUND:

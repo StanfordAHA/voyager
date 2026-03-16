@@ -289,7 +289,7 @@ def map_mha_loops(orig_loop_bounds: list, orig_loop_order, K0: int = 32, num_att
 
     head_size = (K2 * K1 * K0) // num_attn_heads
 
-    dr = head_size // K0  # D loops to map
+    dr = max(head_size // K0, 1)  # D loops to map
     hr = num_attn_heads  # H loops to map
 
     k_r_list = [K1, K2]
