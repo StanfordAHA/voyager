@@ -236,12 +236,28 @@ def parse_zircon_workarounds():
     k_dim_host_tiling = "K_DIM_HOST_TILING" in os.environ and os.environ["K_DIM_HOST_TILING"] == "1"
     num_k_host_tiling_kernels = 1
     k_dim_host_tiling_idx = 0
+    k_dim_host_tiling_pre_slicing = False
+    k_dim_host_tiling_pre_slicing_slice_offset = 0
+    k_dim_host_tiling_pre_slicing_slice_length = None
     if k_dim_host_tiling:
         assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
         assert "K_DIM_HOST_TILING_IDX" in os.environ, "K_DIM_HOST_TILING_IDX environment variable must be set for K_DIM_HOST_TILING"
         num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS"))
         k_dim_host_tiling_idx = int(os.environ.get("K_DIM_HOST_TILING_IDX"))
 
+        k_dim_host_tiling_pre_slicing = "K_DIM_HOST_TILING_PRE_SLICING" in os.environ and os.environ["K_DIM_HOST_TILING_PRE_SLICING"] == "1"
+        if k_dim_host_tiling_pre_slicing:
+            assert "K_DIM_HOST_TILING_PRE_SLICING_SLICE_OFFSET" in os.environ, "K_DIM_HOST_TILING_PRE_SLICING_SLICE_OFFSET environment variable must be set for K_DIM_HOST_TILING_PRE_SLICING"
+            assert "K_DIM_HOST_TILING_PRE_SLICING_SLICE_LENGTH" in os.environ, "K_DIM_HOST_TILING_PRE_SLICING_SLICE_LENGTH environment variable must be set for K_DIM_HOST_TILING_PRE_SLICING"
+            k_dim_host_tiling_pre_slicing_slice_offset = int(os.environ.get("K_DIM_HOST_TILING_PRE_SLICING_SLICE_OFFSET"))
+            k_dim_host_tiling_pre_slicing_slice_length = int(os.environ.get("K_DIM_HOST_TILING_PRE_SLICING_SLICE_LENGTH"))
+
+
+    # Non uniform slicing
+    non_uniform_slicing = "NON_UNIFORM_SLICING" in os.environ and os.environ["NON_UNIFORM_SLICING"] == "1"
+    non_uniform_slice_idx = 0
+    if non_uniform_slicing:
+        non_uniform_slice_idx = int(os.environ.get("NON_UNIFORM_SLICE_IDX", 1))
 
     # X dim host tiling for GEMM
     x_dim_host_tiling = "ZIRCON_GEMM_X_DIM_HOST_TILING" in os.environ and os.environ["ZIRCON_GEMM_X_DIM_HOST_TILING"] == "1"
@@ -307,6 +323,13 @@ def parse_zircon_workarounds():
         if output_tensor_k_dim_tiling:
             print(f"\033[93mINFO: Output tensor K dimension tiling enabled. Output tensor will be tiled along the K dimension for the host tiled kernels.\033[0m")
 
+    if k_dim_host_tiling_pre_slicing:
+        print(f"\033[93mINFO: K dimension host tiling pre-slicing enabled. The input tensor will be sliced along the K dimension with slice offset {k_dim_host_tiling_pre_slicing_slice_offset} and slice length {k_dim_host_tiling_pre_slicing_slice_length} before being fed into the kernel.\033[0m")
+
+
+    if non_uniform_slicing:
+        print(f"\033[93mINFO: Non-uniform slicing enabled. Using slice index {non_uniform_slice_idx} for this kernel.\033[0m")
+
     if x_dim_host_tiling:
         if x_dim_host_tiling_slice_length is not None and x_dim_host_tiling_slice_offset is not None:
             print(f"\033[93mINFO: X dimension host tiling enabled for GEMM. Using slice offset {x_dim_host_tiling_slice_offset} and slice length {x_dim_host_tiling_slice_length} along the x dimension.\033[0m")
@@ -335,6 +358,11 @@ def parse_zircon_workarounds():
         "k_dim_host_tiling": k_dim_host_tiling,
         "num_k_host_tiling_kernels": num_k_host_tiling_kernels,
         "k_dim_host_tiling_idx": k_dim_host_tiling_idx,
+        "k_dim_host_tiling_pre_slicing": k_dim_host_tiling_pre_slicing,
+        "k_dim_host_tiling_pre_slicing_slice_offset": k_dim_host_tiling_pre_slicing_slice_offset,
+        "k_dim_host_tiling_pre_slicing_slice_length": k_dim_host_tiling_pre_slicing_slice_length,
+        "non_uniform_slicing": non_uniform_slicing,
+        "non_uniform_slice_idx": non_uniform_slice_idx,
         "x_dim_host_tiling": x_dim_host_tiling,
         "x_dim_host_tiling_slice_offset": x_dim_host_tiling_slice_offset,
         "x_dim_host_tiling_slice_length": x_dim_host_tiling_slice_length,
@@ -445,9 +473,17 @@ def parse_weight(base_path, weight_tensor_data, zircon_workarounds):
         num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
         k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
         if len(weight.shape) == 2:
+            if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                weight = weight[:, slice_offset:slice_offset + slice_length]
             weight = weight.reshape((weight.shape[0], num_k_host_tiling_kernels, weight.shape[1] // num_k_host_tiling_kernels))
             weight = weight.permute(1, 0, 2)
         elif len(weight.shape) == 4:
+            if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                weight = weight[:, :, :, slice_offset:slice_offset + slice_length]
             weight = weight.reshape((weight.shape[0], weight.shape[1], weight.shape[2], num_k_host_tiling_kernels, weight.shape[3] // num_k_host_tiling_kernels))
             weight = weight.permute(3, 0, 1, 2, 4)
         else:
@@ -480,9 +516,17 @@ def parse_weightScale(base_path, weightScale_tensor_data, zircon_workarounds):
         num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
         k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
         if len(weightScale.shape) == 2:
+            if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                weightScale = weightScale[:, slice_offset:slice_offset + slice_length]
             weightScale = weightScale.reshape((weightScale.shape[0], num_k_host_tiling_kernels, weightScale.shape[1] // num_k_host_tiling_kernels))
             weightScale = weightScale.permute(1, 0, 2)
         elif len(weightScale.shape) == 4:
+            if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                weightScale = weightScale[:, :, :, slice_offset:slice_offset + slice_length]
             weightScale = weightScale.reshape((weightScale.shape[0], weightScale.shape[1], weightScale.shape[2], num_k_host_tiling_kernels, weightScale.shape[3] // num_k_host_tiling_kernels))
             weightScale = weightScale.permute(3, 0, 1, 2, 4)
         else:
@@ -523,6 +567,10 @@ def parse_bias(base_path, bias_tensor_data, h2h_dir, zircon_workarounds, standal
         num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
         k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
         bias = bias.flatten()
+        if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+            slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+            slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+            bias = bias[slice_offset:slice_offset + slice_length]
         bias = bias.reshape((num_k_host_tiling_kernels, bias.shape[0] // num_k_host_tiling_kernels))
         bias = bias[k_dim_host_tiling_idx]
     bias_bf16 = float32_to_bfloat16_bits(bias)
@@ -551,12 +599,89 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
         residual = F.pad(residual, pad=(0, zircon_workarounds["zircon_input_act_padding_workaround_size"], 0, zircon_workarounds["zircon_input_act_padding_workaround_size"]), value=-1000) # Pad with -1000 instead of 0s to catch potential bugs
         residual = residual.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
 
-    # if zircon_workarounds["k_dim_host_tiling"]:
-    #     num_k_host_tiling_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
-    #     k_dim_host_tiling_idx = zircon_workarounds["k_dim_host_tiling_idx"]
-    #     residual = residual.reshape((residual.shape[0], residual.shape[1], residual.shape[2], num_k_host_tiling_kernels, residual.shape[3] // num_k_host_tiling_kernels))
-    #     residual = residual.permute(3, 0, 1, 2, 4)
-    #     residual = residual[k_dim_host_tiling_idx]
+    # Tiling flow
+    if zircon_workarounds["k_dim_host_tiling"] or zircon_workarounds["io_dim0_tiling"]:
+        if zircon_workarounds["k_dim_host_tiling"]:
+            num_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
+            kernel_idx = zircon_workarounds["k_dim_host_tiling_idx"]
+        else:
+            num_kernels = zircon_workarounds["num_io_dim0_tiling_kernels"]
+            kernel_idx = zircon_workarounds["io_dim0_tiling_idx"]
+
+        tile_output_tensor = zircon_workarounds["output_tensor_k_dim_tiling"] or zircon_workarounds["output_tensor_io_dim0_tiling"]
+
+        # Divide the innermost dimension into num_kernels tiles and take the tile corresponding to kernel_idx
+        # We don't know how many dimensions the tensor has, so we need code that handles different cases
+        if len(residual.shape) == 2:
+            if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                residual = residual[:, slice_offset:slice_offset + slice_length]
+            residual = residual.reshape((residual.shape[0], num_kernels, residual.shape[1] // num_kernels))
+            residual = residual.permute(1, 0, 2)
+        elif len(residual.shape) == 3:
+            if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                residual = residual[:, :, slice_offset:slice_offset + slice_length]
+            residual = residual.reshape((residual.shape[0], residual.shape[1], num_kernels, residual.shape[2] // num_kernels))
+            residual = residual.permute(2, 0, 1, 3)
+        elif len(residual.shape) == 4:
+            mha_permute = "MHA_PERMUTE" in os.environ and os.environ["MHA_PERMUTE"] == "1"
+            if mha_permute:
+                if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                    slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                    slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                    residual = residual[:, slice_offset:slice_offset + slice_length, :, :]
+                num_attn_heads = int(os.environ.get("NUM_ATTENTION_HEADS", 12))
+                # If MHA permute is on, then we tile long the head dimension, which is dim 1
+                residual = residual.reshape((residual.shape[0], num_kernels, residual.shape[1] // num_kernels, residual.shape[2], residual.shape[3]))
+                residual = residual.permute(1, 0, 2, 3, 4)
+
+                # Make sure it worked correctly
+                assert residual.shape[2] == num_attn_heads // num_kernels, f"Output tensor shape after k-dim tiling is {residual.shape}, expected head dimension to be {num_attn_heads // num_kernels}"
+            else:
+                if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                    slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                    slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                    residual = residual[:, :, :, slice_offset:slice_offset + slice_length]
+                residual = residual.reshape((residual.shape[0], residual.shape[1], residual.shape[2], num_kernels, residual.shape[3] // num_kernels))
+                residual = residual.permute(3, 0, 1, 2, 4)
+        else:
+            raise NotImplementedError("K dimension host tiling is only supported for 2-D, 3-D, and 4-D output tensors currently.")
+
+        # If tile_output_tensor is not true, then make all elements not in kernel_idx tile 0, otherwise just take the kernel_idx tile
+        if not(tile_output_tensor):
+            mask = torch.zeros_like(residual)
+            mask[..., kernel_idx, :] = 1
+            residual = residual * mask
+        else:
+            residual = residual[kernel_idx]
+
+    if zircon_workarounds["x_dim_host_tiling"]:
+        x_dim_host_tiling_slice_offset = zircon_workarounds["x_dim_host_tiling_slice_offset"]
+        x_dim_host_tiling_slice_length = zircon_workarounds["x_dim_host_tiling_slice_length"]
+        num_x_host_tiling_kernels = zircon_workarounds["num_x_host_tiling_kernels"]
+        x_dim_host_tiling_kernel_idx = zircon_workarounds["x_dim_host_tiling_idx"]
+        # We don't know how many dimensions the tensor has, but we know that the X dimension is the second to last dimension, so we can write code that handles different cases based on the number of dimensions
+        if len(residual.shape) == 3:
+            if x_dim_host_tiling_slice_offset is not None and x_dim_host_tiling_slice_length is not None:
+                residual = residual[:, x_dim_host_tiling_slice_offset:x_dim_host_tiling_slice_offset + x_dim_host_tiling_slice_length, :]
+            else:
+                residual = residual.reshape((residual.shape[0], num_x_host_tiling_kernels, residual.shape[1] // num_x_host_tiling_kernels, residual.shape[2]))
+                residual = residual.permute(1, 0, 2, 3)
+                residual = residual[x_dim_host_tiling_kernel_idx]
+        elif len(residual.shape) == 4:
+            if x_dim_host_tiling_slice_offset is not None and x_dim_host_tiling_slice_length is not None:
+                residual = residual[:, :, x_dim_host_tiling_slice_offset:x_dim_host_tiling_slice_offset + x_dim_host_tiling_slice_length, :]
+            else:
+                residual = residual.reshape((residual.shape[0], residual.shape[1], num_x_host_tiling_kernels, residual.shape[2] // num_x_host_tiling_kernels, residual.shape[3]))
+                residual = residual.permute(2, 0, 1, 3, 4)
+                residual = residual[x_dim_host_tiling_kernel_idx]
+        # Error out becuase it's not supported yet
+        else:
+            raise NotImplementedError("X dimension host tiling is not supported for non 3D or 4D tensors yet.")
+
     residual_bf16 = float32_to_bfloat16_bits(residual)
     residual_bf16_be = residual_bf16.byteswap().newbyteorder('>')
 
@@ -725,25 +850,40 @@ def parse_output(base_path, output_tensor_data, zircon_workarounds):
 
         # Divide the innermost dimension into num_kernels tiles and take the tile corresponding to kernel_idx
         # We don't know how many dimensions the tensor has, so we need code that handles different cases
-        output_shape = output_tensor.shape
-        if len(output_shape) == 2:
-            output_tensor = output_tensor.reshape((output_shape[0], num_kernels, output_shape[1] // num_kernels))
+        if len(output_tensor.shape) == 2:
+            if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                output_tensor = output_tensor[:, slice_offset:slice_offset + slice_length]
+            output_tensor = output_tensor.reshape((output_tensor.shape[0], num_kernels, output_tensor.shape[1] // num_kernels))
             output_tensor = output_tensor.permute(1, 0, 2)
-        elif len(output_shape) == 3:
-            output_tensor = output_tensor.reshape((output_shape[0], output_shape[1], num_kernels, output_shape[2] // num_kernels))
+        elif len(output_tensor.shape) == 3:
+            if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                output_tensor = output_tensor[:, :, slice_offset:slice_offset + slice_length]
+            output_tensor = output_tensor.reshape((output_tensor.shape[0], output_tensor.shape[1], num_kernels, output_tensor.shape[2] // num_kernels))
             output_tensor = output_tensor.permute(2, 0, 1, 3)
-        elif len(output_shape) == 4:
+        elif len(output_tensor.shape) == 4:
             mha_permute = "MHA_PERMUTE" in os.environ and os.environ["MHA_PERMUTE"] == "1"
             if mha_permute:
+                if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                    slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                    slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                    output_tensor = output_tensor[:, slice_offset:slice_offset + slice_length, :, :]
                 num_attn_heads = int(os.environ.get("NUM_ATTENTION_HEADS", 12))
                 # If MHA permute is on, then we tile long the head dimension, which is dim 1
-                output_tensor = output_tensor.reshape((output_shape[0], num_kernels, output_shape[1] // num_kernels, output_shape[2], output_shape[3]))
+                output_tensor = output_tensor.reshape((output_tensor.shape[0], num_kernels, output_tensor.shape[1] // num_kernels, output_tensor.shape[2], output_tensor.shape[3]))
                 output_tensor = output_tensor.permute(1, 0, 2, 3, 4)
 
                 # Make sure it worked correctly
                 assert output_tensor.shape[2] == num_attn_heads // num_kernels, f"Output tensor shape after k-dim tiling is {output_tensor.shape}, expected head dimension to be {num_attn_heads // num_kernels}"
             else:
-                output_tensor = output_tensor.reshape((output_shape[0], output_shape[1], output_shape[2], num_kernels, output_shape[3] // num_kernels))
+                if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
+                    slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
+                    slice_length = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_length"]
+                    output_tensor = output_tensor[:, :, :, slice_offset:slice_offset + slice_length]
+                output_tensor = output_tensor.reshape((output_tensor.shape[0], output_tensor.shape[1], output_tensor.shape[2], num_kernels, output_tensor.shape[3] // num_kernels))
                 output_tensor = output_tensor.permute(3, 0, 1, 2, 4)
         else:
             raise NotImplementedError("K dimension host tiling is only supported for 2-D, 3-D, and 4-D output tensors currently.")
@@ -905,7 +1045,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
 
     # For psum_workoround, if not kernel 0, read prior kernel output from text file and convert to raw binary file
     if zircon_workarounds["zircon_cgra_psum_workaround"] and (zircon_workarounds["psum_idx"] != 0):
-        hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_psum_reduction_fp/{model}-{layer}_gold/kernel_{zircon_workarounds["intermediate_gold_idx"] - 1}_output.txt'
+        if zircon_workarounds["non_uniform_slicing"]:
+            hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_psum_reduction_fp/{model}-{layer}_slice_{zircon_workarounds["non_uniform_slice_idx"]}_gold/kernel_{zircon_workarounds["intermediate_gold_idx"] - 1}_output.txt'
+        else:
+            hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_psum_reduction_fp/{model}-{layer}_gold/kernel_{zircon_workarounds["intermediate_gold_idx"] - 1}_output.txt'
         assert os.path.exists(hw_output_txt_path), f"The prior kernel output file {hw_output_txt_path} does not exist."
         # For the last psum, write to hw_residual_input_stencil.raw, otherwise write to hw_partial_sum_input_stencil.raw
         if zircon_workarounds["psum_idx"] == (zircon_workarounds["num_psums"] - 1):
@@ -916,7 +1059,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
 
     # For outer channel tiling workaround, if not kernel 0, read prior kernel output from text file and convert to raw binary file
     if zircon_workarounds["zircon_outer_reduction_tiling_workaround"] and (zircon_workarounds["psum_idx"] != 0):
-        hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_psum_reduction_fp/per_tensor_{model}-{layer}_gold/kernel_{zircon_workarounds["intermediate_gold_idx"] - 1}_output.txt'
+        if zircon_workarounds["non_uniform_slicing"]:
+            hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_psum_reduction_fp/per_tensor_{model}-{layer}_slice_{zircon_workarounds["non_uniform_slice_idx"]}_gold/kernel_{zircon_workarounds["intermediate_gold_idx"] - 1}_output.txt'
+        else:
+            hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_psum_reduction_fp/per_tensor_{model}-{layer}_gold/kernel_{zircon_workarounds["intermediate_gold_idx"] - 1}_output.txt'
         assert os.path.exists(hw_output_txt_path), f"The prior kernel output file {hw_output_txt_path} does not exist."
         # For the last psum, write to hw_residual_input_stencil.raw, otherwise write to hw_partial_sum_input_stencil.raw
         if zircon_workarounds["psum_idx"] == (zircon_workarounds["num_psums"] - 1):
@@ -929,7 +1075,10 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     if zircon_workarounds["zircon_gemm_reduction_tiling_workaround"] and (zircon_workarounds["psum_idx"] != 0):
         if model == "bert" and layer == "gelu":
             layer = "linear_mx_default_4"
-        hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_2d_psum_reduction_fp/{model}-{layer}_gold/kernel_{zircon_workarounds["intermediate_gold_idx"] - 1}_output.txt'
+        if zircon_workarounds["non_uniform_slicing"]:
+            hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_2d_psum_reduction_fp/{model}-{layer}_slice_{zircon_workarounds["non_uniform_slice_idx"]}_gold/kernel_{zircon_workarounds["intermediate_gold_idx"] - 1}_output.txt'
+        else:
+            hw_output_txt_path = f'/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/zircon_2d_psum_reduction_fp/{model}-{layer}_gold/kernel_{zircon_workarounds["intermediate_gold_idx"] - 1}_output.txt'
         assert os.path.exists(hw_output_txt_path), f"The prior kernel output file {hw_output_txt_path} does not exist."
         # TODO: Only do this if there IS a residual
         # # For the last psum, write to hw_residual_input_stencil.raw, otherwise write to hw_partial_sum_input_stencil.raw

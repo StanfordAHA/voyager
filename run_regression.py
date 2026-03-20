@@ -2,6 +2,7 @@ import argparse
 import datetime
 import multiprocessing as mp
 import os
+import copy
 import subprocess
 from collections import defaultdict
 import pandas as pd
@@ -772,6 +773,13 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
         assert "NUM_K_HOST_TILING_KERNELS" in os.environ, "NUM_K_HOST_TILING_KERNELS environment variable must be set for K_DIM_HOST_TILING"
         num_k_host_tiling_kernels = int(os.environ.get("NUM_K_HOST_TILING_KERNELS", 1))
 
+    k_dim_host_tiling_pre_slicing = "K_DIM_HOST_TILING_PRE_SLICING" in os.environ and os.environ["K_DIM_HOST_TILING_PRE_SLICING"] == "1"
+    if k_dim_host_tiling_pre_slicing:
+        assert "K_DIM_HOST_TILING_PRE_SLICING_SLICE_OFFSET" in os.environ, "K_DIM_HOST_TILING_PRE_SLICING_SLICE_OFFSET environment variable must be set for K_DIM_HOST_TILING_PRE_SLICING"
+        assert "K_DIM_HOST_TILING_PRE_SLICING_SLICE_LENGTH" in os.environ, "K_DIM_HOST_TILING_PRE_SLICING_SLICE_LENGTH environment variable must be set for K_DIM_HOST_TILING_PRE_SLICING"
+        k_dim_host_tiling_pre_slicing_slice_offset = int(os.environ.get("K_DIM_HOST_TILING_PRE_SLICING_SLICE_OFFSET"))
+        k_dim_host_tiling_pre_slicing_slice_length = int(os.environ.get("K_DIM_HOST_TILING_PRE_SLICING_SLICE_LENGTH"))
+
     zircon_gemm_reduction_tiling_workaround = "ZIRCON_GEMM_REDUCTION_TILING_WORKAROUND" in os.environ and os.environ["ZIRCON_GEMM_REDUCTION_TILING_WORKAROUND"] == "1"
     if zircon_gemm_reduction_tiling_workaround:
         assert "NUM_PSUMS" in os.environ, "NUM_PSUMS environment variable must be set for ZIRCON_GEMM_REDUCTION_TILING_WORKAROUND"
@@ -840,7 +848,11 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
             kwargs['weight'] = kwargs['other']  # rename 'other' to 'weight' for consistency
             del kwargs['other']  # remove 'other' from kwargs
     if 'weight' in kwargs:
-        weight_num_elements = functools.reduce(operator.mul, kwargs['weight']['tensor']['shape'], 1)
+        # Make a copy so as to not modify the original shape in kwargs, which is needed for generating correct codegen
+        weight_tensor_shape = copy.deepcopy(kwargs['weight']['tensor']['shape'])
+        if k_dim_host_tiling_pre_slicing:
+            weight_tensor_shape[-1] = k_dim_host_tiling_pre_slicing_slice_length
+        weight_num_elements = functools.reduce(operator.mul, weight_tensor_shape, 1)
         if k_dim_host_tiling:
             weight_num_elements = weight_num_elements // num_k_host_tiling_kernels
         if zircon_gemm_reduction_tiling_workaround:
@@ -851,7 +863,11 @@ def append_glb_base_addresses(tensor_metadata, kwargs, mu_glb_base_address, is_g
         curr_addr_pointer += math.ceil(weight_num_elements/32) * 32 # take math.ceil(/32) * 32 to align to 32 bytes in MU-GLB address space
 
     if 'weight_scale' in kwargs and 'tensor' in kwargs['weight_scale'] and 'shape' in kwargs['weight_scale']['tensor']:
-        weightScale_num_elements = functools.reduce(operator.mul, kwargs['weight_scale']['tensor']['shape'], 1)
+        # Make a copy so as to not modify the original shape in kwargs, which is needed for generating correct codegen
+        weightScale_tensor_shape = copy.deepcopy(kwargs['weight_scale']['tensor']['shape'])
+        if k_dim_host_tiling_pre_slicing:
+            weightScale_tensor_shape[-1] = k_dim_host_tiling_pre_slicing_slice_length
+        weightScale_num_elements = functools.reduce(operator.mul, weightScale_tensor_shape, 1)
         if zircon_gemm_reduction_tiling_workaround:
             weightScale_num_elements = weightScale_num_elements // num_psums
         if k_dim_host_tiling:

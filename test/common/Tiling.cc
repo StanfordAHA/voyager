@@ -597,8 +597,23 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
   else if (input_shape[0] == 1 && input_shape[1] == 512 && input_shape[2] == 2048 &&
       weight_shape[0] == 2048 && weight_shape[1] == 8192 && stride == 1) {
 
-        tiling = {
-          .loops = {{1, 2, 4, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+      //   tiling = {
+      //     .loops = {{1, 2, 4, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+      //     .x_loop_index = {2, 5},
+      //     .y_loop_index = {0, 1},
+      //     .reduction_loop_index = {3, 0},
+      //     .weight_loop_index = {1, 4},
+      //     .fx_index = 3,
+      //     .fy_index = 2,
+      //     .weight_reuse_index = {5, 5},
+      //     .stride = 1,
+      //     .replication = false,
+      // };
+
+
+      // 88 % util
+      tiling = {
+          .loops = {{1, 8, 2, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
           .x_loop_index = {2, 5},
           .y_loop_index = {0, 1},
           .reduction_loop_index = {3, 0},
@@ -614,26 +629,8 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
   else if (input_shape[0] == 1 && input_shape[1] == 512 && input_shape[2] == 8192 &&
       weight_shape[0] == 8192 && weight_shape[1] == 2048 && stride == 1) {
 
-        tiling = {
-          .loops = {{1, 8, 4, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
-          .x_loop_index = {2, 5},
-          .y_loop_index = {0, 1},
-          .reduction_loop_index = {3, 0},
-          .weight_loop_index = {1, 4},
-          .fx_index = 3,
-          .fy_index = 2,
-          .weight_reuse_index = {5, 5},
-          .stride = 1,
-          .replication = false,
-      };
-  }
-   // Llama 3.2-1B prefill, final linear layer across vocabulary
-  else if (input_shape[0] == 1 && input_shape[1] == 512 && input_shape[2] == 2048 &&
-      weight_shape[0] == 2048 && weight_shape[1] == 128256 && stride == 1) {
-
-      //   // 77% util
       //   tiling = {
-      //     .loops = {{1, 3, 2, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+      //     .loops = {{1, 8, 4, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
       //     .x_loop_index = {2, 5},
       //     .y_loop_index = {0, 1},
       //     .reduction_loop_index = {3, 0},
@@ -646,9 +643,22 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
       // };
 
 
-        // 88% util: run 250 times on k dim
-        tiling = {
-          .loops = {{1, 4, 4, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+
+      // tiling = {
+      //     .loops = {{1, 2, 4, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+      //     .x_loop_index = {2, 5},
+      //     .y_loop_index = {0, 1},
+      //     .reduction_loop_index = {3, 0},
+      //     .weight_loop_index = {1, 4},
+      //     .fx_index = 3,
+      //     .fy_index = 2,
+      //     .weight_reuse_index = {5, 5},
+      //     .stride = 1,
+      //     .replication = false,
+      // };
+
+      tiling = {
+          .loops = {{1, 8, 2, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
           .x_loop_index = {2, 5},
           .y_loop_index = {0, 1},
           .reduction_loop_index = {3, 0},
@@ -660,9 +670,18 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
-        // run once on k dim
-        tiling = {
-          .loops = {{1, 2, 4, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+  }
+   // Llama 3.2-1B prefill, final linear layer across vocabulary
+  else if (input_shape[0] == 1 && input_shape[1] == 512 && input_shape[2] == 2048 &&
+      weight_shape[0] == 2048 && weight_shape[1] == 128256 && stride == 1) {
+
+    const char* non_uniform_slice_idx_env = std::getenv("NON_UNIFORM_SLICE_IDX");
+    int non_uniform_slice_idx = non_uniform_slice_idx_env ? std::stoi(non_uniform_slice_idx_env) : -1;
+
+    if (non_uniform_slice_idx == 0) {
+      // 88% util: run 125 times on k dim
+      tiling = {
+          .loops = {{1, 8, 2, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
           .x_loop_index = {2, 5},
           .y_loop_index = {0, 1},
           .reduction_loop_index = {3, 0},
@@ -673,6 +692,25 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .stride = 1,
           .replication = false,
       };
+    } else if (non_uniform_slice_idx == 1) {
+
+      // run once on k dim
+      tiling = {
+          .loops = {{1, 2, 2, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+    } else {
+      throw std::runtime_error("Invalid NON_UNIFORM_SLICE_IDX value for Llama final layer tiling!");
+    }
+
   }
   else {
      throw std::runtime_error("Zircon hardcoded tiling not implemented for this layer!");
