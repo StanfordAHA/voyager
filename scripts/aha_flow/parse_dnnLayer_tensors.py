@@ -283,16 +283,29 @@ def parse_zircon_workarounds():
         assert (x_dim_host_tiling_slice_length is not None and x_dim_host_tiling_slice_offset is not None) or (num_x_host_tiling_kernels is not None and x_dim_host_tiling_kernel_idx is not None), "Either X_DIM_HOST_TILING_SLICE_LENGTH and X_DIM_HOST_TILING_SLICE_OFFSET or NUM_X_HOST_TILING_KERNELS and X_DIM_HOST_TILING_IDX environment variables must be set for ZIRCON_GEMM_X_DIM_HOST_TILING"
 
     # I/O dimension 0 host tiling
-    io_dim0_tiling = "IO_DIM0_TILING" in os.environ and os.environ["IO_DIM0_TILING"] == "1"
-    output_tensor_io_dim0_tiling = False
-    num_io_dim0_tiling_kernels = 0
-    io_dim0_tiling_idx = 0
-    if io_dim0_tiling:
-        output_tensor_io_dim0_tiling = "OUTPUT_TENSOR_IO_DIM0_TILING" in os.environ and os.environ["OUTPUT_TENSOR_IO_DIM0_TILING"] == "1"
-        assert "NUM_IO_DIM0_TILING_KERNELS" in os.environ, "NUM_IO_DIM0_TILING_KERNELS environment variable must be set for io_dim0_tiling"
-        assert "IO_DIM0_TILING_IDX" in os.environ, "IO_DIM0_TILING_IDX environment variable must be set for io_dim0_tiling"
-        num_io_dim0_tiling_kernels = int(os.environ["NUM_IO_DIM0_TILING_KERNELS"])
-        io_dim0_tiling_idx = int(os.environ["IO_DIM0_TILING_IDX"])
+    io_innermost_dim_tiling = "IO_INNERMOST_DIM_TILING" in os.environ and os.environ["IO_INNERMOST_DIM_TILING"] == "1"
+    output_tensor_io_innermost_dim_tiling = False
+    num_io_innermost_dim_tiling_kernels = 0
+    io_innermost_dim_tiling_idx = 0
+    if io_innermost_dim_tiling:
+        output_tensor_io_innermost_dim_tiling = "OUTPUT_TENSOR_IO_INNERMOST_DIM_TILING" in os.environ and os.environ["OUTPUT_TENSOR_IO_INNERMOST_DIM_TILING"] == "1"
+        assert "NUM_IO_INNERMOST_DIM_TILING_KERNELS" in os.environ, "NUM_IO_INNERMOST_DIM_TILING_KERNELS environment variable must be set for io_innermost_dim_tiling"
+        assert "IO_INNERMOST_DIM_TILING_IDX" in os.environ, "IO_INNERMOST_DIM_TILING_IDX environment variable must be set for io_innermost_dim_tiling"
+        num_io_innermost_dim_tiling_kernels = int(os.environ["NUM_IO_INNERMOST_DIM_TILING_KERNELS"])
+        io_innermost_dim_tiling_idx = int(os.environ["IO_INNERMOST_DIM_TILING_IDX"])
+
+
+    # I/O dimension 1 host tiling
+    io_dim1_tiling = "IO_DIM1_TILING" in os.environ and os.environ["IO_DIM1_TILING"] == "1"
+    output_tensor_io_dim1_tiling = False
+    num_io_dim1_tiling_kernels = 0
+    io_dim1_tiling_idx = 0
+    if io_dim1_tiling:
+        output_tensor_io_dim1_tiling = "OUTPUT_TENSOR_IO_DIM1_TILING" in os.environ and os.environ["OUTPUT_TENSOR_IO_DIM1_TILING"] == "1"
+        assert "NUM_IO_DIM1_TILING_KERNELS" in os.environ, "NUM_IO_DIM1_TILING_KERNELS environment variable must be set for io_dim1_tiling"
+        assert "IO_DIM1_TILING_IDX" in os.environ, "IO_DIM1_TILING_IDX environment variable must be set for io_dim1_tiling"
+        num_io_dim1_tiling_kernels = int(os.environ["NUM_IO_DIM1_TILING_KERNELS"])
+        io_dim1_tiling_idx = int(os.environ["IO_DIM1_TILING_IDX"])
 
     # Padding OC dimension for fully connected layers
     pad_oc = "PAD_OC" in os.environ and os.environ["PAD_OC"] == "1"
@@ -339,8 +352,12 @@ def parse_zircon_workarounds():
     if pad_oc:
         print("\033[93mINFO: OC dimension padding is turned on.\033[0m")
 
-    if io_dim0_tiling:
-        print(f"\033[93mINFO: I/O dimension 0 host tiling enabled. Using {num_io_dim0_tiling_kernels} kernels with index {io_dim0_tiling_idx}. Output tensor I/O dim0 tiling: {output_tensor_io_dim0_tiling}.\033[0m")
+    if io_innermost_dim_tiling:
+        print(f"\033[93mINFO: I/O dimension 0 host tiling enabled. Using {num_io_innermost_dim_tiling_kernels} kernels with index {io_innermost_dim_tiling_idx}. Output tensor I/O dim0 tiling: {output_tensor_io_innermost_dim_tiling}.\033[0m")
+
+
+    if io_dim1_tiling:
+        print(f"\033[93mINFO: I/O dimension 1 host tiling enabled. Using {num_io_dim1_tiling_kernels} kernels with index {io_dim1_tiling_idx}. Output tensor I/O dim1 tiling: {output_tensor_io_dim1_tiling}.\033[0m")
 
 
     return {
@@ -369,11 +386,15 @@ def parse_zircon_workarounds():
         "num_x_host_tiling_kernels": num_x_host_tiling_kernels,
         "x_dim_host_tiling_idx": x_dim_host_tiling_kernel_idx,
         "pad_oc": pad_oc,
-        "io_dim0_tiling": io_dim0_tiling,
-        "num_io_dim0_tiling_kernels": num_io_dim0_tiling_kernels,
-        "io_dim0_tiling_idx": io_dim0_tiling_idx,
-        "output_tensor_io_dim0_tiling": output_tensor_io_dim0_tiling,
-        "output_tensor_k_dim_tiling": output_tensor_k_dim_tiling
+        "io_innermost_dim_tiling": io_innermost_dim_tiling,
+        "num_io_innermost_dim_tiling_kernels": num_io_innermost_dim_tiling_kernels,
+        "io_innermost_dim_tiling_idx": io_innermost_dim_tiling_idx,
+        "output_tensor_io_innermost_dim_tiling": output_tensor_io_innermost_dim_tiling,
+        "output_tensor_k_dim_tiling": output_tensor_k_dim_tiling,
+        "io_dim1_tiling": io_dim1_tiling,
+        "num_io_dim1_tiling_kernels": num_io_dim1_tiling_kernels,
+        "io_dim1_tiling_idx": io_dim1_tiling_idx,
+        "output_tensor_io_dim1_tiling": output_tensor_io_dim1_tiling
     }
 
 
@@ -600,15 +621,15 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
         residual = residual.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
 
     # Tiling flow
-    if zircon_workarounds["k_dim_host_tiling"] or zircon_workarounds["io_dim0_tiling"]:
+    if zircon_workarounds["k_dim_host_tiling"] or zircon_workarounds["io_innermost_dim_tiling"]:
         if zircon_workarounds["k_dim_host_tiling"]:
             num_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
             kernel_idx = zircon_workarounds["k_dim_host_tiling_idx"]
         else:
-            num_kernels = zircon_workarounds["num_io_dim0_tiling_kernels"]
-            kernel_idx = zircon_workarounds["io_dim0_tiling_idx"]
+            num_kernels = zircon_workarounds["num_io_innermost_dim_tiling_kernels"]
+            kernel_idx = zircon_workarounds["io_innermost_dim_tiling_idx"]
 
-        tile_output_tensor = zircon_workarounds["output_tensor_k_dim_tiling"] or zircon_workarounds["output_tensor_io_dim0_tiling"]
+        tile_output_tensor = zircon_workarounds["output_tensor_k_dim_tiling"] or zircon_workarounds["output_tensor_io_innermost_dim_tiling"]
 
         # Divide the innermost dimension into num_kernels tiles and take the tile corresponding to kernel_idx
         # We don't know how many dimensions the tensor has, so we need code that handles different cases
@@ -701,7 +722,7 @@ def parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarou
     input= read_tensor(base_path + input_tensor_data["node"] + ".bin", tuple(input_tensor_data["shape"]))
 
     # SOFTMAX HACK: Change all -inf values (generally, all values < -200) to -200.0
-    if model == 'bert' and 'softmax' in layer:
+    if (model == 'bert' or model == 'llama_prefill') and 'softmax' in layer:
         input[input < -200.0] = -200.0
 
     if zircon_workarounds["zircon_input_act_padding_workaround"]:
@@ -710,13 +731,47 @@ def parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarou
         input = F.pad(input, pad=(0, pad_dim, 0, pad_dim)) # Pad X and Y dimensions with zeros
         input = input.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
 
-    if zircon_workarounds["io_dim0_tiling"]:
-        assert len(input.shape) == 3, "I/O dimension 0 host tiling is only supported for 3D input tensors."
-        num_io_dim0_tiling_kernels = zircon_workarounds["num_io_dim0_tiling_kernels"]
-        io_dim0_tiling_idx = zircon_workarounds["io_dim0_tiling_idx"]
-        input = input.reshape((input.shape[0], input.shape[1], num_io_dim0_tiling_kernels, input.shape[2] // num_io_dim0_tiling_kernels))
-        input = input.permute(2, 0, 1, 3)
-        input = input[io_dim0_tiling_idx]
+    if zircon_workarounds["io_innermost_dim_tiling"]:
+        if len(input.shape) == 3:
+            num_io_innermost_dim_tiling_kernels = zircon_workarounds["num_io_innermost_dim_tiling_kernels"]
+            io_innermost_dim_tiling_idx = zircon_workarounds["io_innermost_dim_tiling_idx"]
+            input = input.reshape((input.shape[0], input.shape[1], num_io_innermost_dim_tiling_kernels, input.shape[2] // num_io_innermost_dim_tiling_kernels))
+            input = input.permute(2, 0, 1, 3)
+            input = input[io_innermost_dim_tiling_idx]
+        elif len(input.shape) == 4:
+            num_io_innermost_dim_tiling_kernels = zircon_workarounds["num_io_innermost_dim_tiling_kernels"]
+            io_innermost_dim_tiling_idx = zircon_workarounds["io_innermost_dim_tiling_idx"]
+            mha_concat = "MHA_CONCAT" in os.environ and os.environ["MHA_CONCAT"] == "1"
+            if mha_concat:
+                num_attention_heads = int(os.environ.get("NUM_ATTENTION_HEADS", 12))
+                # If MHA concat is on, then we tile along the head dimension, which is dim 1
+                input = input.reshape((input.shape[0], num_io_innermost_dim_tiling_kernels, input.shape[1] // num_io_innermost_dim_tiling_kernels, input.shape[2], input.shape[3]))
+                input = input.permute(1, 0, 2, 3, 4)
+                # Make sure it worked correctly
+                assert input.shape[2] == num_attention_heads // num_io_innermost_dim_tiling_kernels
+            else:
+                input = input.reshape((input.shape[0], input.shape[1], input.shape[2], num_io_innermost_dim_tiling_kernels, input.shape[3] // num_io_innermost_dim_tiling_kernels))
+                input = input.permute(3, 0, 1, 2, 4)
+            input = input[io_innermost_dim_tiling_idx]
+        else:
+            raise NotImplementedError("I/O dimension 0 host tiling is only supported for 3D and 4D input tensors currently.")
+
+
+    if zircon_workarounds["io_dim1_tiling"]:
+        if len(input.shape) == 3:
+            num_io_dim1_tiling_kernels = zircon_workarounds["num_io_dim1_tiling_kernels"]
+            io_dim1_tiling_idx = zircon_workarounds["io_dim1_tiling_idx"]
+            input = input.reshape((input.shape[0], num_io_dim1_tiling_kernels, input.shape[1] // num_io_dim1_tiling_kernels, input.shape[2]))
+            input = input.permute(1, 0, 2, 3)
+            input = input[io_dim1_tiling_idx]
+        elif len(input.shape) == 4:
+            num_io_dim1_tiling_kernels = zircon_workarounds["num_io_dim1_tiling_kernels"]
+            io_dim1_tiling_idx = zircon_workarounds["io_dim1_tiling_idx"]
+            input = input.reshape((input.shape[0], num_io_dim1_tiling_kernels, input.shape[1] // num_io_dim1_tiling_kernels, input.shape[2], input.shape[3]))
+            input = input.permute(1, 0, 2, 3, 4)
+            input = input[io_dim1_tiling_idx]
+        else:
+            raise NotImplementedError("I/O dimension 1 host tiling is only supported for 3D and 4D input tensors currently.")
 
 
     input_bf16_cgra = float32_to_bfloat16_bits(input)
@@ -733,14 +788,14 @@ def parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarou
 def parse_inputScale_e8m0_packed_cgra(base_path, inputScale_tensor_data, h2h_dir, zircon_workarounds):
     inputScale_e8m0_unpacked = parse_inputScale(base_path, inputScale_tensor_data, zircon_workarounds)
 
-    if zircon_workarounds["io_dim0_tiling"]:
+    if zircon_workarounds["io_innermost_dim_tiling"]:
         assert len(inputScale_e8m0_unpacked.shape) == 3, "I/O dimension 0 host tiling is only supported for 3D inputScale tensors."
-        num_io_dim0_tiling_kernels = zircon_workarounds["num_io_dim0_tiling_kernels"]
-        io_dim0_tiling_idx = zircon_workarounds["io_dim0_tiling_idx"]
+        num_io_innermost_dim_tiling_kernels = zircon_workarounds["num_io_innermost_dim_tiling_kernels"]
+        io_innermost_dim_tiling_idx = zircon_workarounds["io_innermost_dim_tiling_idx"]
         inputScale_e8m0_unpacked = np.array(inputScale_e8m0_unpacked)
-        inputScale_e8m0_unpacked = inputScale_e8m0_unpacked.reshape((inputScale_e8m0_unpacked.shape[0], inputScale_e8m0_unpacked.shape[1], num_io_dim0_tiling_kernels, inputScale_e8m0_unpacked.shape[2] // num_io_dim0_tiling_kernels))
+        inputScale_e8m0_unpacked = inputScale_e8m0_unpacked.reshape((inputScale_e8m0_unpacked.shape[0], inputScale_e8m0_unpacked.shape[1], num_io_innermost_dim_tiling_kernels, inputScale_e8m0_unpacked.shape[2] // num_io_innermost_dim_tiling_kernels))
         inputScale_e8m0_unpacked = inputScale_e8m0_unpacked.permute(2, 0, 1, 3)
-        inputScale_e8m0_unpacked = inputScale_e8m0_unpacked[io_dim0_tiling_idx].tolist()
+        inputScale_e8m0_unpacked = inputScale_e8m0_unpacked[io_innermost_dim_tiling_idx].tolist()
 
     inputScale_e8m0_packed = np.zeros((len(inputScale_e8m0_unpacked) // 2,), dtype=np.uint16)
 
@@ -838,15 +893,15 @@ def parse_output(base_path, output_tensor_data, zircon_workarounds):
 
     output_datatype = output_tensor_data["dtype"]
 
-    if zircon_workarounds["k_dim_host_tiling"] or zircon_workarounds["io_dim0_tiling"]:
+    if zircon_workarounds["k_dim_host_tiling"] or zircon_workarounds["io_innermost_dim_tiling"]:
         if zircon_workarounds["k_dim_host_tiling"]:
             num_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
             kernel_idx = zircon_workarounds["k_dim_host_tiling_idx"]
         else:
-            num_kernels = zircon_workarounds["num_io_dim0_tiling_kernels"]
-            kernel_idx = zircon_workarounds["io_dim0_tiling_idx"]
+            num_kernels = zircon_workarounds["num_io_innermost_dim_tiling_kernels"]
+            kernel_idx = zircon_workarounds["io_innermost_dim_tiling_idx"]
 
-        tile_output_tensor = zircon_workarounds["output_tensor_k_dim_tiling"] or zircon_workarounds["output_tensor_io_dim0_tiling"]
+        tile_output_tensor = zircon_workarounds["output_tensor_k_dim_tiling"] or zircon_workarounds["output_tensor_io_innermost_dim_tiling"]
 
         # Divide the innermost dimension into num_kernels tiles and take the tile corresponding to kernel_idx
         # We don't know how many dimensions the tensor has, so we need code that handles different cases
@@ -866,6 +921,7 @@ def parse_output(base_path, output_tensor_data, zircon_workarounds):
             output_tensor = output_tensor.permute(2, 0, 1, 3)
         elif len(output_tensor.shape) == 4:
             mha_permute = "MHA_PERMUTE" in os.environ and os.environ["MHA_PERMUTE"] == "1"
+            mha_concat = "MHA_CONCAT" in os.environ and os.environ["MHA_CONCAT"] == "1"
             if mha_permute:
                 if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
                     slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
@@ -878,6 +934,17 @@ def parse_output(base_path, output_tensor_data, zircon_workarounds):
 
                 # Make sure it worked correctly
                 assert output_tensor.shape[2] == num_attn_heads // num_kernels, f"Output tensor shape after k-dim tiling is {output_tensor.shape}, expected head dimension to be {num_attn_heads // num_kernels}"
+
+
+            elif mha_concat:
+                num_attn_heads = int(os.environ.get("NUM_ATTENTION_HEADS", 12))
+                # If MHA concat is on, we tile along head dimensions, which is dim 2
+                output_tensor = output_tensor.reshape((output_tensor.shape[0], output_tensor.shape[1], num_kernels, output_tensor.shape[2] // num_kernels, output_tensor.shape[3]))
+                output_tensor = output_tensor.permute(2, 0, 1, 3, 4)
+
+                # Make sure it worked correctly
+                assert output_tensor.shape[3] == num_attn_heads // num_kernels, f"Output tensor shape after MHA concat for k dim tiling is {output_tensor.shape}, expected head dimension to be {num_attn_heads // num_kernels}"
+
             else:
                 if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
                     slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
@@ -895,6 +962,29 @@ def parse_output(base_path, output_tensor_data, zircon_workarounds):
             output_tensor = output_tensor * mask
         else:
             output_tensor = output_tensor[kernel_idx]
+
+
+    if zircon_workarounds["io_dim1_tiling"]:
+        tile_output_tensor = zircon_workarounds["output_tensor_io_dim1_tiling"]
+        if len(output_tensor.shape) == 3:
+            num_io_dim1_tiling_kernels = zircon_workarounds["num_io_dim1_tiling_kernels"]
+            io_dim1_tiling_idx = zircon_workarounds["io_dim1_tiling_idx"]
+            output_tensor = output_tensor.reshape((output_tensor.shape[0], num_io_dim1_tiling_kernels, output_tensor.shape[1] // num_io_dim1_tiling_kernels, output_tensor.shape[2]))
+            output_tensor = output_tensor.permute(1, 0, 2, 3)
+        elif len(output_tensor.shape) == 4:
+            num_io_dim1_tiling_kernels = zircon_workarounds["num_io_dim1_tiling_kernels"]
+            io_dim1_tiling_idx = zircon_workarounds["io_dim1_tiling_idx"]
+            output_tensor = output_tensor.reshape((output_tensor.shape[0], num_io_dim1_tiling_kernels, output_tensor.shape[1] // num_io_dim1_tiling_kernels, output_tensor.shape[2], output_tensor.shape[3]))
+            output_tensor = output_tensor.permute(1, 0, 2, 3, 4)
+        else:
+            raise NotImplementedError("I/O dimension 1 host tiling is only supported for 3D and 4D output tensors currently.")
+
+        if not(tile_output_tensor):
+            mask = torch.zeros_like(output_tensor)
+            mask[:, io_dim1_tiling_idx, :, :, :] = 1
+            output_tensor = output_tensor * mask
+        else:
+            output_tensor = output_tensor[io_dim1_tiling_idx]
 
     if zircon_workarounds["x_dim_host_tiling"]:
         x_dim_host_tiling_slice_offset = zircon_workarounds["x_dim_host_tiling_slice_offset"]
@@ -922,22 +1012,27 @@ def parse_output(base_path, output_tensor_data, zircon_workarounds):
 
     if output_datatype == "bfloat16":
         output = float32_to_bfloat16_bits(output_tensor)
+        return output.flatten().tolist()
     elif output_datatype == "int8":
         output = output_tensor.to(torch.int8)
         output = output.numpy().tobytes()
-    elif output_datatype == "fp_e8m0":
+        return list(output)
+    elif output_datatype == "fp8_e8m0":
         output = float_to_e8m0(output_tensor)
+        return output.flatten().tolist()
     else:
         raise NotImplementedError(f"Output datatype {output_datatype} not supported.")
 
-    return output.flatten().tolist()
 
-
-def write_output_tensor_to_hex(output_data, output_datatype, gold_dir):
+def write_output_tensor_to_hex(output_data, output_datatype, gold_dir, num_output_tensors):
     if output_datatype == "int8":
         write_list_to_hex(output_data, f"{gold_dir}/gold_activation.txt", add_metadata=False, hex_width=2)
     elif output_datatype == "fp8_e8m0":
-        write_list_to_hex(output_data, f"{gold_dir}/gold_scale.txt", add_metadata=False, hex_width=2)
+        if num_output_tensors > 1:
+            e8m0_filename = f"{gold_dir}/gold_scale.txt"
+        else:
+            e8m0_filename = f"{gold_dir}/gold_activation.txt"
+        write_list_to_hex(output_data, e8m0_filename, add_metadata=False, hex_width=2)
     elif output_datatype == "bfloat16":
         write_list_to_hex(output_data, f"{gold_dir}/gold_activation.txt", add_metadata=False, hex_width=4)
     else:
@@ -1022,12 +1117,18 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
         residual_bf16 = parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
 
     # OUTPUT(s)
-    for output_tensor_data in tensor_metadata["outputs"]:
+    if "tensors" in tensor_metadata["outputs"][0]:
+        all_output_tensors = tensor_metadata["outputs"][0]["tensors"]
+    else:
+        all_output_tensors = tensor_metadata["outputs"]
+
+    for output_tensor_data in all_output_tensors:
+        num_output_tensors = len(all_output_tensors)
         output_data = parse_output(base_path, output_tensor_data, zircon_workarounds)
 
         # gold_dir = f'/aha/voyager/compiled_collateral/{model}-{layer}/compare/'
         gold_dir = f'/aha/voyager/'
-        write_output_tensor_to_hex(output_data, output_tensor_data["dtype"], gold_dir)
+        write_output_tensor_to_hex(output_data, output_tensor_data["dtype"], gold_dir, num_output_tensors)
 
 
 
