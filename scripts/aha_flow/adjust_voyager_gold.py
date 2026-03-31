@@ -30,7 +30,7 @@ def adjust_gold_for_k_tiling(input_file, output_file, channel_size, total_num_ke
         f.write("\n".join(result))
 
 
-def adjust_gold_for_io_dim0_tiling(input_file, output_file, channel_size, total_num_kernels, kernel_idx, output_tensor_io_dim0_tiling=False):
+def adjust_gold_for_io_innermost_dim_tiling(input_file, output_file, channel_size, total_num_kernels, kernel_idx, output_tensor_io_innermost_dim_tiling=False):
     with open(input_file, "r") as f:
         lines = [line.strip() for line in f]
 
@@ -51,7 +51,7 @@ def adjust_gold_for_io_dim0_tiling(input_file, output_file, channel_size, total_
         # Keep only the desired kernel, zero out others
         if micro_kernel_idx == kernel_idx:
             result.append(val)
-        elif not(output_tensor_io_dim0_tiling):
+        elif not(output_tensor_io_innermost_dim_tiling):
             result.append("0000")
 
     with open(output_file, "w") as f:
@@ -152,16 +152,16 @@ if __name__ == "__main__":
     # x_dim_host_tiling = "ZIRCON_GEMM_X_DIM_HOST_TILING" in os.environ and os.environ["ZIRCON_GEMM_X_DIM_HOST_TILING"] == "1"
     # output_tensor_x_dim_tiling = "OUTPUT_TENSOR_X_DIM_TILING" in os.environ and os.environ["OUTPUT_TENSOR_X_DIM_TILING"] == "1"
 
-    # io_dim0_tiling = "IO_DIM0_TILING" in os.environ and os.environ["IO_DIM0_TILING"] == "1"
-    # if io_dim0_tiling:
-    #     assert "NUM_IO_DIM0_TILING_KERNELS" in os.environ, "NUM_IO_DIM0_TILING_KERNELS environment variable must be set for IO_DIM0_TILING"
-    #     assert "IO_DIM0_TILING_IDX" in os.environ, "IO_DIM0_TILING_IDX environment variable must be set for IO_DIM0_TILING"
-    #     num_io_dim0_tiling_kernels = int(os.environ["NUM_IO_DIM0_TILING_KERNELS"])
-    #     io_dim0_tiling_idx = int(os.environ["IO_DIM0_TILING_IDX"])
+    # io_innermost_dim_tiling = "IO_INNERMOST_DIM_TILING" in os.environ and os.environ["IO_INNERMOST_DIM_TILING"] == "1"
+    # if io_innermost_dim_tiling:
+    #     assert "NUM_IO_INNERMOST_DIM_TILING_KERNELS" in os.environ, "NUM_IO_INNERMOST_DIM_TILING_KERNELS environment variable must be set for IO_INNERMOST_DIM_TILING"
+    #     assert "IO_INNERMOST_DIM_TILING_IDX" in os.environ, "IO_INNERMOST_DIM_TILING_IDX environment variable must be set for IO_INNERMOST_DIM_TILING"
+    #     num_io_innermost_dim_tiling_kernels = int(os.environ["NUM_IO_INNERMOST_DIM_TILING_KERNELS"])
+    #     io_innermost_dim_tiling_idx = int(os.environ["IO_INNERMOST_DIM_TILING_IDX"])
 
-    #     output_tensor_io_dim0_tiling = "OUTPUT_TENSOR_IO_DIM0_TILING" in os.environ and os.environ["OUTPUT_TENSOR_IO_DIM0_TILING"] == "1"
+    #     output_tensor_io_innermost_dim_tiling = "OUTPUT_TENSOR_IO_INNERMOST_DIM_TILING" in os.environ and os.environ["OUTPUT_TENSOR_IO_INNERMOST_DIM_TILING"] == "1"
 
-    #     assert "HALIDE_GEN_ARGS" in os.environ, "HALIDE_GEN_ARGS environment variable must be set for IO_DIM0_TILING"
+    #     assert "HALIDE_GEN_ARGS" in os.environ, "HALIDE_GEN_ARGS environment variable must be set for IO_INNERMOST_DIM_TILING"
     #     HALIDE_GEN_ARGS = os.environ["HALIDE_GEN_ARGS"]
     #     dim0_fake_match = re.search(r'dim0_fake=(\d+)', HALIDE_GEN_ARGS)
     #     assert dim0_fake_match, "No dim0_fake in HALIDE_GEN_ARGS!"
@@ -170,13 +170,13 @@ if __name__ == "__main__":
     #     if args.is_mx_scale:
     #         dim0_fake = dim0_fake // args.mx_block_size
 
-    #     adjust_gold_for_io_dim0_tiling(
+    #     adjust_gold_for_io_innermost_dim_tiling(
     #         args.input,
     #         args.output,
     #         dim0_fake,
-    #         num_io_dim0_tiling_kernels,
-    #         io_dim0_tiling_idx,
-    #         output_tensor_io_dim0_tiling=output_tensor_io_dim0_tiling
+    #         num_io_innermost_dim_tiling_kernels,
+    #         io_innermost_dim_tiling_idx,
+    #         output_tensor_io_innermost_dim_tiling=output_tensor_io_innermost_dim_tiling
     #     )
 
 

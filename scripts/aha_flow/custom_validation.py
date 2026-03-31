@@ -38,6 +38,29 @@ def verify_bert_gelu():
     write_list_to_hex(output_bf16_approx, '/aha/voyager/gold_activation.txt', "", add_metadata=False)
 
 
+def verify_llama_prefill_silu():
+    # Read input tensor
+    input_path = "/aha/voyager/test/compiler/networks/llama/prefill/MXINT8/tensor_files/linear_mx_default_4.bin"
+    input_shape = (512, 8192)
+    input_tensor = read_tensor(input_path, input_shape)
+
+    # Apply SiLU on input_tensor using sigmoid approximation
+    output_bf16_approx = torch.zeros_like(input_tensor, dtype=torch.bfloat16)
+    for i in range(input_tensor.shape[0]):
+        for j in range(input_tensor.shape[1]):
+            x = input_tensor[i, j].item()
+            sigmoid_approx = x * (1 / (1 + math.exp(-1* x)))
+            output_bf16_approx[i, j] = torch.tensor(sigmoid_approx, dtype=torch.bfloat16)
+
+    # Convert output to float32 so can use float32_to_bfloat16_bits
+    output_bf16_approx = output_bf16_approx.to(torch.float32)
+    output_bf16_approx = float32_to_bfloat16_bits(output_bf16_approx)
+    output_bf16_approx = output_bf16_approx.flatten().tolist()
+
+    # Write output tensor to hex file
+    write_list_to_hex(output_bf16_approx, '/aha/voyager/gold_activation.txt', "", add_metadata=False)
+
+
 def verify_bert_tanh():
     # Read gold tensor
     gold_path = "/aha/voyager/test/compiler/networks/bert/MXINT8/tensor_files/tanh.bin"
@@ -114,6 +137,8 @@ if __name__ == "__main__":
 
     if model == "bert" and (layer == "linear_mx_default_4" or layer == "gelu"):
         verify_bert_gelu()
+    elif model == "llama_prefill" and (layer == "linear_mx_default_4" or layer == "silu"):
+        verify_llama_prefill_silu()
     elif model == "bert" and layer == "tanh":
         verify_bert_tanh()
     elif model == "fakegemm" and layer == "linear_default_1":

@@ -1012,16 +1012,21 @@ def parse_output(base_path, output_tensor_data, zircon_workarounds):
 
     if output_datatype == "bfloat16":
         output = float32_to_bfloat16_bits(output_tensor)
+        output = trim_channels_if_needed(output)
         return output.flatten().tolist()
     elif output_datatype == "int8":
         output = output_tensor.to(torch.int8)
         output = output.numpy().tobytes()
+        output = trim_channels_if_needed(output)
         return list(output)
     elif output_datatype == "fp8_e8m0":
         output = float_to_e8m0(output_tensor)
+        output = trim_channels_if_needed(output)
         return output.flatten().tolist()
     else:
         raise NotImplementedError(f"Output datatype {output_datatype} not supported.")
+
+
 
 
 def write_output_tensor_to_hex(output_data, output_datatype, gold_dir, num_output_tensors):
