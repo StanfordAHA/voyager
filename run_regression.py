@@ -1093,7 +1093,7 @@ def main():
             create_tensor_metadata_json(layer, params_dict)
 
         # tanh not yet supported
-        if args.models[0] == 'bert' and layer == 'tanh':
+        if (args.models[0] == 'bert' and layer == 'tanh') or (args.models[0] == 'llama_prefill' and layer == 'layer_norm_default'):
             exit(0)
 
     if args.sims == "systemc" or args.sims == "fast-systemc":
