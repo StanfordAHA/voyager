@@ -3,9 +3,8 @@
     "has_input": true,
     "has_input_scale": false,
     "has_weight": true,
-    "has_weight_1": true,
     "has_weight_scale": false,
-    "has_bias": false,
+    "has_bias": true,
     "has_residual": false,
     "mu_glb_base_address": 0,
     "ops": [
@@ -35,7 +34,7 @@
                         "dtype": "bfloat16"
                     }
                 },
-                "weight_1": {
+                "bias": {
                     "tensor": {
                         "node": "arg3_1",
                         "shape": [
