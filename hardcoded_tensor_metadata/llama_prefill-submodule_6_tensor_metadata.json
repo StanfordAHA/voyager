@@ -13,7 +13,7 @@
             "kwargs": {
                 "input": {
                     "tensor": {
-                        "node": "submodule",
+                        "node": "submodule_1",
                         "shape": [
                             1,
                             8,
