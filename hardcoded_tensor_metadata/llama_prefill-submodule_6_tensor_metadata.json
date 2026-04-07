@@ -1,0 +1,63 @@
+{
+    "layer_name": "submodule_6",
+    "has_input": true,
+    "has_input_scale": false,
+    "has_weight": true,
+    "has_weight_scale": false,
+    "has_bias": true,
+    "has_residual": false,
+    "mu_glb_base_address": 0,
+    "ops": [
+        {
+            "name": "submodule_6",
+            "kwargs": {
+                "input": {
+                    "tensor": {
+                        "node": "submodule",
+                        "shape": [
+                            1,
+                            8,
+                            512,
+                            64
+                        ],
+                        "dtype": "bfloat16"
+                    }
+                },
+                "weight": {
+                    "tensor": {
+                        "node": "arg2_1",
+                        "shape": [
+                            1,
+                            512,
+                            64
+                        ],
+                        "dtype": "bfloat16"
+                    }
+                },
+                "bias": {
+                    "tensor": {
+                        "node": "arg3_1",
+                        "shape": [
+                            1,
+                            512,
+                            64
+                        ],
+                        "dtype": "bfloat16"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "node": "submodule_6",
+            "shape": [
+                1,
+                8,
+                512,
+                64
+            ],
+            "dtype": "bfloat16"
+        }
+    ]
+}
