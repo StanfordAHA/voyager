@@ -412,6 +412,15 @@ void Harness::sendParams() {
 
   wait();
 
+  // Skip MU cycle-accurate simulation when SKIP_MU_CYCLE_SIM=1. This preserves
+  // param dumps (serialized_matrix_params.txt, gold_activation.txt) but bypasses
+  // the per-cycle matrix/vector unit execution that dominates runtime.
+  const char* skip_mu_cycle_sim_env = std::getenv("SKIP_MU_CYCLE_SIM");
+  bool skip_mu_cycle_sim = skip_mu_cycle_sim_env && std::stoi(skip_mu_cycle_sim_env) == 1;
+  if (skip_mu_cycle_sim) {
+    spdlog::info("SKIP_MU_CYCLE_SIM=1: bypassing MU cycle-accurate simulation\n");
+  }
+
   // Iterate through all params, ie all layers
   for (int i = 0; i < operations.size(); i++) {
     // Dumping for AHA flow
@@ -547,8 +556,10 @@ void Harness::sendParams() {
       }
 
       if (matrixParamsValid) {
-        sendSerializedParams<MatrixParams, 32>(*matrixParams,
-                                               &serialMatrixParamsIn);
+        if (!skip_mu_cycle_sim) {
+          sendSerializedParams<MatrixParams, 32>(*matrixParams,
+                                                 &serialMatrixParamsIn);
+        }
 
         // LAYER PARAMS
         std::ifstream tensor_metadata_file("tensor_metadata.json");
@@ -681,14 +692,16 @@ void Harness::sendParams() {
 
         dumpSerializedParams<MatrixParams, 32>(*dumpMatrixParams, false);
         dumpSerializedParams<MatrixParams, 32>(*postSilicon_dumpMatrixParams, true);
-        matrixUnitStartSignal.SyncPop();
+        if (!skip_mu_cycle_sim) {
+          matrixUnitStartSignal.SyncPop();
+        }
       }
 
       sc_time start = sc_time_stamp();
       CCS_LOG("----- Accelerator Layer '" << currentOperation.name
                                           << "' Started. -----");
 
-      if (vectorParamsValid) {
+      if (vectorParamsValid && !skip_mu_cycle_sim) {
         sendSerializedParams<VectorParams, 32>(*vectorParams,
                                                &serialVectorParamsIn);
         sendSerializedParams<VectorInstructionConfig, 32>(
@@ -699,10 +712,10 @@ void Harness::sendParams() {
       CCS_LOG("----- Accelerator Layer '" << currentOperation.name
                                           << "' Started. -----");
 
-      if (matrixParamsValid) {
+      if (matrixParamsValid && !skip_mu_cycle_sim) {
         matrixUnitDoneSignal.SyncPop();
       }
-      if (vectorParamsValid) {
+      if (vectorParamsValid && !skip_mu_cycle_sim) {
         vectorUnitDoneSignal.SyncPop();
       }
       CCS_LOG("----- Accelerator Layer '" << currentOperation.name
