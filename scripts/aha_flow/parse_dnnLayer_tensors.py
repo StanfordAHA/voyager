@@ -90,33 +90,33 @@ def verify_resnet18_submodule():
     gold_shape = (1, 12544, 64)
     gold_tensor = read_tensor(gold_path, gold_shape)
 
-    x_dim_host_tiling = "ZIRCON_GEMM_X_DIM_HOST_TILING" in os.environ and os.environ["ZIRCON_GEMM_X_DIM_HOST_TILING"] == "1"
+    # x_dim_host_tiling = "ZIRCON_GEMM_X_DIM_HOST_TILING" in os.environ and os.environ["ZIRCON_GEMM_X_DIM_HOST_TILING"] == "1"
 
-    if x_dim_host_tiling:
-        if "X_DIM_HOST_TILING_SLICE_LENGTH" in os.environ:
-            x_dim_host_tiling_slice_length = int(os.environ.get("X_DIM_HOST_TILING_SLICE_LENGTH"))
+    # if x_dim_host_tiling:
+    #     if "X_DIM_HOST_TILING_SLICE_LENGTH" in os.environ:
+    #         x_dim_host_tiling_slice_length = int(os.environ.get("X_DIM_HOST_TILING_SLICE_LENGTH"))
 
-        if "X_DIM_HOST_TILING_SLICE_OFFSET" in os.environ:
-            x_dim_host_tiling_slice_offset = int(os.environ.get("X_DIM_HOST_TILING_SLICE_OFFSET"))
+    #     if "X_DIM_HOST_TILING_SLICE_OFFSET" in os.environ:
+    #         x_dim_host_tiling_slice_offset = int(os.environ.get("X_DIM_HOST_TILING_SLICE_OFFSET"))
 
-        if "NUM_X_HOST_TILING_KERNELS" in os.environ:
-            num_x_host_tiling_kernels = int(os.environ.get("NUM_X_HOST_TILING_KERNELS"))
+    #     if "NUM_X_HOST_TILING_KERNELS" in os.environ:
+    #         num_x_host_tiling_kernels = int(os.environ.get("NUM_X_HOST_TILING_KERNELS"))
 
-        if "X_DIM_HOST_TILING_KERNEL_IDX" in os.environ:
-            x_dim_host_tiling_kernel_idx = int(os.environ.get("X_DIM_HOST_TILING_KERNEL_IDX"))
+    #     if "X_DIM_HOST_TILING_KERNEL_IDX" in os.environ:
+    #         x_dim_host_tiling_kernel_idx = int(os.environ.get("X_DIM_HOST_TILING_KERNEL_IDX"))
 
-        assert (x_dim_host_tiling_slice_length is not None and x_dim_host_tiling_slice_offset is not None) or (num_x_host_tiling_kernels is not None and x_dim_host_tiling_kernel_idx is not None), "Either X_DIM_HOST_TILING_SLICE_LENGTH and X_DIM_HOST_TILING_SLICE_OFFSET or NUM_X_HOST_TILING_KERNELS and X_DIM_HOST_TILING_KERNEL_IDX environment variables must be set for ZIRCON_GEMM_X_DIM_HOST_TILING"
+    #     assert (x_dim_host_tiling_slice_length is not None and x_dim_host_tiling_slice_offset is not None) or (num_x_host_tiling_kernels is not None and x_dim_host_tiling_kernel_idx is not None), "Either X_DIM_HOST_TILING_SLICE_LENGTH and X_DIM_HOST_TILING_SLICE_OFFSET or NUM_X_HOST_TILING_KERNELS and X_DIM_HOST_TILING_KERNEL_IDX environment variables must be set for ZIRCON_GEMM_X_DIM_HOST_TILING"
 
-        if len(gold_tensor.shape) == 3:
-            if x_dim_host_tiling_slice_offset is not None and x_dim_host_tiling_slice_length is not None:
-                gold_tensor = gold_tensor[:, x_dim_host_tiling_slice_offset:x_dim_host_tiling_slice_offset + x_dim_host_tiling_slice_length, :]
-            else:
-                gold_tensor = gold_tensor.reshape((gold_tensor.shape[0], num_x_host_tiling_kernels, gold_tensor.shape[1] // num_x_host_tiling_kernels, gold_tensor.shape[2]))
-                gold_tensor = gold_tensor.permute(1, 0, 2, 3)
-                gold_tensor = gold_tensor[x_dim_host_tiling_kernel_idx]
-        # Error out becuase it's not supported yet
-        else:
-            raise NotImplementedError("X dimension host tiling is not supported for non 3-D tensors yet.")
+    #     if len(gold_tensor.shape) == 3:
+    #         if x_dim_host_tiling_slice_offset is not None and x_dim_host_tiling_slice_length is not None:
+    #             gold_tensor = gold_tensor[:, x_dim_host_tiling_slice_offset:x_dim_host_tiling_slice_offset + x_dim_host_tiling_slice_length, :]
+    #         else:
+    #             gold_tensor = gold_tensor.reshape((gold_tensor.shape[0], num_x_host_tiling_kernels, gold_tensor.shape[1] // num_x_host_tiling_kernels, gold_tensor.shape[2]))
+    #             gold_tensor = gold_tensor.permute(1, 0, 2, 3)
+    #             gold_tensor = gold_tensor[x_dim_host_tiling_kernel_idx]
+    #     # Error out becuase it's not supported yet
+    #     else:
+    #         raise NotImplementedError("X dimension host tiling is not supported for non 3-D tensors yet.")
 
     # gold_tensor_bf16 = float32_to_bfloat16_bits(gold_tensor)
     # gold_tensor_bf16 = gold_tensor_bf16.flatten().tolist()
