@@ -61,8 +61,6 @@ def verify_llama_prefill_silu():
 
     # Convert output to float32 so can use float32_to_bfloat16_bits
     output_bf16_approx = output_bf16_approx.to(torch.float32)
-    # output_bf16_approx = float32_to_bfloat16_bits(output_bf16_approx)
-    # output_bf16_approx = output_bf16_approx.flatten().tolist()
     output_bf16_approx = output_bf16_approx.reshape(1, 512, 8192)
     return output_bf16_approx, "bfloat16"
 
@@ -76,8 +74,6 @@ def verify_bert_tanh():
     gold_shape = (1, 768)
     gold_tensor = read_tensor(gold_path, gold_shape)
 
-    # gold_tensor_bf16 = float32_to_bfloat16_bits(gold_tensor)
-    # gold_tensor_bf16 = gold_tensor_bf16.flatten().tolist()
 
     return gold_tensor, "bfloat16"
 
@@ -89,37 +85,6 @@ def verify_resnet18_submodule():
     gold_path = "/aha/voyager/test/compiler/networks/resnet18/MXINT8/tensor_files/submodule_1.bin"
     gold_shape = (1, 12544, 64)
     gold_tensor = read_tensor(gold_path, gold_shape)
-
-    # x_dim_host_tiling = "ZIRCON_GEMM_X_DIM_HOST_TILING" in os.environ and os.environ["ZIRCON_GEMM_X_DIM_HOST_TILING"] == "1"
-
-    # if x_dim_host_tiling:
-    #     if "X_DIM_HOST_TILING_SLICE_LENGTH" in os.environ:
-    #         x_dim_host_tiling_slice_length = int(os.environ.get("X_DIM_HOST_TILING_SLICE_LENGTH"))
-
-    #     if "X_DIM_HOST_TILING_SLICE_OFFSET" in os.environ:
-    #         x_dim_host_tiling_slice_offset = int(os.environ.get("X_DIM_HOST_TILING_SLICE_OFFSET"))
-
-    #     if "NUM_X_HOST_TILING_KERNELS" in os.environ:
-    #         num_x_host_tiling_kernels = int(os.environ.get("NUM_X_HOST_TILING_KERNELS"))
-
-    #     if "X_DIM_HOST_TILING_KERNEL_IDX" in os.environ:
-    #         x_dim_host_tiling_kernel_idx = int(os.environ.get("X_DIM_HOST_TILING_KERNEL_IDX"))
-
-    #     assert (x_dim_host_tiling_slice_length is not None and x_dim_host_tiling_slice_offset is not None) or (num_x_host_tiling_kernels is not None and x_dim_host_tiling_kernel_idx is not None), "Either X_DIM_HOST_TILING_SLICE_LENGTH and X_DIM_HOST_TILING_SLICE_OFFSET or NUM_X_HOST_TILING_KERNELS and X_DIM_HOST_TILING_KERNEL_IDX environment variables must be set for ZIRCON_GEMM_X_DIM_HOST_TILING"
-
-    #     if len(gold_tensor.shape) == 3:
-    #         if x_dim_host_tiling_slice_offset is not None and x_dim_host_tiling_slice_length is not None:
-    #             gold_tensor = gold_tensor[:, x_dim_host_tiling_slice_offset:x_dim_host_tiling_slice_offset + x_dim_host_tiling_slice_length, :]
-    #         else:
-    #             gold_tensor = gold_tensor.reshape((gold_tensor.shape[0], num_x_host_tiling_kernels, gold_tensor.shape[1] // num_x_host_tiling_kernels, gold_tensor.shape[2]))
-    #             gold_tensor = gold_tensor.permute(1, 0, 2, 3)
-    #             gold_tensor = gold_tensor[x_dim_host_tiling_kernel_idx]
-    #     # Error out becuase it's not supported yet
-    #     else:
-    #         raise NotImplementedError("X dimension host tiling is not supported for non 3-D tensors yet.")
-
-    # gold_tensor_bf16 = float32_to_bfloat16_bits(gold_tensor)
-    # gold_tensor_bf16 = gold_tensor_bf16.flatten().tolist()
 
     return gold_tensor, "bfloat16"
 
@@ -139,29 +104,6 @@ def verify_fakegemm_linear():
 
     # # Write output tensor to hex file
     # write_list_to_hex(gold_tensor_bf16, '/aha/voyager/gold_activation.txt', "", add_metadata=False)
-
-# if __name__ == "__main__":
-#     parser = argparse.ArgumentParser(description="Custom validation scripts for AHA Voyager flows.")
-#     # Add model and layer args
-#     parser.add_argument("--model", required=True, help="Model name (e.g., bert, resnet18)")
-#     parser.add_argument("--layer", required=True, help="Layer name (e.g., linear_mx_default_4)")
-
-#     args = parser.parse_args()
-#     model = args.model
-#     layer = args.layer
-
-#     if model == "bert" and (layer == "linear_mx_default_4" or layer == "gelu"):
-#         verify_bert_gelu()
-#     elif model == "llama_prefill" and (layer == "linear_mx_default_4" or layer == "silu"):
-#         verify_llama_prefill_silu()
-#     elif model == "bert" and layer == "tanh":
-#         verify_bert_tanh()
-#     elif model == "fakegemm" and layer == "linear_default_1":
-#         verify_fakegemm_linear()
-#     elif model == "resnet18" and layer == "submodule":
-#         verify_resnet18_submodule()
-#     else:
-#         raise NotImplementedError(f"No custom validation script for model {model} layer {layer}")
 
 
 def do_custom_validation(model, layer):
@@ -802,6 +744,8 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
                 residual = residual[:, slice_offset:slice_offset + slice_length]
             residual = residual.reshape((residual.shape[0], num_kernels, residual.shape[1] // num_kernels))
             residual = residual.permute(1, 0, 2)
+            unpermute_pattern = np.argsort([1, 0, 2])  # Get the pattern to unpermute back to original order
+
         elif len(residual.shape) == 3:
             if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
                 slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
@@ -809,6 +753,7 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
                 residual = residual[:, :, slice_offset:slice_offset + slice_length]
             residual = residual.reshape((residual.shape[0], residual.shape[1], num_kernels, residual.shape[2] // num_kernels))
             residual = residual.permute(2, 0, 1, 3)
+            unpermute_pattern = np.argsort([2, 0, 1, 3])  # Get the pattern to unpermute back to original order
         elif len(residual.shape) == 4:
             mha_permute = "MHA_PERMUTE" in os.environ and os.environ["MHA_PERMUTE"] == "1"
             if mha_permute:
@@ -820,6 +765,7 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
                 # If MHA permute is on, then we tile long the head dimension, which is dim 1
                 residual = residual.reshape((residual.shape[0], num_kernels, residual.shape[1] // num_kernels, residual.shape[2], residual.shape[3]))
                 residual = residual.permute(1, 0, 2, 3, 4)
+                unpermute_pattern = np.argsort([1, 0, 2, 3, 4])  # Get the pattern to unpermute back to original order
 
                 # Make sure it worked correctly
                 assert residual.shape[2] == num_attn_heads // num_kernels, f"Output tensor shape after k-dim tiling is {residual.shape}, expected head dimension to be {num_attn_heads // num_kernels}"
@@ -830,14 +776,17 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
                     residual = residual[:, :, :, slice_offset:slice_offset + slice_length]
                 residual = residual.reshape((residual.shape[0], residual.shape[1], residual.shape[2], num_kernels, residual.shape[3] // num_kernels))
                 residual = residual.permute(3, 0, 1, 2, 4)
+                unpermute_pattern = np.argsort([3, 0, 1, 2, 4])  # Get the pattern to unpermute back to original order
         else:
             raise NotImplementedError("K dimension host tiling is only supported for 2-D, 3-D, and 4-D output tensors currently.")
 
         # If tile_output_tensor is not true, then make all elements not in kernel_idx tile 0, otherwise just take the kernel_idx tile
         if not(tile_output_tensor):
             mask = torch.zeros_like(residual)
-            mask[..., kernel_idx, :] = 1
+            # mask[..., kernel_idx, :] = 1
+            mask[kernel_idx, :] = 1
             residual = residual * mask
+            residual = residual.permute(tuple(unpermute_pattern)) # Permute back to original shape with zeros in non-kernel_idx tiles
         else:
             residual = residual[kernel_idx]
 
@@ -1082,6 +1031,7 @@ def parse_output(model, layer, base_path, output_tensor_data, zircon_workarounds
                 output_tensor = output_tensor[:, slice_offset:slice_offset + slice_length]
             output_tensor = output_tensor.reshape((output_tensor.shape[0], num_kernels, output_tensor.shape[1] // num_kernels))
             output_tensor = output_tensor.permute(1, 0, 2)
+            unpermute_pattern = np.argsort([1, 0, 2])
         elif len(output_tensor.shape) == 3:
             if zircon_workarounds["k_dim_host_tiling_pre_slicing"]:
                 slice_offset = zircon_workarounds["k_dim_host_tiling_pre_slicing_slice_offset"]
@@ -1089,6 +1039,7 @@ def parse_output(model, layer, base_path, output_tensor_data, zircon_workarounds
                 output_tensor = output_tensor[:, :, slice_offset:slice_offset + slice_length]
             output_tensor = output_tensor.reshape((output_tensor.shape[0], output_tensor.shape[1], num_kernels, output_tensor.shape[2] // num_kernels))
             output_tensor = output_tensor.permute(2, 0, 1, 3)
+            unpermute_pattern = np.argsort([2, 0, 1, 3])
         elif len(output_tensor.shape) == 4:
             mha_permute = "MHA_PERMUTE" in os.environ and os.environ["MHA_PERMUTE"] == "1"
             mha_concat = "MHA_CONCAT" in os.environ and os.environ["MHA_CONCAT"] == "1"
@@ -1101,6 +1052,7 @@ def parse_output(model, layer, base_path, output_tensor_data, zircon_workarounds
                 # If MHA permute is on, then we tile long the head dimension, which is dim 1
                 output_tensor = output_tensor.reshape((output_tensor.shape[0], num_kernels, output_tensor.shape[1] // num_kernels, output_tensor.shape[2], output_tensor.shape[3]))
                 output_tensor = output_tensor.permute(1, 0, 2, 3, 4)
+                unpermute_pattern = np.argsort([1, 0, 2, 3, 4])
 
                 # Make sure it worked correctly
                 assert output_tensor.shape[2] == num_attn_heads // num_kernels, f"Output tensor shape after k-dim tiling is {output_tensor.shape}, expected head dimension to be {num_attn_heads // num_kernels}"
@@ -1111,7 +1063,7 @@ def parse_output(model, layer, base_path, output_tensor_data, zircon_workarounds
                 # If MHA concat is on, we tile along head dimensions, which is dim 2
                 output_tensor = output_tensor.reshape((output_tensor.shape[0], output_tensor.shape[1], num_kernels, output_tensor.shape[2] // num_kernels, output_tensor.shape[3]))
                 output_tensor = output_tensor.permute(2, 0, 1, 3, 4)
-
+                unpermute_pattern = np.argsort([2, 0, 1, 3, 4])
                 # Make sure it worked correctly
                 assert output_tensor.shape[3] == num_attn_heads // num_kernels, f"Output tensor shape after MHA concat for k dim tiling is {output_tensor.shape}, expected head dimension to be {num_attn_heads // num_kernels}"
 
@@ -1122,14 +1074,18 @@ def parse_output(model, layer, base_path, output_tensor_data, zircon_workarounds
                     output_tensor = output_tensor[:, :, :, slice_offset:slice_offset + slice_length]
                 output_tensor = output_tensor.reshape((output_tensor.shape[0], output_tensor.shape[1], output_tensor.shape[2], num_kernels, output_tensor.shape[3] // num_kernels))
                 output_tensor = output_tensor.permute(3, 0, 1, 2, 4)
+                unpermute_pattern = np.argsort([3, 0, 1, 2, 4])
+
         else:
             raise NotImplementedError("K dimension host tiling is only supported for 2-D, 3-D, and 4-D output tensors currently.")
 
         # If tile_output_tensor is not true, then make all elements not in kernel_idx tile 0, otherwise just take the kernel_idx tile
         if not(tile_output_tensor):
             mask = torch.zeros_like(output_tensor)
-            mask[..., kernel_idx, :] = 1
+            # mask[..., kernel_idx, :] = 1
+            mask[kernel_idx, :] = 1
             output_tensor = output_tensor * mask
+            output_tensor = output_tensor.permute(tuple(unpermute_pattern)) # Permute back to original shape with zeros in non-kernel_idx tiles
         else:
             output_tensor = output_tensor[kernel_idx]
 
@@ -1141,18 +1097,22 @@ def parse_output(model, layer, base_path, output_tensor_data, zircon_workarounds
             io_dim1_tiling_idx = zircon_workarounds["io_dim1_tiling_idx"]
             output_tensor = output_tensor.reshape((output_tensor.shape[0], num_io_dim1_tiling_kernels, output_tensor.shape[1] // num_io_dim1_tiling_kernels, output_tensor.shape[2]))
             output_tensor = output_tensor.permute(1, 0, 2, 3)
+            unpermute_pattern = np.argsort([1, 0, 2, 3])
         elif len(output_tensor.shape) == 4:
             num_io_dim1_tiling_kernels = zircon_workarounds["num_io_dim1_tiling_kernels"]
             io_dim1_tiling_idx = zircon_workarounds["io_dim1_tiling_idx"]
             output_tensor = output_tensor.reshape((output_tensor.shape[0], num_io_dim1_tiling_kernels, output_tensor.shape[1] // num_io_dim1_tiling_kernels, output_tensor.shape[2], output_tensor.shape[3]))
             output_tensor = output_tensor.permute(1, 0, 2, 3, 4)
+            unpermute_pattern = np.argsort([1, 0, 2, 3, 4])
         else:
             raise NotImplementedError("I/O dimension 1 host tiling is only supported for 3D and 4D output tensors currently.")
 
         if not(tile_output_tensor):
             mask = torch.zeros_like(output_tensor)
-            mask[:, io_dim1_tiling_idx, :, :, :] = 1
+            # mask[:, io_dim1_tiling_idx, :, :, :] = 1
+            mask[io_dim1_tiling_idx, :] = 1
             output_tensor = output_tensor * mask
+            output_tensor = output_tensor.permute(tuple(unpermute_pattern)) # Permute back to original shape with zeros in non-io_dim1_tiling_idx tiles
         else:
             output_tensor = output_tensor[io_dim1_tiling_idx]
 
