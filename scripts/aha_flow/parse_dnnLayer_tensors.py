@@ -725,7 +725,8 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
         residual = residual.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
 
     # Tiling flow
-    if zircon_workarounds["k_dim_host_tiling"] or zircon_workarounds["io_innermost_dim_tiling"]:
+    tile_output_tensor = zircon_workarounds["output_tensor_k_dim_tiling"] or zircon_workarounds["output_tensor_io_innermost_dim_tiling"]
+    if (zircon_workarounds["k_dim_host_tiling"] or zircon_workarounds["io_innermost_dim_tiling"]) and tile_output_tensor:
         if zircon_workarounds["k_dim_host_tiling"]:
             num_kernels = zircon_workarounds["num_k_host_tiling_kernels"]
             kernel_idx = zircon_workarounds["k_dim_host_tiling_idx"]
@@ -733,7 +734,7 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
             num_kernels = zircon_workarounds["num_io_innermost_dim_tiling_kernels"]
             kernel_idx = zircon_workarounds["io_innermost_dim_tiling_idx"]
 
-        tile_output_tensor = zircon_workarounds["output_tensor_k_dim_tiling"] or zircon_workarounds["output_tensor_io_innermost_dim_tiling"]
+
 
         # Divide the innermost dimension into num_kernels tiles and take the tile corresponding to kernel_idx
         # We don't know how many dimensions the tensor has, so we need code that handles different cases
@@ -780,15 +781,7 @@ def parse_residual(base_path, residual_tensor_data, h2h_dir, zircon_workarounds)
         else:
             raise NotImplementedError("K dimension host tiling is only supported for 2-D, 3-D, and 4-D output tensors currently.")
 
-        # If tile_output_tensor is not true, then make all elements not in kernel_idx tile 0, otherwise just take the kernel_idx tile
-        if not(tile_output_tensor):
-            mask = torch.zeros_like(residual)
-            # mask[..., kernel_idx, :] = 1
-            mask[kernel_idx, :] = 1
-            residual = residual * mask
-            residual = residual.permute(tuple(unpermute_pattern)) # Permute back to original shape with zeros in non-kernel_idx tiles
-        else:
-            residual = residual[kernel_idx]
+        residual = residual[kernel_idx]
 
     if zircon_workarounds["x_dim_host_tiling"]:
         x_dim_host_tiling_slice_offset = zircon_workarounds["x_dim_host_tiling_slice_offset"]
