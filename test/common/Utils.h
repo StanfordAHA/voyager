@@ -25,16 +25,16 @@ float compare_arrays(std::any matrixA, std::string matrixA_name,
   diffFile << matrixA_name << " vs. " << matrixB_name << std::endl;
 
 
-  std::ofstream gold_data_file;
-  // Delete the file if it exists
-  std::string gold_data_filename = "gold" + suffix;
-  std::remove(gold_data_filename.c_str());
-  gold_data_file.open(gold_data_filename, std::ios::app);
-  if (!gold_data_file.is_open()) {
-    spdlog::error("Failed to open {} for writing.", gold_data_filename);
-    return -1;
-  }
-  spdlog::info("Writing gold data to file: {}\n", gold_data_filename);
+  // std::ofstream gold_data_file;
+  // // Delete the file if it exists
+  // std::string gold_data_filename = "gold" + suffix;
+  // std::remove(gold_data_filename.c_str());
+  // gold_data_file.open(gold_data_filename, std::ios::app);
+  // if (!gold_data_file.is_open()) {
+  //   spdlog::error("Failed to open {} for writing.", gold_data_filename);
+  //   return -1;
+  // }
+  // spdlog::info("Writing gold data to file: {}\n", gold_data_filename);
 
 
   // std::string gold_binary_filename = "gold_data" + suffix + "raw";
@@ -61,11 +61,11 @@ float compare_arrays(std::any matrixA, std::string matrixA_name,
     float abs_diff = abs(a - b);
 
     // Write gold data out to text file
-    const unsigned char* ptr = reinterpret_cast<const unsigned char*>(&matrixB_ptr[index]);
-    for (size_t i = 0; i < size_of_typeB; ++i) {
-        gold_data_file << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(ptr[size_of_typeB - 1 - i]);
-    }
-    gold_data_file << std::endl;
+    // const unsigned char* ptr = reinterpret_cast<const unsigned char*>(&matrixB_ptr[index]);
+    // for (size_t i = 0; i < size_of_typeB; ++i) {
+    //     gold_data_file << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(ptr[size_of_typeB - 1 - i]);
+    // }
+    // gold_data_file << std::endl;
 
     // write gold data out to binary (raw) file
     // const uint8_t* ptr2 = reinterpret_cast<const uint8_t*>(matrixB_ptr) + index * size_of_typeB;

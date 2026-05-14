@@ -649,8 +649,8 @@ void Harness::sendParams() {
         // Print all the offsets and add them to the dumpMatrixParams and postSilicon_dumpMatrixParams
         const int POST_SILICON_INPUT_OFFSET = 32;
         const int POST_SILICON_INPUT_SCALE_OFFSET = 3;
-        const int POST_SILICON_WEIGHT_OFFSET = 32;
-        const int POST_SILICON_WEIGHT_SCALE_OFFSET = 32;
+        const int POST_SILICON_WEIGHT_OFFSET = 16416;
+        const int POST_SILICON_WEIGHT_SCALE_OFFSET = 16416;
         const int POST_SILICON_BIAS_OFFSET = 32;
 
         if (tensor_metadata["has_input"].get<bool>()) {

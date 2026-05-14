@@ -1,0 +1,39 @@
+{
+    "layer_name": "mul_9",
+    "has_input": true,
+    "has_input_scale": false,
+    "has_weight": false,
+    "has_weight_scale": false,
+    "has_bias": false,
+    "has_residual": false,
+    "mu_glb_base_address": 0,
+    "ops": [
+        {
+            "name": "mul",
+            "kwargs": {
+                "input": {
+                    "tensor": {
+                        "node": "silu",
+                        "shape": [
+                            1,
+                            512,
+                            8192
+                        ],
+                        "dtype": "bfloat16"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "node": "submodule_40",
+            "shape": [
+                1,
+                512,
+                8192
+            ],
+            "dtype": "bfloat16"
+        }
+    ]
+}
