@@ -10,6 +10,7 @@ MXINT8_FLAGS := --activation int8,qs=microscaling,bs=$(BLOCK_SIZE) --weight int8
 MXNF4_FLAGS := --activation nf4_6,qs=microscaling,bs=$(BLOCK_SIZE),scale=fp8_e5m3 --weight nf4_6,qs=microscaling,bs=$(BLOCK_SIZE),scale=fp8_e5m3 --bf16
 COMMON_FLAGS := --transpose_weight --hardware_unrolling $(IC_DIMENSION),$(OC_DIMENSION) --remove_duplicate
 LLM_FLAGS := --context_length 512 --remove_duplicate
+MAMBA2_FLAGS := --context_length 1024 --remove_duplicate
 EXTRA_COMPILER_FLAGS ?=
 
 # Set default values if not already defined in the environment
@@ -56,6 +57,10 @@ $(CODEGEN_DIR)/networks/llama_prefill_mp/%/model.txt: quantized-training/test/te
 $(CODEGEN_DIR)/networks/llama_decode_mp/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
 	python quantized-training/test/test_codegen.py llm_decode $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) $(LLM_FLAGS) --mixed_precision 2>&1 | tee $(dir $@)/codegen.log
+
+$(CODEGEN_DIR)/networks/mamba2_prefill/%/model.txt: quantized-training/test/test_codegen.py quantized-training/test/utils/models/mamba2.py
+	mkdir -p $(dir $@)
+	python quantized-training/test/test_codegen.py mamba2_prefill $($(notdir $(patsubst %/,%,$(dir $@)))_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) $(MAMBA2_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
 $(CODEGEN_DIR)/networks/vit/%/model.txt: quantized-training/test/test_codegen.py
 	mkdir -p $(dir $@)
