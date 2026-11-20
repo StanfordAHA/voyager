@@ -182,8 +182,27 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
   const auto input_shape = get_shape(input);
   const auto weight_shape = get_shape(weight);
 
+  // Mamba2-1.3B prefill SSD matmuls have 2-D operands, so they are matched first:
+  // the cases below read input_shape[2].
+  // C@B^T (matmul_mx .. matmul_mx_3): [256, 128] @ [128, 256], one run per chunk; c2 moved into c1 => c1 = 2, k1 = 8, x2 = 2
+  if (input_shape.size() == 2 && weight_shape.size() == 2 &&
+      input_shape[0] == 256 && input_shape[1] == 128 &&
+      weight_shape[0] == 128 && weight_shape[1] == 256 && stride == 1) {
+      tiling = {
+          .loops = {{1, 1, 2, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+
   // submodule (conv1 im2col GEMM), tiled into 4 sub-kernels along x dim
-  if (input_shape[2] == 192 && input_shape[1] == 12544 && input_shape[0] == 1 &&
+  } else if (input_shape[2] == 192 && input_shape[1] == 12544 && input_shape[0] == 1 &&
       weight_shape[1] == 64 && weight_shape[0] == 192 && stride == 1) {
 
     tiling = {
@@ -711,6 +730,96 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
       throw std::runtime_error("Invalid NON_UNIFORM_SLICE_IDX value for Llama final layer tiling!");
     }
 
+  }
+  // Mamba2-1.3B prefill, out_proj + residual add (submodule_9).
+  // Per run: X = 512, C = 256 (16 psums), K = 512 (4 K kernels, 2 X kernels); c1 = 4, k1 = 4, k2 = 4 => 88 % util
+  else if (input_shape[0] == 1 && input_shape[1] == 1024 && input_shape[2] == 4096 &&
+      weight_shape[0] == 4096 && weight_shape[1] == 2048 && stride == 1) {
+      tiling = {
+          .loops = {{1, 4, 4, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  }
+  // Mamba2-1.3B prefill, xBC_proj (linear_mx_default_1).
+  // Per run: X = 1024, C = 256 (8 psums), K = 256 (17 K kernels); c1 = 4, k1 = 4, k2 = 2, x2 = 8
+  else if (input_shape[0] == 1 && input_shape[1] == 1024 && input_shape[2] == 2048 &&
+      weight_shape[0] == 2048 && weight_shape[1] == 4352 && stride == 1) {
+      tiling = {
+          .loops = {{1, 2, 8, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  }
+  // Mamba2-1.3B prefill, z_proj (linear_mx_default), followed by the gate SiLU.
+  // Per run: X = 512 (2 X kernels), C = 256 (8 psums), K = 512 (8 K kernels); c1 = 4, k1 = 4, k2 = 4 => 88 % util
+  else if (input_shape[0] == 1 && input_shape[1] == 1024 && input_shape[2] == 2048 &&
+      weight_shape[0] == 2048 && weight_shape[1] == 4096 && stride == 1) {
+      tiling = {
+          .loops = {{1, 4, 4, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  }
+  // Mamba2-1.3B prefill, lm_head (linear_mx_default_4) across the padded vocabulary (50304 = 50176 + 128)
+  else if (input_shape[0] == 1 && input_shape[1] == 1024 && input_shape[2] == 2048 &&
+      weight_shape[0] == 2048 && weight_shape[1] == 50304 && stride == 1) {
+
+    const char* non_uniform_slice_idx_env = std::getenv("NON_UNIFORM_SLICE_IDX");
+    int non_uniform_slice_idx = non_uniform_slice_idx_env ? std::stoi(non_uniform_slice_idx_env) : -1;
+
+    if (non_uniform_slice_idx == 0) {
+      // 88% util config: X = 512 (2 X kernels), C = 256 (8 psums), K = 512 (98 K kernels)
+      tiling = {
+          .loops = {{1, 4, 4, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+    } else if (non_uniform_slice_idx == 1) {
+      // 128-column tail: X = 512 (2 X kernels), C = 256 (8 psums), K = 128 (1 K kernel)
+      tiling = {
+          .loops = {{1, 1, 4, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+    } else {
+      throw std::runtime_error("Invalid NON_UNIFORM_SLICE_IDX value for Mamba2 lm_head tiling!");
+    }
   }
   else {
      throw std::runtime_error("Zircon hardcoded tiling not implemented for this layer!");
