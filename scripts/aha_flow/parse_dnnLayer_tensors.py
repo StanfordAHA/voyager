@@ -1000,6 +1000,14 @@ def parse_output(model, layer, base_path, output_tensor_data, zircon_workarounds
         or (model == "llama_prefill" and (layer == "linear_mx_default_4" or layer == "silu"))
     ):
         output_tensor, output_datatype = do_custom_validation(model, layer)
+    elif os.environ.get("SILU_GOLD_INPUT_NODE", ""):
+        # Gold = SiLU (x * sigmoid(x)) recomputed on the host from the GEMM output node named by SILU_GOLD_INPUT_NODE,
+        # which has the same shape as this layer's output (e.g. Mamba2 z_proj linear_mx_default -> silu). Rounded to
+        # bf16 (round to nearest even); the K/X or IO tiling and the channel trimming below then slice it.
+        silu_input = read_tensor(base_path + os.environ["SILU_GOLD_INPUT_NODE"] + ".bin", tuple(output_tensor_data["shape"]))
+        silu_input = silu_input.double()
+        output_tensor = (silu_input * torch.sigmoid(silu_input)).to(torch.bfloat16).to(torch.float32)
+        output_datatype = "bfloat16"
     else:
         output_tensor = read_tensor(base_path + output_tensor_data["node"] + ".bin", tuple(output_tensor_data["shape"]))
 
@@ -1305,6 +1313,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     if zircon_workarounds["zircon_gemm_reduction_tiling_workaround"] and (zircon_workarounds["psum_idx"] != 0):
         if (model == "bert" and layer == "gelu") or (model == "llama_prefill" and layer == "silu"):
             layer = "linear_mx_default_4"
+        if (model == "mamba2_prefill" and layer == "silu"):
+            layer = "linear_mx_default"
         if (model == "llama_prefill" and layer == "mul_9"):
             layer = "submodule_40"
         if zircon_workarounds["non_uniform_slicing"]:
