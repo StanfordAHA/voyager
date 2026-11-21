@@ -73,6 +73,27 @@ $(CODEGEN_DIR)/networks/fakegemm/%/model.txt: quantized-training/test/test_codeg
 	mkdir -p $(dir $@)
 	python -u quantized-training/test/test_codegen.py fakegemm $(INT8_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
+# GIN (COLLAB) prediction_layer{0..4} linear_trans, INT8 per-tensor (gin_mu)
+$(CODEGEN_DIR)/networks/gin_pred0/%/model.txt: quantized-training/test/test_codegen.py
+	mkdir -p $(dir $@)
+	python -u quantized-training/test/test_codegen.py gin_pred0 $(INT8_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
+
+$(CODEGEN_DIR)/networks/gin_pred1/%/model.txt: quantized-training/test/test_codegen.py
+	mkdir -p $(dir $@)
+	python -u quantized-training/test/test_codegen.py gin_pred1 $(INT8_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
+
+$(CODEGEN_DIR)/networks/gin_pred2/%/model.txt: quantized-training/test/test_codegen.py
+	mkdir -p $(dir $@)
+	python -u quantized-training/test/test_codegen.py gin_pred2 $(INT8_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
+
+$(CODEGEN_DIR)/networks/gin_pred3/%/model.txt: quantized-training/test/test_codegen.py
+	mkdir -p $(dir $@)
+	python -u quantized-training/test/test_codegen.py gin_pred3 $(INT8_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
+
+$(CODEGEN_DIR)/networks/gin_pred4/%/model.txt: quantized-training/test/test_codegen.py
+	mkdir -p $(dir $@)
+	python -u quantized-training/test/test_codegen.py gin_pred4 $(INT8_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
+
 ################################################################################
 # Gesture
 ################################################################################

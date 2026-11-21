@@ -301,6 +301,24 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
+    // GIN (COLLAB) prediction_layer0 linear_trans: X 64, C 384 (367 padded), K 32 (3 padded).
+    // Everything in L1 (reduction 6 x 64, X 64), L0 all 1. Tilings with X split into 2 outer tiles (default
+    // interstellar, inner-loop-reduction workaround, Llama A*V layout) hang in RTL: the MU reads all inputs and
+    // weights but the systolic array never produces output.
+    } else if (input_shape.size() == 2 && input_shape[0] == 64 && input_shape[1] == 384 &&
+      weight_shape[0] == 384 && weight_shape[1] == 32 && stride == 1) {
+        tiling = {
+          .loops = {{1, 1, 1, 1, 1, 1}, {6, 1, 1, 1, 1, 64}},
+          .x_loop_index = {1, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {2, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+        };
     // BERT Query, Key, Value Projections; pre-layernorm projection
     } else if (input_shape[0] == 1 && input_shape[1] == 128 && input_shape[2] == 768 &&
       weight_shape[0] == 768 && weight_shape[1] == 768 && stride == 1) {
