@@ -94,6 +94,11 @@ $(CODEGEN_DIR)/networks/gin_pred4/%/model.txt: quantized-training/test/test_code
 	mkdir -p $(dir $@)
 	python -u quantized-training/test/test_codegen.py gin_pred4 $(INT8_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
 
+# Sparse CNN (ResNet-20, batch 32) fc 32x64 @ 64x10, INT8 per-tensor (gin_mu)
+$(CODEGEN_DIR)/networks/cnn_fc/%/model.txt: quantized-training/test/test_codegen.py
+	mkdir -p $(dir $@)
+	python -u quantized-training/test/test_codegen.py cnn_fc $(INT8_FLAGS) $(EXTRA_COMPILER_FLAGS) --model_output_dir $(dir $@) $(COMMON_FLAGS) 2>&1 | tee $(dir $@)/codegen.log
+
 ################################################################################
 # Gesture
 ################################################################################
