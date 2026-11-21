@@ -201,6 +201,42 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
+  // C@states (matmul_mx_264 .. matmul_mx_267): [256, 128] @ [128, 4096], 4 K kernels of 1024 columns (16 heads) per chunk;
+  // c2 moved into c1 => c1 = 2, k1 = 8, k2 = 4, x2 = 2
+  } else if (input_shape.size() == 2 && weight_shape.size() == 2 &&
+      input_shape[0] == 256 && input_shape[1] == 128 &&
+      weight_shape[0] == 128 && weight_shape[1] == 4096 && stride == 1) {
+      tiling = {
+          .loops = {{1, 4, 2, 1, 1, 1}, {2, 1, 1, 1, 8, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+
+  // B^T@X_end (matmul_mx_260 .. matmul_mx_263): [128, 256] @ [256, 4096], 2 K kernels of 2048 columns (32 heads) per chunk;
+  // c2 moved into c1 => c1 = 4, k1 = 4 (weight buffer 4*64*4 = 1024), k2 = 16, x2 = 1
+  } else if (input_shape.size() == 2 && weight_shape.size() == 2 &&
+      input_shape[0] == 128 && input_shape[1] == 256 &&
+      weight_shape[0] == 256 && weight_shape[1] == 4096 && stride == 1) {
+      tiling = {
+          .loops = {{1, 16, 1, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+
   // submodule (conv1 im2col GEMM), tiled into 4 sub-kernels along x dim
   } else if (input_shape[2] == 192 && input_shape[1] == 12544 && input_shape[0] == 1 &&
       weight_shape[1] == 64 && weight_shape[0] == 192 && stride == 1) {
