@@ -40,6 +40,9 @@ LAYERS = {
     # z_proj (its gate SiLU is fused into the last psum kernel + a CGRA pass 2)
     "linear_mx_default": ("getitem_4", "getitem_3", "_param_constant1_quantized_0", "_param_constant1_scale_0",
                           None, 1024, 2048, 4096),
+    # dt_proj (linear_mx_default_2) + add_5 (dt_bias [64], broadcast over positions) = submodule_4
+    "submodule_4": ("getitem_4", "getitem_3", "_param_constant3_quantized_0", "_param_constant3_scale_0",
+                    "_param_constant6", 1024, 2048, 64),
     # lm_head (vocabulary padded to 50304)
     "linear_mx_default_4": ("getitem_14", "getitem_13", "_param_constant11_quantized_0", "_param_constant11_scale_0",
                             None, 1024, 2048, 50304),
@@ -77,7 +80,11 @@ def main(layer, app_key, out_dir, pass1_lower=None):
     act = load(ACT, (1, X, C)) * load(ACT_SCALE, (1, X, C // BLOCK)).repeat_interleave(BLOCK, dim=-1)
     weight = load(WEIGHT, (C, K)) * load(WEIGHT_SCALE, (C // BLOCK, K)).repeat_interleave(BLOCK, dim=0)
     act, weight = act.double(), weight.double()
-    running = bf16(load(RESIDUAL, (1, X, K))) if RESIDUAL else torch.zeros(1, X, K)
+    if RESIDUAL:  # a [K] residual (e.g. dt_bias) broadcasts over the rows, as RESIDUAL_BROADCAST_TO_OUTPUT does
+        res = torch.from_numpy(np.fromfile(f"{NETWORK_DIR}/tensor_files/{RESIDUAL}.bin", dtype=np.float32))
+        running = bf16((res.reshape(1, 1, K).expand(1, X, K) if res.numel() == K else res.reshape(1, X, K)).contiguous())
+    else:
+        running = torch.zeros(1, X, K)
     out_spec = {"node": LAYER, "shape": [1, X, K], "dtype": "bfloat16"}
     slice_c = C // num_psums
 

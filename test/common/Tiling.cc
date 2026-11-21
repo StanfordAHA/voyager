@@ -237,6 +237,24 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
           .replication = false,
       };
 
+  // score@x (matmul_mx_4 .. matmul_mx_259, one per chunk and head): [256, 256] @ [256, 64], one run;
+  // c2 moved into c1 => c1 = 4, k1 = 2 (K is only 2 blocks), x2 = 2
+  } else if (input_shape.size() == 2 && weight_shape.size() == 2 &&
+      input_shape[0] == 256 && input_shape[1] == 256 &&
+      weight_shape[0] == 256 && weight_shape[1] == 64 && stride == 1) {
+      tiling = {
+          .loops = {{1, 1, 2, 1, 1, 1}, {4, 1, 1, 1, 2, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+
   // submodule (conv1 im2col GEMM), tiled into 4 sub-kernels along x dim
   } else if (input_shape[2] == 192 && input_shape[1] == 12544 && input_shape[0] == 1 &&
       weight_shape[1] == 64 && weight_shape[0] == 192 && stride == 1) {
@@ -790,6 +808,23 @@ Tiling get_zircon_hardcoded_tiling(const codegen::OpOverload param) {
       weight_shape[0] == 2048 && weight_shape[1] == 4352 && stride == 1) {
       tiling = {
           .loops = {{1, 2, 8, 1, 1, 1}, {4, 1, 1, 1, 4, 128}},
+          .x_loop_index = {2, 5},
+          .y_loop_index = {0, 1},
+          .reduction_loop_index = {3, 0},
+          .weight_loop_index = {1, 4},
+          .fx_index = 3,
+          .fy_index = 2,
+          .weight_reuse_index = {5, 5},
+          .stride = 1,
+          .replication = false,
+      };
+  }
+  // Mamba2-1.3B prefill, dt_proj (linear_mx_default_2, fused with the dt_bias add into submodule_4).
+  // Per run: X = 1024, C = 512 (4 psums), K = 64 (no K split); c1 = 8, k1 = 2 (K is only 2 blocks), x2 = 8
+  else if (input_shape[0] == 1 && input_shape[1] == 1024 && input_shape[2] == 2048 &&
+      weight_shape[0] == 2048 && weight_shape[1] == 64 && stride == 1) {
+      tiling = {
+          .loops = {{1, 1, 8, 1, 1, 1}, {8, 1, 1, 1, 2, 128}},
           .x_loop_index = {2, 5},
           .y_loop_index = {0, 1},
           .reduction_loop_index = {3, 0},

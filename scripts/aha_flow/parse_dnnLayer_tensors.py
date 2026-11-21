@@ -852,23 +852,61 @@ def write_exp_epilogue_input(base_path, h2h_dir, zircon_workarounds, gemm_output
     if os.path.exists(f'{h2h_dir}/bin/'):
         scales_bf16_be.tofile(f'{h2h_dir}/bin/hw_broadcast_input_stencil.raw')
 
+MAMBA2_ROWS, MAMBA2_HEADS, MAMBA2_P, MAMBA2_CHUNKS = 256, 64, 64, 4  # chunk length, heads, head dim, chunks (1024 tokens)
+
+def add_epilogue_enabled():
+    return bool(os.environ.get("ADD_EPILOGUE_NODE", "") or os.environ.get("YOFF_EPILOGUE_CHUNK", ""))
+
+def yoff_epilogue_host_block(base_path):
+    """Y_off * exp(a_cum) block that Mamba2 score@x (chunk YOFF_EPILOGUE_CHUNK, head YOFF_EPILOGUE_HEAD) adds, computed
+    on the host: bf16(C@states matmul_mx_(264 + c)[:, 64h:64h+64] * exp_2[c, h, :, None]), [256, 64]."""
+    c, h = int(os.environ["YOFF_EPILOGUE_CHUNK"]), int(os.environ["YOFF_EPILOGUE_HEAD"])
+    y_off = read_tensor(base_path + f"matmul_mx_{264 + c}.bin", (MAMBA2_ROWS, MAMBA2_HEADS * MAMBA2_P))
+    scales = read_tensor(base_path + "exp_2.bin", (MAMBA2_CHUNKS, MAMBA2_HEADS, MAMBA2_ROWS))[c, h]
+    block = y_off[:, MAMBA2_P * h:MAMBA2_P * (h + 1)]
+    return (block.double() * scales.double().unsqueeze(-1)).to(torch.bfloat16).to(torch.float32)
+
+def yoff_epilogue_live_block():
+    """The same block as bf16 bits from the C@states epilogue's RTL output YOFF_EPILOGUE_LIVE_TXT: the hw_output.txt of
+    C@states K tile floor(h / YOFF_EPILOGUE_LIVE_HEADS_PER_TILE) (default 16) of chunk c, [256, heads per tile * 64]
+    row-major; head h is columns 64 * (h mod heads per tile) .. +63."""
+    h = int(os.environ["YOFF_EPILOGUE_HEAD"])
+    heads_per_tile = int(os.environ.get("YOFF_EPILOGUE_LIVE_HEADS_PER_TILE", 16))
+    with open(os.environ["YOFF_EPILOGUE_LIVE_TXT"]) as f:
+        words = np.array([int(x, 16) for x in f.read().split()], dtype=np.uint16)
+    words = words.reshape(MAMBA2_ROWS, heads_per_tile * MAMBA2_P)
+    j = h % heads_per_tile
+    return np.ascontiguousarray(words[:, MAMBA2_P * j:MAMBA2_P * (j + 1)])
+
 def read_add_epilogue_residual(base_path, gemm_output_shape):
-    """Second operand of a GEMM + add epilogue that model.txt does not fuse into the GEMM's layer (e.g. Mamba2
-    B^T@X_end + decayed entering state): node ADD_EPILOGUE_NODE, read in the GEMM output's shape (same element order)."""
-    return read_tensor(base_path + os.environ["ADD_EPILOGUE_NODE"] + ".bin", tuple(gemm_output_shape))
+    """Host-side second operand of a GEMM + add epilogue that model.txt does not fuse into the GEMM's layer, in the GEMM
+    output's shape and order: node ADD_EPILOGUE_NODE (e.g. Mamba2 B^T@X_end + decayed entering state mul_13), or the
+    Y_off * exp(a_cum) block of Mamba2 score@x (YOFF_EPILOGUE_CHUNK / YOFF_EPILOGUE_HEAD)."""
+    if os.environ.get("ADD_EPILOGUE_NODE", ""):
+        return read_tensor(base_path + os.environ["ADD_EPILOGUE_NODE"] + ".bin", tuple(gemm_output_shape))
+    block = yoff_epilogue_host_block(base_path)
+    assert list(block.shape) == list(gemm_output_shape), f"Y_off block {tuple(block.shape)} != GEMM output {gemm_output_shape}"
+    return block
 
 def write_add_epilogue_input(base_path, h2h_dir, zircon_workarounds, gemm_output_shape):
-    """Partial-sum input of the GEMM + add epilogue (zircon_2d_psum_reduction_fp): K host tile k of the residual
-    [rows, cols / NUM_K], as big-endian bf16 hw_partial_sum_input_stencil.raw. Also written into bin/: with SKIP CGRA MAP,
-    process.cpp does not copy it."""
-    residual = read_add_epilogue_residual(base_path, gemm_output_shape)
-    assert len(residual.shape) == 2, f"ADD_EPILOGUE_NODE supports 2-D GEMM outputs only, got {tuple(residual.shape)}"
-    if zircon_workarounds["k_dim_host_tiling"]:
-        num_k = zircon_workarounds["num_k_host_tiling_kernels"]
-        k = zircon_workarounds["k_dim_host_tiling_idx"]
-        residual = residual.reshape((residual.shape[0], num_k, residual.shape[1] // num_k)).permute(1, 0, 2)[k]
-    residual_bf16_be = float32_to_bfloat16_bits(residual.contiguous()).byteswap().newbyteorder('>')
-    print(f"\033[93mINFO: add epilogue: writing {tuple(residual.shape)} of {os.environ['ADD_EPILOGUE_NODE']} "
+    """Partial-sum input of the GEMM + add epilogue (zircon_2d_psum_reduction_fp), as big-endian bf16
+    hw_partial_sum_input_stencil.raw: K host tile k of the host residual [rows, cols / NUM_K], or, with
+    YOFF_EPILOGUE_LIVE_TXT, score@x's block taken from the C@states epilogue's RTL output. Also written into bin/: with
+    SKIP CGRA MAP, process.cpp does not copy it."""
+    if os.environ.get("YOFF_EPILOGUE_LIVE_TXT", ""):
+        bits = yoff_epilogue_live_block()
+        source = f"live C@states output {os.environ['YOFF_EPILOGUE_LIVE_TXT']}"
+    else:
+        residual = read_add_epilogue_residual(base_path, gemm_output_shape)
+        assert len(residual.shape) == 2, f"the add epilogue supports 2-D GEMM outputs only, got {tuple(residual.shape)}"
+        if zircon_workarounds["k_dim_host_tiling"]:
+            num_k = zircon_workarounds["num_k_host_tiling_kernels"]
+            k = zircon_workarounds["k_dim_host_tiling_idx"]
+            residual = residual.reshape((residual.shape[0], num_k, residual.shape[1] // num_k)).permute(1, 0, 2)[k]
+        bits = float32_to_bfloat16_bits(residual.contiguous())
+        source = os.environ.get("ADD_EPILOGUE_NODE", "") or "host Y_off * exp(a_cum) block"
+    residual_bf16_be = bits.byteswap().newbyteorder('>')
+    print(f"\033[93mINFO: add epilogue: writing {tuple(bits.shape)} of {source} "
           f"(K tile {zircon_workarounds['k_dim_host_tiling_idx']}) to hw_partial_sum_input_stencil.raw\033[0m")
     residual_bf16_be.tofile(f'{h2h_dir}/hw_partial_sum_input_stencil.raw')
     if os.path.exists(f'{h2h_dir}/bin/'):
@@ -1070,9 +1108,10 @@ def parse_output(model, layer, base_path, output_tensor_data, zircon_workarounds
         multiplier = scales.transpose(0, 1).repeat_interleave(exp_epilogue_group_cols(), dim=1)
         output_tensor = (gemm_output.double() * multiplier.double()).to(torch.bfloat16).to(torch.float32)
         output_datatype = "bfloat16"
-    elif os.environ.get("ADD_EPILOGUE_NODE", ""):
-        # Gold of the GEMM + add epilogue (e.g. Mamba2 B^T@X_end + decayed entering state): the GEMM output plus node
-        # ADD_EPILOGUE_NODE (same shape and order), rounded to bf16 (round to nearest even); the K tiling below slices it.
+    elif add_epilogue_enabled():
+        # Gold of the GEMM + add epilogue (Mamba2 B^T@X_end + decayed entering state, score@x + Y_off * exp(a_cum)): the
+        # GEMM output plus the HOST residual (same shape and order; independent of a live RTL input), rounded to bf16
+        # (round to nearest even); the K tiling below slices it.
         gemm_output = read_tensor(base_path + output_tensor_data["node"] + ".bin", tuple(output_tensor_data["shape"]))
         residual = read_add_epilogue_residual(base_path, output_tensor_data["shape"])
         output_tensor = (gemm_output.double() + residual.double()).to(torch.bfloat16).to(torch.float32)
@@ -1408,7 +1447,7 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
         write_exp_epilogue_input(base_path, h2h_dir, zircon_workarounds, all_output_tensors[0]["shape"])
 
     # GEMM + add epilogue (zircon_2d_psum_reduction_fp): write its partial-sum input
-    if os.environ.get("ADD_EPILOGUE_NODE", ""):
+    if add_epilogue_enabled():
         write_add_epilogue_input(base_path, h2h_dir, zircon_workarounds, all_output_tensors[0]["shape"])
 
 

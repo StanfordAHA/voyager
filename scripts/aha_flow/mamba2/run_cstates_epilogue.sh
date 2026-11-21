@@ -12,17 +12,18 @@
 # Every passing run is staged for chip runs and pushed to khaki (stage_chip_collateral.sh); every run's hw_output.txt is
 # saved in the logs. On a failure: save the app's bin/ and the voyager collateral of that run, then stop. Failures are
 # not debugged.
-# Usage: [CHUNK=1] [RESUME=k1|replace] run_cstates_epilogue.sh   (run in tmux with SSH_AUTH_SOCK passed through)
+# Usage: [CHUNK=1] [ONLY_K0=1] [LOGDIR=...] [RESUME=k1|replace] run_cstates_epilogue.sh   (run in tmux with SSH_AUTH_SOCK passed through)
 TOOLS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 CHUNK=${CHUNK:-1}
 MU=mamba2_prefill-matmul_mx_$((264 + CHUNK))
 [ "$CHUNK" = 1 ] && REPLACE_MU=${REPLACE_MU-mamba2_prefill-matmul_mx_264}
-LOGDIR=/aha/rerun_logs/2026-11-20/cstates_chunk$CHUNK
+LOGDIR=${LOGDIR:-/aha/rerun_logs/2026-11-20/cstates_chunk$CHUNK}
 STATUS=$LOGDIR/cstates_epilogue.status
 APPS=/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps
 TB=/aha/garnet/tests/test_app
 APP=zircon_2d_broadcast_mul_fp
 KEYS="${APP}_post_mamba2_prefill_Cstates_exp_kernel0_RV_E64_MB ${APP}_post_mamba2_prefill_Cstates_exp_kernel1_RV_E64_MB"
+[ -n "$ONLY_K0" ] && KEYS="${APP}_post_mamba2_prefill_Cstates_exp_kernel0_RV_E64_MB"   # ONLY_K0=1: K tile 0 only
 STEP1_META=/aha/rerun_logs/2026-11-20/cstates/step1_k0/gemm_only_collateral/aha_bin/design_meta.json
 REMOTE=mcoduoza@khaki.stanford.edu; REMOTE_DIR=/nobackup/mcoduoza/zircon_aha_flow_bins
 FLOW_PY=/aha/bin/python   # the Python aha's map.py runs parse_dnnLayer_tensors.py with (NumPy 1.x)
@@ -89,7 +90,7 @@ if [ -z "$RESUME" ]; then
     log "host checks PASS"
     run_test step2_k0 ${APP}_post_mamba2_prefill_Cstates_exp_kernel0_RV_E64_MB
 fi
-if [ "$RESUME" != replace ]; then
+if [ "$RESUME" != replace ] && [ -z "$ONLY_K0" ]; then
     run_test step2_k1 ${APP}_post_mamba2_prefill_Cstates_exp_kernel1_RV_E64_MB
 fi
 [ -n "$REPLACE_MU" ] && replace_old_entries
