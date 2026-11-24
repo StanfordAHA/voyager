@@ -1,0 +1,29 @@
+{
+    "layer_name": "permute",
+    "has_input": false,
+    "has_input_scale": false,
+    "has_weight": false,
+    "has_weight_scale": false,
+    "has_bias": false,
+    "has_residual": false,
+    "mu_glb_base_address": 0,
+    "ops": [
+        {
+            "name": "permute",
+            "kwargs": {}
+        }
+    ],
+    "outputs": [
+        {
+            "node": "permute",
+            "shape": [
+                1,
+                4,
+                1,
+                64,
+                256
+            ],
+            "dtype": "bfloat16"
+        }
+    ]
+}

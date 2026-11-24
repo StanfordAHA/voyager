@@ -1,0 +1,39 @@
+{
+    "layer_name": "mul_6",
+    "has_input": true,
+    "has_input_scale": false,
+    "has_weight": false,
+    "has_weight_scale": false,
+    "has_bias": false,
+    "has_residual": false,
+    "mu_glb_base_address": 0,
+    "ops": [
+        {
+            "name": "mul_6",
+            "kwargs": {
+                "input": {
+                    "tensor": {
+                        "node": "softplus",
+                        "shape": [
+                            1,
+                            1024,
+                            64
+                        ],
+                        "dtype": "bfloat16"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "node": "mul_6",
+            "shape": [
+                1,
+                1024,
+                64
+            ],
+            "dtype": "bfloat16"
+        }
+    ]
+}

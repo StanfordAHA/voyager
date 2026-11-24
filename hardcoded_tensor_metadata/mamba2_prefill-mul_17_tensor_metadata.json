@@ -1,0 +1,39 @@
+{
+    "layer_name": "mul_17",
+    "has_input": true,
+    "has_input_scale": false,
+    "has_weight": false,
+    "has_weight_scale": false,
+    "has_bias": false,
+    "has_residual": false,
+    "mu_glb_base_address": 0,
+    "ops": [
+        {
+            "name": "skip_gate",
+            "kwargs": {
+                "input": {
+                    "tensor": {
+                        "node": "reshape",
+                        "shape": [
+                            1,
+                            1024,
+                            4096
+                        ],
+                        "dtype": "bfloat16"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "node": "mul_17",
+            "shape": [
+                1,
+                1024,
+                4096
+            ],
+            "dtype": "bfloat16"
+        }
+    ]
+}

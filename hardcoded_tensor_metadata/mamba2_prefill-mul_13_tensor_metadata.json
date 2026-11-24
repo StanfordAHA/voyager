@@ -1,0 +1,29 @@
+{
+    "layer_name": "mul_13",
+    "has_input": false,
+    "has_input_scale": false,
+    "has_weight": false,
+    "has_weight_scale": false,
+    "has_bias": false,
+    "has_residual": false,
+    "mu_glb_base_address": 0,
+    "ops": [
+        {
+            "name": "state_decay",
+            "kwargs": {}
+        }
+    ],
+    "outputs": [
+        {
+            "node": "mul_13",
+            "shape": [
+                1,
+                1,
+                128,
+                64,
+                64
+            ],
+            "dtype": "bfloat16"
+        }
+    ]
+}

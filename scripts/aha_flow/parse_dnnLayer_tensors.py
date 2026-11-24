@@ -280,6 +280,108 @@ def trim_channels_if_needed(tensor):
         tensor = tensor[:, gold_channel_trimming_workaround_kernel_idx, :].reshape(-1)
     return tensor
 
+def io_flatten_to_3d_enabled():
+    return os.environ.get("IO_FLATTEN_TO_3D", "") == "1"
+
+# IO_FLATTEN_TO_3D: view a rank > 3 tensor as [1, rows, last] for the I/O host tilings (IO_DIM1_TILING,
+# IO_INNERMOST_DIM_TILING), which handle 3-D/4-D tensors only (e.g. Mamba2's 5-D/6-D MX quantization operands).
+# Exact: the data is row-major and both splits run along the rows or the last dim.
+def io_flatten_to_3d(tensor):
+    if io_flatten_to_3d_enabled() and len(tensor.shape) > 3:
+        tensor = tensor.reshape((1, -1, tensor.shape[-1]))
+    return tensor
+
+# IO_RESHAPE_LAST_DIM=U: view the input / output activation as [1, -1, U] before the I/O host tilings, i.e. as the
+# U-lane GLB layout (one row per cycle of U lanes). With IO_INNERMOST_DIM_TILING over N kernels, tile k is then the lanes
+# [k U/N, (k+1) U/N): the GLB tiles a pass of a lane-split kernel reads and writes (e.g. Mamba2 softplus, 4 passes of 8
+# of the 32 lanes, as in add_softplus_fp's README). Exact: a row-major reshape.
+def io_reshape_last_dim(tensor):
+    if os.environ.get("IO_RESHAPE_LAST_DIM", ""):
+        tensor = tensor.reshape((1, -1, int(os.environ["IO_RESHAPE_LAST_DIM"])))
+    return tensor
+
+# CGRA_RUN_DIGITS="name:count,..." with CGRA_RUN_IDX=k: a standalone CGRA app's run index k as mixed-radix digits, the
+# first the most significant (e.g. Mamba2 x * dt: "c:4,hb:8,q:2" = chunk, head group, lane half; k = 16 c + 2 hb + q).
+# cgra_run_tile(tensor, "dim:digit,...") takes index <digit> of each named view dim (the dim is dropped); a tensor names
+# only the digits it depends on (dt ignores q). A number instead of a digit name is a fixed index (e.g. "2:3": GLB tile 3
+# of a tensor viewed by tiles).
+def cgra_run_digits():
+    k = int(os.environ.get("CGRA_RUN_IDX", "0"))
+    digits = [(n, int(c)) for n, c in (d.split(":") for d in os.environ["CGRA_RUN_DIGITS"].split(","))]
+    total = int(np.prod([c for _, c in digits]))
+    assert 0 <= k < total, f"CGRA_RUN_IDX {k} outside the {total} runs of CGRA_RUN_DIGITS"
+    values = {}
+    for n, c in reversed(digits):
+        values[n] = k % c
+        k //= c
+    return values
+
+def cgra_run_tile(tensor, spec):
+    values = cgra_run_digits()
+    index = [slice(None)] * tensor.dim()
+    for entry in spec.split(","):
+        dim, digit = entry.split(":")
+        index[int(dim)] = values[digit] if digit in values else int(digit)
+    return tensor[tuple(index)]
+
+# cgra_run_keep(tensor, "dim:digit,..."): like cgra_run_tile, but keeps the shape and zeroes every element outside the
+# run's slice, for a run that writes only part of a whole output the testbench reads back (e.g. one pass of a batched
+# transpose writes the output rows y = k mod 32; the GLB starts at 0)
+def cgra_run_keep(tensor, spec):
+    index = [slice(None)] * tensor.dim()
+    values = cgra_run_digits()
+    for entry in spec.split(","):
+        dim, digit = entry.split(":")
+        index[int(dim)] = values[digit] if digit in values else int(digit)
+    kept = torch.zeros_like(tensor)
+    kept[tuple(index)] = tensor[tuple(index)]
+    return kept
+
+# CGRA_EXTRA_INPUTS="name=node,...": extra activation inputs of a standalone CGRA app, by model tensor name, each written
+# like the input (bf16, big-endian, row-major) to hw_<name>_stencil.raw (e.g. Mamba2's skip + gate kernel:
+# "gate=silu,yheads=submodule_6"). CGRA_EXTRA_INPUT_<NAME>_VIEW reshapes the tensor (comma list). With
+# IO_INNERMOST_DIM_TILING, dim CGRA_EXTRA_INPUT_<NAME>_TILE_DIM (default the last) is cut into the same N contiguous
+# chunks as the input's last dim and chunk idx is taken (e.g. Y viewed [4, 64, 16384] and tiled on dim 1: the run's
+# heads, kept heads-first). CGRA_EXTRA_INPUT_<NAME>_TILE="dim:digit,..." instead selects the run's slice by the
+# CGRA_RUN_DIGITS (cgra_run_tile).
+def parse_extra_inputs_bf16_cgra(base_path, h2h_dir, zircon_workarounds):
+    for entry in [e.strip() for e in os.environ.get("CGRA_EXTRA_INPUTS", "").split(",") if e.strip()]:
+        name, node = entry.split("=")
+        key = f"CGRA_EXTRA_INPUT_{name.upper()}"
+        view = os.environ.get(f"{key}_VIEW", "")
+        tensor = read_tensor(base_path + node + ".bin", tuple(int(d) for d in view.split(",")) if view else (-1,))
+        if os.environ.get(f"{key}_TILE", ""):
+            tensor = cgra_run_tile(tensor, os.environ[f"{key}_TILE"])
+        elif zircon_workarounds["io_innermost_dim_tiling"]:
+            num_kernels, idx = zircon_workarounds["num_io_innermost_dim_tiling_kernels"], zircon_workarounds["io_innermost_dim_tiling_idx"]
+            dim = int(os.environ.get(f"{key}_TILE_DIM", str(tensor.dim() - 1)))
+            assert tensor.shape[dim] % num_kernels == 0, f"{key}: dim {dim} of {tuple(tensor.shape)} does not split into {num_kernels} tiles"
+            size = tensor.shape[dim] // num_kernels
+            tensor = tensor.narrow(dim, idx * size, size)
+        bits = float32_to_bfloat16_bits(tensor.contiguous())
+        bits.byteswap().newbyteorder('>').tofile(f'{h2h_dir}/hw_{name}_stencil.raw')
+        print(f"INFO: CGRA_EXTRA_INPUTS: {node} {tuple(tensor.shape)} -> {h2h_dir}/hw_{name}_stencil.raw")
+
+# IO_INNERMOST_TILE_PARAMS: slice a per-channel parameter (a weight [C, ...] or a bias [C]) of a standalone CGRA app along
+# its first dim with the IO_INNERMOST_DIM_TILING split of the input / output channels (contiguous chunk idx of N), so
+# each channel tile gets its own parameters (e.g. Mamba2's depthwise conv1d weight [C, 4] and bias [C])
+def io_innermost_tile_param(tensor, zircon_workarounds):
+    if os.environ.get("IO_INNERMOST_TILE_PARAMS", "") == "1" and zircon_workarounds["io_innermost_dim_tiling"]:
+        num_kernels, idx = zircon_workarounds["num_io_innermost_dim_tiling_kernels"], zircon_workarounds["io_innermost_dim_tiling_idx"]
+        assert tensor.shape[0] % num_kernels == 0, f"IO_INNERMOST_TILE_PARAMS: {tuple(tensor.shape)} does not split into {num_kernels} channel tiles"
+        tensor = tensor.reshape((num_kernels, tensor.shape[0] // num_kernels) + tuple(tensor.shape[1:]))[idx]
+    return tensor
+
+# The 3-D IO_INNERMOST_DIM_TILING and IO_DIM1_TILING slices of parse_input_bf16_cgra, for an input scale tensor
+def io_host_tile_3d(tensor, zircon_workarounds):
+    if zircon_workarounds["io_innermost_dim_tiling"]:
+        num_kernels, idx = zircon_workarounds["num_io_innermost_dim_tiling_kernels"], zircon_workarounds["io_innermost_dim_tiling_idx"]
+        tensor = tensor.reshape((tensor.shape[0], tensor.shape[1], num_kernels, tensor.shape[2] // num_kernels)).permute(2, 0, 1, 3)[idx]
+    if zircon_workarounds["io_dim1_tiling"]:
+        num_kernels, idx = zircon_workarounds["num_io_dim1_tiling_kernels"], zircon_workarounds["io_dim1_tiling_idx"]
+        tensor = tensor.reshape((tensor.shape[0], num_kernels, tensor.shape[1] // num_kernels, tensor.shape[2])).permute(1, 0, 2, 3)[idx]
+    return tensor
+
 # For writing partial sum output from a prior kernel to raw binary file
 def hw_output_txt_to_raw(input_txt_path, output_raw_path):
     # Read the file content
@@ -698,6 +800,7 @@ def parse_bias(base_path, bias_tensor_data, h2h_dir, zircon_workarounds, standal
             bias = bias[slice_offset:slice_offset + slice_length]
         bias = bias.reshape((num_k_host_tiling_kernels, bias.shape[0] // num_k_host_tiling_kernels))
         bias = bias[k_dim_host_tiling_idx]
+    bias = io_innermost_tile_param(bias, zircon_workarounds)
     bias_bf16 = float32_to_bfloat16_bits(bias)
 
     if standalone_cgra_test:
@@ -926,6 +1029,8 @@ def parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarou
         input = F.pad(input, pad=(0, pad_dim, 0, pad_dim)) # Pad X and Y dimensions with zeros
         input = input.permute(0, 2, 3, 1)  # Re-order back to (B, Y, X, IC)
 
+    input = io_reshape_last_dim(io_flatten_to_3d(input))
+
     if zircon_workarounds["io_innermost_dim_tiling"]:
         if len(input.shape) == 3:
             num_io_innermost_dim_tiling_kernels = zircon_workarounds["num_io_innermost_dim_tiling_kernels"]
@@ -981,9 +1086,15 @@ def parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarou
     return input_bf16_cgra
 
 def parse_inputScale_e8m0_packed_cgra(base_path, inputScale_tensor_data, h2h_dir, zircon_workarounds):
-    inputScale_e8m0_unpacked = parse_inputScale(base_path, inputScale_tensor_data, zircon_workarounds)
+    if io_flatten_to_3d_enabled():
+        # Slice the scale like the data, both viewed as [1, rows, cols] (the scale's rows = data rows / 64 for an
+        # axis -2 MX scale), so each I/O tile gets its own scales
+        inputScale = read_tensor(base_path + inputScale_tensor_data["node"] + ".bin", tuple(inputScale_tensor_data["shape"]))
+        inputScale_e8m0_unpacked = float_to_e8m0(io_host_tile_3d(io_flatten_to_3d(inputScale), zircon_workarounds).contiguous())
+    else:
+        inputScale_e8m0_unpacked = parse_inputScale(base_path, inputScale_tensor_data, zircon_workarounds)
 
-    if zircon_workarounds["io_innermost_dim_tiling"]:
+    if zircon_workarounds["io_innermost_dim_tiling"] and not io_flatten_to_3d_enabled():
         assert len(inputScale_e8m0_unpacked.shape) == 3, "I/O dimension 0 host tiling is only supported for 3D inputScale tensors."
         num_io_innermost_dim_tiling_kernels = zircon_workarounds["num_io_innermost_dim_tiling_kernels"]
         io_innermost_dim_tiling_idx = zircon_workarounds["io_innermost_dim_tiling_idx"]
@@ -1033,6 +1144,7 @@ def parse_weight_bf16_cgra(base_path, weight_tensor_data, h2h_dir, zircon_workar
 
         weight = weight[k_dim_host_tiling_idx]
 
+    weight = io_innermost_tile_param(weight, zircon_workarounds)
     weight_bf16_cgra = float32_to_bfloat16_bits(weight)
     weight_bf16_cgra = trim_channels_if_needed(weight_bf16_cgra)
     weight_bf16_cgra_be = weight_bf16_cgra.byteswap().newbyteorder('>')
@@ -1108,6 +1220,26 @@ def parse_output(model, layer, base_path, output_tensor_data, zircon_workarounds
         multiplier = scales.transpose(0, 1).repeat_interleave(exp_epilogue_group_cols(), dim=1)
         output_tensor = (gemm_output.double() * multiplier.double()).to(torch.bfloat16).to(torch.float32)
         output_datatype = "bfloat16"
+    elif os.environ.get("RMS_NORM_GOLD_INPUT", ""):
+        # Gold of an RMSNorm the compiler swapped for layer_norm (replace_rmsnorm_with_layer_norm: model.txt's
+        # layer_norm_default(_1) is a true LayerNorm): bf16(x / sqrt(mean(x^2) + eps) * gamma), recomputed on the host
+        # from RMS_NORM_GOLD_INPUT and RMS_NORM_GOLD_WEIGHT (eps RMS_NORM_GOLD_EPS, default 1e-5) along the last dim.
+        # Without RMS_NORM_GOLD_WEIGHT, gamma = 1: the x * rstd of a two-pass RMSNorm's pass 1 (rms_norm_pass1_fp).
+        x = read_tensor(base_path + os.environ["RMS_NORM_GOLD_INPUT"] + ".bin", tuple(output_tensor_data["shape"])).double()
+        gamma = 1.0
+        if os.environ.get("RMS_NORM_GOLD_WEIGHT", ""):
+            gamma = read_tensor(base_path + os.environ["RMS_NORM_GOLD_WEIGHT"] + ".bin", (-1,)).double()
+        eps = float(os.environ.get("RMS_NORM_GOLD_EPS", "1e-5"))
+        output_tensor = (x / torch.sqrt((x * x).mean(dim=-1, keepdim=True) + eps) * gamma).to(torch.bfloat16).to(torch.float32)
+        output_datatype = "bfloat16"
+    elif os.environ.get("CUMSUM_SEGMENT_GOLD", ""):
+        # Gold of the first pass of a split-row cumsum (Mamba2 a_cum on row_prefix_sum_fp at 4 groups: each 256-wide row
+        # run as two 128-wide rows): the last dim of CUMSUM_SEGMENT_GOLD_INPUT cut into segments of CUMSUM_SEGMENT_GOLD
+        # values, each cumsum'd on its own exactly, then rounded to bf16 once, like the graph's cumsum
+        seg = int(os.environ["CUMSUM_SEGMENT_GOLD"])
+        x = read_tensor(base_path + os.environ["CUMSUM_SEGMENT_GOLD_INPUT"] + ".bin", tuple(output_tensor_data["shape"])).double()
+        output_tensor = x.reshape(-1, seg).cumsum(dim=-1).reshape(x.shape).to(torch.bfloat16).to(torch.float32)
+        output_datatype = "bfloat16"
     elif add_epilogue_enabled():
         # Gold of the GEMM + add epilogue (Mamba2 B^T@X_end + decayed entering state, score@x + Y_off * exp(a_cum)): the
         # GEMM output plus the HOST residual (same shape and order; independent of a live RTL input), rounded to bf16
@@ -1120,6 +1252,18 @@ def parse_output(model, layer, base_path, output_tensor_data, zircon_workarounds
         output_tensor = read_tensor(base_path + output_tensor_data["node"] + ".bin", tuple(output_tensor_data["shape"]))
 
         output_datatype = output_tensor_data["dtype"]
+
+    # CGRA_GOLD_VIEW / CGRA_GOLD_TILE: view the gold (comma list) and take the run's slice by the CGRA_RUN_DIGITS, for a
+    # run whose output is not one contiguous block (e.g. Mamba2 x * dt: one lane half of 8 heads of one chunk of permute_1)
+    if os.environ.get("CGRA_GOLD_VIEW", ""):
+        output_tensor = output_tensor.reshape(tuple(int(d) for d in os.environ["CGRA_GOLD_VIEW"].split(",")))
+    if os.environ.get("CGRA_GOLD_TILE", ""):
+        output_tensor = cgra_run_tile(output_tensor, os.environ["CGRA_GOLD_TILE"]).contiguous()
+    # CGRA_GOLD_KEEP: zero the gold outside the run's slice instead (the run writes part of a whole output)
+    if os.environ.get("CGRA_GOLD_KEEP", ""):
+        output_tensor = cgra_run_keep(output_tensor, os.environ["CGRA_GOLD_KEEP"]).contiguous()
+
+    output_tensor = io_reshape_last_dim(io_flatten_to_3d(output_tensor))
 
     if zircon_workarounds["k_dim_host_tiling"] or zircon_workarounds["io_innermost_dim_tiling"]:
         if zircon_workarounds["k_dim_host_tiling"]:
@@ -1260,6 +1404,10 @@ def parse_output(model, layer, base_path, output_tensor_data, zircon_workarounds
         return list(output)
     elif output_datatype == "fp8_e8m0":
         output = float_to_e8m0(output_tensor)
+        if os.environ.get("E8M0_ZERO_BLOCK_CODE", ""):
+            # An all-zero MX block: voyager's scale (2^-132) has exponent field 0, while the hardware's get_shared_exp
+            # writes E8M0_ZERO_BLOCK_CODE (127). The block's int8 data is 0 either way.
+            output[output == 0] = int(os.environ["E8M0_ZERO_BLOCK_CODE"])
         output = trim_channels_if_needed(output)
         return output.flatten().tolist()
     else:
@@ -1296,6 +1444,15 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
     has_bias = tensor_metadata["has_bias"]
     has_residual = tensor_metadata["has_residual"]
 
+    # FUSED_SCALE_GOLD: a fused get-scale + quantize app run on a quantize layer (e.g. fused_e8m0_quant_multi_IOs on
+    # Mamba2's quantize_default): the layer's scale input (calculate_mx_qparam's output) is the app's second output, so it
+    # is written as gold_scale.txt (with the output tilings) instead of as an input
+    fused_scale_gold = os.environ.get("FUSED_SCALE_GOLD", "") == "1"
+    if fused_scale_gold:
+        assert has_input_scale and standalone_cgra_test, "FUSED_SCALE_GOLD needs a standalone CGRA app on a layer with a scale input"
+        scale_gold_tensor_data = tensor_metadata["ops"][0]["kwargs"]["scale"]["tensor"]
+        has_input_scale = False
+
     zircon_workarounds = parse_zircon_workarounds()
 
     # INPUT
@@ -1306,6 +1463,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
             input_int8 = parse_input(base_path, input_tensor_data, zircon_workarounds)
         else:
             input_bf16_cgra = parse_input_bf16_cgra(base_path, input_tensor_data, h2h_dir, zircon_workarounds, model, layer)
+    if standalone_cgra_test:
+        parse_extra_inputs_bf16_cgra(base_path, h2h_dir, zircon_workarounds)
 
     # INPUT SCALE
     if has_input_scale:
@@ -1318,8 +1477,17 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
             inputScale_e8m0_packed_cgra = parse_inputScale_e8m0_packed_cgra(base_path, inputScale_tensor_data, h2h_dir, zircon_workarounds)
 
     # WEIGHT
+    # CGRA_WEIGHT_NODE: hand a standalone CGRA app its weight when the layer's first op does not carry one (e.g. Mamba2's
+    # gated RMSNorm submodule_8 = mul_18 (x * rsqrt) + mul_19 (* gamma): gamma is mul_19's operand, not a "weight")
+    cgra_weight_node = os.environ.get("CGRA_WEIGHT_NODE", "")
+    if cgra_weight_node:
+        assert standalone_cgra_test, "CGRA_WEIGHT_NODE is only supported for standalone CGRA apps"
+        has_weight = True
     if has_weight:
-        weight_tensor_data = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]
+        if cgra_weight_node:
+            weight_tensor_data = {"node": cgra_weight_node, "shape": [-1]}
+        else:
+            weight_tensor_data = tensor_metadata["ops"][0]["kwargs"]["weight"]["tensor"]
         if not(standalone_cgra_test):
             weight_start_addr = weight_tensor_data["glb_base_address"]
             weight_int8 = parse_weight(base_path, weight_tensor_data, zircon_workarounds)
@@ -1365,6 +1533,8 @@ def parse_tensors(model, layer, datatype, h2h_dir, debug_mode, per_tensor_scalin
         all_output_tensors = tensor_metadata["outputs"][0]["tensors"]
     else:
         all_output_tensors = tensor_metadata["outputs"]
+    if fused_scale_gold:
+        all_output_tensors = all_output_tensors + [scale_gold_tensor_data]
 
     for output_tensor_data in all_output_tensors:
         num_output_tensors = len(all_output_tensors)

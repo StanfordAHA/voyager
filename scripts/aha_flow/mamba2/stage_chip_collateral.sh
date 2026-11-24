@@ -11,11 +11,14 @@
 #   aha_src_mamba/<name>/     = contents of apps/<app>/bin/
 #   voyager_src_mamba/<name>/ = contents of /aha/voyager/compiled_collateral/<mu_test>/
 # Local copies stay in /aha/{aha,voyager}_src_mamba even if the push fails (needs the forwarded SSH agent).
+# Env: STAGE_MODEL=llama stages into {aha,voyager}_src_llama (default mamba); STAGE_BIN / STAGE_COLLATERAL take the bin/
+# and the voyager collateral from saved copies instead of the live app dir and compiled_collateral.
 MU_TEST=$1; APP_TEST=$2; APP=$3
 NAME="$MU_TEST,,,$APP_TEST"
-BIN=/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/$APP/bin
-COLLATERAL=/aha/voyager/compiled_collateral/$MU_TEST
-STAGE_AHA=/aha/aha_src_mamba; STAGE_VOY=/aha/voyager_src_mamba
+BIN=${STAGE_BIN:-/aha/Halide-to-Hardware/apps/hardware_benchmarks/apps/$APP/bin}
+COLLATERAL=${STAGE_COLLATERAL:-/aha/voyager/compiled_collateral/$MU_TEST}
+MODEL=${STAGE_MODEL:-mamba}
+STAGE_AHA=/aha/aha_src_$MODEL; STAGE_VOY=/aha/voyager_src_$MODEL
 REMOTE=mcoduoza@khaki.stanford.edu; REMOTE_DIR=/nobackup/mcoduoza/zircon_aha_flow_bins
 
 for d in "$BIN" "$COLLATERAL"; do
@@ -27,7 +30,7 @@ cp -a "$BIN/." "$STAGE_AHA/$NAME/" && cp -a "$COLLATERAL/." "$STAGE_VOY/$NAME/" 
 echo "STAGED $NAME: aha $(du -sh "$STAGE_AHA/$NAME" | cut -f1) ($(ls "$STAGE_AHA/$NAME" | wc -l) entries), voyager $(du -sh "$STAGE_VOY/$NAME" | cut -f1)"
 
 status=0
-for pair in "aha_src_mamba:$STAGE_AHA" "voyager_src_mamba:$STAGE_VOY"; do
+for pair in "aha_src_$MODEL:$STAGE_AHA" "voyager_src_$MODEL:$STAGE_VOY"; do
     dst=${pair%%:*}; src=${pair#*:}
     if tar -C "$src" -cf - "$NAME" | ssh -o BatchMode=yes -o ConnectTimeout=20 "$REMOTE" "tar -C $REMOTE_DIR/$dst -xf -"; then
         echo "PUSHED $dst/$NAME"

@@ -1,0 +1,58 @@
+{
+    "layer_name": "silu_1",
+    "has_input": true,
+    "has_input_scale": false,
+    "has_weight": true,
+    "has_weight_scale": false,
+    "has_bias": true,
+    "has_residual": false,
+    "mu_glb_base_address": 0,
+    "ops": [
+        {
+            "name": "conv1d_silu",
+            "kwargs": {
+                "input": {
+                    "tensor": {
+                        "node": "linear_mx_default_1",
+                        "shape": [
+                            1,
+                            1024,
+                            4352
+                        ],
+                        "dtype": "bfloat16"
+                    }
+                },
+                "weight": {
+                    "tensor": {
+                        "node": "_param_constant4",
+                        "shape": [
+                            4352,
+                            4
+                        ],
+                        "dtype": "bfloat16"
+                    }
+                },
+                "bias": {
+                    "tensor": {
+                        "node": "_param_constant5",
+                        "shape": [
+                            4352
+                        ],
+                        "dtype": "bfloat16"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "node": "silu_1",
+            "shape": [
+                1,
+                1024,
+                4352
+            ],
+            "dtype": "bfloat16"
+        }
+    ]
+}

@@ -1,0 +1,30 @@
+{
+    "layer_name": "mul_11",
+    "has_input": false,
+    "has_input_scale": false,
+    "has_weight": false,
+    "has_weight_scale": false,
+    "has_bias": false,
+    "has_residual": false,
+    "mu_glb_base_address": 0,
+    "ops": [
+        {
+            "name": "x_end",
+            "kwargs": {}
+        }
+    ],
+    "outputs": [
+        {
+            "node": "mul_11",
+            "shape": [
+                1,
+                4,
+                1,
+                256,
+                64,
+                64
+            ],
+            "dtype": "bfloat16"
+        }
+    ]
+}
